@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================
+   Design system — WhatsApp minimalista
+   Todas as cores em HSL.
+   ========================================================== */
+
+@layer base {
+  :root {
+    /* Base */
+    --background: 0 0% 100%;
+    --foreground: 200 6% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 6% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 6% 10%;
+
+    /* Verde WhatsApp */
+    --primary: 142 70% 29%;            /* #128C4A-ish header */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 142 49% 45%;       /* botão enviar */
+
+    --secondary: 150 15% 95%;
+    --secondary-foreground: 200 6% 10%;
+
+    --muted: 200 14% 96%;
+    --muted-foreground: 200 6% 45%;
+
+    --accent: 142 49% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 14% 90%;
+    --input: 200 14% 92%;
+    --ring: 142 70% 29%;
+
+    --radius: 0.75rem;
+
+    /* Chat-specific */
+    --chat-bg: 60 20% 96%;             /* bege claro do fundo do WhatsApp */
+    --chat-bubble-out: 96 60% 88%;     /* verde claro — mensagem do cliente */
+    --chat-bubble-in: 0 0% 100%;       /* branco — mensagem da IA */
+    --chat-bubble-foreground: 200 6% 10%;
+    --chat-time: 200 6% 50%;
+    --chat-divider: 60 15% 88%;
+    --chat-input-bg: 0 0% 100%;
+    --chat-app-bg: 60 20% 97%;
+
+    /* Status */
+    --status-online: 142 70% 45%;
+  }
+
+  .dark {
+    --background: 200 8% 8%;
+    --foreground: 200 6% 95%;
+
+    --card: 200 8% 10%;
+    --card-foreground: 200 6% 95%;
+
+    --popover: 200 8% 10%;
+    --popover-foreground: 200 6% 95%;
+
+    --primary: 142 49% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 142 49% 45%;
+
+    --secondary: 200 8% 14%;
+    --secondary-foreground: 200 6% 95%;
+
+    --muted: 200 8% 14%;
+    --muted-foreground: 200 6% 65%;
+
+    --accent: 142 49% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 8% 18%;
+    --input: 200 8% 18%;
+    --ring: 142 49% 45%;
+
+    --chat-bg: 200 10% 8%;
+    --chat-bubble-out: 158 35% 22%;
+    --chat-bubble-in: 200 8% 14%;
+    --chat-bubble-foreground: 200 6% 95%;
+    --chat-time: 200 6% 60%;
+    --chat-divider: 200 8% 18%;
+    --chat-input-bg: 200 8% 12%;
+    --chat-app-bg: 200 10% 6%;
+
+    --status-online: 142 70% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body, #root { height: 100%; }
+}
+
+/* Padrão sutil de fundo do chat (WhatsApp-like) */
+.chat-pattern {
+  background-color: hsl(var(--chat-bg));
+  background-image:
+    radial-gradient(hsl(var(--chat-divider) / 0.4) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Bolhas */
+.bubble-tail-out::after,
+.bubble-tail-in::after {
+  content: '';
+  position: absolute;
+  width: 0; height: 0;
+  border-style: solid;
+  top: 0;
+}
+.bubble-tail-out::after {
+  right: -6px;
+  border-width: 0 0 10px 8px;
+  border-color: transparent transparent transparent hsl(var(--chat-bubble-out));
+}
+.bubble-tail-in::after {
+  left: -6px;
+  border-width: 0 8px 10px 0;
+  border-color: transparent hsl(var(--chat-bubble-in)) transparent transparent;
+}
+
+/* Animações */
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.animate-bubble-in { animation: bubble-in 0.18s ease-out; }
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+.typing-dot { animation: typing-dot 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* Scroll suave do chat */
+.chat-scroll::-webkit-scrollbar { width: 4px; }
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}

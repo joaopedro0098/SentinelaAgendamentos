@@ -1,0 +1,6 @@
+# Segredos em qualquer subpasta (mantém .env.example)
+.env*
+!.env.example
+
+**/node_modules/
+**/dist/
