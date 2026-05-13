@@ -1,121 +1,101 @@
-import Navbar from "@/components/landing/Navbar";
+import { LegalPageShell } from "@/components/landing/LegalPageShell";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 
-const PoliticaPrivacidade = () => {
-  return (
-    <div className="min-h-screen flex flex-col bg-[hsl(270_32%_7%)] bg-gradient-to-b from-[hsl(265_35%_9%)] via-[hsl(260_38%_6%)] to-[hsl(240_40%_4%)] text-white/90">
-      <Navbar />
-      <main className="flex-1 pt-28 pb-16 px-4">
-        <div className="max-w-2xl mx-auto">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-white/55 hover:text-white/90 transition-colors mb-10"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar ao início
-          </Link>
+const atualizado = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight mb-2">
-            Política de privacidade
-          </h1>
-          <p className="text-sm text-white/50 mb-10">
-            Última atualização: {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-          </p>
+const PoliticaPrivacidade = () => (
+  <LegalPageShell title="Política de privacidade" subtitle={`Última atualização: ${atualizado}`}>
+    <p>
+      O <strong className="text-white font-medium">Sentinela Agendamentos</strong> (&quot;
+      <strong className="text-white font-medium">nós</strong>&quot;) descreve aqui, de forma objetiva, como tratamos dados pessoais quando
+      você usa o site <strong className="text-white font-medium">sentinelagendamentos.com</strong> e serviços relacionados (incluindo
+      conta, área logada e integrações do produto). Ao utilizar o serviço, você reconhece estas práticas. Leia também os{" "}
+      <Link to="/termos-de-servico" className="text-white/80 hover:text-white">
+        Termos de serviço
+      </Link>
+      .
+    </p>
 
-          <div className="space-y-8 text-[15px] leading-relaxed text-white/85 [&_h2]:text-white [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:first:mt-0 [&_p]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:text-white/80">
-            <p>
-              Esta política descreve, de forma resumida, como o <strong className="text-white font-medium">Sentinela Agendamentos</strong>{" "}
-              trata dados pessoais quando você utiliza o site <strong className="text-white font-medium">sentinelagendamentos.com</strong>{" "}
-              e serviços digitais relacionados (por exemplo, cadastro e área logada, quando disponíveis).
-            </p>
+    <h2>1. Dados pessoais que podemos coletar</h2>
+    <p>
+      <strong className="text-white/95">a) Que você nos fornece:</strong> por exemplo, nome, e-mail e dados de perfil ao criar conta ou
+      falar com suporte; conteúdo de mensagens ou formulários que nos enviar; dados necessários à contratação ou faturação, quando
+      aplicável.
+    </p>
+    <p>
+      <strong className="text-white/95">b) Do uso do serviço:</strong> informações técnicas enviadas pelo navegador ou dispositivo (tipo de
+      dispositivo, sistema, idioma), endereço IP, registos de diagnóstico e de segurança, e dados de utilização do site/app (páginas ou
+      funcionalidades acedidas, datas e horários), na medida necessária a operar e proteger o serviço.
+    </p>
+    <p>
+      <strong className="text-white/95">c) Cookies e tecnologias semelhantes:</strong> podemos usar cookies estritamente necessários à
+      sessão e ao funcionamento do site; outras tecnologias de medição ou preferências, se existirem, serão indicadas quando ativadas.
+    </p>
+    <p className="text-white/70 text-sm">
+      Não solicitamos dados sensíveis (saúde, origem racial, etc.) para o funcionamento normal do serviço. O produto não se dirige a
+      menores de 18 anos; se tomarmos conhecimento de cadastro indevido, tomaremos medidas para eliminar os dados.
+    </p>
 
-            <h2>1. Responsável pelo tratamento</h2>
-            <p>
-              O responsável pelos dados pessoais tratados no âmbito deste site e do serviço é o titular do negócio{" "}
-              <strong className="text-white font-medium">Sentinela Agendamentos</strong>, conforme canais de contato divulgados no próprio site
-              (incluindo WhatsApp comercial, quando indicado).
-            </p>
+    <h2>2. Como usamos os dados</h2>
+    <ul>
+      <li>Fornecer, manter e melhorar o serviço de agendamento e a experiência no site.</li>
+      <li>Criar e gerir contas, autenticação (incluindo login com Google) e segurança.</li>
+      <li>Prevenir fraude, abuso e incidentes; investigar problemas técnicos.</li>
+      <li>Cumprir obrigações legais e responder a pedidos legítimos de autoridades.</li>
+      <li>Comunicar avisos importantes sobre o serviço (por exemplo, alterações de segurança ou de política).</li>
+    </ul>
 
-            <h2>2. Quais dados podemos coletar</h2>
-            <p>Dependendo de como você interage conosco, podemos tratar, entre outros:</p>
-            <ul>
-              <li>
-                <strong className="text-white/95">Dados de conta e autenticação:</strong> por exemplo, nome, e-mail e identificador de
-                utilizador, quando você cria sessão ou utiliza login (incluindo login com Google).
-              </li>
-              <li>
-                <strong className="text-white/95">Dados de utilização e técnicos:</strong> registros necessários à segurança, diagnóstico e
-                funcionamento do serviço (como endereço IP e tipo de navegador, de forma agregada ou temporária, conforme a infraestrutura
-                utilizada).
-              </li>
-              <li>
-                <strong className="text-white/95">Dados que você nos envia:</strong> informações que insere em formulários, conversas de
-                suporte ou configurações do serviço de agendamento.
-              </li>
-            </ul>
-            <p className="text-white/70 text-sm">
-              Não vendemos listas de contactos nem utilizamos os seus dados pessoais para fins incompatíveis com os descritos abaixo.
-            </p>
+    <h2>3. Como compartilhamos dados</h2>
+    <p>Podemos partilhar dados com:</p>
+    <ul>
+      <li>
+        <strong className="text-white/95">Fornecedores:</strong> hospedagem, base de dados, autenticação e infraestrutura — em especial a
+        plataforma <strong className="text-white font-medium">Supabase</strong> e, quando usar login Google, o{" "}
+        <strong className="text-white font-medium">Google</strong>, que tratam dados segundo as respetivas políticas.
+      </li>
+      <li>
+        <strong className="text-white/95">Autoridades e defesa de direitos:</strong> quando exigido por lei ou para proteger utilizadores,
+        nós ou terceiros.
+      </li>
+      <li>
+        <strong className="text-white/95">Transações societárias:</strong> em caso de fusão, venda ou reorganização, os dados podem ser
+        transferidos para o sucessor, respeitando esta política ou equivalente comunicada.
+      </li>
+    </ul>
+    <p>Não vendemos os seus dados pessoais a listas de terceiros para marketing deles.</p>
 
-            <h2>3. Para que usamos os dados</h2>
-            <ul>
-              <li>Prestar, manter e melhorar o serviço de agendamento e a experiência no site.</li>
-              <li>Autenticar utilizadores, prevenir fraude e proteger a segurança da plataforma.</li>
-              <li>Cumprir obrigações legais e responder a pedidos legítimos de autoridades, quando aplicável.</li>
-              <li>Comunicações relacionadas com o serviço (por exemplo, recuperação de conta ou avisos importantes).</li>
-            </ul>
+    <h2>4. Retenção</h2>
+    <p>
+      Guardamos dados pelo tempo necessário às finalidades acima e ao cumprimento legal, contratual ou resolução de litígios. Depois,
+      eliminamos ou anonimizamos, salvo obrigação de arquivo mínima.
+    </p>
 
-            <h2>4. Bases legais (LGPD)</h2>
-            <p>
-              Tratamos dados com base em execução de contrato ou de procedimentos preliminares, legítimo interesse (segurança e melhoria do
-              serviço, respeitando os seus direitos), cumprimento de obrigação legal e, quando necessário, consentimento — por exemplo, para
-              cookies ou comunicações não essenciais, se ativarmos essas opções no site.
-            </p>
+    <h2>5. Segurança</h2>
+    <p>
+      Aplicamos medidas técnicas e organizativas razoáveis (controlo de acesso, HTTPS, boas práticas junto de fornecedores). Nenhum sistema
+      é totalmente isento de risco.
+    </p>
 
-            <h2>5. Subprocessadores e serviços de terceiros</h2>
-            <p>
-              Utilizamos fornecedores de infraestrutura e software para hospedar dados e autenticação. Em particular, o serviço pode depender
-              da plataforma <strong className="text-white font-medium">Supabase</strong> (base de dados, autenticação e funções associadas) e,
-              se ativar login com Google, do <strong className="text-white font-medium">Google</strong> como fornecedor de identidade. O
-              tratamento por esses fornecedores rege-se também pelas respetivas políticas de privacidade.
-            </p>
+    <h2>6. Os seus direitos e escolhas</h2>
+    <p>
+      Nos termos da LGPD e legislação aplicável, você pode pedir confirmação de tratamento, acesso, correção, anonimização, eliminação de
+      dados desnecessários, portabilidade, informação sobre partilhas e revogação de consentimento, quando cabível. Para exercer direitos,
+      contacte-nos pelos canais do site.
+    </p>
 
-            <h2>6. Conservação</h2>
-            <p>
-              Conservamos dados apenas pelo tempo necessário às finalidades acima, inclusive para resolução de litígios e cumprimento legal,
-              apagando ou anonimizando quando deixarem de ser necessários.
-            </p>
+    <h2>7. Alterações nesta política</h2>
+    <p>
+      Podemos atualizar esta página; a data no topo indica a última revisão. Alterações relevantes podem ser comunicadas por meios
+      adequados (site ou e-mail da conta, quando disponível).
+    </p>
 
-            <h2>7. Os seus direitos</h2>
-            <p>
-              Nos termos da legislação aplicável (incluindo a LGPD, no Brasil), você pode solicitar confirmação de tratamento, acesso,
-              correção, anonimização, portabilidade, eliminação de dados desnecessários ou excessivos, informação sobre partilhas e, quando
-              aplicável, revogação de consentimento. Para exercer direitos, contacte-nos pelos meios indicados no site.
-            </p>
-
-            <h2>8. Segurança</h2>
-            <p>
-              Adotamos medidas técnicas e organizativas razoáveis para proteger dados contra acesso não autorizado, perda ou alteração. Nenhum
-              sistema é 100% seguro; ao utilizar o serviço, você reconhece esse risco residual.
-            </p>
-
-            <h2>9. Alterações a esta política</h2>
-            <p>
-              Podemos atualizar esta página para refletir mudanças no serviço ou na lei. A data no topo indica a última revisão; alterações
-              relevantes podem ser comunicadas por meios adequados (por exemplo, aviso no site ou por e-mail, quando disponível).
-            </p>
-
-            <h2>10. Contacto</h2>
-            <p>
-              Em caso de dúvidas sobre privacidade ou para pedidos relacionados aos seus dados, utilize os canais de contacto apresentados no
-              site <strong className="text-white font-medium">sentinelagendamentos.com</strong>.
-            </p>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-};
+    <h2>8. Contato</h2>
+    <p>
+      Questões sobre privacidade ou dados pessoais:{" "}
+      <strong className="text-white font-medium">sentinelagendamentos.com</strong> (canais de contacto e WhatsApp comercial, quando
+      indicados).
+    </p>
+  </LegalPageShell>
+);
 
 export default PoliticaPrivacidade;
