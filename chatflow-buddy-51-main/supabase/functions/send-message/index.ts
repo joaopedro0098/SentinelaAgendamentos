@@ -207,7 +207,7 @@ Deno.serve(async (req: Request) => {
     const fromDb = (!platErr && plat?.n8n_webhook_url?.trim()) ? plat.n8n_webhook_url.trim() : '';
     const fromEnv = (Deno.env.get('N8N_WEBHOOK_URL') ?? '').trim();
     const FALLBACK_N8N_WEBHOOK_URL =
-      'https://agenciadeia-n8n.vr2lik.easypanel.host/webhook/agente';
+      'https://n8n.sentinelagendamentos.com/webhook/agente';
 
     const N8N_WEBHOOK_URL = fromDb || fromEnv || FALLBACK_N8N_WEBHOOK_URL;
     let aiReply: string | null = null;
