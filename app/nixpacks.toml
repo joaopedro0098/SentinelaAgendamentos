@@ -1,7 +1,6 @@
-# Node 18 removido do Nix → usar 22.
-# Sem "providers = node", o Nixpacks vê supabase/functions (Deno) e escolhe Deno;
-# aí o plano roda "npm run build" sem npm (erro: command not found).
+# Node 22 (18 removido do Nix). Forçar só Node — senão Deno em supabase/functions
+# quebra o build (npm não existe). "providers" tem de vir ANTES de [variables].
+providers = ["node"]
+
 [variables]
 NIXPACKS_NODE_VERSION = "22"
-
-providers = ["node"]
