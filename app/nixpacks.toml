@@ -1,3 +1,7 @@
-# Node 18 foi removido do Nix; Nixpacks precisa de 20+ (Easypanel / Railway).
+# Node 18 removido do Nix → usar 22.
+# Sem "providers = node", o Nixpacks vê supabase/functions (Deno) e escolhe Deno;
+# aí o plano roda "npm run build" sem npm (erro: command not found).
 [variables]
 NIXPACKS_NODE_VERSION = "22"
+
+providers = ["node"]
