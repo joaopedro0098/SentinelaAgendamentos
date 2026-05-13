@@ -1,4 +1,5 @@
 import Navbar from "@/components/landing/Navbar";
+import LandingFooter from "@/components/landing/LandingFooter";
 import { Button } from "@/components/ui/button";
 import { Check, Zap, ArrowLeft, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -33,7 +34,7 @@ const sharedFeatures = [
 
 const Planos = () => {
   return (
-    <main className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <main className="min-h-screen bg-background text-foreground overflow-x-hidden flex flex-col">
       <Navbar />
 
       <section className="pt-36 pb-24 relative">
@@ -108,6 +109,7 @@ const Planos = () => {
           </div>
         </div>
       </section>
+      <LandingFooter />
     </main>
   );
 };
