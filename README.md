@@ -62,6 +62,17 @@ VITE_SUPABASE_URL=https://SEU_PROJETO.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sua_chave_anon_publica
 ```
 
+(Alternativa aceita: `VITE_SUPABASE_ANON_KEY` no lugar de `VITE_SUPABASE_PUBLISHABLE_KEY`.)
+
+**Onde pegar no Supabase:** Project Settings → API → **Project URL** e **anon public** (chave longa que começa com `eyJ…`). Não use a `service_role`. Sem aspas nos valores. URL sem `/rest/v1` no final.
+
+**Erro "Invalid API Key" no site (mas local funciona)?** O EasyPanel gravou a chave **errada no build**. Confira:
+
+1. **Ambiente** do serviço tem `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (mesmos valores do seu `.env` local).
+2. Copie de novo no Supabase: Settings → API → **anon public** (começa com `eyJ`), não a `service_role`.
+3. Salve e rode **Deploy/Rebuild** completo (`npm run build`). Só **restart** não atualiza o JS.
+4. Se o build falhar com mensagem `[build] Variáveis do Supabase ausentes`, as variáveis não estão visíveis durante o build — ajuste no EasyPanel e tente de novo.
+
 O Vite grava isso **na hora do build**. Sem essas variáveis, o site pode abrir só o fundo escuro sem conteúdo (JavaScript quebra).
 
 **“Service is not reachable” ou 404?** Veja os logs. Se o app não sobe na porta **80**, use porta **3000** no `npm run start` **e** nos domínios do EasyPanel (`:3000`, não `:80`). Pasta raiz: `app`.

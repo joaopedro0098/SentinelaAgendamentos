@@ -9,19 +9,34 @@ import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { isEmailAlreadyRegistered } from "@/features/auth/lib/authErrors";
+import {
+  AUTH_CONFIG_ERROR_MESSAGE,
+  isEmailAlreadyRegistered,
+  isInvalidApiKeyError,
+} from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import Navbar from "@/features/landing/components/Navbar";
 
-const schema = z.object({
-  display_name: z.string().trim().min(2, "Nome muito curto").max(80),
-  shop_name: z.string().trim().min(2, "Nome da empresa muito curto").max(80),
-  email: z.string().trim().email("E-mail inválido").max(255),
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
-    .max(72),
-});
+const schema = z
+  .object({
+    display_name: z.string().trim().min(2, "Nome muito curto").max(80),
+    shop_name: z.string().trim().min(2, "Nome da empresa muito curto").max(80),
+    email: z.string().trim().email("E-mail inválido").max(255),
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
+      .max(72),
+    confirm_password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
+      .max(72),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Senhas não estão iguais.",
+    path: ["confirm_password"],
+  });
+
+const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
 
 function slugify(s: string) {
   return (
@@ -42,6 +57,7 @@ export default function Signup() {
   const [shopName, setShopName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -70,13 +86,25 @@ export default function Signup() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      authInfoToast(PASSWORDS_MISMATCH_MESSAGE);
+      return;
+    }
+
     const parsed = schema.safeParse({
       display_name: displayName,
       shop_name: shopName,
       email,
       password,
+      confirm_password: confirmPassword,
     });
     if (!parsed.success) {
+      const mismatch = parsed.error.issues.some((issue) => issue.message === PASSWORDS_MISMATCH_MESSAGE);
+      if (mismatch) {
+        authInfoToast(PASSWORDS_MISMATCH_MESSAGE);
+        return;
+      }
       toast({
         title: "Dados inválidos",
         description: parsed.error.issues[0].message,
@@ -104,6 +132,10 @@ export default function Signup() {
 
     if (error) {
       setLoading(false);
+      if (isInvalidApiKeyError(error)) {
+        toast({ title: "Configuração do servidor", description: AUTH_CONFIG_ERROR_MESSAGE, variant: "destructive" });
+        return;
+      }
       toast({ title: "Falha ao cadastrar", description: error.message, variant: "destructive" });
       return;
     }
@@ -126,7 +158,7 @@ export default function Signup() {
       <Navbar />
 
       <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
+        <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
           <div className="mb-6 text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
@@ -195,6 +227,20 @@ export default function Signup() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm_password" className="text-xs font-medium text-muted-foreground">
+                  Confirmar senha
+                </Label>
+                <PasswordInput
+                  id="confirm_password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  showHint={false}
                   className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
                 />
               </div>

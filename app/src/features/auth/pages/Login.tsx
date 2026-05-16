@@ -9,8 +9,13 @@ import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
+import { checkEmailRegistered } from "@/features/auth/lib/checkEmailRegistered";
+import { AUTH_CONFIG_ERROR_MESSAGE, isInvalidApiKeyError } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
+import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import Navbar from "@/features/landing/components/Navbar";
+
+const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
 
 const schema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
@@ -19,6 +24,14 @@ const schema = z.object({
     .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
     .max(72),
 });
+
+function showSupabaseConfigError() {
+  toast({
+    title: "Configuração do servidor",
+    description: AUTH_CONFIG_ERROR_MESSAGE,
+    variant: "destructive",
+  });
+}
 
 export default function Login() {
   const { session } = useAuth();
@@ -45,27 +58,60 @@ export default function Login() {
       });
       return;
     }
+
     setLoading(true);
+    const emailToCheck = parsed.data.email;
 
-    const { data: isRegistered, error: checkError } = await supabase.rpc("is_email_registered", {
-      check_email: parsed.data.email,
-    });
+    const emailCheck = await checkEmailRegistered(emailToCheck);
 
-    if (!checkError && isRegistered === false) {
+    if (emailCheck.status === "api_key_error") {
       setLoading(false);
-      authInfoToast("E-mail não cadastrado.");
+      showSupabaseConfigError();
+      return;
+    }
+
+    if (emailCheck.status === "not_registered") {
+      setLoading(false);
+      authInfoToast(EMAIL_NOT_REGISTERED_MESSAGE);
       return;
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: parsed.data.email,
+      email: emailToCheck,
       password: parsed.data.password,
     });
-    setLoading(false);
+
     if (error) {
+      if (isInvalidApiKeyError(error)) {
+        setLoading(false);
+        showSupabaseConfigError();
+        return;
+      }
+
+      if (isInvalidLoginCredentials(error.message)) {
+        const recheck = await checkEmailRegistered(emailToCheck);
+        setLoading(false);
+
+        if (recheck.status === "api_key_error") {
+          showSupabaseConfigError();
+          return;
+        }
+        if (recheck.status === "not_registered") {
+          authInfoToast(EMAIL_NOT_REGISTERED_MESSAGE);
+          return;
+        }
+        if (recheck.status === "registered") {
+          authInfoToast("Senha incorreta.");
+          return;
+        }
+      }
+
+      setLoading(false);
       toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
       return;
     }
+
+    setLoading(false);
     navigate("/app", { replace: true });
   }
 

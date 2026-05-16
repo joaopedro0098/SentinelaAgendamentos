@@ -6,7 +6,9 @@ const whiteToastClass =
 /** Pop-up branco para avisos de autenticação. */
 export function authInfoToast(message: string) {
   toast({
+    title: undefined,
     description: message,
+    variant: "default",
     className: whiteToastClass,
   });
 }
