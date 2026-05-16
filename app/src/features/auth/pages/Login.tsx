@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
+import { authInfoToast } from "@/features/auth/lib/authToast";
 import Navbar from "@/features/landing/components/Navbar";
 
 const schema = z.object({
@@ -45,6 +46,17 @@ export default function Login() {
       return;
     }
     setLoading(true);
+
+    const { data: isRegistered, error: checkError } = await supabase.rpc("is_email_registered", {
+      check_email: parsed.data.email,
+    });
+
+    if (!checkError && isRegistered === false) {
+      setLoading(false);
+      authInfoToast("E-mail não cadastrado.");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,

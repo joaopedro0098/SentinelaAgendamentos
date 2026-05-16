@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
+import { isEmailAlreadyRegistered } from "@/features/auth/lib/authErrors";
+import { authInfoToast } from "@/features/auth/lib/authToast";
 import Navbar from "@/features/landing/components/Navbar";
 
 const schema = z.object({
@@ -94,6 +96,12 @@ export default function Signup() {
         },
       },
     });
+    if (isEmailAlreadyRegistered(error, data)) {
+      setLoading(false);
+      authInfoToast("E-mail já cadastrado. Faça o login normalmente.");
+      return;
+    }
+
     if (error) {
       setLoading(false);
       toast({ title: "Falha ao cadastrar", description: error.message, variant: "destructive" });

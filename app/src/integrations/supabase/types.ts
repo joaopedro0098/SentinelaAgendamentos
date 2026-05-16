@@ -211,6 +211,7 @@ export type Database = {
     }
     Functions: {
       generate_unique_slug: { Args: { base: string }; Returns: string }
+      is_email_registered: { Args: { check_email: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
