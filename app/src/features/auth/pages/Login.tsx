@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
+import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/features/landing/components/Navbar";
 
 const schema = z.object({
-  email: z.string().trim().email("E-mail inv�lido").max(255),
-  password: z.string().min(6, "M�nimo 6 caracteres").max(72),
+  email: z.string().trim().email("E-mail inválido").max(255),
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
+    .max(72),
 });
 
 export default function Login() {
@@ -22,18 +26,29 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { document.title = "Entrar ? Sentinela Agendamentos"; }, []);
-  useEffect(() => { if (session) navigate("/app", { replace: true }); }, [session, navigate]);
+  useEffect(() => {
+    document.title = "Entrar — Sentinela Agendamentos";
+  }, []);
+  useEffect(() => {
+    if (session) navigate("/app", { replace: true });
+  }, [session, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
-      toast({ title: "Dados inv�lidos", description: parsed.error.issues[0].message, variant: "destructive" });
+      toast({
+        title: "Dados inválidos",
+        description: parsed.error.issues[0].message,
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: parsed.data.email, password: parsed.data.password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
     setLoading(false);
     if (error) {
       toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
@@ -85,13 +100,15 @@ export default function Login() {
                   <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
                     Senha
                   </Label>
-                  <Link to="/recover" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Link
+                    to="/recover"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     Esqueci a senha
                   </Link>
                 </div>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -104,12 +121,12 @@ export default function Login() {
                 className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                 disabled={loading}
               >
-                {loading ? "Entrando?" : "Entrar"}
+                {loading ? "Entrando…" : "Entrar"}
               </Button>
             </form>
 
             <p className="text-sm text-center text-muted-foreground pt-1">
-              Ainda n�o tem conta?{" "}
+              Ainda não tem conta?{" "}
               <Link to="/signup" className="text-foreground hover:underline underline-offset-4">
                 Cadastre-se
               </Link>

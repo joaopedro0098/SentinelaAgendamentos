@@ -6,7 +6,11 @@ import { useState } from "react";
 const Navbar = () => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  const isLoginPage = pathname === "/login";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/recover" ||
+    pathname === "/reset-password";
 
   const outlineBtn =
     "rounded-full border-border bg-transparent hover:bg-secondary";
@@ -28,7 +32,7 @@ const Navbar = () => {
 
           <div className="flex items-center gap-2">
             {/* Desktop + mobile (login): Produto */}
-            {isLoginPage && (
+            {isAuthPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnDesktop}>
                 <Link to="/">Produto</Link>
               </Button>
@@ -38,7 +42,7 @@ const Navbar = () => {
               <Link to="/planos">Planos</Link>
             </Button>
 
-            {!isLoginPage && (
+            {!isAuthPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnDesktop}>
                 <Link to="/login">
                   Fazer login
@@ -47,7 +51,7 @@ const Navbar = () => {
               </Button>
             )}
 
-            {!isLoginPage && (
+            {!isAuthPage && (
               <Button
                 asChild
                 size="sm"
@@ -72,7 +76,7 @@ const Navbar = () => {
 
         {open && (
           <div className="md:hidden mt-2 glass rounded-2xl p-4 flex flex-col gap-3 text-sm">
-            {isLoginPage && (
+            {isAuthPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnMobile}>
                 <Link to="/" onClick={() => setOpen(false)}>
                   Produto
@@ -86,7 +90,7 @@ const Navbar = () => {
               </Link>
             </Button>
 
-            {!isLoginPage && (
+            {!isAuthPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnMobile}>
                 <Link to="/login" onClick={() => setOpen(false)}>
                   Fazer login
@@ -95,7 +99,7 @@ const Navbar = () => {
               </Button>
             )}
 
-            {!isLoginPage && (
+            {!isAuthPage && (
               <Button
                 asChild
                 size="sm"

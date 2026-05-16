@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Scissors } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
+import Navbar from "@/features/landing/components/Navbar";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -15,21 +14,28 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => { document.title = "Nova senha — BarberChat"; }, []);
+  useEffect(() => {
+    document.title = "Nova senha — Sentinela Agendamentos";
+  }, []);
 
   useEffect(() => {
-    // Aguardamos a sessão de recovery aparecer (Supabase processa o hash automaticamente)
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
     });
-    supabase.auth.getSession().then(({ data }) => { if (data.session) setReady(true); });
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setReady(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: "Senha curta", description: "Mínimo 6 caracteres", variant: "destructive" });
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      toast({
+        title: "Senha curta",
+        description: `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`,
+        variant: "destructive",
+      });
       return;
     }
     if (password !== confirm) {
@@ -48,38 +54,56 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-chat-app-bg">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-          <Scissors className="h-5 w-5" />
-        </div>
-        <span className="font-semibold text-lg">BarberChat</span>
-      </div>
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Definir nova senha</CardTitle>
-          <CardDescription>Crie uma senha forte para sua conta.</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <Navbar />
+
+      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
+          <div className="mb-6 text-center sm:text-left">
+            <h1 className="font-display text-2xl font-semibold tracking-tight">Definir nova senha</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">Crie uma senha forte para sua conta.</p>
+          </div>
+
           {!ready ? (
             <p className="text-sm text-muted-foreground text-center">Validando link…</p>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="p1">Nova senha</Label>
-                <Input id="p1" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Label htmlFor="p1" className="text-xs font-medium text-muted-foreground">
+                  Nova senha
+                </Label>
+                <PasswordInput
+                  id="p1"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="p2">Confirmar senha</Label>
-                <Input id="p2" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+                <Label htmlFor="p2" className="text-xs font-medium text-muted-foreground">
+                  Confirmar senha
+                </Label>
+                <PasswordInput
+                  id="p2"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  showHint={false}
+                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                />
               </div>
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+                disabled={loading}
+              >
                 {loading ? "Salvando…" : "Salvar nova senha"}
               </Button>
             </form>
           )}
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }

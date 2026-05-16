@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Scissors } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import Navbar from "@/features/landing/components/Navbar";
 
 export default function Recover() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  useEffect(() => { document.title = "Recuperar senha — BarberChat"; }, []);
+  useEffect(() => {
+    document.title = "Recuperar senha — Sentinela Agendamentos";
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,40 +32,62 @@ export default function Recover() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-chat-app-bg">
-      <Link to="/" className="flex items-center gap-2 mb-6">
-        <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-          <Scissors className="h-5 w-5" />
-        </div>
-        <span className="font-semibold text-lg">BarberChat</span>
-      </Link>
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Recuperar senha</CardTitle>
-          <CardDescription>Enviaremos um link para redefinir sua senha.</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <Navbar />
+
+      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
+          <div className="mb-6 text-center sm:text-left">
+            <h1 className="font-display text-2xl font-semibold tracking-tight">Recuperar senha</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Enviaremos um link para redefinir sua senha.
+            </p>
+          </div>
+
           {sent ? (
-            <div className="space-y-3 text-center">
-              <p className="text-sm">Se este e-mail existir, você receberá um link em instantes.</p>
-              <Button asChild variant="outline" className="w-full"><Link to="/login">Voltar ao login</Link></Button>
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Se este e-mail existir, você receberá um link em instantes.
+              </p>
+              <Button
+                asChild
+                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              >
+                <Link to="/login">Voltar ao login</Link>
+              </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                  E-mail
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                />
               </div>
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+                disabled={loading}
+              >
                 {loading ? "Enviando…" : "Enviar link"}
               </Button>
-              <p className="text-sm text-center text-muted-foreground">
-                <Link to="/login" className="text-primary hover:underline">Voltar ao login</Link>
+              <p className="text-sm text-center text-muted-foreground pt-1">
+                <Link to="/login" className="text-foreground hover:underline underline-offset-4">
+                  Voltar ao login
+                </Link>
               </p>
             </form>
           )}
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
