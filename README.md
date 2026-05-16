@@ -53,6 +53,17 @@ No serviço **appgithub**, confira:
 
 Adicione `sentinelagendamentos.com` + HTTPS. O `.easypanel.host` pode continuar em paralelo.
 
+### Variáveis de ambiente (obrigatório no EasyPanel)
+
+No painel, seção **Ambiente** (antes do build), adicione:
+
+```env
+VITE_SUPABASE_URL=https://SEU_PROJETO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sua_chave_anon_publica
+```
+
+O Vite grava isso **na hora do build**. Sem essas variáveis, o site pode abrir só o fundo escuro sem conteúdo (JavaScript quebra).
+
 **“Service is not reachable” ou 404?** Veja os logs. Se o app não sobe na porta **80**, use porta **3000** no `npm run start` **e** nos domínios do EasyPanel (`:3000`, não `:80`). Pasta raiz: `app`.
 
 Supabase Auth: `https://sentinelagendamentos.com/auth/callback`
