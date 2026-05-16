@@ -49,10 +49,10 @@ No serviço **appgithub**, confira:
 | **Root directory** | `app` |
 | **Build** | `npm install && npm run build` |
 | **Start** | `npm run start` |
-| **Porta do domínio** | `80` |
+| **Porta do domínio** | `3000` (tem que ser a mesma do `npm run start`) |
 
 Adicione `sentinelagendamentos.com` + HTTPS. O `.easypanel.host` pode continuar em paralelo.
 
-**404?** Veja os logs do deploy. Causas comuns: pasta raiz errada (tem que ser `app`), build falhou, ou container sem `npm run start`. **Não** é falta de “apontar para a landing” — a rota `/` já é a home no código.
+**“Service is not reachable” ou 404?** Veja os logs. Se o app não sobe na porta **80**, use porta **3000** no `npm run start` **e** nos domínios do EasyPanel (`:3000`, não `:80`). Pasta raiz: `app`.
 
 Supabase Auth: `https://sentinelagendamentos.com/auth/callback`
