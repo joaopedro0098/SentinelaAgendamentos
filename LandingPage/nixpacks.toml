@@ -1,3 +1,0 @@
-# Node 18 foi removido do Nix; Nixpacks precisa de 20+ (Easypanel / Railway).
-[variables]
-NIXPACKS_NODE_VERSION = "22"
