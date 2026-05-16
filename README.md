@@ -40,8 +40,19 @@ Abre em `http://localhost:8080`.
 | `/app` | Dashboard |
 | `/c/:slug` | Chat do cliente |
 
-## Deploy
+## Deploy (EasyPanel + GitHub)
 
-Um único build (`app`) no EasyPanel, domínio `sentinelagendamentos.com`, fallback SPA para `index.html`.
+No serviço **appgithub**, confira:
 
-Supabase Auth: incluir `https://sentinelagendamentos.com/auth/callback` nas redirect URLs.
+| Campo | Valor |
+|-------|--------|
+| **Root directory** | `app` |
+| **Build** | `npm install && npm run build` |
+| **Start** | `npm run start` |
+| **Porta do domínio** | `80` |
+
+Adicione `sentinelagendamentos.com` + HTTPS. O `.easypanel.host` pode continuar em paralelo.
+
+**404?** Veja os logs do deploy. Causas comuns: pasta raiz errada (tem que ser `app`), build falhou, ou container sem `npm run start`. **Não** é falta de “apontar para a landing” — a rota `/` já é a home no código.
+
+Supabase Auth: `https://sentinelagendamentos.com/auth/callback`

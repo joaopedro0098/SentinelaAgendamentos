@@ -1,6 +1,8 @@
-# Node 22 (18 removido do Nix). Forçar só Node — senão Deno em supabase/functions
-# quebra o build (npm não existe). "providers" tem de vir ANTES de [variables].
+# Node 22. Build estático Vite + serve com fallback SPA (-s).
 providers = ["node"]
 
 [variables]
 NIXPACKS_NODE_VERSION = "22"
+
+[start]
+cmd = "npm run start"
