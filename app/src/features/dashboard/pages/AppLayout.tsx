@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { MessageSquare, Settings, LogOut, Scissors, Shield } from "lucide-react";
+import { Bot, LogOut, MessageSquare, Settings, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -25,7 +26,6 @@ export default function AppLayout() {
         .maybeSingle();
       if (active) setShop(data ?? null);
     })();
-    // Realtime: atualiza header quando o barbeiro salvar nova foto/nome
     const channel = supabase
       .channel(`shop:${user.id}`)
       .on(
@@ -37,7 +37,10 @@ export default function AppLayout() {
         },
       )
       .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   async function handleLogout() {
@@ -46,41 +49,51 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Sidebar (desktop) / Topbar (mobile) */}
-      <aside className="md:w-60 md:border-r border-b md:border-b-0 bg-card flex md:flex-col">
-        <div className="flex items-center gap-2 px-4 py-3 md:py-5 border-b md:border-b border-border md:flex-none flex-1 md:flex-initial min-w-0">
-          <Avatar className="h-9 w-9 shrink-0">
-            {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
-            <AvatarFallback className="bg-primary text-primary-foreground rounded-lg">
-              <Scissors className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <Link to="/app/settings" className="font-semibold truncate">
-            {shop?.display_name ?? "Sua barbearia"}
-          </Link>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      <aside className="md:w-64 border-b md:border-b-0 md:border-r border-border flex md:flex-col shrink-0">
+        <div className="glass-panel md:m-3 md:rounded-2xl flex md:flex-col flex-1 md:overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 md:py-4 border-b border-border/60">
+            <span className="w-9 h-9 rounded-lg bg-gradient-brand flex items-center justify-center shrink-0 shadow-glow">
+              <Bot className="w-4 h-4 text-white" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Painel</p>
+              <Link to="/app/settings" className="font-semibold truncate block text-sm hover:text-primary transition">
+                {shop?.display_name ?? "Sua empresa"}
+              </Link>
+            </div>
+            <Avatar className="h-9 w-9 shrink-0 md:hidden">
+              {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                {(shop?.display_name ?? "SA").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          <nav className="flex md:flex-col gap-1 p-2 md:flex-1">
+            <NavItem to="/app" icon={<MessageSquare className="h-4 w-4" />} label="Conversas" end />
+            <NavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
+            {isAdmin && <NavItem to="/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />}
+          </nav>
+
+          <div className="hidden md:flex flex-col gap-2 p-3 border-t border-border/60">
+            <DashboardThemeToggle className="w-full justify-center" />
+            <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
+            <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" /> Sair
+            </Button>
+          </div>
+
+          <div className="md:hidden flex items-center justify-between gap-2 p-2 border-t border-border/60">
+            <DashboardThemeToggle />
+            <button type="button" onClick={handleLogout} className="p-2 text-muted-foreground" aria-label="Sair">
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-        <nav className="md:flex-1 flex md:flex-col gap-1 p-2">
-          <NavItem to="/app" icon={<MessageSquare className="h-4 w-4" />} label="Conversas" end />
-          <NavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Barbearia" />
-          {isAdmin && <NavItem to="/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />}
-        </nav>
-        <div className="hidden md:block p-3 border-t border-border">
-          <p className="text-xs text-muted-foreground truncate mb-2">{user?.email}</p>
-          <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" /> Sair
-          </Button>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="md:hidden p-3 text-muted-foreground"
-          aria-label="Sair"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
       </aside>
 
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 flex flex-col">
         <Outlet />
       </main>
     </div>
@@ -94,8 +107,10 @@ function NavItem({ to, icon, label, end }: { to: string; icon: React.ReactNode; 
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition flex-1 md:flex-initial justify-center md:justify-start",
-          isActive ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60",
+          "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition flex-1 md:flex-initial justify-center md:justify-start",
+          isActive
+            ? "bg-gradient-brand text-primary-foreground shadow-glow"
+            : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
         )
       }
     >

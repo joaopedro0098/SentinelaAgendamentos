@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
+import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 
 type Shop = {
   id: string;
@@ -134,13 +135,15 @@ export default function Settings() {
         onConfirm={uploadAvatarBlob}
       />
 
-      <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl font-semibold">Sua empresa</h1>
-          <p className="text-sm text-muted-foreground">Personalize como o cliente vai te ver.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
+          <p className="text-sm text-muted-foreground">
+            Perfil da empresa, link do cliente e equipe de atendimento.
+          </p>
         </header>
 
-        <Card>
+        <Card className="glass-panel border-border/80">
           <CardHeader>
             <CardTitle className="text-base">Perfil</CardTitle>
             <CardDescription>Altere a foto, o nome exibido e copie seu link exclusivo de atendimento.</CardDescription>
@@ -204,6 +207,8 @@ export default function Settings() {
             </form>
           </CardContent>
         </Card>
+
+        <StaffOperationsSection barbershopId={shop.id} />
       </div>
     </>
   );

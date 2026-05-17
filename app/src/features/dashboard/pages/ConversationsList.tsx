@@ -28,7 +28,7 @@ export default function ConversationsList() {
   const [convs, setConvs] = useState<Conv[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { document.title = "Conversas — BarberChat"; }, []);
+  useEffect(() => { document.title = "Conversas — Sentinela Agendamentos"; }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -99,9 +99,9 @@ export default function ConversationsList() {
   if (!shopId) {
     return (
       <div className="p-6 max-w-md">
-        <h2 className="text-lg font-semibold mb-2">Configure sua barbearia</h2>
+        <h2 className="text-lg font-semibold mb-2">Configure sua empresa</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Você ainda não tem uma barbearia configurada nesta conta.
+          Você ainda não tem uma empresa vinculada nesta conta.
         </p>
         <Link to="/app/settings" className="text-primary hover:underline text-sm">Ir para configurações →</Link>
       </div>
@@ -110,8 +110,8 @@ export default function ConversationsList() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="px-4 md:px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Conversas</h1>
+      <header className="px-4 md:px-6 py-4 border-b border-border/60 glass-panel md:mx-4 md:mt-4 md:rounded-2xl md:border">
+        <h1 className="text-lg font-semibold tracking-tight">Conversas</h1>
         <p className="text-xs text-muted-foreground">{shopName}</p>
       </header>
 
@@ -121,7 +121,7 @@ export default function ConversationsList() {
             <MessageSquare className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
-          <p className="text-xs text-muted-foreground">Compartilhe seu link na aba <Link to="/app/settings" className="text-primary hover:underline">Barbearia</Link>.</p>
+          <p className="text-xs text-muted-foreground">Compartilhe seu link em <Link to="/app/settings" className="text-primary hover:underline">Configurações</Link>.</p>
         </div>
       ) : (
         <ul className="divide-y divide-border">

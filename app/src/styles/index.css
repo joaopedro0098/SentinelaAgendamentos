@@ -42,9 +42,67 @@
   }
 
   /* ==========================================================
-     Tema app (painel, auth, chat)
+     Tema painel (estilo landing + claro/escuro)
      ========================================================== */
-  [data-theme="app"] {
+  [data-theme="dashboard"] {
+    --background: 230 35% 5%;
+    --foreground: 210 40% 98%;
+    --card: 232 30% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 232 30% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 230 95% 65%;
+    --primary-foreground: 230 35% 5%;
+    --secondary: 232 25% 14%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 232 20% 12%;
+    --muted-foreground: 220 15% 65%;
+    --accent: 280 90% 65%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 232 25% 16%;
+    --input: 232 25% 14%;
+    --ring: 230 95% 65%;
+    --radius: 1rem;
+    --brand-blue: 220 100% 62%;
+    --brand-violet: 265 90% 65%;
+    --brand-pink: 320 90% 70%;
+    --brand-cyan: 195 95% 60%;
+    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-blue)) 0%, hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)) 100%);
+    --gradient-brand-soft: linear-gradient(135deg, hsl(var(--brand-blue) / 0.15) 0%, hsl(var(--brand-violet) / 0.15) 50%, hsl(var(--brand-pink) / 0.15) 100%);
+    --gradient-text: linear-gradient(135deg, hsl(var(--brand-cyan)), hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)));
+    --glow-primary: 0 0 60px hsl(var(--brand-violet) / 0.45);
+    --glow-soft: 0 10px 60px -10px hsl(var(--brand-blue) / 0.5);
+    --shadow-elevated: 0 20px 60px -20px hsl(230 95% 10% / 0.8);
+  }
+
+  [data-theme="dashboard"].light {
+    --background: 220 30% 98%;
+    --foreground: 230 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 12%;
+    --primary: 230 90% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 25% 94%;
+    --secondary-foreground: 230 25% 12%;
+    --muted: 220 20% 94%;
+    --muted-foreground: 220 12% 42%;
+    --accent: 265 85% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 88%;
+    --input: 220 18% 92%;
+    --ring: 230 90% 55%;
+  }
+
+  /* ==========================================================
+     Tema chat (fixo — consultório não altera)
+     ========================================================== */
+  [data-theme="chat"] {
     --background: 0 0% 100%;
     --foreground: 200 6% 10%;
     --card: 0 0% 100%;
@@ -77,7 +135,7 @@
     --status-online: 142 70% 45%;
   }
 
-  [data-theme="app"].dark {
+  [data-theme="chat"].dark {
     --background: 200 8% 8%;
     --foreground: 200 6% 95%;
     --card: 200 8% 10%;
@@ -144,6 +202,34 @@
   html[data-theme="landing"] h4 {
     font-family: 'Space Grotesk', sans-serif;
     letter-spacing: -0.02em;
+  }
+  html[data-theme="dashboard"] body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand-violet) / 0.14), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(var(--brand-blue) / 0.1), transparent 60%);
+    background-attachment: fixed;
+  }
+  [data-theme="dashboard"] h1,
+  [data-theme="dashboard"] h2,
+  [data-theme="dashboard"] h3,
+  html[data-theme="dashboard"] h1,
+  html[data-theme="dashboard"] h2,
+  html[data-theme="dashboard"] h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
+  }
+  [data-theme="dashboard"].light .glass-panel {
+    background: hsl(0 0% 100% / 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--border));
+  }
+  [data-theme="dashboard"]:not(.light) .glass-panel {
+    background: hsl(232 30% 10% / 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border));
   }
 }
 
