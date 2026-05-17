@@ -42,129 +42,125 @@
   }
 
   /* ==========================================================
-     Tema painel (estilo landing + claro/escuro)
+     Tema painel — verde e branco (alinhado à agenda)
+     Vermelho não é usado aqui (só em booking / indisponível).
      ========================================================== */
   [data-theme="dashboard"] {
-    --background: 230 35% 5%;
-    --foreground: 210 40% 98%;
-    --card: 232 30% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 232 30% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 230 95% 65%;
-    --primary-foreground: 230 35% 5%;
-    --secondary: 232 25% 14%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 232 20% 12%;
-    --muted-foreground: 220 15% 65%;
-    --accent: 280 90% 65%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 232 25% 16%;
-    --input: 232 25% 14%;
-    --ring: 230 95% 65%;
-    --radius: 1rem;
-    --brand-blue: 220 100% 62%;
-    --brand-violet: 265 90% 65%;
-    --brand-pink: 320 90% 70%;
-    --brand-cyan: 195 95% 60%;
-    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-blue)) 0%, hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(var(--brand-blue) / 0.15) 0%, hsl(var(--brand-violet) / 0.15) 50%, hsl(var(--brand-pink) / 0.15) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(var(--brand-cyan)), hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)));
-    --glow-primary: 0 0 60px hsl(var(--brand-violet) / 0.45);
-    --glow-soft: 0 10px 60px -10px hsl(var(--brand-blue) / 0.5);
-    --shadow-elevated: 0 20px 60px -20px hsl(230 95% 10% / 0.8);
+    --background: 150 12% 10%;
+    --foreground: 0 0% 98%;
+    --card: 150 10% 13%;
+    --card-foreground: 0 0% 98%;
+    --popover: 150 10% 13%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 152 55% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 152 55% 48%;
+    --secondary: 150 12% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 150 10% 18%;
+    --muted-foreground: 150 8% 65%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 150 8% 32%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 150 10% 20%;
+    --input: 150 10% 18%;
+    --ring: 152 55% 42%;
+    --radius: 0.75rem;
+    --brand: 152 55% 42%;
+    --brand-foreground: 0 0% 100%;
+    --surface: 150 12% 12%;
+    --surface-2: 150 10% 16%;
+    --available: 152 55% 45%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 152 35% 18%;
+    --unavailable: 0 65% 55%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 45% 22%;
+    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
+    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.18) 0%, hsl(142 76% 45% / 0.12) 100%);
+    --gradient-text: linear-gradient(135deg, hsl(152 55% 48%), hsl(142 76% 50%));
+    --glow-primary: 0 0 48px hsl(152 55% 42% / 0.35);
+    --glow-soft: 0 10px 40px -10px hsl(152 55% 42% / 0.25);
+    --shadow-elevated: 0 20px 50px -20px hsl(150 20% 5% / 0.5);
   }
 
   [data-theme="dashboard"].light {
-    --background: 220 30% 98%;
-    --foreground: 230 25% 12%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 230 25% 12%;
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 230 25% 12%;
-    --primary: 230 90% 55%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 152 55% 42%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 25% 94%;
-    --secondary-foreground: 230 25% 12%;
-    --muted: 220 20% 94%;
-    --muted-foreground: 220 12% 42%;
-    --accent: 265 85% 58%;
+    --primary-glow: 152 55% 48%;
+    --secondary: 152 40% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 142 76% 45%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 75% 55%;
+    --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 18% 88%;
-    --input: 220 18% 92%;
-    --ring: 230 90% 55%;
+    --border: 150 15% 90%;
+    --input: 150 10% 92%;
+    --ring: 152 55% 42%;
+    --brand: 152 55% 42%;
+    --brand-foreground: 0 0% 100%;
+    --surface: 0 0% 98%;
+    --surface-2: 0 0% 94%;
+    --available: 152 55% 42%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 152 55% 95%;
+    --unavailable: 0 65% 55%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 65% 96%;
   }
 
   /* ==========================================================
-     Tema chat (fixo — consultório não altera)
+     Tema agendamento público (/agendar/:slug) — fixo, sem claro/escuro
+     Vermelho só para indisponibilidade.
      ========================================================== */
-  [data-theme="chat"] {
+  [data-theme="booking"] {
+    color-scheme: light;
     --background: 0 0% 100%;
-    --foreground: 200 6% 10%;
+    --foreground: 0 0% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 200 6% 10%;
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 200 6% 10%;
-    --primary: 142 70% 29%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 152 55% 42%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 142 49% 45%;
-    --secondary: 150 15% 95%;
-    --secondary-foreground: 200 6% 10%;
-    --muted: 200 14% 96%;
-    --muted-foreground: 200 6% 45%;
-    --accent: 142 49% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 75% 55%;
+    --primary-glow: 152 55% 48%;
+    --secondary: 152 40% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
-    --border: 200 14% 90%;
-    --input: 200 14% 92%;
-    --ring: 142 70% 29%;
-    --radius: 0.75rem;
-    --chat-bg: 60 20% 96%;
-    --chat-bubble-out: 96 60% 88%;
-    --chat-bubble-in: 0 0% 100%;
-    --chat-bubble-foreground: 200 6% 10%;
-    --chat-time: 200 6% 50%;
-    --chat-divider: 60 15% 88%;
-    --chat-input-bg: 0 0% 100%;
-    --chat-app-bg: 60 20% 97%;
-    --status-online: 142 70% 45%;
-  }
-
-  [data-theme="chat"].dark {
-    --background: 200 8% 8%;
-    --foreground: 200 6% 95%;
-    --card: 200 8% 10%;
-    --card-foreground: 200 6% 95%;
-    --popover: 200 8% 10%;
-    --popover-foreground: 200 6% 95%;
-    --primary: 142 49% 35%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 142 49% 45%;
-    --secondary: 200 8% 14%;
-    --secondary-foreground: 200 6% 95%;
-    --muted: 200 8% 14%;
-    --muted-foreground: 200 6% 65%;
-    --accent: 142 49% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 200 8% 18%;
-    --input: 200 8% 18%;
-    --ring: 142 49% 45%;
-    --chat-bg: 200 10% 8%;
-    --chat-bubble-out: 158 35% 22%;
-    --chat-bubble-in: 200 8% 14%;
-    --chat-bubble-foreground: 200 6% 95%;
-    --chat-time: 200 6% 60%;
-    --chat-divider: 200 8% 18%;
-    --chat-input-bg: 200 8% 12%;
-    --chat-app-bg: 200 10% 6%;
-    --status-online: 142 70% 50%;
+    --border: 150 15% 90%;
+    --input: 150 10% 92%;
+    --ring: 152 55% 42%;
+    --radius: 0.5rem;
+    --brand: 142 76% 45%;
+    --brand-foreground: 0 0% 7%;
+    --surface: 0 0% 98%;
+    --surface-2: 0 0% 94%;
+    --available: 152 55% 42%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 152 55% 95%;
+    --unavailable: 0 65% 55%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 65% 96%;
+    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
+    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
+    --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
+    --glow-primary: 0 0 40px hsl(152 55% 42% / 0.3);
+    --glow-soft: 0 8px 32px -8px hsl(152 55% 42% / 0.2);
+    --shadow-elevated: 0 16px 40px -16px hsl(150 15% 20% / 0.12);
   }
 }
 
@@ -206,9 +202,13 @@
   html[data-theme="dashboard"] body {
     font-family: 'Inter', system-ui, sans-serif;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand-violet) / 0.14), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(var(--brand-blue) / 0.1), transparent 60%);
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(152 55% 42% / 0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(142 76% 45% / 0.06), transparent 60%);
     background-attachment: fixed;
+  }
+  html[data-theme="booking"] body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: hsl(var(--surface));
   }
   [data-theme="dashboard"] h1,
   [data-theme="dashboard"] h2,
@@ -226,9 +226,15 @@
     border: 1px solid hsl(var(--border));
   }
   [data-theme="dashboard"]:not(.light) .glass-panel {
-    background: hsl(232 30% 10% / 0.55);
+    background: hsl(150 12% 11% / 0.75);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border));
+  }
+  [data-theme="booking"] .glass-panel {
+    background: hsl(0 0% 100% / 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid hsl(var(--border));
   }
 }
@@ -291,10 +297,10 @@
 @keyframes pulseGlow {
   0%,
   100% {
-    box-shadow: 0 0 40px hsl(var(--brand-violet) / 0.4);
+    box-shadow: 0 0 40px hsl(152 55% 42% / 0.35);
   }
   50% {
-    box-shadow: 0 0 80px hsl(var(--brand-violet) / 0.7);
+    box-shadow: 0 0 64px hsl(152 55% 42% / 0.5);
   }
 }
 @keyframes gradient {
@@ -307,69 +313,3 @@
   }
 }
 
-/* Chat */
-.chat-pattern {
-  background-color: hsl(var(--chat-bg));
-  background-image: radial-gradient(hsl(var(--chat-divider) / 0.4) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-.bubble-tail-out::after,
-.bubble-tail-in::after {
-  content: '';
-  position: absolute;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  top: 0;
-}
-.bubble-tail-out::after {
-  right: -6px;
-  border-width: 0 0 10px 8px;
-  border-color: transparent transparent transparent hsl(var(--chat-bubble-out));
-}
-.bubble-tail-in::after {
-  left: -6px;
-  border-width: 0 8px 10px 0;
-  border-color: transparent hsl(var(--chat-bubble-in)) transparent transparent;
-}
-@keyframes bubble-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-.animate-bubble-in {
-  animation: bubble-in 0.18s ease-out;
-}
-@keyframes typing-dot {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-3px);
-    opacity: 1;
-  }
-}
-.typing-dot {
-  animation: typing-dot 1.2s infinite;
-}
-.typing-dot:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.typing-dot:nth-child(3) {
-  animation-delay: 0.3s;
-}
-.chat-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-.chat-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
-}

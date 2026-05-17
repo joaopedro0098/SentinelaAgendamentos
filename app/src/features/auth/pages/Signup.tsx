@@ -162,7 +162,7 @@ export default function Signup() {
           <div className="mb-6 text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Crie sua conta e comece a atender pelo chat. Sem cartão neste período.
+              Crie sua conta e comece a receber agendamentos online. Sem cartão neste período.
             </p>
           </div>
 

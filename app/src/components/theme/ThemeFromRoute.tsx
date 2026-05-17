@@ -17,14 +17,14 @@ const STORAGE_KEY = "sentinela-dashboard-theme";
 
 function readDashboardMode(): DashboardThemeMode {
   const v = localStorage.getItem(STORAGE_KEY);
-  return v === "light" || v === "dark" ? v : "dark";
+  return v === "light" || v === "dark" ? v : "light";
 }
 
-function resolveTheme(pathname: string): "landing" | "dashboard" | "chat" {
+function resolveTheme(pathname: string): "landing" | "dashboard" | "booking" {
   if (LANDING_PATHS.has(pathname)) return "landing";
-  if (pathname.startsWith("/c/") || /^\/app\/c\//.test(pathname)) return "chat";
-  if (pathname.startsWith("/app") || pathname.startsWith("/admin")) return "dashboard";
-  return "chat";
+  if (pathname.startsWith("/app")) return "dashboard";
+  if (pathname.startsWith("/agendar")) return "booking";
+  return "landing";
 }
 
 export function ThemeFromRoute() {

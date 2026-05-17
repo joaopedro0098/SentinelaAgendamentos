@@ -24,7 +24,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedBooking, setCopiedBooking] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -103,16 +103,22 @@ export default function Settings() {
     toast({ title: "Foto atualizada!" });
   }
 
-  function copyClientLink() {
+  function copyBookingLink() {
     if (!shop) return;
-    const url = `${window.location.origin}/c/${shop.slug}`;
+    const url = `${window.location.origin}/agendar/${shop.slug}`;
     navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-    toast({ title: "Link copiado!", description: url });
+    setCopiedBooking(true);
+    window.setTimeout(() => setCopiedBooking(false), 1800);
+    toast({ title: "Link de agendamento copiado!", description: url });
   }
 
-  if (loading) return <div className="p-6 text-sm text-muted-foreground">Carregando…</div>;
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6">
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      </div>
+    );
+  }
   if (!shop) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -121,7 +127,7 @@ export default function Settings() {
     );
   }
 
-  const clientUrl = `${window.location.origin}/c/${shop.slug}`;
+  const bookingUrl = `${window.location.origin}/agendar/${shop.slug}`;
 
   return (
     <>
@@ -139,14 +145,14 @@ export default function Settings() {
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
           <p className="text-sm text-muted-foreground">
-            Perfil da empresa, link do cliente e equipe de atendimento.
+            Perfil da empresa, link de agendamento e equipe de atendimento.
           </p>
         </header>
 
         <Card className="glass-panel border-border/80">
           <CardHeader>
             <CardTitle className="text-base">Perfil</CardTitle>
-            <CardDescription>Altere a foto, o nome exibido e copie seu link exclusivo de atendimento.</CardDescription>
+            <CardDescription>Altere a foto, o nome exibido e copie o link de agendamento para clientes.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-5">
@@ -182,22 +188,26 @@ export default function Settings() {
                 </div>
               </div>
 
+
               <div className="space-y-2 rounded-md border border-border p-3">
-                <Label htmlFor="client-link">Link para enviar ao cliente</Label>
+                <Label htmlFor="booking-link">Link para o cliente agendar</Label>
+                <p className="text-xs text-muted-foreground">
+                  Compartilhe para o cliente escolher serviço, horário e confirmar o agendamento.
+                </p>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input id="client-link" value={clientUrl} readOnly className="font-mono text-xs" />
-                  <Button type="button" onClick={copyClientLink} className="shrink-0">
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? "Copiado" : "Copiar link"}
+                  <Input id="booking-link" value={bookingUrl} readOnly className="font-mono text-xs" />
+                  <Button type="button" onClick={copyBookingLink} variant="secondary" className="shrink-0">
+                    {copiedBooking ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copiedBooking ? "Copiado" : "Copiar link"}
                   </Button>
                 </div>
                 <a
-                  href={clientUrl}
+                  href={bookingUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  Abrir link do cliente <ExternalLink className="h-3 w-3" />
+                  Abrir agendamento <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
 

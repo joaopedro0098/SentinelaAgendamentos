@@ -3,7 +3,7 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}", "./agenda/src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -47,17 +47,24 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        chat: {
-          bg: "hsl(var(--chat-bg))",
-          "app-bg": "hsl(var(--chat-app-bg))",
-          "bubble-out": "hsl(var(--chat-bubble-out))",
-          "bubble-in": "hsl(var(--chat-bubble-in))",
-          "bubble-foreground": "hsl(var(--chat-bubble-foreground))",
-          time: "hsl(var(--chat-time))",
-          divider: "hsl(var(--chat-divider))",
-          input: "hsl(var(--chat-input-bg))",
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
         },
-        status: { online: "hsl(var(--status-online))" },
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          2: "hsl(var(--surface-2))",
+        },
+        available: {
+          DEFAULT: "hsl(var(--available))",
+          foreground: "hsl(var(--available-foreground))",
+          soft: "hsl(var(--available-soft))",
+        },
+        unavailable: {
+          DEFAULT: "hsl(var(--unavailable))",
+          foreground: "hsl(var(--unavailable-foreground))",
+          soft: "hsl(var(--unavailable-soft))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

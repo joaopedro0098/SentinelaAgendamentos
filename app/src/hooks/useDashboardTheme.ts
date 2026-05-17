@@ -6,7 +6,7 @@ const STORAGE_KEY = "sentinela-dashboard-theme";
 
 function readStored(): DashboardThemeMode {
   const v = localStorage.getItem(STORAGE_KEY);
-  return v === "light" || v === "dark" ? v : "dark";
+  return v === "light" || v === "dark" ? v : "light";
 }
 
 export function applyDashboardThemeClass(mode: DashboardThemeMode) {

@@ -23,8 +23,9 @@
     "noFallthroughCasesInSwitch": false,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@agenda/*": ["./agenda/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "agenda/src"]
 }

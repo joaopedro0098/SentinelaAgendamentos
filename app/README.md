@@ -6,30 +6,34 @@
 src/
 ├── app/
 │   ├── App.tsx           # Providers globais
-│   └── router.tsx        # Definição de rotas
+│   └── router.tsx        # Rotas da aplicação
 ├── features/
 │   ├── landing/          # Marketing (home, planos, legais)
 │   ├── auth/             # Login, cadastro, recuperação
-│   ├── chat/             # Chat público (/c/:slug)
-│   ├── dashboard/        # Painel do barbeiro (/app)
-│   └── admin/            # Painel admin
+│   ├── agenda/           # Wrappers do módulo de agendamento (@agenda)
+│   └── dashboard/        # Painel (/app/agendar, /app/agendamentos, /app/settings)
 ├── components/
 │   ├── ui/               # Design system (shadcn)
-│   ├── guards/           # RequireAuth, RequireAdmin
-│   └── theme/            # ThemeFromRoute
+│   ├── guards/           # RequireAuth
+│   └── theme/            # Tema por rota + toggle claro/escuro
 ├── hooks/
 ├── integrations/supabase/
 ├── lib/
 ├── pages/NotFound.tsx
 └── styles/index.css
+
+agenda/                   # Módulo de agendamento (importado via @agenda)
+└── src/
+    ├── pages/            # PublicBooking, MeusAgendamentos
+    └── components/agenda/
 ```
 
 ## Scripts
 
 ```bash
-npm run dev      # desenvolvimento
+npm run dev      # desenvolvimento (porta 8080)
 npm run build    # produção
-npm run test     # testes (vitest)
+npm run start    # serve dist na porta 3000
 ```
 
 ## Variáveis de ambiente

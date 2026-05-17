@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Bot, LogOut, MessageSquare, Settings, Shield } from "lucide-react";
+import { Bot, Calendar, CalendarCheck, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
-
 export default function AppLayout() {
   const { signOut, user } = useAuth();
-  const { isAdmin } = useIsAdmin();
   const navigate = useNavigate();
   const [shop, setShop] = useState<{ display_name: string; avatar_url: string | null } | null>(null);
 
@@ -53,7 +50,7 @@ export default function AppLayout() {
       <aside className="md:w-64 border-b md:border-b-0 md:border-r border-border flex md:flex-col shrink-0">
         <div className="glass-panel md:m-3 md:rounded-2xl flex md:flex-col flex-1 md:overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 md:py-4 border-b border-border/60">
-            <span className="w-9 h-9 rounded-lg bg-gradient-brand flex items-center justify-center shrink-0 shadow-glow">
+            <span className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-glow">
               <Bot className="w-4 h-4 text-white" />
             </span>
             <div className="min-w-0 flex-1">
@@ -71,21 +68,19 @@ export default function AppLayout() {
           </div>
 
           <nav className="flex md:flex-col gap-1 p-2 md:flex-1">
-            <NavItem to="/app" icon={<MessageSquare className="h-4 w-4" />} label="Conversas" end />
+            <NavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
+            <NavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <NavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
-            {isAdmin && <NavItem to="/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />}
           </nav>
 
           <div className="hidden md:flex flex-col gap-2 p-3 border-t border-border/60">
-            <DashboardThemeToggle className="w-full justify-center" />
             <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
             <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
               <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>
 
-          <div className="md:hidden flex items-center justify-between gap-2 p-2 border-t border-border/60">
-            <DashboardThemeToggle />
+          <div className="md:hidden flex items-center justify-end gap-2 p-2 border-t border-border/60">
             <button type="button" onClick={handleLogout} className="p-2 text-muted-foreground" aria-label="Sair">
               <LogOut className="h-5 w-5" />
             </button>
@@ -93,7 +88,10 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 flex flex-col">
+      <main className="relative flex-1 min-w-0 flex flex-col">
+        <div className="absolute top-4 right-4 z-20">
+          <DashboardThemeToggle />
+        </div>
         <Outlet />
       </main>
     </div>
@@ -109,7 +107,7 @@ function NavItem({ to, icon, label, end }: { to: string; icon: React.ReactNode; 
         cn(
           "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition flex-1 md:flex-initial justify-center md:justify-start",
           isActive
-            ? "bg-gradient-brand text-primary-foreground shadow-glow"
+            ? "bg-primary text-primary-foreground shadow-glow"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
         )
       }

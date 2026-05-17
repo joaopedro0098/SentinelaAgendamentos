@@ -379,7 +379,7 @@ function StaffCard({
         >
           <Pencil className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={onRemove} aria-label="Excluir">
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={onRemove} aria-label="Excluir">
           <Trash2 className="h-4 w-4" />
         </Button>
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onToggle} aria-label={expanded ? "Recolher" : "Expandir"}>
@@ -618,7 +618,7 @@ function ServiceRowEditor({
       >
         Salvar
       </Button>
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemove(svc.id)}>
+      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => onRemove(svc.id)}>
         <Trash2 className="h-4 w-4" />
       </Button>
     </li>

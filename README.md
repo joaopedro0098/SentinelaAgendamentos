@@ -1,6 +1,6 @@
 # Sentinela Agendamentos
 
-Plataforma web unificada: landing, autenticação, painel do estabelecimento e chat público com IA.
+Plataforma web: landing, autenticação, painel do estabelecimento e agendamento online.
 
 ## Estrutura do repositório
 
@@ -8,15 +8,8 @@ Plataforma web unificada: landing, autenticação, painel do estabelecimento e c
 SentinelaAgendamentos/
 └── app/                    # Frontend (React + Vite + Supabase)
     ├── public/
-    ├── src/
-    │   ├── app/            # Shell: App, router
-    │   ├── features/       # Domínios por funcionalidade
-    │   ├── components/     # UI compartilhada (shadcn) e guards
-    │   ├── hooks/
-    │   ├── integrations/   # Supabase client e types
-    │   ├── lib/
-    │   ├── pages/          # Páginas globais (404)
-    │   └── styles/
+    ├── src/                # App principal (landing, auth, painel)
+    ├── agenda/             # Módulo de agendamento (telas públicas)
     └── supabase/           # Migrations e Edge Functions
 ```
 
@@ -32,13 +25,15 @@ Abre em `http://localhost:8080`.
 
 ## Rotas principais
 
-| Rota | Feature |
-|------|---------|
+| Rota | Descrição |
+|------|-----------|
 | `/` | Landing |
 | `/planos` | Planos |
-| `/login`, `/signup` | Auth |
-| `/app` | Dashboard |
-| `/c/:slug` | Chat do cliente |
+| `/login`, `/signup` | Autenticação |
+| `/app/agendar` | Agendamento no painel (barbeiro) |
+| `/app/settings` | Configurações da empresa |
+| `/agendar/:slug` | Agendamento público do cliente |
+| `/agendar/:slug/meus` | Meus agendamentos do cliente |
 
 ## Deploy (EasyPanel + GitHub)
 
