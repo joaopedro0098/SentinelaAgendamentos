@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
+import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 
 type Shop = {
   id: string;
@@ -141,12 +142,15 @@ export default function Settings() {
         onConfirm={uploadAvatarBlob}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-          <p className="text-sm text-muted-foreground">
-            Perfil da empresa, link de agendamento e equipe de atendimento.
-          </p>
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full overflow-x-hidden">
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
+            <p className="text-sm text-muted-foreground">
+              Perfil da empresa, link de agendamento e equipe de atendimento.
+            </p>
+          </div>
+          <DashboardThemeToggle className="shrink-0" />
         </header>
 
         <Card className="glass-panel border-border/80">

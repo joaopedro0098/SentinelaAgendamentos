@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { CalendarDays, Clock, Loader2, MessageSquare, Phone, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Trash2, User } from "lucide-react";
+import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase as appSupabase } from "@/integrations/supabase/client";
 import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -41,6 +54,7 @@ function formatWhatsApp(w: string) {
 }
 
 export default function AgendamentosPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [slug, setSlug] = useState<string | null>(null);
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
@@ -49,6 +63,8 @@ export default function AgendamentosPage() {
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { phase } = useEnsureAgendaSync(slug ?? undefined);
 
@@ -172,6 +188,36 @@ export default function AgendamentosPage() {
     }
   }
 
+  function handleAlterar(a: AgendamentoRow) {
+    const payload: RescheduleContext = {
+      agendamentoId: a.id,
+      barbeiroId: a.barbeiro_id,
+      data: a.data,
+      hora: formatHora(a.hora),
+      cliente_nome: a.cliente_nome,
+      cliente_whatsapp: a.cliente_whatsapp,
+      observacao: a.observacao,
+      duracao_minutos: a.duracao_minutos,
+    };
+    navigate("/app/agendar", { state: { reschedule: payload } });
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.rpc("excluir_agendamento_painel", {
+      p_agendamento_id: deleteTarget.id,
+    });
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Agendamento excluído" });
+    setDeleteTarget(null);
+    loadAgendamentos();
+  }
+
   if (loadingShop || phase === "loading") {
     return (
       <div className="p-4 md:p-6 flex flex-col items-center justify-center min-h-[50vh] gap-3">
@@ -196,8 +242,8 @@ export default function AgendamentosPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10">
-      <header className="pr-12">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
+      <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <CalendarDays className="h-6 w-6 text-primary" />
           Agendamentos
@@ -209,7 +255,7 @@ export default function AgendamentosPage() {
 
       <section>
         <h2 className="text-sm font-semibold mb-2.5">Selecione o dia</h2>
-        <HorizontalScrollStrip className="-mx-1" centerOn={`[data-day="${selectedDate}"]`}>
+        <HorizontalScrollStrip centerOn={`[data-day="${selectedDate}"]`}>
           {dias.map((d) => {
             const key = ymd(d);
             const sel = key === selectedDate;
@@ -340,6 +386,32 @@ export default function AgendamentosPage() {
                         </p>
                       )}
                     </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 rounded-full"
+                        onClick={() => handleAlterar(a)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Alterar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "flex-1 rounded-full text-foreground",
+                          "hover:bg-unavailable hover:text-unavailable-foreground hover:border-unavailable",
+                          "active:bg-unavailable active:text-unavailable-foreground active:border-unavailable",
+                        )}
+                        onClick={() => setDeleteTarget(a)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </li>
@@ -347,6 +419,50 @@ export default function AgendamentosPage() {
           </ul>
         )}
       </section>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o agendamento de{" "}
+              <span className="font-medium text-foreground">{deleteTarget?.cliente_nome}</span>
+              {deleteTarget && (
+                <>
+                  {" "}
+                  às {formatHora(deleteTarget.hora)}?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              disabled={deleting}
+              className={cn(
+                "mt-0 rounded-full border-border !bg-secondary !text-muted-foreground shadow-none",
+                "hover:!bg-unavailable hover:!text-unavailable-foreground hover:!border-unavailable",
+                "active:!bg-unavailable active:!text-unavailable-foreground active:!border-unavailable",
+              )}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className={cn(
+                "rounded-full border border-border !bg-secondary !text-muted-foreground shadow-none",
+                "hover:!bg-primary hover:!text-primary-foreground hover:!border-primary",
+                "active:!bg-primary active:!text-primary-foreground active:!border-primary",
+              )}
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDelete();
+              }}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -199,6 +199,21 @@
     font-family: 'Space Grotesk', sans-serif;
     letter-spacing: -0.02em;
   }
+  html[data-theme="dashboard"],
+  html[data-theme="booking"] {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+  html[data-theme="dashboard"] body,
+  html[data-theme="booking"] body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+  html[data-theme="dashboard"] #root,
+  html[data-theme="booking"] #root {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   html[data-theme="dashboard"] body {
     font-family: 'Inter', system-ui, sans-serif;
     background-image:

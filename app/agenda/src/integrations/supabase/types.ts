@@ -492,6 +492,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      reagendar_agendamento: {
+        Args: {
+          p_agendamento_id: string
+          p_data: string
+          p_hora: string
+          p_barbeiro_id: string
+          p_duracao_minutos: number
+          p_observacao?: string | null
+        }
+        Returns: undefined
+      }
+      excluir_agendamento_painel: {
+        Args: { p_agendamento_id: string }
+        Returns: undefined
+      }
       listar_agendamentos_cliente: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {

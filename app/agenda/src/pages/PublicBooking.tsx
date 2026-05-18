@@ -5,18 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { maskPhone, unmaskPhone, isValidPhone } from "@/lib/phone";
+import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
 import { ArrowLeft, Check, Loader2, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
-import { buildSlots, filtrarSlotsLivres } from "@/lib/slots";
+import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 
 interface Barbearia {
   id: string;
   nome: string;
   logo_url: string | null;
   ativa: boolean;
+  telefone: string | null;
 }
 interface Barbeiro {
   id: string;
@@ -37,13 +38,38 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** No PC, clique no chip vermelho só centraliza no carrossel (não seleciona). */
+const centralizarChipCarrossel = (el: HTMLElement) => {
+  el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+};
+
+export type RescheduleContext = {
+  agendamentoId: string;
+  barbeiroId: string;
+  data: string;
+  hora: string;
+  cliente_nome: string;
+  cliente_whatsapp: string;
+  observacao: string | null;
+  duracao_minutos: number;
+};
+
 export type PublicBookingProps = {
   slugOverride?: string;
   backHref?: string;
   hideMeusAgendamentos?: boolean;
+  reschedule?: RescheduleContext | null;
+  onRescheduleComplete?: () => void;
 };
 
-const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }: PublicBookingProps = {}) => {
+const PublicBooking = ({
+  slugOverride,
+  backHref,
+  hideMeusAgendamentos = false,
+  reschedule = null,
+  onRescheduleComplete,
+}: PublicBookingProps = {}) => {
+  const isReschedule = Boolean(reschedule);
   const { slug: slugParam } = useParams();
   const slug = slugOverride ?? slugParam;
   const [loading, setLoading] = useState(true);
@@ -63,6 +89,7 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    if (reschedule) return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -71,7 +98,18 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
         if (c.whatsapp) setWhatsapp(maskPhone(c.whatsapp));
       } catch {}
     }
-  }, []);
+  }, [reschedule]);
+
+  useEffect(() => {
+    if (!reschedule) return;
+    setBarbeiroId(reschedule.barbeiroId);
+    setData(reschedule.data);
+    setHora("");
+    setNome(reschedule.cliente_nome);
+    setWhatsapp(maskPhone(reschedule.cliente_whatsapp));
+    setObservacao(reschedule.observacao ?? "");
+    setServSel([]);
+  }, [reschedule]);
 
   useEffect(() => {
     if (!slug) return;
@@ -82,24 +120,46 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
       const fromYmd = ymd(today);
       const toYmd = ymd(limite);
 
-      const { data: b } = await supabase
-        .from("barbearias")
-        .select(`
-          id, nome, logo_url, ativa,
-          barbeiros!inner ( id, nome, foto_url, ativo, slot_minutos,
-            disponibilidades ( dia_semana, hora_inicio, hora_fim ),
-            bloqueios ( data, hora_inicio, hora_fim ),
-            barbeiro_services ( id, nome, duracao_minutos, ativo )
-          )
-        `)
-        .eq("slug", slug)
-        .eq("barbeiros.ativo", true)
-        .maybeSingle();
+      const [{ data: b, error: barbErr }, shopRes] = await Promise.all([
+        supabase
+          .from("barbearias")
+          .select(`
+            id, nome, logo_url, ativa,
+            barbeiros ( id, nome, foto_url, ativo, slot_minutos,
+              disponibilidades ( dia_semana, hora_inicio, hora_fim ),
+              bloqueios ( data, hora_inicio, hora_fim ),
+              barbeiro_services ( id, nome, duracao_minutos, ativo )
+            )
+          `)
+          .eq("slug", slug)
+          .maybeSingle(),
+        supabase.from("barbershops").select("whatsapp_number").eq("slug", slug).maybeSingle(),
+      ]);
+
+      if (barbErr) {
+        console.error("[PublicBooking] barbearias:", barbErr.message);
+        toast.error("Não foi possível carregar a agenda. Tente novamente.");
+        setBarbearia(null);
+        setLoading(false);
+        return;
+      }
 
       if (!b) { setBarbearia(null); setLoading(false); return; }
-      setBarbearia({ id: b.id, nome: b.nome, logo_url: b.logo_url, ativa: b.ativa });
 
-      const bbs = ((b as any).barbeiros ?? []).map((bb: any) => ({
+      const contato =
+        (shopRes.data as { whatsapp_number?: string | null } | null)?.whatsapp_number ?? null;
+
+      setBarbearia({
+        id: b.id,
+        nome: b.nome,
+        logo_url: b.logo_url,
+        ativa: b.ativa,
+        telefone: contato,
+      });
+
+      const bbs = ((b as { barbeiros?: unknown[] }).barbeiros ?? [])
+        .filter((bb: { ativo?: boolean }) => bb.ativo !== false)
+        .map((bb: any) => ({
         id: bb.id,
         nome: bb.nome,
         foto_url: bb.foto_url,
@@ -116,13 +176,14 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
       if (bbIds.length) {
         const { data: ag } = await supabase
           .from("agendamentos")
-          .select("barbeiro_id,data,hora,duracao_minutos")
+          .select("id, barbeiro_id, data, hora, duracao_minutos")
           .eq("barbearia_id", b.id)
           .eq("status", "confirmado")
           .gte("data", fromYmd)
           .lte("data", toYmd);
         const map = new Map<string, Map<string, number>>();
         (ag ?? []).forEach((a: any) => {
+          if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
           const k = `${a.barbeiro_id}|${a.data}`;
           if (!map.has(k)) map.set(k, new Map());
           map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
@@ -132,7 +193,7 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
       setLoading(false);
     };
     load();
-  }, [slug]);
+  }, [slug, reschedule?.agendamentoId]);
 
   const dias = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -145,51 +206,132 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
   const servicosDoBarbeiro = barbeiroSel?.servicos ?? [];
 
   const duracaoTotal = useMemo(() => {
-    const slot = barbeiroSel?.slot_minutos ?? 30;
+    if (isReschedule && reschedule) return reschedule.duracao_minutos;
     const soma = servicosDoBarbeiro
       .filter((s) => servSel.includes(s.id))
       .reduce((a, s) => a + s.duracao_minutos, 0);
-    return soma > 0 ? soma : slot;
-  }, [servicosDoBarbeiro, servSel, barbeiroSel]);
+    if (soma > 0) return soma;
+    if (servicosDoBarbeiro.length === 0) return barbeiroSel?.slot_minutos ?? 30;
+    return 0;
+  }, [servicosDoBarbeiro, servSel, barbeiroSel, reschedule, isReschedule]);
 
-  const slotsMatrix = useMemo(() => {
-    const m = new Map<string, { all: string[]; livres: string[] }>();
+  type SlotsDiaRaw = {
+    all: string[];
+    windows: { hora_inicio: string; hora_fim: string }[];
+    ocup: Map<string, number>;
+    dayBloqs: { hora_inicio: string | null; hora_fim: string | null }[];
+  };
+
+  const slotsRaw = useMemo(() => {
+    const m = new Map<string, SlotsDiaRaw>();
     for (const bb of barbeiros) {
-      const dur = bb.id === barbeiroId ? duracaoTotal : (bb.slot_minutos ?? 30);
       for (const d of dias) {
         const key = ymd(d);
         const dow = d.getDay();
         const windows = bb.disponibilidades.filter((x) => x.dia_semana === dow);
-        const all = buildSlots(windows, bb.slot_minutos ?? 30);
-        const dayBloqs = bb.bloqueios.filter((b) => b.data === key);
-        const ocup = agOcupados.get(`${bb.id}|${key}`) ?? new Map();
-        const livres = filtrarSlotsLivres(all, windows, ocup, dayBloqs, dur);
-        m.set(`${bb.id}|${key}`, { all, livres });
+        m.set(`${bb.id}|${key}`, {
+          all: buildSlots(windows, bb.slot_minutos ?? 30),
+          windows,
+          ocup: agOcupados.get(`${bb.id}|${key}`) ?? new Map(),
+          dayBloqs: bb.bloqueios.filter((b) => b.data === key),
+        });
       }
     }
     return m;
-  }, [barbeiros, dias, agOcupados, barbeiroId, duracaoTotal]);
+  }, [barbeiros, dias, agOcupados]);
+
+  const livresComDuracao = (bbId: string, dayKey: string, dur: number) => {
+    if (dur <= 0) return [];
+    const raw = slotsRaw.get(`${bbId}|${dayKey}`);
+    if (!raw) return [];
+    return filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, dur);
+  };
+
+  /** Para cor do nome: precisa caber o maior serviço do barbeiro (não só barba/encaixe curto). */
+  const duracaoExigidaNoCarrossel = (bb: Barbeiro) => {
+    if (isReschedule && reschedule && bb.id === barbeiroId) return reschedule.duracao_minutos;
+    return duracaoReferenciaBarbeiro(bb.servicos, bb.slot_minutos ?? 30);
+  };
 
   const diaTemDisp = (k: string) =>
-    barbeiros.some((b) => (slotsMatrix.get(`${b.id}|${k}`)?.livres.length ?? 0) > 0);
-  const barbeiroTemDispNoDia = (bbId: string) =>
-    (slotsMatrix.get(`${bbId}|${data}`)?.livres.length ?? 0) > 0;
+    barbeiros.some((b) => livresComDuracao(b.id, k, duracaoExigidaNoCarrossel(b)).length > 0);
 
-  const slotsDoBarbeiroNoDia = barbeiroId
-    ? slotsMatrix.get(`${barbeiroId}|${data}`) ?? { all: [], livres: [] }
-    : { all: [] as string[], livres: [] as string[] };
+  const barbeiroTemDispNoDia = (bbId: string) => {
+    const bb = barbeiros.find((b) => b.id === bbId);
+    if (!bb) return false;
+    return livresComDuracao(bbId, data, duracaoExigidaNoCarrossel(bb)).length > 0;
+  };
 
-  // Reseta hora ao mudar duração
-  useEffect(() => { setHora(""); }, [duracaoTotal, barbeiroId, data]);
+  const slotsDoBarbeiroNoDia = useMemo(() => {
+    if (!barbeiroId) return { all: [] as string[], livres: [] as string[] };
+    const raw = slotsRaw.get(`${barbeiroId}|${data}`);
+    if (!raw) return { all: [], livres: [] };
+    const livres = duracaoTotal > 0 ? filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, duracaoTotal) : [];
+    return { all: raw.all, livres };
+  }, [barbeiroId, data, slotsRaw, duracaoTotal]);
+
+  useEffect(() => {
+    if (hora && !slotsDoBarbeiroNoDia.livres.includes(hora)) setHora("");
+  }, [hora, slotsDoBarbeiroNoDia.livres]);
+
+  const toggleServico = (id: string) => {
+    setServSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    setHora("");
+  };
+
+  const horarioAindaDisponivel = () =>
+    Boolean(hora && slotsDoBarbeiroNoDia.livres.includes(hora));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barbearia || !barbeiroId || !data || !hora) return toast.error("Selecione dia, barbeiro e horário");
+    if (!isReschedule && servicosDoBarbeiro.length > 0 && servSel.length === 0) {
+      return toast.error("Selecione pelo menos um serviço");
+    }
+    if (!horarioAindaDisponivel()) {
+      return toast.error("Esse horário não está mais disponível para os serviços selecionados. Escolha outro.");
+    }
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
+    if (!reschedule) {
+      setDone(true);
+      return;
+    }
+
+    setSubmitting(true);
+    const obs = observacao.trim() || null;
+    const { error } = await supabase.rpc("reagendar_agendamento", {
+      p_agendamento_id: reschedule.agendamentoId,
+      p_data: data,
+      p_hora: hora,
+      p_barbeiro_id: barbeiroId,
+      p_duracao_minutos: duracaoTotal,
+      p_observacao: obs,
+    });
+    setSubmitting(false);
+    if (error) {
+      if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+      else toast.error(error.message);
+      return;
+    }
+    setDone(true);
+  };
+
+  const confirmBooking = async () => {
+    if (!barbearia || !barbeiroId || !data || !hora) return;
+    if (servicosDoBarbeiro.length > 0 && servSel.length === 0) {
+      toast.error("Selecione pelo menos um serviço");
+      return;
+    }
+    if (!horarioAindaDisponivel()) {
+      toast.error("Esse horário não está mais disponível para os serviços selecionados. Escolha outro.");
+      return;
+    }
     setSubmitting(true);
     const whatsClean = unmaskPhone(whatsapp);
+    const obs = observacao.trim() || null;
+
     const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
       _barbearia_id: barbearia.id,
       _whatsapp: whatsClean,
@@ -205,16 +347,26 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
       cliente_id: cliId ?? null,
       duracao_minutos: duracaoTotal,
       status: "confirmado",
-      observacao: observacao.trim() || null,
+      observacao: obs,
     });
+
     setSubmitting(false);
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else toast.error(error.message);
       return;
     }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
-    setDone(true);
+    toast.success("Agendamento confirmado!");
+    setDone(false);
+    setHora("");
+    setServSel([]);
+    setObservacao("");
+  };
+
+  const alterBooking = () => {
+    setDone(false);
   };
 
   if (loading) return (
@@ -243,29 +395,88 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
     </div>
   );
 
-  if (done) return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
-      <Card className="max-w-sm w-full p-6 text-center">
-        <div className="mx-auto h-12 w-12 rounded-full bg-available/10 flex items-center justify-center">
-          <Check className="h-6 w-6 text-available" />
-        </div>
-        <h1 className="mt-4 font-display text-xl font-bold">Agendamento confirmado!</h1>
-        <p className="mt-2 text-muted-foreground text-sm">
-          {barbearia.nome} aguarda você em <b className="text-foreground">{new Date(data + "T00:00:00").toLocaleDateString("pt-BR")}</b> às <b className="text-foreground">{hora}</b>.
-        </p>
-        <Button className="mt-6 w-full" onClick={() => { setDone(false); setHora(""); setServSel([]); setObservacao(""); }}>
-          Fazer outro agendamento
-        </Button>
-      </Card>
-    </div>
-  );
+  if (done) {
+    const barbeiroNome = barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "";
 
-  const semHorariosNoDia = barbeiroId && slotsDoBarbeiroNoDia.all.length === 0;
-  const todosOcupados = barbeiroId && slotsDoBarbeiroNoDia.all.length > 0 && slotsDoBarbeiroNoDia.livres.length === 0;
+    if (isReschedule) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
+          <Card className="max-w-sm w-full p-6 text-center">
+            <div className="mx-auto h-12 w-12 rounded-full bg-available/10 flex items-center justify-center">
+              <Check className="h-6 w-6 text-available" />
+            </div>
+            <h1 className="mt-4 font-display text-xl font-bold">Horário alterado!</h1>
+            <p className="mt-2 text-muted-foreground text-sm">
+              Novo horário: <b className="text-foreground">{new Date(data + "T00:00:00").toLocaleDateString("pt-BR")}</b> às{" "}
+              <b className="text-foreground">{hora}</b>.
+            </p>
+            <Button className="mt-6 w-full" onClick={() => onRescheduleComplete?.()}>
+              Voltar aos agendamentos
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
+        <Card className="max-w-sm w-full p-6">
+          <h1 className="font-display text-xl font-bold text-center">Confirme seu agendamento</h1>
+          <p className="mt-2 text-muted-foreground text-sm text-center">
+            Revise os dados antes de salvar. Você pode alterar se algo estiver errado.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm border-t border-border pt-4">
+            <li className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Data</span>
+              <span className="font-medium">{new Date(data + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+            </li>
+            <li className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Horário</span>
+              <span className="font-medium">{hora}</span>
+            </li>
+            <li className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Profissional</span>
+              <span className="font-medium text-right">{barbeiroNome}</span>
+            </li>
+            <li className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Nome</span>
+              <span className="font-medium text-right">{nome}</span>
+            </li>
+            <li className="flex justify-between gap-2">
+              <span className="text-muted-foreground">WhatsApp</span>
+              <span className="font-medium">{maskPhone(unmaskPhone(whatsapp))}</span>
+            </li>
+            {observacao.trim() && (
+              <li className="pt-1 border-t border-border/60">
+                <span className="text-muted-foreground block mb-1">Observação</span>
+                <span className="font-medium">{observacao}</span>
+              </li>
+            )}
+          </ul>
+          <div className="mt-6 flex gap-2">
+            <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
+              Alterar
+            </Button>
+            <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const semHorariosNoDia = barbeiroId && duracaoTotal > 0 && slotsDoBarbeiroNoDia.all.length === 0;
+  const precisaEscolherServico =
+    !isReschedule && Boolean(barbeiroId) && servicosDoBarbeiro.length > 0 && servSel.length === 0;
+  const semBlocoParaServicos =
+    Boolean(barbeiroId) && duracaoTotal > 0 && slotsDoBarbeiroNoDia.all.length > 0 && slotsDoBarbeiroNoDia.livres.length === 0;
+  const barbeiroSemDispNoDia = Boolean(barbeiroId && barbeiroSel && !barbeiroTemDispNoDia(barbeiroId));
+  const waLink = whatsappHref(barbearia.telefone);
 
   return (
-    <div className="min-h-screen bg-surface">
-      <div className="mx-auto w-full max-w-md">
+    <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden">
+      <div className="mx-auto w-full max-w-md overflow-x-hidden">
         {/* HEADER */}
         <header className="bg-card border-b border-border px-5 pt-6 pb-4">
           {backHref && (
@@ -304,10 +515,26 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
         </header>
 
         <form onSubmit={submit} className="px-5 py-5 space-y-6">
+          {isReschedule && (
+            <Card className="p-3.5 bg-primary/10 border-primary/25 text-sm">
+              <p className="font-semibold text-foreground">Alterar horário</p>
+              <p className="text-muted-foreground mt-1">
+                Cliente: <span className="text-foreground font-medium">{nome}</span>
+                {reschedule?.hora && (
+                  <>
+                    {" "}
+                    · Antes: {new Date(reschedule.data + "T00:00:00").toLocaleDateString("pt-BR")} às {reschedule.hora}
+                  </>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Escolha um novo dia e horário disponível abaixo.</p>
+            </Card>
+          )}
+
           {/* DIAS */}
           <section>
             <h2 className="font-display text-base font-semibold mb-2.5">Selecione o dia</h2>
-            <HorizontalScrollStrip className="-mx-5 px-5" centerOn={`[data-day="${data}"]`}>
+            <HorizontalScrollStrip centerOn={`[data-day="${data}"]`}>
               {dias.map((d) => {
                 const key = ymd(d);
                 const ok = diaTemDisp(key);
@@ -317,13 +544,24 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
                     key={key}
                     data-day={key}
                     type="button"
-                    onClick={() => { setData(key); setBarbeiroId(""); setHora(""); setServSel([]); }}
+                    aria-disabled={!ok}
+                    title={ok ? undefined : "Sem disponibilidade neste dia"}
+                    onClick={(e) => {
+                      if (ok) {
+                        setData(key);
+                        setBarbeiroId("");
+                        setHora("");
+                        setServSel([]);
+                      } else {
+                        centralizarChipCarrossel(e.currentTarget);
+                      }
+                    }}
                     className={cn(
-                      "snap-start shrink-0 w-[68px] h-20 rounded-2xl flex flex-col items-center justify-center font-semibold transition-all active:scale-95",
-                      ok ? "bg-available text-available-foreground" : "bg-unavailable text-unavailable-foreground opacity-90",
-                      sel && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+                      "snap-start shrink-0 w-[68px] h-20 rounded-2xl flex flex-col items-center justify-center font-semibold transition-all cursor-pointer",
+                      ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+                      sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
                     )}
-                    aria-pressed={sel}
+                    aria-pressed={sel && ok}
                   >
                     <span className="text-[11px] opacity-90 font-medium">{DIAS[d.getDay()]}</span>
                     <span className="font-display text-xl leading-none my-0.5">{d.getDate()}</span>
@@ -340,10 +578,7 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
             {barbeiros.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum barbeiro cadastrado.</p>
             ) : (
-              <HorizontalScrollStrip
-                className="-mx-5 px-5"
-                centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
-              >
+              <HorizontalScrollStrip centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}>
                 {barbeiros.map((b) => {
                   const ok = barbeiroTemDispNoDia(b.id);
                   const sel = b.id === barbeiroId;
@@ -352,13 +587,23 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
                       key={b.id}
                       data-barbeiro={b.id}
                       type="button"
-                      onClick={() => { setBarbeiroId(b.id); setHora(""); setServSel([]); }}
+                      aria-disabled={!ok}
+                      title={ok ? undefined : "Sem disponibilidade neste dia"}
+                      onClick={(e) => {
+                        if (ok) {
+                          setBarbeiroId(b.id);
+                          setHora("");
+                          setServSel([]);
+                        } else {
+                          centralizarChipCarrossel(e.currentTarget);
+                        }
+                      }}
                       className={cn(
-                        "snap-start shrink-0 min-w-[8.5rem] px-4 h-14 rounded-2xl flex items-center justify-center font-semibold transition-all active:scale-95",
-                        ok ? "bg-available text-available-foreground" : "bg-unavailable text-unavailable-foreground opacity-90",
-                        sel && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+                        "snap-start shrink-0 min-w-[8.5rem] px-4 h-14 rounded-2xl flex items-center justify-center font-semibold transition-all cursor-pointer",
+                        ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+                        sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
                       )}
-                      aria-pressed={sel}
+                      aria-pressed={sel && ok}
                     >
                       {b.nome}
                     </button>
@@ -366,16 +611,42 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
                 })}
               </HorizontalScrollStrip>
             )}
+            {barbeiroSemDispNoDia && (
+              <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5">
+                <p>
+                  <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
+                </p>
+                <p className="text-muted-foreground">
+                  Escolha outro dia ou outro barbeiro
+                  {waLink ? (
+                    <>
+                      , ou{" "}
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground font-semibold underline underline-offset-2"
+                      >
+                        entre em contato conosco
+                      </a>{" "}
+                      para ver se conseguimos um encaixe.
+                    </>
+                  ) : (
+                    "."
+                  )}
+                </p>
+              </Card>
+            )}
           </section>
 
           {/* SERVIÇOS */}
-          {barbeiroId && servicosDoBarbeiro.length > 0 && (
+          {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
             <section>
               <h2 className="font-display text-base font-semibold mb-2.5">Serviços</h2>
               <ServicosCarousel
                 servicos={servicosDoBarbeiro}
                 selecionados={servSel}
-                onToggle={(id) => setServSel((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])}
+                onToggle={toggleServico}
               />
             </section>
           )}
@@ -385,19 +656,42 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
             <h2 className="font-display text-base font-semibold mb-2.5">Selecione o horário</h2>
             {!barbeiroId ? (
               <p className="text-sm text-muted-foreground">Escolha um barbeiro acima para ver os horários.</p>
+            ) : barbeiroSemDispNoDia ? null : precisaEscolherServico ? (
+              <Card className="p-3.5 bg-muted/40 border-border text-sm text-foreground">
+                Selecione um ou mais serviços acima. Os horários aparecem conforme o tempo total dos serviços.
+              </Card>
             ) : semHorariosNoDia ? (
               <Card className="p-3.5 bg-unavailable-soft border-unavailable/20 text-sm text-foreground">
                 Sem horários para essa data com <b>{barbeiroSel?.nome}</b>. Escolha outra data ou outro barbeiro.
               </Card>
-            ) : todosOcupados ? (
-              <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground">
-                <b>Agenda lotada.</b> Escolha outro barbeiro ou outro dia.
+            ) : semBlocoParaServicos ? (
+              <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2">
+                <p>
+                  <b>Não há disponibilidade</b> para os serviços selecionados ({duracaoTotal} min) nesta data com{" "}
+                  <b>{barbeiroSel?.nome}</b>.
+                </p>
+                <p className="text-muted-foreground">
+                  Escolha outra data ou outro barbeiro
+                  {waLink ? (
+                    <>
+                      , ou{" "}
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground font-semibold underline underline-offset-2"
+                      >
+                        fale conosco no WhatsApp
+                      </a>{" "}
+                      para ver se conseguimos encaixá-lo.
+                    </>
+                  ) : (
+                    "."
+                  )}
+                </p>
               </Card>
             ) : (
-              <HorizontalScrollStrip
-                className="-mx-5 px-5"
-                centerOn={hora ? `[data-slot="${hora}"]` : null}
-              >
+              <HorizontalScrollStrip centerOn={hora ? `[data-slot="${hora}"]` : null}>
                 {slotsDoBarbeiroNoDia.all.map((s) => {
                   const livre = slotsDoBarbeiroNoDia.livres.includes(s);
                   const sel = s === hora;
@@ -406,14 +700,18 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
                       key={s}
                       data-slot={s}
                       type="button"
-                      disabled={!livre}
-                      onClick={() => livre && setHora(s)}
+                      aria-disabled={!livre}
+                      title={livre ? undefined : "Horário indisponível"}
+                      onClick={(e) => {
+                        if (livre) setHora(s);
+                        else centralizarChipCarrossel(e.currentTarget);
+                      }}
                       className={cn(
-                        "snap-start shrink-0 w-[72px] h-12 rounded-xl flex items-center justify-center font-semibold text-sm transition-all",
-                        livre ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90 cursor-not-allowed",
-                        sel && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+                        "snap-start shrink-0 w-[72px] h-12 rounded-xl flex items-center justify-center font-semibold text-sm transition-all cursor-pointer",
+                        livre ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+                        sel && livre && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
                       )}
-                      aria-pressed={sel}
+                      aria-pressed={sel && livre}
                     >
                       {s}
                     </button>
@@ -426,14 +724,17 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
           {/* DADOS */}
           <section className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold mb-1.5">Seu nome</label>
+              <label className="block text-sm font-semibold mb-1.5">
+                {isReschedule ? "Cliente" : "Seu nome"}
+              </label>
               <Input
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder="Como devemos te chamar"
                 required
                 maxLength={80}
-                className="h-12 text-base"
+                readOnly={isReschedule}
+                className={cn("h-12 text-base", isReschedule && "bg-muted/50")}
               />
             </div>
             <div>
@@ -444,7 +745,8 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
                 onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
                 placeholder="(11) 91234-5678"
                 required
-                className="h-12 text-base"
+                readOnly={isReschedule}
+                className={cn("h-12 text-base", isReschedule && "bg-muted/50")}
               />
             </div>
             <div>
@@ -467,7 +769,13 @@ const PublicBooking = ({ slugOverride, backHref, hideMeusAgendamentos = false }:
             disabled={submitting || !barbeiroId || !hora}
             className="w-full h-13 text-base font-semibold py-3.5 rounded-xl"
           >
-            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar agendamento"}
+            {submitting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : isReschedule ? (
+              "Confirmar novo horário"
+            ) : (
+              "Confirmar agendamento"
+            )}
           </Button>
         </form>
       </div>

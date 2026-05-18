@@ -4,6 +4,15 @@
 export interface Window { hora_inicio: string; hora_fim: string }
 export interface Bloq { hora_inicio: string | null; hora_fim: string | null }
 
+/** Duração mínima de bloco para considerar o barbeiro “com agenda” (evita só encaixe de serviço curto). */
+export const duracaoReferenciaBarbeiro = (
+  servicos: { duracao_minutos: number }[],
+  slotMinutos: number,
+): number => {
+  if (servicos.length > 0) return Math.max(...servicos.map((s) => s.duracao_minutos));
+  return slotMinutos;
+};
+
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;

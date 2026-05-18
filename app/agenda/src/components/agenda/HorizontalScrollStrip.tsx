@@ -39,8 +39,11 @@ export function HorizontalScrollStrip({ children, className, centerOn }: Props) 
   }, []);
 
   return (
-    <div ref={ref} className={cn(STRIP_CLASS, className)}>
-      {children}
+    <div className="w-full max-w-full overflow-x-hidden">
+      <div ref={ref} className={cn(STRIP_CLASS, "w-full max-w-full", className)}>
+        {children}
+      </div>
     </div>
   );
 }
+

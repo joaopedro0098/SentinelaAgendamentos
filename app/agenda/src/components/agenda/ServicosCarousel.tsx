@@ -18,7 +18,7 @@ export const ServicosCarousel = ({ servicos, selecionados, onToggle }: Props) =>
   const total = servicos.filter((s) => selecionados.includes(s.id)).reduce((a, s) => a + s.duracao_minutos, 0);
   return (
     <div>
-      <HorizontalScrollStrip className="-mx-4 px-4">
+      <HorizontalScrollStrip>
         {servicos.map((s) => {
           const sel = selecionados.includes(s.id);
           return (
