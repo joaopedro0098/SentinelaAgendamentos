@@ -1,6 +1,7 @@
 -- Colaboradores, serviços (com duração) e horários de atendimento por colaborador
+-- Idempotente: banco remoto pode já ter sido criado manualmente ou por deploy anterior.
 
-CREATE TABLE public.staff (
+CREATE TABLE IF NOT EXISTS public.staff (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   barbershop_id uuid NOT NULL REFERENCES public.barbershops(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -11,9 +12,9 @@ CREATE TABLE public.staff (
   CONSTRAINT staff_name_len CHECK (char_length(trim(name)) >= 1 AND char_length(name) <= 80)
 );
 
-CREATE INDEX idx_staff_barbershop ON public.staff(barbershop_id);
+CREATE INDEX IF NOT EXISTS idx_staff_barbershop ON public.staff(barbershop_id);
 
-CREATE TABLE public.staff_services (
+CREATE TABLE IF NOT EXISTS public.staff_services (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   staff_id uuid NOT NULL REFERENCES public.staff(id) ON DELETE CASCADE,
   name text NOT NULL,
@@ -26,9 +27,9 @@ CREATE TABLE public.staff_services (
   UNIQUE (staff_id, name)
 );
 
-CREATE INDEX idx_staff_services_staff ON public.staff_services(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_services_staff ON public.staff_services(staff_id);
 
-CREATE TABLE public.staff_schedules (
+CREATE TABLE IF NOT EXISTS public.staff_schedules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   staff_id uuid NOT NULL REFERENCES public.staff(id) ON DELETE CASCADE,
   day_of_week smallint NOT NULL,
@@ -41,7 +42,7 @@ CREATE TABLE public.staff_schedules (
   UNIQUE (staff_id, day_of_week)
 );
 
-CREATE INDEX idx_staff_schedules_staff ON public.staff_schedules(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_schedules_staff ON public.staff_schedules(staff_id);
 
 CREATE OR REPLACE FUNCTION public.user_owns_barbershop(p_barbershop_id uuid)
 RETURNS boolean
@@ -71,14 +72,17 @@ AS $$
   );
 $$;
 
+DROP TRIGGER IF EXISTS trg_staff_updated_at ON public.staff;
 CREATE TRIGGER trg_staff_updated_at
 BEFORE UPDATE ON public.staff
 FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
+DROP TRIGGER IF EXISTS trg_staff_services_updated_at ON public.staff_services;
 CREATE TRIGGER trg_staff_services_updated_at
 BEFORE UPDATE ON public.staff_services
 FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
+DROP TRIGGER IF EXISTS trg_staff_schedules_updated_at ON public.staff_schedules;
 CREATE TRIGGER trg_staff_schedules_updated_at
 BEFORE UPDATE ON public.staff_schedules
 FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
@@ -87,16 +91,19 @@ ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.staff_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.staff_schedules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Owners manage staff" ON public.staff;
 CREATE POLICY "Owners manage staff"
   ON public.staff FOR ALL TO authenticated
   USING (public.user_owns_barbershop(barbershop_id))
   WITH CHECK (public.user_owns_barbershop(barbershop_id));
 
+DROP POLICY IF EXISTS "Owners manage staff_services" ON public.staff_services;
 CREATE POLICY "Owners manage staff_services"
   ON public.staff_services FOR ALL TO authenticated
   USING (public.user_owns_staff(staff_id))
   WITH CHECK (public.user_owns_staff(staff_id));
 
+DROP POLICY IF EXISTS "Owners manage staff_schedules" ON public.staff_schedules;
 CREATE POLICY "Owners manage staff_schedules"
   ON public.staff_schedules FOR ALL TO authenticated
   USING (public.user_owns_staff(staff_id))

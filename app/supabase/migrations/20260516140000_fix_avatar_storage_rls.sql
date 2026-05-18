@@ -7,6 +7,10 @@ DROP POLICY IF EXISTS "Authenticated can upload barbershop avatars" ON storage.o
 DROP POLICY IF EXISTS "Authenticated can update barbershop avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated can delete barbershop avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Public can view barbershop avatars" ON storage.objects;
+DROP POLICY IF EXISTS "avatar_select_public" ON storage.objects;
+DROP POLICY IF EXISTS "avatar_insert_own_folder" ON storage.objects;
+DROP POLICY IF EXISTS "avatar_update_own_folder" ON storage.objects;
+DROP POLICY IF EXISTS "avatar_delete_own_folder" ON storage.objects;
 
 -- Leitura pública (bucket já é public; URLs diretas funcionam)
 CREATE POLICY "avatar_select_public"
