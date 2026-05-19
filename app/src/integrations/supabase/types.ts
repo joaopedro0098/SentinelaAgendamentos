@@ -18,13 +18,19 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          current_period_end: string | null
           display_name: string
+          grace_until: string | null
           id: string
+          mp_subscription_id: string | null
           n8n_webhook_url: string | null
           owner_id: string | null
           sheet_url: string | null
           slug: string
           status_text: string
+          subscription_notice: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          trial_started_at: string
           updated_at: string
           welcome_message: string
           whatsapp_number: string | null
@@ -335,9 +341,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_my_subscription: { Args: Record<string, never>; Returns: Json }
+      check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "barber"
+      subscription_status: "trial" | "active" | "grace" | "expired" | "cancelled"
       message_sender: "customer" | "ai"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
     }

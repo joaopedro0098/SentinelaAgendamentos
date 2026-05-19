@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import PublicBooking, { type RescheduleContext } from "@agenda/pages/PublicBooking";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
+import { SubscriptionBanner } from "@/features/dashboard/components/SubscriptionBanner";
 import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,6 +96,7 @@ export default function AgendarPage() {
 
   return (
     <AgendaShell>
+      <SubscriptionBanner />
       <PublicBooking
         slugOverride={slug}
         backHref={backHref}

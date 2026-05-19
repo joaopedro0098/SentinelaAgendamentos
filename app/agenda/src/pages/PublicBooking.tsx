@@ -11,6 +11,12 @@ import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
+import {
+  checkBarbeariaCanBook,
+  SUBSCRIPTION_BLOCK_CLIENT,
+  SUBSCRIPTION_BLOCK_OWNER,
+  isSubscriptionBlockError,
+} from "../lib/subscription";
 
 interface Barbearia {
   id: string;
@@ -299,6 +305,12 @@ const PublicBooking = ({
       return;
     }
 
+    const canBook = await checkBarbeariaCanBook(barbearia.id);
+    if (!canBook) {
+      toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      return;
+    }
+
     setSubmitting(true);
     const obs = observacao.trim() || null;
     const { error } = await supabase.rpc("reagendar_agendamento", {
@@ -312,7 +324,9 @@ const PublicBooking = ({
     setSubmitting(false);
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-      else toast.error(error.message);
+      else if (isSubscriptionBlockError(error.message)) {
+        toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      } else toast.error(error.message);
       return;
     }
     setDone(true);
@@ -328,6 +342,13 @@ const PublicBooking = ({
       toast.error("Esse horário não está mais disponível para os serviços selecionados. Escolha outro.");
       return;
     }
+
+    const canBook = await checkBarbeariaCanBook(barbearia.id);
+    if (!canBook) {
+      toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      return;
+    }
+
     setSubmitting(true);
     const whatsClean = unmaskPhone(whatsapp);
     const obs = observacao.trim() || null;
@@ -353,7 +374,9 @@ const PublicBooking = ({
     setSubmitting(false);
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-      else toast.error(error.message);
+      else if (isSubscriptionBlockError(error.message)) {
+        toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      } else toast.error(error.message);
       return;
     }
 

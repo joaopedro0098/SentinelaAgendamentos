@@ -16,6 +16,7 @@ import AuthCallbackPage from "@/features/auth/pages/AuthCallback";
 
 import AppLayout from "@/features/dashboard/pages/AppLayout";
 import SettingsPage from "@/features/dashboard/pages/Settings";
+import PerfilPage from "@/features/dashboard/pages/PerfilPage";
 import AgendarPage from "@/features/dashboard/pages/AgendarPage";
 import AgendamentosPage from "@/features/dashboard/pages/AgendamentosPage";
 
@@ -50,6 +51,7 @@ export function AppRouter() {
         <Route path="agendar" element={<AgendarPage />} />
         <Route path="agendamentos" element={<AgendamentosPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="perfil" element={<PerfilPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

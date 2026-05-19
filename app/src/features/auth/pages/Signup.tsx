@@ -38,18 +38,6 @@ const schema = z
 
 const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
 
-function slugify(s: string) {
-  return (
-    s
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "")
-      .slice(0, 40) || "barbearia"
-  );
-}
-
 export default function Signup() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -66,23 +54,6 @@ export default function Signup() {
   useEffect(() => {
     if (session) navigate("/app", { replace: true });
   }, [session, navigate]);
-
-  async function createBarbershopForUser(userId: string, name: string) {
-    let slug = slugify(name);
-    for (let i = 0; i < 5; i++) {
-      const trySlug = i === 0 ? slug : `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-      const { error } = await supabase.from("barbershops").insert({
-        owner_id: userId,
-        slug: trySlug,
-        display_name: name,
-      });
-      if (!error) {
-        slug = trySlug;
-        break;
-      }
-      if (!error || !`${error.message}`.includes("duplicate")) break;
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,7 +112,8 @@ export default function Signup() {
     }
 
     if (data.session && data.user) {
-      await createBarbershopForUser(data.user.id, parsed.data.shop_name);
+      // Barbearia criada pelo trigger handle_new_user (trial 14 dias).
+      await supabase.auth.updateUser({ data: { shop_name: parsed.data.shop_name } });
       navigate("/app", { replace: true });
     } else {
       toast({

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Camera, Check, Copy, ExternalLink, Loader2, User } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,7 +151,14 @@ export default function Settings() {
               Perfil da empresa, link de agendamento e equipe de atendimento.
             </p>
           </div>
-          <DashboardThemeToggle className="shrink-0" />
+          <div className="flex items-center gap-2 shrink-0">
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link to="/app/perfil">
+                <User className="h-4 w-4" /> Perfil
+              </Link>
+            </Button>
+            <DashboardThemeToggle />
+          </div>
         </header>
 
         <Card className="glass-panel border-border/80">
