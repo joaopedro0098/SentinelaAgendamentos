@@ -5,16 +5,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function cleanUrl(value: string | null | undefined) {
+  return value?.trim().replace(/\/+$/, "");
+}
+
+async function readJsonOrText(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function getMpErrorMessage(details: unknown) {
+  if (!details || typeof details !== "object") return "erro não informado pelo Mercado Pago.";
+
+  const record = details as {
+    message?: string;
+    error?: string;
+    cause?: Array<{ description?: string; code?: string }>;
+  };
+
+  const cause = record.cause?.find((item) => item.description)?.description;
+  return cause ?? record.message ?? record.error ?? "erro não informado pelo Mercado Pago.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Não autenticado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Não autenticado" }, 401);
     }
 
     const supabase = createClient(
@@ -25,28 +56,18 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData.user) {
-      return new Response(JSON.stringify({ error: "Token inválido" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Token inválido" }, 401);
     }
     const user = userData.user;
 
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (isAdmin) {
-      return new Response(JSON.stringify({ error: "Conta administrativa não requer assinatura." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Conta administrativa não requer assinatura." }, 400);
     }
 
-    const planId = Deno.env.get("MP_PLAN_ID");
-    const mpToken = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!planId || !mpToken) {
-      return new Response(JSON.stringify({ error: "Mercado Pago não configurado (MP_PLAN_ID / MP_ACCESS_TOKEN)." }), {
-        status: 503,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const mpToken = Deno.env.get("MP_ACCESS_TOKEN")?.trim();
+    if (!mpToken) {
+      return jsonResponse({ error: "Mercado Pago não configurado (MP_ACCESS_TOKEN)." }, 503);
     }
 
     const { data: shop } = await supabase
@@ -56,13 +77,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!shop) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://sentinelagendamentos.com";
+    const origin = cleanUrl(Deno.env.get("APP_URL")) ||
+      cleanUrl(req.headers.get("origin")) ||
+      "https://sentinelagendamentos.com";
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -71,22 +91,30 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        preapproval_plan_id: planId,
         payer_email: user.email,
         back_url: `${origin}/app/perfil?subscription=success`,
         external_reference: shop.id,
         reason: `Assinatura Sentinela — ${shop.display_name}`,
         status: "pending",
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: 19.9,
+          currency_id: "BRL",
+        },
       }),
     });
 
-    const mpData = await mpRes.json();
+    const mpData = await readJsonOrText(mpRes);
     if (!mpRes.ok) {
       console.error("MP error:", mpData);
-      return new Response(JSON.stringify({ error: "Erro ao criar assinatura no Mercado Pago", details: mpData }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(
+        {
+          error: `Mercado Pago recusou a criação da assinatura: ${getMpErrorMessage(mpData)}`,
+          details: mpData,
+        },
+        502,
+      );
     }
 
     await supabase
@@ -97,14 +125,14 @@ Deno.serve(async (req) => {
       })
       .eq("id", shop.id);
 
-    return new Response(JSON.stringify({ init_point: mpData.init_point, id: mpData.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const data = mpData as { init_point?: string; id?: string };
+    if (!data.init_point) {
+      return jsonResponse({ error: "Mercado Pago não retornou o link de pagamento.", details: mpData }, 502);
+    }
+
+    return jsonResponse({ init_point: data.init_point, id: data.id });
   } catch (e) {
     console.error("mp-create-subscription:", e);
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });

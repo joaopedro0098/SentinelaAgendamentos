@@ -5,16 +5,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function readJsonOrText(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function getMpErrorMessage(details: unknown) {
+  if (!details || typeof details !== "object") return "erro não informado pelo Mercado Pago.";
+
+  const record = details as {
+    message?: string;
+    error?: string;
+    cause?: Array<{ description?: string; code?: string }>;
+  };
+
+  const cause = record.cause?.find((item) => item.description)?.description;
+  return cause ?? record.message ?? record.error ?? "erro não informado pelo Mercado Pago.";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Não autenticado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Não autenticado" }, 401);
     }
 
     const supabase = createClient(
@@ -25,10 +52,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData.user) {
-      return new Response(JSON.stringify({ error: "Token inválido" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Token inválido" }, 401);
     }
 
     const { data: shop } = await supabase
@@ -38,18 +62,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!shop?.mp_subscription_id) {
-      return new Response(JSON.stringify({ error: "Nenhuma assinatura ativa encontrada." }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Nenhuma assinatura ativa encontrada." }, 404);
     }
 
-    const mpToken = Deno.env.get("MP_ACCESS_TOKEN");
+    const mpToken = Deno.env.get("MP_ACCESS_TOKEN")?.trim();
     if (!mpToken) {
-      return new Response(JSON.stringify({ error: "Mercado Pago não configurado." }), {
-        status: 503,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Mercado Pago não configurado." }, 503);
     }
 
     const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${shop.mp_subscription_id}`, {
@@ -62,12 +80,15 @@ Deno.serve(async (req) => {
     });
 
     if (!mpRes.ok) {
-      const details = await mpRes.json();
+      const details = await readJsonOrText(mpRes);
       console.error("MP cancel error:", details);
-      return new Response(JSON.stringify({ error: "Não foi possível cancelar no Mercado Pago." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(
+        {
+          error: `Não foi possível cancelar no Mercado Pago: ${getMpErrorMessage(details)}`,
+          details,
+        },
+        502,
+      );
     }
 
     const notice = "Assinatura cancelada. O acesso continua até o fim do período já pago.";
@@ -79,13 +100,8 @@ Deno.serve(async (req) => {
       })
       .eq("id", shop.id);
 
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: true });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
