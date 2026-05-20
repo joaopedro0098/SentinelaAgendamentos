@@ -13,7 +13,7 @@ import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import {
   checkBarbeariaCanBook,
-  SUBSCRIPTION_BLOCK_CLIENT,
+  getSubscriptionBlockClient,
   SUBSCRIPTION_BLOCK_OWNER,
   isSubscriptionBlockError,
 } from "../lib/subscription";
@@ -288,6 +288,9 @@ const PublicBooking = ({
   const horarioAindaDisponivel = () =>
     Boolean(hora && slotsDoBarbeiroNoDia.livres.includes(hora));
 
+  const subscriptionBlockMessage = () =>
+    slugOverride ? SUBSCRIPTION_BLOCK_OWNER : getSubscriptionBlockClient(barbearia?.nome);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barbearia || !barbeiroId || !data || !hora) return toast.error("Selecione dia, barbeiro e horário");
@@ -307,7 +310,7 @@ const PublicBooking = ({
 
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
-      toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      toast.error(subscriptionBlockMessage());
       return;
     }
 
@@ -325,7 +328,7 @@ const PublicBooking = ({
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else if (isSubscriptionBlockError(error.message)) {
-        toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+        toast.error(subscriptionBlockMessage());
       } else toast.error(error.message);
       return;
     }
@@ -345,7 +348,7 @@ const PublicBooking = ({
 
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
-      toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+      toast.error(subscriptionBlockMessage());
       return;
     }
 
@@ -375,7 +378,7 @@ const PublicBooking = ({
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else if (isSubscriptionBlockError(error.message)) {
-        toast.error(slugOverride ? SUBSCRIPTION_BLOCK_OWNER : SUBSCRIPTION_BLOCK_CLIENT);
+        toast.error(subscriptionBlockMessage());
       } else toast.error(error.message);
       return;
     }
