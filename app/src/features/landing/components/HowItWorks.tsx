@@ -1,20 +1,20 @@
-import { MessageSquare, Bot, CalendarCheck } from "lucide-react";
+import { CalendarCheck, Link2, Settings } from "lucide-react";
 
 const steps = [
   {
-    icon: MessageSquare,
-    title: "Cliente envia mensagem",
-    desc: "Seu cliente chama no WhatsApp, a qualquer hora do dia ou da noite.",
+    icon: Settings,
+    title: "Configure sua equipe",
+    desc: "Cadastre colaboradores, serviços, duração e horários disponíveis.",
   },
   {
-    icon: Bot,
-    title: "IA responde instantaneamente",
-    desc: "O Sentinela entende, conversa de forma natural faz os agendamento e tira dúvidas.",
+    icon: Link2,
+    title: "Compartilhe seu link",
+    desc: "Envie o link da sua barbearia para o cliente escolher o melhor horário.",
   },
   {
     icon: CalendarCheck,
-    title: "Agendamento automático",
-    desc: "O horário é registrado direto na sua planilha do Google Sheets.",
+    title: "Acompanhe no painel",
+    desc: "Veja agendamentos, reagende quando precisar e mantenha a rotina organizada.",
   },
 ];
 
@@ -24,7 +24,7 @@ const HowItWorks = () => (
       <div className="text-center max-w-2xl mx-auto mb-16">
         <span className="text-sm font-semibold text-gradient uppercase tracking-wider">Como funciona</span>
         <h2 className="text-4xl md:text-5xl font-bold mt-3 font-display">
-          Simples como mandar um <span className="text-gradient">"oi"</span>
+          Simples para você e para o <span className="text-gradient">cliente</span>
         </h2>
       </div>
 

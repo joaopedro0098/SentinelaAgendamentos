@@ -5,9 +5,10 @@ import { Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const features = [
-  "IA de agendamento automática 24/7",
-  "Integração com Google Sheets",
-  "Configuração guiada",
+  "Link público para clientes agendarem",
+  "Cadastro de colaboradores, serviços e horários",
+  "Painel para acompanhar e reagendar",
+  "Pagamento mensal com cartão ou Pix avulso",
   "Suporte direto conosco por WhatsApp",
   "14 dias grátis para testar — sem cartão",
 ];
@@ -18,7 +19,7 @@ const Planos = () => {
       <Navbar />
 
       <section className="pt-36 pb-24 relative">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--brand-violet)/0.15),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--brand-green)/0.14),transparent_60%)]" />
         <div className="container relative">
           <Button asChild variant="ghost" size="sm" className="mb-8 rounded-full">
             <Link to="/">
@@ -27,7 +28,7 @@ const Planos = () => {
           </Button>
 
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold font-display text-white">
+            <h1 className="text-4xl md:text-5xl font-bold font-display text-foreground">
               Um plano, <span className="text-gradient">tudo incluso</span>
             </h1>
             <p className="mt-4 text-muted-foreground">

@@ -6,11 +6,11 @@ const atualizado = new Date().toLocaleDateString("pt-BR", { day: "2-digit", mont
 const PoliticaPrivacidade = () => (
   <LegalPageShell title="Política de privacidade" subtitle={`Última atualização: ${atualizado}`}>
     <p>
-      O <strong className="text-white font-medium">Sentinela Agendamentos</strong> (&quot;
-      <strong className="text-white font-medium">nós</strong>&quot;) descreve aqui, de forma objetiva, como tratamos dados pessoais quando
-      você usa o site <strong className="text-white font-medium">sentinelagendamentos.com</strong> e serviços relacionados (incluindo
+      O <strong className="text-foreground font-medium">Sentinela Agendamentos</strong> (&quot;
+      <strong className="text-foreground font-medium">nós</strong>&quot;) descreve aqui, de forma objetiva, como tratamos dados pessoais quando
+      você usa o site <strong className="text-foreground font-medium">sentinelagendamentos.com</strong> e serviços relacionados (incluindo
       conta, área logada e integrações do produto). Ao utilizar o serviço, você reconhece estas práticas. Leia também os{" "}
-      <Link to="/termos-de-servico" className="text-white/80 hover:text-white">
+      <Link to="/termos-de-servico" className="text-foreground hover:underline">
         Termos de serviço
       </Link>
       .
@@ -18,20 +18,20 @@ const PoliticaPrivacidade = () => (
 
     <h2>1. Dados pessoais que podemos coletar</h2>
     <p>
-      <strong className="text-white/95">a) Que você nos fornece:</strong> por exemplo, nome, e-mail e dados de perfil ao criar conta ou
+      <strong className="text-foreground">a) Que você nos fornece:</strong> por exemplo, nome, e-mail e dados de perfil ao criar conta ou
       falar com suporte; conteúdo de mensagens ou formulários que nos enviar; dados necessários à contratação ou faturação, quando
       aplicável.
     </p>
     <p>
-      <strong className="text-white/95">b) Do uso do serviço:</strong> informações técnicas enviadas pelo navegador ou dispositivo (tipo de
+      <strong className="text-foreground">b) Do uso do serviço:</strong> informações técnicas enviadas pelo navegador ou dispositivo (tipo de
       dispositivo, sistema, idioma), endereço IP, registos de diagnóstico e de segurança, e dados de utilização do site/app (páginas ou
       funcionalidades acedidas, datas e horários), na medida necessária a operar e proteger o serviço.
     </p>
     <p>
-      <strong className="text-white/95">c) Cookies e tecnologias semelhantes:</strong> podemos usar cookies estritamente necessários à
+      <strong className="text-foreground">c) Cookies e tecnologias semelhantes:</strong> podemos usar cookies estritamente necessários à
       sessão e ao funcionamento do site; outras tecnologias de medição ou preferências, se existirem, serão indicadas quando ativadas.
     </p>
-    <p className="text-white/70 text-sm">
+    <p className="text-muted-foreground text-sm">
       Não solicitamos dados sensíveis (saúde, origem racial, etc.) para o funcionamento normal do serviço. O produto não se dirige a
       menores de 18 anos; se tomarmos conhecimento de cadastro indevido, tomaremos medidas para eliminar os dados.
     </p>
@@ -49,16 +49,16 @@ const PoliticaPrivacidade = () => (
     <p>Podemos partilhar dados com:</p>
     <ul>
       <li>
-        <strong className="text-white/95">Fornecedores:</strong> hospedagem, base de dados, autenticação e infraestrutura — em especial a
-        plataforma <strong className="text-white font-medium">Supabase</strong> e, quando usar login Google, o{" "}
-        <strong className="text-white font-medium">Google</strong>, que tratam dados segundo as respetivas políticas.
+        <strong className="text-foreground">Fornecedores:</strong> hospedagem, base de dados, autenticação e infraestrutura — em especial a
+        plataforma <strong className="text-foreground font-medium">Supabase</strong> e, quando usar login Google, o{" "}
+        <strong className="text-foreground font-medium">Google</strong>, que tratam dados segundo as respetivas políticas.
       </li>
       <li>
-        <strong className="text-white/95">Autoridades e defesa de direitos:</strong> quando exigido por lei ou para proteger utilizadores,
+        <strong className="text-foreground">Autoridades e defesa de direitos:</strong> quando exigido por lei ou para proteger utilizadores,
         nós ou terceiros.
       </li>
       <li>
-        <strong className="text-white/95">Transações societárias:</strong> em caso de fusão, venda ou reorganização, os dados podem ser
+        <strong className="text-foreground">Transações societárias:</strong> em caso de fusão, venda ou reorganização, os dados podem ser
         transferidos para o sucessor, respeitando esta política ou equivalente comunicada.
       </li>
     </ul>
@@ -92,7 +92,7 @@ const PoliticaPrivacidade = () => (
     <h2>8. Contato</h2>
     <p>
       Questões sobre privacidade ou dados pessoais:{" "}
-      <strong className="text-white font-medium">sentinelagendamentos.com</strong> (canais de contacto e WhatsApp comercial, quando
+      <strong className="text-foreground font-medium">sentinelagendamentos.com</strong> (canais de contacto e WhatsApp comercial, quando
       indicados).
     </p>
   </LegalPageShell>

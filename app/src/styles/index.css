@@ -9,36 +9,39 @@
    ========================================================== */
 @layer base {
   [data-theme="landing"] {
-    --background: 230 35% 5%;
-    --foreground: 210 40% 98%;
-    --card: 232 30% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 232 30% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 230 95% 65%;
-    --primary-foreground: 230 35% 5%;
-    --secondary: 232 25% 14%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 232 20% 12%;
-    --muted-foreground: 220 15% 65%;
-    --accent: 280 90% 65%;
-    --accent-foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 155 18% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 155 18% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 155 18% 9%;
+    --primary: 152 55% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 35% 95%;
+    --secondary-foreground: 155 18% 9%;
+    --muted: 150 24% 96%;
+    --muted-foreground: 150 8% 38%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 232 25% 16%;
-    --input: 232 25% 14%;
-    --ring: 230 95% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 18% 88%;
+    --input: 150 18% 92%;
+    --ring: 152 55% 42%;
     --radius: 1rem;
-    --brand-blue: 220 100% 62%;
-    --brand-violet: 265 90% 65%;
-    --brand-pink: 320 90% 70%;
-    --brand-cyan: 195 95% 60%;
-    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-blue)) 0%, hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(var(--brand-blue) / 0.15) 0%, hsl(var(--brand-violet) / 0.15) 50%, hsl(var(--brand-pink) / 0.15) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(var(--brand-cyan)), hsl(var(--brand-violet)) 50%, hsl(var(--brand-pink)));
-    --glow-primary: 0 0 60px hsl(var(--brand-violet) / 0.45);
-    --glow-soft: 0 10px 60px -10px hsl(var(--brand-blue) / 0.5);
-    --shadow-elevated: 0 20px 60px -20px hsl(230 95% 10% / 0.8);
+    --brand-green: 152 55% 42%;
+    --brand-mint: 142 76% 45%;
+    --brand-black: 155 18% 9%;
+    --brand-blue: var(--brand-green);
+    --brand-violet: var(--brand-green);
+    --brand-pink: var(--brand-mint);
+    --brand-cyan: var(--brand-green);
+    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-green)) 0%, hsl(var(--brand-mint)) 100%);
+    --gradient-brand-soft: linear-gradient(135deg, hsl(var(--brand-green) / 0.14) 0%, hsl(var(--brand-mint) / 0.1) 100%);
+    --gradient-text: linear-gradient(135deg, hsl(152 55% 30%), hsl(var(--brand-mint)));
+    --glow-primary: 0 0 52px hsl(var(--brand-green) / 0.28);
+    --glow-soft: 0 12px 50px -18px hsl(var(--brand-green) / 0.28);
+    --shadow-elevated: 0 20px 60px -24px hsl(155 18% 9% / 0.18);
   }
 
   /* ==========================================================
@@ -183,9 +186,9 @@
   html[data-theme="landing"] body {
     font-family: 'Inter', system-ui, sans-serif;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand-violet) / 0.18), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(var(--brand-blue) / 0.12), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 10% 60%, hsl(var(--brand-pink) / 0.08), transparent 60%);
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand-green) / 0.12), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(var(--brand-mint) / 0.1), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 10% 60%, hsl(var(--brand-green) / 0.06), transparent 60%);
     background-attachment: fixed;
   }
   [data-theme="landing"] h1,
@@ -268,7 +271,7 @@
     background: var(--gradient-brand-soft);
   }
   .glass {
-    background: hsl(232 30% 10% / 0.6);
+    background: hsl(var(--card) / 0.76);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid hsl(var(--border));

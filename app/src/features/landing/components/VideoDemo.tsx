@@ -21,7 +21,7 @@ const VideoDemo = () => {
                 </video>
 
                 {/* Overlay placeholder enquanto não há vídeo */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-gradient-to-br from-[hsl(var(--brand-blue)/0.2)] via-transparent to-[hsl(var(--brand-pink)/0.2)]">
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-gradient-to-br from-[hsl(var(--brand-green)/0.16)] via-transparent to-[hsl(var(--brand-mint)/0.18)]">
                   <div className="w-20 h-20 rounded-full bg-gradient-brand flex items-center justify-center shadow-glow animate-float">
                     <Play className="w-8 h-8 text-white ml-1" fill="white" />
                   </div>

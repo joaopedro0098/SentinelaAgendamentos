@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Bot, ArrowRight, Menu, User } from "lucide-react";
+import { ArrowRight, CalendarCheck, Menu, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 
@@ -23,7 +23,7 @@ const Navbar = () => {
         <nav className="glass rounded-full px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 font-display font-bold text-base sm:text-lg shrink-0">
             <span className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center shadow-glow shrink-0">
-              <Bot className="w-4 h-4 text-white" />
+              <CalendarCheck className="w-4 h-4 text-white" />
             </span>
             <span className="whitespace-nowrap">
               Sentinela <span className="hidden sm:inline">Agendamentos</span>

@@ -1,12 +1,12 @@
-import { Clock, TrendingUp, Timer, Heart, CalendarRange, MessageCircle } from "lucide-react";
+import { CalendarCheck, CreditCard, Link2, Scissors, ShieldCheck, Users } from "lucide-react";
 
 const benefits = [
-  { icon: Clock, title: "Atendimento 24/7", desc: "Sua agência nunca dorme. Responde até de madrugada." },
-  { icon: TrendingUp, title: "Mais clientes fechados", desc: "Resposta imediata = mais agendamentos confirmados." },
-  { icon: Timer, title: "Economia de tempo", desc: "Pare de digitar a mesma coisa. Foque no que importa." },
-  { icon: Heart, title: "Clientes mais satisfeitos", desc: "Atendimento ágil e sem espera gera fidelidade." },
-  { icon: CalendarRange, title: "Agenda organizada", desc: "Tudo no Google Sheets, sem conflitos de horário." },
-  { icon: MessageCircle, title: "Integração com WhatsApp", desc: "Funciona no app que seus clientes já usam." },
+  { icon: Link2, title: "Link próprio de agendamento", desc: "Compartilhe um link para seus clientes escolherem serviço, dia e horário." },
+  { icon: Users, title: "Colaboradores organizados", desc: "Cadastre profissionais, serviços, duração e horários de atendimento." },
+  { icon: CalendarCheck, title: "Agenda sem bagunça", desc: "Acompanhe agendamentos confirmados, altere horários e evite conflito." },
+  { icon: Scissors, title: "Serviços por profissional", desc: "Cada colaborador pode ter seus próprios serviços, preços e duração." },
+  { icon: CreditCard, title: "Plano simples", desc: "Teste grátis por 14 dias e continue com pagamento mensal no app." },
+  { icon: ShieldCheck, title: "Bloqueio automático", desc: "O sistema controla trial, assinatura e renovação sem conferências manuais." },
 ];
 
 const Benefits = () => (
@@ -26,7 +26,7 @@ const Benefits = () => (
             className="group relative glass rounded-2xl p-6 hover:bg-secondary/50 transition-all hover:shadow-soft"
           >
             <div className="w-12 h-12 rounded-xl bg-gradient-soft border border-border flex items-center justify-center mb-4 group-hover:bg-gradient-brand transition-all">
-              <b.icon className="w-5 h-5 text-[hsl(var(--brand-violet))] group-hover:text-white transition-colors" />
+              <b.icon className="w-5 h-5 text-[hsl(var(--brand-green))] group-hover:text-white transition-colors" />
             </div>
             <h3 className="font-bold text-lg mb-1">{b.title}</h3>
             <p className="text-sm text-muted-foreground">{b.desc}</p>

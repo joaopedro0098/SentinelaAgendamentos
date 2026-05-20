@@ -6,15 +6,15 @@ const atualizado = new Date().toLocaleDateString("pt-BR", { day: "2-digit", mont
 const TermosServico = () => (
   <LegalPageShell title="Termos de serviço" subtitle={`Última atualização: ${atualizado}`}>
     <p>
-      Estes Termos de Serviço (&quot;<strong className="text-white font-medium">Termos</strong>&quot;) regem o acesso e o uso do site{" "}
-      <strong className="text-white font-medium">sentinelagendamentos.com</strong> e dos serviços digitais oferecidos pelo{" "}
-      <strong className="text-white font-medium">Sentinela Agendamentos</strong> (&quot;<strong className="text-white font-medium">nós</strong>
-      &quot;), incluindo informações, cadastro e funcionalidades relacionadas ao produto de agendamento com apoio de automação/IA. Ao
+      Estes Termos de Serviço (&quot;<strong className="text-foreground font-medium">Termos</strong>&quot;) regem o acesso e o uso do site{" "}
+      <strong className="text-foreground font-medium">sentinelagendamentos.com</strong> e dos serviços digitais oferecidos pelo{" "}
+      <strong className="text-foreground font-medium">Sentinela Agendamentos</strong> (&quot;<strong className="text-foreground font-medium">nós</strong>
+      &quot;), incluindo informações, cadastro e funcionalidades relacionadas ao produto de agendamento online. Ao
       utilizar o serviço, você concorda com estes Termos. Se não concordar, não utilize o site nem o serviço.
     </p>
-    <p className="text-white/70 text-sm">
+    <p className="text-muted-foreground text-sm">
       A forma como tratamos dados pessoais está descrita na{" "}
-      <Link to="/politica-de-privacidade" className="text-white/80 hover:text-white">
+      <Link to="/politica-de-privacidade" className="text-foreground hover:underline">
         Política de privacidade
       </Link>
       .
@@ -22,8 +22,8 @@ const TermosServico = () => (
 
     <h2>1. O serviço</h2>
     <p>
-      O Sentinela Agendamentos oferece ferramentas e fluxos para apoiar agendamentos e comunicação com clientes (por exemplo, integração com
-      WhatsApp e planilhas, conforme disponível na sua contratação ou plano). Funcionalidades, limites e disponibilidade podem variar; não
+      O Sentinela Agendamentos oferece ferramentas para apoiar agendamentos, colaboradores, serviços e horários da empresa, conforme
+      disponível na sua contratação ou plano. Funcionalidades, limites e disponibilidade podem variar; não
       garantimos resultados comerciais específicos.
     </p>
 
@@ -82,7 +82,7 @@ const TermosServico = () => (
     <h2>9. Contato</h2>
     <p>
       Dúvidas sobre estes Termos: utilize os canais indicados em{" "}
-      <strong className="text-white font-medium">sentinelagendamentos.com</strong> (incluindo WhatsApp comercial, quando disponível).
+      <strong className="text-foreground font-medium">sentinelagendamentos.com</strong> (incluindo WhatsApp comercial, quando disponível).
     </p>
   </LegalPageShell>
 );
