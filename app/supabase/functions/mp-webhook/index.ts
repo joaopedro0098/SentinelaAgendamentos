@@ -5,6 +5,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*",
 };
 
+function toDateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getNextPeriodEnd(currentPeriodEnd: string | null | undefined) {
+  const today = new Date();
+  const current = currentPeriodEnd ? new Date(`${currentPeriodEnd}T00:00:00Z`) : null;
+  const base = current && current > today ? current : today;
+  return toDateOnly(addDays(base, 30));
+}
+
 async function notifyOwner(
   supabase: ReturnType<typeof createClient>,
   shopId: string,
@@ -135,6 +152,41 @@ Deno.serve(async (req) => {
           })
           .eq("id", shop.id);
       }
+    } else if (resourceType === "payment") {
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${resourceId}`, {
+        headers: { Authorization: `Bearer ${mpToken}` },
+      });
+      const payment = await mpRes.json();
+      console.log("payment:", payment.status, payment.external_reference);
+
+      if (payment.status !== "approved") {
+        return new Response("ok", { status: 200, headers: corsHeaders });
+      }
+
+      const externalReference = String(payment.external_reference ?? "");
+      const shopId = externalReference.startsWith("barbershop_pix:")
+        ? externalReference.replace("barbershop_pix:", "")
+        : "";
+
+      if (!shopId) return new Response("ok", { status: 200, headers: corsHeaders });
+
+      const { data: shop } = await supabase
+        .from("barbershops")
+        .select("id, current_period_end")
+        .eq("id", shopId)
+        .maybeSingle();
+
+      if (!shop) return new Response("ok", { status: 200, headers: corsHeaders });
+
+      await supabase
+        .from("barbershops")
+        .update({
+          subscription_status: "active",
+          current_period_end: getNextPeriodEnd(shop.current_period_end),
+          grace_until: null,
+          subscription_notice: null,
+        })
+        .eq("id", shop.id);
     }
 
     return new Response("ok", { status: 200, headers: corsHeaders });

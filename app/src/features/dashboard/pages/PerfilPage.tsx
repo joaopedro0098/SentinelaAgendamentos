@@ -75,6 +75,7 @@ export default function PerfilPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [creatingPix, setCreatingPix] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -104,6 +105,27 @@ export default function PerfilPage() {
       });
     } finally {
       setSubscribing(false);
+    }
+  }
+
+  async function handlePixPayment() {
+    setCreatingPix(true);
+    try {
+      const data = await invokeBillingFunction<{ init_point?: string; error?: string }>("mp-create-pix-payment");
+      const initPoint = data.init_point;
+      if (initPoint) {
+        window.location.href = initPoint;
+        return;
+      }
+      throw new Error(data.error ?? "Não foi possível gerar o pagamento Pix.");
+    } catch (e) {
+      toast({
+        title: "Pix indisponível",
+        description: e instanceof Error ? e.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingPix(false);
     }
   }
 
@@ -249,13 +271,26 @@ export default function PerfilPage() {
           </div>
 
           {showPay && (
-            <Button
-              className="w-full rounded-full bg-gradient-brand text-white border-0"
-              onClick={handleSubscribe}
-              disabled={subscribing}
-            >
-              {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assinar — R$ 19,90/mês"}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                className="w-full rounded-full bg-gradient-brand text-white border-0"
+                onClick={handleSubscribe}
+                disabled={subscribing || creatingPix}
+              >
+                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assinar com cartão — R$ 19,90/mês"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full rounded-full"
+                onClick={handlePixPayment}
+                disabled={subscribing || creatingPix}
+              >
+                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pagar este mês com Pix — R$ 19,90"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Pix libera 30 dias após a confirmação do Mercado Pago. Cartão mantém cobrança automática.
+              </p>
+            </div>
           )}
 
           {showCancel && (
