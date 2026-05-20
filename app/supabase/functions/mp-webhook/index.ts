@@ -54,6 +54,7 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+    const debug = url.searchParams.get("debug") === "1";
     const topic = url.searchParams.get("topic") || url.searchParams.get("type");
     const idQs = url.searchParams.get("id") || url.searchParams.get("data.id");
 
@@ -68,7 +69,10 @@ Deno.serve(async (req) => {
     const resourceType = (payload?.type as string) || topic;
 
     if (!resourceId) {
-      return new Response("ok", { status: 200, headers: corsHeaders });
+      return new Response(debug ? JSON.stringify({ ok: true, ignored: "missing_resource_id" }) : "ok", {
+        status: 200,
+        headers: debug ? { ...corsHeaders, "Content-Type": "application/json" } : corsHeaders,
+      });
     }
 
     const mpToken = Deno.env.get("MP_ACCESS_TOKEN")!;
@@ -160,7 +164,19 @@ Deno.serve(async (req) => {
       console.log("payment:", payment.status, payment.external_reference);
 
       if (payment.status !== "approved") {
-        return new Response("ok", { status: 200, headers: corsHeaders });
+        return new Response(
+          debug
+            ? JSON.stringify({
+                ok: true,
+                action: "ignored_not_approved",
+                payment_id: resourceId,
+                status: payment.status,
+                status_detail: payment.status_detail,
+                external_reference: payment.external_reference,
+              })
+            : "ok",
+          { status: 200, headers: debug ? { ...corsHeaders, "Content-Type": "application/json" } : corsHeaders },
+        );
       }
 
       const externalReference = String(payment.external_reference ?? "");
@@ -168,7 +184,20 @@ Deno.serve(async (req) => {
         ? externalReference.replace("barbershop_pix:", "")
         : "";
 
-      if (!shopId) return new Response("ok", { status: 200, headers: corsHeaders });
+      if (!shopId) {
+        return new Response(
+          debug
+            ? JSON.stringify({
+                ok: true,
+                action: "ignored_invalid_external_reference",
+                payment_id: resourceId,
+                status: payment.status,
+                external_reference: payment.external_reference,
+              })
+            : "ok",
+          { status: 200, headers: debug ? { ...corsHeaders, "Content-Type": "application/json" } : corsHeaders },
+        );
+      }
 
       const { data: shop } = await supabase
         .from("barbershops")
@@ -176,17 +205,48 @@ Deno.serve(async (req) => {
         .eq("id", shopId)
         .maybeSingle();
 
-      if (!shop) return new Response("ok", { status: 200, headers: corsHeaders });
+      if (!shop) {
+        return new Response(
+          debug
+            ? JSON.stringify({
+                ok: true,
+                action: "ignored_shop_not_found",
+                payment_id: resourceId,
+                status: payment.status,
+                external_reference: payment.external_reference,
+                shop_id: shopId,
+              })
+            : "ok",
+          { status: 200, headers: debug ? { ...corsHeaders, "Content-Type": "application/json" } : corsHeaders },
+        );
+      }
+
+      const periodEnd = getNextPeriodEnd(shop.current_period_end);
 
       await supabase
         .from("barbershops")
         .update({
           subscription_status: "active",
-          current_period_end: getNextPeriodEnd(shop.current_period_end),
+          current_period_end: periodEnd,
           grace_until: null,
           subscription_notice: null,
         })
         .eq("id", shop.id);
+
+      if (debug) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            action: "activated_pix_payment",
+            payment_id: resourceId,
+            status: payment.status,
+            external_reference: payment.external_reference,
+            shop_id: shop.id,
+            current_period_end: periodEnd,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     return new Response("ok", { status: 200, headers: corsHeaders });

@@ -12,6 +12,10 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function cleanUrl(value: string | null | undefined) {
+  return value?.trim().replace(/\/+$/, "");
+}
+
 async function readJsonOrText(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -33,6 +37,75 @@ function getMpErrorMessage(details: unknown) {
 
   const cause = record.cause?.find((item) => item.description)?.description;
   return cause ?? record.message ?? record.error ?? "erro não informado pelo Mercado Pago.";
+}
+
+async function createCheckoutPreference(params: {
+  mpToken: string;
+  supabaseUrl: string;
+  origin: string;
+  userEmail?: string;
+  shopId: string;
+  shopName: string;
+}) {
+  const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.mpToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      items: [
+        {
+          id: "sentinela-mensalidade-pix",
+          title: "Mensalidade Sentinela Agendamentos",
+          description: `Pagamento mensal avulso — ${params.shopName}`,
+          quantity: 1,
+          currency_id: "BRL",
+          unit_price: 19.9,
+        },
+      ],
+      payer: { email: params.userEmail },
+      external_reference: `barbershop_pix:${params.shopId}`,
+      notification_url: `${params.supabaseUrl}/functions/v1/mp-webhook`,
+      back_urls: {
+        success: `${params.origin}/app/perfil?payment=success`,
+        pending: `${params.origin}/app/perfil?payment=pending`,
+        failure: `${params.origin}/app/perfil?payment=failure`,
+      },
+      auto_return: "approved",
+      expires: true,
+      expiration_date_to: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      payment_methods: {
+        excluded_payment_types: [
+          { id: "ticket" },
+          { id: "atm" },
+        ],
+        installments: 1,
+      },
+    }),
+  });
+
+  const mpData = await readJsonOrText(mpRes);
+  if (!mpRes.ok) {
+    console.error("MP preference fallback error:", mpData);
+    return {
+      ok: false as const,
+      data: mpData,
+      error: `Mercado Pago recusou o Checkout Pro: ${getMpErrorMessage(mpData)}`,
+    };
+  }
+
+  const data = mpData as { init_point?: string; sandbox_init_point?: string; id?: string };
+  const checkoutUrl = data.init_point ?? data.sandbox_init_point;
+  if (!checkoutUrl) {
+    return {
+      ok: false as const,
+      data: mpData,
+      error: "Mercado Pago não retornou o link de pagamento.",
+    };
+  }
+
+  return { ok: true as const, init_point: checkoutUrl, id: data.id };
 }
 
 Deno.serve(async (req) => {
@@ -76,6 +149,9 @@ Deno.serve(async (req) => {
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 3);
+    const origin = cleanUrl(Deno.env.get("APP_URL")) ||
+      cleanUrl(req.headers.get("origin")) ||
+      "https://sentinelagendamentos.com";
 
     const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
@@ -98,10 +174,35 @@ Deno.serve(async (req) => {
     const mpData = await readJsonOrText(mpRes);
     if (!mpRes.ok) {
       console.error("MP pix payment error:", mpData);
+      const fallback = await createCheckoutPreference({
+        mpToken,
+        supabaseUrl,
+        origin,
+        userEmail: user.email,
+        shopId: shop.id,
+        shopName: shop.display_name,
+      });
+
+      if (fallback.ok) {
+        await supabase
+          .from("barbershops")
+          .update({
+            subscription_notice: "Finalize o pagamento no Mercado Pago para liberar mais 30 dias.",
+          })
+          .eq("id", shop.id);
+
+        return jsonResponse({
+          init_point: fallback.init_point,
+          id: fallback.id,
+          fallback: "checkout_pro",
+          warning: `Pix direto indisponível: ${getMpErrorMessage(mpData)}`,
+        });
+      }
+
       return jsonResponse(
         {
-          error: `Mercado Pago recusou a criação do pagamento Pix: ${getMpErrorMessage(mpData)}`,
-          details: mpData,
+          error: fallback.error,
+          details: { pix: mpData, checkout: fallback.data },
         },
         502,
       );
