@@ -498,11 +498,11 @@ function StaffExpanded(props: {
               <li
                 key={row.day_of_week}
                 className={cn(
-                  "flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm",
+                  "grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md border border-border/60 p-2 text-sm sm:grid-cols-[7rem_7rem_auto_7rem]",
                   !row.enabled && "opacity-60",
                 )}
               >
-                <label className="flex items-center gap-2 w-28 shrink-0">
+                <label className="col-span-3 flex items-center gap-2 sm:col-span-1">
                   <input
                     type="checkbox"
                     checked={row.enabled}
@@ -516,7 +516,7 @@ function StaffExpanded(props: {
                 </label>
                 <Input
                   type="time"
-                  className="h-8 w-28"
+                  className="h-8 w-full"
                   value={row.start_time}
                   disabled={!row.enabled}
                   onChange={(e) => {
@@ -525,10 +525,10 @@ function StaffExpanded(props: {
                     setScheduleDraft(next);
                   }}
                 />
-                <span className="text-muted-foreground text-xs">até</span>
+                <span className="text-center text-muted-foreground text-xs">até</span>
                 <Input
                   type="time"
-                  className="h-8 w-28"
+                  className="h-8 w-full"
                   value={row.end_time}
                   disabled={!row.enabled}
                   onChange={(e) => {

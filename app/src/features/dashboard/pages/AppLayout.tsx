@@ -6,11 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
   const [menuOpen, setMenuOpen] = useState(false);
   const [shop, setShop] = useState<{ display_name: string; avatar_url: string | null } | null>(null);
 
@@ -171,8 +173,46 @@ export default function AppLayout() {
       </aside>
 
       <main className="flex-1 min-w-0 w-full overflow-x-hidden flex flex-col">
+        <TrialProgressBar info={subscriptionInfo} loading={subscriptionLoading} />
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function TrialProgressBar({
+  info,
+  loading,
+}: {
+  info: ReturnType<typeof useSubscription>["info"];
+  loading: boolean;
+}) {
+  if (loading || !info || info.is_admin || info.subscription_status !== "trial") return null;
+
+  const daysLeft = Math.max(0, Math.min(14, info.trial_days_left ?? 0));
+  const currentDay = Math.max(1, Math.min(14, 15 - daysLeft));
+  const progress = Math.round((currentDay / 14) * 100);
+
+  return (
+    <div className="px-4 pt-4 md:px-8 md:pt-6">
+      <div className="rounded-2xl border border-border/70 bg-card/80 p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3 text-xs font-medium">
+          <span className="text-muted-foreground">Teste grátis</span>
+          <span className="text-foreground">{currentDay}/14</span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
+          <div
+            className="h-full rounded-full bg-gradient-brand transition-all"
+            style={{ width: `${progress}%` }}
+            aria-hidden="true"
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {daysLeft > 0
+            ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} do seu teste.`
+            : "Seu teste grátis termina hoje."}
+        </p>
+      </div>
     </div>
   );
 }

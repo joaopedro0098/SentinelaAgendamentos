@@ -599,7 +599,7 @@ const PublicBooking = ({
           <section>
             <h2 className="font-display text-base font-semibold mb-2.5">Selecione o barbeiro</h2>
             {barbeiros.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum barbeiro cadastrado.</p>
+              <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
             ) : (
               <HorizontalScrollStrip centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}>
                 {barbeiros.map((b) => {
