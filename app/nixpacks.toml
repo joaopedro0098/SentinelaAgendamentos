@@ -1,8 +1,0 @@
-# Node 22. Build estático Vite + serve com fallback SPA (-s).
-providers = ["node"]
-
-[variables]
-NIXPACKS_NODE_VERSION = "22"
-
-[start]
-cmd = "npm run start"
