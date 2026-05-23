@@ -80,7 +80,7 @@ export default function PerfilPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    document.title = "Perfil — Sentinela Agendamentos";
+    document.title = "Conta — Sentinela Agendamentos";
   }, []);
 
   useEffect(() => {
@@ -239,7 +239,7 @@ export default function PerfilPage() {
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold">Perfil</h1>
+        <h1 className="font-display text-2xl font-bold">Conta</h1>
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>
       </div>
 

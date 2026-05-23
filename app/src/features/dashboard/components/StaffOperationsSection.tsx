@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,32 @@ import { cn } from "@/lib/utils";
 type StaffRow = { id: string; name: string; sort_order: number };
 type ServiceRow = { id: string; staff_id: string; name: string; duration_minutes: number };
 type ScheduleRow = { id: string; staff_id: string; day_of_week: number; start_time: string; end_time: string };
+type ServiceDraft = { id: string; name: string; duration_minutes: number };
+
+function isNewServiceDraft(id: string) {
+  return id.startsWith("new-");
+}
+
+function normalizeServiceName(name: string) {
+  return name.trim();
+}
+
+function findDuplicateServiceName(drafts: ServiceDraft[]) {
+  const seen = new Set<string>();
+  for (const draft of drafts) {
+    const name = normalizeServiceName(draft.name);
+    if (!name) continue;
+    const key = name.toLocaleLowerCase("pt-BR");
+    if (seen.has(key)) return name;
+    seen.add(key);
+  }
+  return null;
+}
+
+function isDuplicateServiceError(error: { code?: string; message?: string }) {
+  return error.code === "23505" || error.message?.includes("staff_services_staff_id_name_key") === true;
+}
+
 type ScheduleDraft = { day_of_week: number; start_time: string; end_time: string; enabled: boolean };
 
 const DAYS: { value: number; label: string }[] = [
@@ -114,7 +140,9 @@ function buildScheduleDraft(existing: ScheduleRow[]): ScheduleDraft[] {
   });
 }
 
-type Props = { barbershopId: string };
+function showQuickSavedToast(title: string) {
+  toast({ title, duration: 2000 });
+}
 
 export function StaffOperationsSection({ barbershopId }: Props) {
   const [staff, setStaff] = useState<StaffRow[]>([]);
@@ -125,43 +153,45 @@ export function StaffOperationsSection({ barbershopId }: Props) {
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data: staffRows, error: staffErr } = await supabase
-      .from("staff")
-      .select("id, name, sort_order")
-      .eq("barbershop_id", barbershopId)
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name");
-    if (staffErr) {
-      toast({ title: "Erro ao carregar colaboradores", description: staffErr.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-    const list = (staffRows ?? []) as StaffRow[];
-    setStaff(list);
-
-    if (list.length === 0) {
-      setServices([]);
-      setSchedules([]);
-      setLoading(false);
-      return;
-    }
-
-    const ids = list.map((s) => s.id);
-    const [{ data: svc }, { data: sch }] = await Promise.all([
-      supabase
-        .from("staff_services")
-        .select("id, staff_id, name, duration_minutes")
-        .in("staff_id", ids)
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
+    try {
+      const { data: staffRows, error: staffErr } = await supabase
+        .from("staff")
+        .select("id, name, sort_order")
+        .eq("barbershop_id", barbershopId)
+        .eq("is_active", true)
         .order("sort_order")
-        .order("name"),
-      supabase.from("staff_schedules").select("id, staff_id, day_of_week, start_time, end_time").in("staff_id", ids),
-    ]);
-    setServices((svc ?? []) as ServiceRow[]);
-    setSchedules((sch ?? []) as ScheduleRow[]);
-    setLoading(false);
+        .order("name");
+      if (staffErr) {
+        toast({ title: "Erro ao carregar colaboradores", description: staffErr.message, variant: "destructive" });
+        return;
+      }
+      const list = (staffRows ?? []) as StaffRow[];
+      setStaff(list);
+
+      if (list.length === 0) {
+        setServices([]);
+        setSchedules([]);
+        return;
+      }
+
+      const ids = list.map((s) => s.id);
+      const [{ data: svc }, { data: sch }] = await Promise.all([
+        supabase
+          .from("staff_services")
+          .select("id, staff_id, name, duration_minutes")
+          .in("staff_id", ids)
+          .order("sort_order")
+          .order("name"),
+        supabase.from("staff_schedules").select("id, staff_id, day_of_week, start_time, end_time").in("staff_id", ids),
+      ]);
+      setServices((svc ?? []) as ServiceRow[]);
+      setSchedules((sch ?? []) as ScheduleRow[]);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [barbershopId]);
 
   useEffect(() => {
@@ -211,13 +241,11 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     await load();
   }
 
-  async function saveAllServices(
-    staffId: string,
-    drafts: { id: string; name: string; duration_minutes: number }[],
-    original: ServiceRow[],
-    newService?: { name: string; duration_minutes: number },
-  ) {
-    const invalidDraft = drafts.find((d) => !d.name.trim());
+  async function saveAllServices(staffId: string, drafts: ServiceDraft[], original: ServiceRow[]) {
+    const existingDrafts = drafts.filter((d) => !isNewServiceDraft(d.id));
+    const newDrafts = drafts.filter((d) => isNewServiceDraft(d.id) && normalizeServiceName(d.name));
+
+    const invalidDraft = existingDrafts.find((d) => !normalizeServiceName(d.name));
     if (invalidDraft) {
       toast({
         title: "Nome obrigatório",
@@ -227,42 +255,68 @@ export function StaffOperationsSection({ barbershopId }: Props) {
       return;
     }
 
+    const duplicateName = findDuplicateServiceName([
+      ...existingDrafts.map((d) => ({ ...d, name: normalizeServiceName(d.name) })),
+      ...newDrafts,
+    ]);
+    if (duplicateName) {
+      toast({
+        title: "Nome duplicado",
+        description: `Já existe um serviço chamado "${duplicateName}" para este colaborador.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setBusy(`svc-save-${staffId}`);
 
-    const updates = drafts.filter((d) => {
+    const updates = existingDrafts.filter((d) => {
       const orig = original.find((o) => o.id === d.id);
       if (!orig) return false;
-      return orig.name !== d.name.trim() || orig.duration_minutes !== d.duration_minutes;
+      const name = normalizeServiceName(d.name);
+      return orig.name !== name || orig.duration_minutes !== d.duration_minutes;
     });
 
     for (const item of updates) {
       const { error } = await supabase
         .from("staff_services")
-        .update({ name: item.name.trim(), duration_minutes: item.duration_minutes })
+        .update({ name: normalizeServiceName(item.name), duration_minutes: item.duration_minutes })
         .eq("id", item.id);
       if (error) {
         setBusy(null);
-        toast({ title: "Erro ao salvar serviços", description: error.message, variant: "destructive" });
+        toast({
+          title: isDuplicateServiceError(error) ? "Nome duplicado" : "Erro ao salvar serviços",
+          description: isDuplicateServiceError(error)
+            ? `Já existe um serviço com esse nome para este colaborador.`
+            : error.message,
+          variant: "destructive",
+        });
         return;
       }
     }
 
-    if (newService?.name.trim()) {
+    for (const item of newDrafts) {
       const { error } = await supabase.from("staff_services").insert({
         staff_id: staffId,
-        name: newService.name.trim(),
-        duration_minutes: newService.duration_minutes,
+        name: normalizeServiceName(item.name),
+        duration_minutes: item.duration_minutes,
       });
       if (error) {
         setBusy(null);
-        toast({ title: "Erro ao adicionar serviço", description: error.message, variant: "destructive" });
+        toast({
+          title: isDuplicateServiceError(error) ? "Nome duplicado" : "Erro ao adicionar serviço",
+          description: isDuplicateServiceError(error)
+            ? `Já existe um serviço com esse nome para este colaborador.`
+            : error.message,
+          variant: "destructive",
+        });
         return;
       }
     }
 
     setBusy(null);
-    toast({ title: "Serviços salvos" });
-    await load();
+    showQuickSavedToast("Serviços salvos");
+    await load({ silent: true });
   }
 
   async function removeService(id: string) {
@@ -273,7 +327,7 @@ export function StaffOperationsSection({ barbershopId }: Props) {
       toast({ title: "Erro ao excluir serviço", description: error.message, variant: "destructive" });
       return;
     }
-    await load();
+    await load({ silent: true });
   }
 
   async function saveSchedules(staffId: string, rows: ScheduleDraft[]) {
@@ -312,8 +366,8 @@ export function StaffOperationsSection({ barbershopId }: Props) {
       }
     }
     setBusy(null);
-    toast({ title: "Horários salvos" });
-    await load();
+    showQuickSavedToast("Horários salvos");
+    await load({ silent: true });
   }
 
   return (
@@ -351,8 +405,8 @@ export function StaffOperationsSection({ barbershopId }: Props) {
                 busy={busy}
                 onRename={(name) => renameStaff(member.id, name)}
                 onRemove={() => removeStaff(member.id)}
-                onSaveAllServices={(drafts, newService) =>
-                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id), newService)
+                onSaveAllServices={(drafts) =>
+                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id))
                 }
                 onRemoveService={removeService}
                 onSaveSchedules={(rows) => saveSchedules(member.id, rows)}
@@ -418,17 +472,12 @@ function StaffCard({
   busy: string | null;
   onRename: (name: string) => void;
   onRemove: () => void;
-  onSaveAllServices: (
-    drafts: { id: string; name: string; duration_minutes: number }[],
-    newService?: { name: string; duration_minutes: number },
-  ) => Promise<void>;
+  onSaveAllServices: (drafts: ServiceDraft[]) => Promise<void>;
   onRemoveService: (id: string) => void;
   onSaveSchedules: (rows: ScheduleDraft[]) => void;
 }) {
   const [editName, setEditName] = useState(member.name);
   const [editingName, setEditingName] = useState(false);
-  const [newSvcName, setNewSvcName] = useState("");
-  const [newSvcDuration, setNewSvcDuration] = useState("30");
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>(() => buildScheduleDraft(schedules));
 
   useEffect(() => {
@@ -437,7 +486,7 @@ function StaffCard({
 
   useEffect(() => {
     if (expanded) setScheduleDraft(buildScheduleDraft(schedules));
-  }, [expanded, schedules]);
+  }, [expanded, member.id]);
 
   return (
     <li className="rounded-lg border border-border bg-card/50 overflow-hidden">
@@ -495,14 +544,7 @@ function StaffCard({
           member={member}
           services={services}
           busy={busy}
-          newSvcName={newSvcName}
-          setNewSvcName={setNewSvcName}
-          newSvcDuration={newSvcDuration}
-          setNewSvcDuration={setNewSvcDuration}
-          onSaveAllServices={async (drafts, newService) => {
-            await onSaveAllServices(drafts, newService);
-            setNewSvcName("");
-          }}
+          onSaveAllServices={onSaveAllServices}
           onRemoveService={onRemoveService}
           scheduleDraft={scheduleDraft}
           setScheduleDraft={setScheduleDraft}
@@ -517,77 +559,58 @@ function StaffExpanded(props: {
   member: StaffRow;
   services: ServiceRow[];
   busy: string | null;
-  newSvcName: string;
-  setNewSvcName: (v: string) => void;
-  newSvcDuration: string;
-  setNewSvcDuration: (v: string) => void;
-  onSaveAllServices: (
-    drafts: { id: string; name: string; duration_minutes: number }[],
-    newService?: { name: string; duration_minutes: number },
-  ) => Promise<void>;
+  onSaveAllServices: (drafts: ServiceDraft[]) => Promise<void>;
   onRemoveService: (id: string) => void;
   scheduleDraft: ScheduleDraft[];
   setScheduleDraft: React.Dispatch<React.SetStateAction<ScheduleDraft[]>>;
   onSaveSchedules: (rows: ScheduleDraft[]) => void;
 }) {
-  const {
-    member,
-    services,
-    busy,
-    newSvcName,
-    setNewSvcName,
-    newSvcDuration,
-    setNewSvcDuration,
-    onSaveAllServices,
-    onRemoveService,
-    scheduleDraft,
-    setScheduleDraft,
-    onSaveSchedules,
-  } = props;
+  const { member, services, busy, onSaveAllServices, onRemoveService, scheduleDraft, setScheduleDraft, onSaveSchedules } = props;
 
   const [serviceDrafts, setServiceDrafts] = useState<Array<{ id: string; name: string; duration: string }>>([]);
 
   useEffect(() => {
-    setServiceDrafts(
-      services.map((s) => ({
+    setServiceDrafts((prev) => {
+      const fromDb = services.map((s) => ({
         id: s.id,
         name: s.name,
         duration: String(s.duration_minutes),
-      })),
-    );
+      }));
+      const dbNames = new Set(fromDb.map((s) => s.name.trim().toLocaleLowerCase("pt-BR")));
+      const pendingNew = prev.filter(
+        (d) => isNewServiceDraft(d.id) && !dbNames.has(d.name.trim().toLocaleLowerCase("pt-BR")),
+      );
+      return [...pendingNew, ...fromDb];
+    });
   }, [services]);
 
+  function handleCreateService() {
+    setServiceDrafts((prev) => [{ id: `new-${Date.now()}`, name: "", duration: "30" }, ...prev]);
+  }
+
+  function handleRemoveService(id: string) {
+    if (isNewServiceDraft(id)) {
+      setServiceDrafts((prev) => prev.filter((d) => d.id !== id));
+      return;
+    }
+    onRemoveService(id);
+  }
+
   async function handleSaveServices() {
-    const drafts = serviceDrafts.map((d) => ({
+    const drafts: ServiceDraft[] = serviceDrafts.map((d) => ({
       id: d.id,
       name: d.name.trim(),
       duration_minutes: parseInt(d.duration, 10) || 30,
     }));
-    const newService = newSvcName.trim()
-      ? { name: newSvcName.trim(), duration_minutes: parseInt(newSvcDuration, 10) || 30 }
-      : undefined;
-    await onSaveAllServices(drafts, newService);
+    await onSaveAllServices(drafts);
   }
 
   return (
     <div className="border-t border-border px-3 py-4 space-y-5 bg-muted/20">
       <section className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <ServiceNameField newSvcName={newSvcName} setNewSvcName={setNewSvcName} />
-          <div className="space-y-1.5 w-full sm:w-28">
-            <Label htmlFor={`dur-${member.id}`}>Minutos</Label>
-            <Input
-              id={`dur-${member.id}`}
-              type="number"
-              min={5}
-              max={480}
-              step={5}
-              value={newSvcDuration}
-              onChange={(e) => setNewSvcDuration(e.target.value)}
-            />
-          </div>
-          <span className="pb-2 text-xs text-muted-foreground sm:pb-2.5">min</span>
-        </div>
+        <Button type="button" variant="outline" size="sm" onClick={handleCreateService}>
+          <Plus className="h-4 w-4" /> Criar serviço
+        </Button>
         {serviceDrafts.length > 0 && (
           <ul className="space-y-2">
             {serviceDrafts.map((draft, idx) => (
@@ -595,6 +618,7 @@ function StaffExpanded(props: {
                 key={draft.id}
                 name={draft.name}
                 duration={draft.duration}
+                isNew={isNewServiceDraft(draft.id)}
                 onNameChange={(name) => {
                   const next = [...serviceDrafts];
                   next[idx] = { ...draft, name };
@@ -605,14 +629,14 @@ function StaffExpanded(props: {
                   next[idx] = { ...draft, duration };
                   setServiceDrafts(next);
                 }}
-                onRemove={() => onRemoveService(draft.id)}
+                onRemove={() => handleRemoveService(draft.id)}
               />
             ))}
           </ul>
         )}
         <Button type="button" size="sm" disabled={busy === `svc-save-${member.id}`} onClick={handleSaveServices}>
           {busy === `svc-save-${member.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Salvar serviços
+          Salvar
         </Button>
       </section>
 
@@ -677,47 +701,37 @@ function StaffExpanded(props: {
   );
 }
 
-function ServiceNameField({
-  newSvcName,
-  setNewSvcName,
-}: {
-  newSvcName: string;
-  setNewSvcName: (v: string) => void;
-}) {
-  return (
-    <div className="flex-1 space-y-1.5">
-      <Label>Adicionar serviços</Label>
-      <Input
-        placeholder="Ex.: Corte, Barba…"
-        value={newSvcName}
-        onChange={(e) => setNewSvcName(e.target.value)}
-        maxLength={120}
-      />
-    </div>
-  );
-}
-
 function ServiceRowEditor({
   name,
   duration,
+  isNew,
   onNameChange,
   onDurationChange,
   onRemove,
 }: {
   name: string;
   duration: string;
+  isNew?: boolean;
   onNameChange: (value: string) => void;
   onDurationChange: (value: string) => void;
   onRemove: () => void;
 }) {
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
-      <Input className="h-8 flex-1 min-w-[120px]" value={name} onChange={(e) => onNameChange(e.target.value)} maxLength={120} />
+      <Input
+        className="h-8 flex-1 min-w-[120px]"
+        placeholder={isNew ? "Ex.: Corte, Barba…" : undefined}
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        maxLength={120}
+        autoFocus={isNew}
+      />
       <Input
         type="number"
         className="h-8 w-20"
         min={5}
         max={480}
+        step={5}
         value={duration}
         onChange={(e) => onDurationChange(e.target.value)}
       />

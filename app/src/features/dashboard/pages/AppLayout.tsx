@@ -14,6 +14,8 @@ export default function AppLayout() {
   const location = useLocation();
   const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
+  const [menuEntered, setMenuEntered] = useState(false);
   const [shop, setShop] = useState<{ display_name: string; avatar_url: string | null } | null>(null);
 
   useEffect(() => {
@@ -45,13 +47,29 @@ export default function AppLayout() {
   }, [user]);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (menuOpen) {
+      setMenuMounted(true);
+      return;
+    }
+    setMenuEntered(false);
+    const timer = window.setTimeout(() => setMenuMounted(false), 200);
+    return () => window.clearTimeout(timer);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuMounted || !menuOpen) return;
+    const frame = window.requestAnimationFrame(() => setMenuEntered(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [menuMounted, menuOpen]);
+
+  useEffect(() => {
+    if (!menuMounted) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [menuOpen]);
+  }, [menuMounted]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -89,10 +107,23 @@ export default function AppLayout() {
         </Avatar>
       </header>
 
-      {menuOpen && (
+      {menuMounted && (
         <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu do painel">
-          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={closeMenu} />
-          <aside className="absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-background border-r border-border shadow-xl flex flex-col">
+          <button
+            type="button"
+            className={cn(
+              "absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out",
+              menuEntered ? "opacity-100" : "opacity-0",
+            )}
+            aria-label="Fechar menu"
+            onClick={closeMenu}
+          />
+          <aside
+            className={cn(
+              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-background border-r border-border shadow-xl flex flex-col transition-transform duration-200 ease-out",
+              menuEntered ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
             <div className="flex items-center justify-between gap-2 px-4 h-14 border-b border-border">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
@@ -127,7 +158,7 @@ export default function AppLayout() {
               <MobileNavItem
                 to="/app/perfil"
                 icon={<User className="h-4 w-4" />}
-                label="Perfil"
+                label="Conta"
                 onNavigate={closeMenu}
               />
             </nav>
@@ -160,7 +191,7 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
-            <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Perfil" />
+            <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
           </nav>
 
           <div className="flex flex-col gap-2 p-3 border-t border-border/60">
@@ -227,7 +258,7 @@ function getTrialNotice(info: ReturnType<typeof useSubscription>["info"]) {
     message:
       daysLeft > 0
         ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} do seu teste.`
-        : 'Assine na aba "Perfil" para fazer novos agendamentos.',
+        : 'Assine na aba "Conta" para fazer novos agendamentos.',
   };
 }
 
@@ -241,7 +272,7 @@ function getRenewalNotice(info: ReturnType<typeof useSubscription>["info"]) {
     label: "Renovação pendente",
     countLabel: `30+${overdueDays}`,
     progress: Math.round((overdueDays / 3) * 100),
-    message: 'Renove a assinatura na aba "Perfil" para fazer novos agendamentos.',
+    message: 'Renove a assinatura na aba "Conta" para fazer novos agendamentos.',
   };
 }
 

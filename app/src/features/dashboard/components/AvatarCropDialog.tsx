@@ -159,7 +159,7 @@ export function AvatarCropDialog({ open, file, onClose, onConfirm }: Props) {
             Cancelar
           </Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar foto"}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
           </Button>
         </div>
       </div>

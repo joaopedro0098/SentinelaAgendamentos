@@ -23,7 +23,7 @@ export function SubscriptionBanner() {
         <p>{message}</p>
       </div>
       <Button asChild size="sm" className="rounded-full shrink-0 bg-gradient-brand text-white border-0">
-        <Link to="/app/perfil">Ir para Perfil</Link>
+        <Link to="/app/perfil">Ir para Conta</Link>
       </Button>
     </div>
   );
