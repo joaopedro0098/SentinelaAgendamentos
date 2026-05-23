@@ -198,7 +198,7 @@ export default function Settings() {
 
                 <div className="flex-1 space-y-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="display-name">Nome que aparece ao lado da foto</Label>
+                    <Label htmlFor="display-name">Nome do Perfil</Label>
                     <Input
                       id="display-name"
                       value={shop.display_name}
@@ -211,6 +211,15 @@ export default function Settings() {
                 </div>
               </div>
 
+              <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
+                  </>
+                ) : (
+                  "Salvar"
+                )}
+              </Button>
 
               <div className="space-y-2 rounded-md border border-border p-3">
                 <Label htmlFor="booking-link">Link para o cliente agendar</Label>
@@ -233,16 +242,6 @@ export default function Settings() {
                   Abrir agendamento <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
-
-              <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
-                  </>
-                ) : (
-                  "Salvar"
-                )}
-              </Button>
             </form>
           </CardContent>
         </Card>
