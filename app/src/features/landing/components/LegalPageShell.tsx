@@ -1,4 +1,3 @@
-import Navbar from "@/features/landing/components/Navbar";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
@@ -12,8 +11,7 @@ type LegalPageShellProps = {
 /** Fundo claro verde/branco + navbar, alinhado às páginas legais. */
 export function LegalPageShell({ title, subtitle, children }: LegalPageShellProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <Navbar />
+    <div className="flex-1 flex flex-col">
       <main className="flex-1 pt-28 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
           <Link

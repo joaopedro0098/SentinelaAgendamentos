@@ -1,7 +1,6 @@
-import Navbar from "@/features/landing/components/Navbar";
 import LandingFooter from "@/features/landing/components/LandingFooter";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const features = [
@@ -15,18 +14,10 @@ const features = [
 
 const Planos = () => {
   return (
-    <main className="min-h-screen bg-background text-foreground overflow-x-hidden flex flex-col">
-      <Navbar />
-
-      <section className="pt-36 pb-24 relative">
+    <>
+      <section className="pt-36 pb-24 relative flex-1">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--brand-green)/0.14),transparent_60%)]" />
         <div className="container relative">
-          <Button asChild variant="ghost" size="sm" className="mb-8 rounded-full">
-            <Link to="/">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
-            </Link>
-          </Button>
-
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h1 className="text-4xl md:text-5xl font-bold font-display text-foreground">
               Um plano, <span className="text-gradient">tudo incluso</span>
@@ -76,7 +67,7 @@ const Planos = () => {
         </div>
       </section>
       <LandingFooter />
-    </main>
+    </>
   );
 };
 

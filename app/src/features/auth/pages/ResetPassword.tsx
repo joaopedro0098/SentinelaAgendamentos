@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import Navbar from "@/features/landing/components/Navbar";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -54,10 +53,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+    <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
         <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
           <div className="mb-6 text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Definir nova senha</h1>
@@ -104,6 +100,5 @@ export default function ResetPassword() {
           )}
         </div>
       </main>
-    </div>
   );
 }

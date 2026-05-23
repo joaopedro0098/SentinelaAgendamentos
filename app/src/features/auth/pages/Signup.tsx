@@ -15,7 +15,6 @@ import {
   isInvalidApiKeyError,
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
-import Navbar from "@/features/landing/components/Navbar";
 
 const schema = z
   .object({
@@ -126,10 +125,7 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+    <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
         <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
           <div className="mb-6 text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
@@ -234,6 +230,5 @@ export default function Signup() {
           </div>
         </div>
       </main>
-    </div>
   );
 }

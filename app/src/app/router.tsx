@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/components/guards/RequireAuth";
+import { MarketingLayout } from "@/features/landing/layout/MarketingLayout";
 import HomePage from "@/features/landing/pages/HomePage";
 import PlanosPage from "@/features/landing/pages/PlanosPage";
 import PoliticaPrivacidadePage from "@/features/landing/pages/PoliticaPrivacidadePage";
@@ -26,19 +27,20 @@ import NotFoundPage from "@/pages/NotFound";
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/planos" element={<PlanosPage />} />
-      <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
-      <Route path="/termos-de-servico" element={<TermosServicoPage />} />
+      <Route element={<MarketingLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/planos" element={<PlanosPage />} />
+        <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
+        <Route path="/termos-de-servico" element={<TermosServicoPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/recover" element={<RecoverPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      </Route>
 
       <Route path="/agendar/:slug" element={<PublicBookingRoute />} />
       <Route path="/agendar/:slug/meus" element={<MeusAgendamentosRoute />} />
       <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointmentPage />} />
-
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/recover" element={<RecoverPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
       <Route
