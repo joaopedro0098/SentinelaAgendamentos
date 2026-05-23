@@ -13,6 +13,7 @@ import { checkEmailRegistered } from "@/features/auth/lib/checkEmailRegistered";
 import { AUTH_CONFIG_ERROR_MESSAGE, isInvalidApiKeyError } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
+import { PageReveal } from "@/components/layout/PageReveal";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
 
@@ -116,77 +117,77 @@ export default function Login() {
 
   return (
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
-          <div className="mb-6 text-center sm:text-left">
+      <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
+        <PageReveal className="flex flex-col gap-4">
+          <div className="text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Entrar</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">Acesse o painel da sua barbearia.</p>
           </div>
 
-          <div className="space-y-4">
-            <GoogleButton
-              label="Entrar com Google"
-              className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
-            />
+          <GoogleButton
+            label="Entrar com Google"
+            className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
+          />
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex-1 h-px bg-border/80" />
-              <span>ou</span>
-              <div className="flex-1 h-px bg-border/80" />
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                  E-mail
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
-                    Senha
-                  </Label>
-                  <Link
-                    to="/recover"
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Esqueci a senha
-                  </Link>
-                </div>
-                <PasswordInput
-                  id="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-                disabled={loading}
-              >
-                {loading ? "Entrando…" : "Entrar"}
-              </Button>
-            </form>
-
-            <p className="text-sm text-center text-muted-foreground pt-1">
-              Ainda não tem conta?{" "}
-              <Link to="/signup" className="text-foreground hover:underline underline-offset-4">
-                Cadastre-se
-              </Link>
-            </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex-1 h-px bg-border/80" />
+            <span>ou</span>
+            <div className="flex-1 h-px bg-border/80" />
           </div>
-        </div>
-      </main>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                E-mail
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                  Senha
+                </Label>
+                <Link
+                  to="/recover"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Esqueci a senha
+                </Link>
+              </div>
+              <PasswordInput
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              disabled={loading}
+            >
+              {loading ? "Entrando…" : "Entrar"}
+            </Button>
+          </form>
+
+          <p className="text-sm text-center text-muted-foreground">
+            Ainda não tem conta?{" "}
+            <Link to="/signup" className="text-foreground hover:underline underline-offset-4">
+              Cadastre-se
+            </Link>
+          </p>
+        </PageReveal>
+      </div>
+    </main>
   );
 }

@@ -15,6 +15,7 @@ import {
   isInvalidApiKeyError,
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
+import { PageReveal } from "@/components/layout/PageReveal";
 
 const schema = z
   .object({
@@ -126,109 +127,109 @@ export default function Signup() {
 
   return (
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-        <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
-          <div className="mb-6 text-center sm:text-left">
+      <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
+        <PageReveal className="flex flex-col gap-4">
+          <div className="text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Crie sua conta e comece a receber agendamentos online. Sem cartão neste período.
             </p>
           </div>
 
-          <div className="space-y-4">
-            <GoogleButton
-              label="Cadastrar com Google"
-              className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
-            />
+          <GoogleButton
+            label="Cadastrar com Google"
+            className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
+          />
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex-1 h-px bg-border/80" />
-              <span>ou</span>
-              <div className="flex-1 h-px bg-border/80" />
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="dn" className="text-xs font-medium text-muted-foreground">
-                  Seu nome
-                </Label>
-                <Input
-                  id="dn"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sn" className="text-xs font-medium text-muted-foreground">
-                  Nome da sua empresa
-                </Label>
-                <Input
-                  id="sn"
-                  value={shopName}
-                  onChange={(e) => setShopName(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                  E-mail
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
-                  Senha
-                </Label>
-                <PasswordInput
-                  id="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirm_password" className="text-xs font-medium text-muted-foreground">
-                  Confirmar senha
-                </Label>
-                <PasswordInput
-                  id="confirm_password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  showHint={false}
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-                disabled={loading}
-              >
-                {loading ? "Criando…" : "Criar conta"}
-              </Button>
-            </form>
-
-            <p className="text-sm text-center text-muted-foreground pt-1">
-              Já tem conta?{" "}
-              <Link to="/login" className="text-foreground hover:underline underline-offset-4">
-                Entrar
-              </Link>
-            </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex-1 h-px bg-border/80" />
+            <span>ou</span>
+            <div className="flex-1 h-px bg-border/80" />
           </div>
-        </div>
-      </main>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="dn" className="text-xs font-medium text-muted-foreground">
+                Seu nome
+              </Label>
+              <Input
+                id="dn"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sn" className="text-xs font-medium text-muted-foreground">
+                Nome da sua empresa
+              </Label>
+              <Input
+                id="sn"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                E-mail
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                Senha
+              </Label>
+              <PasswordInput
+                id="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm_password" className="text-xs font-medium text-muted-foreground">
+                Confirmar senha
+              </Label>
+              <PasswordInput
+                id="confirm_password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                showHint={false}
+                className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              disabled={loading}
+            >
+              {loading ? "Criando…" : "Criar conta"}
+            </Button>
+          </form>
+
+          <p className="text-sm text-center text-muted-foreground">
+            Já tem conta?{" "}
+            <Link to="/login" className="text-foreground hover:underline underline-offset-4">
+              Entrar
+            </Link>
+          </p>
+        </PageReveal>
+      </div>
+    </main>
   );
 }
