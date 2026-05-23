@@ -7,6 +7,7 @@ import TermosServicoPage from "@/features/landing/pages/TermosServicoPage";
 
 import PublicBookingRoute from "@/features/agenda/pages/PublicBookingRoute";
 import MeusAgendamentosRoute from "@/features/agenda/pages/MeusAgendamentosRoute";
+import ConfirmAppointmentPage from "@/features/agenda/pages/ConfirmAppointmentPage";
 
 import LoginPage from "@/features/auth/pages/Login";
 import SignupPage from "@/features/auth/pages/Signup";
@@ -32,6 +33,7 @@ export function AppRouter() {
 
       <Route path="/agendar/:slug" element={<PublicBookingRoute />} />
       <Route path="/agendar/:slug/meus" element={<MeusAgendamentosRoute />} />
+      <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointmentPage />} />
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

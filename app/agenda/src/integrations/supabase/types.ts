@@ -18,45 +18,63 @@ export type Database = {
         Row: {
           barbearia_id: string
           barbeiro_id: string
+          cancel_reason: string | null
           cliente_id: string | null
+          client_confirmed_at: string | null
           cliente_nome: string
           cliente_whatsapp: string
+          confirmation_push_sent_at: string | null
+          confirmation_token: string
           created_at: string
           data: string
           duracao_minutos: number
           hora: string
           id: string
           observacao: string | null
+          reminder_push_sent_at: string | null
+          requires_client_confirmation: boolean
           service_id: string | null
           status: Database["public"]["Enums"]["agendamento_status"]
         }
         Insert: {
           barbearia_id: string
           barbeiro_id: string
+          cancel_reason?: string | null
           cliente_id?: string | null
+          client_confirmed_at?: string | null
           cliente_nome: string
           cliente_whatsapp: string
+          confirmation_push_sent_at?: string | null
+          confirmation_token?: string
           created_at?: string
           data: string
           duracao_minutos?: number
           hora: string
           id?: string
           observacao?: string | null
+          reminder_push_sent_at?: string | null
+          requires_client_confirmation?: boolean
           service_id?: string | null
           status?: Database["public"]["Enums"]["agendamento_status"]
         }
         Update: {
           barbearia_id?: string
           barbeiro_id?: string
+          cancel_reason?: string | null
           cliente_id?: string | null
+          client_confirmed_at?: string | null
           cliente_nome?: string
           cliente_whatsapp?: string
+          confirmation_push_sent_at?: string | null
+          confirmation_token?: string
           created_at?: string
           data?: string
           duracao_minutos?: number
           hora?: string
           id?: string
           observacao?: string | null
+          reminder_push_sent_at?: string | null
+          requires_client_confirmation?: boolean
           service_id?: string | null
           status?: Database["public"]["Enums"]["agendamento_status"]
         }

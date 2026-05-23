@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Check, Loader2, Scissors } from "lucide-react";
+import { ArrowLeft, Bell, Check, Loader2, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
+import { isIosDevice, isStandalonePwa, registerAppointmentPush, supportsWebPush } from "@/lib/pushNotifications";
 import {
   checkBarbeariaCanBook,
   getSubscriptionBlockClient,
@@ -91,6 +92,7 @@ const PublicBooking = ({
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [wantsReminder, setWantsReminder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -361,21 +363,26 @@ const PublicBooking = ({
       _whatsapp: whatsClean,
       _nome: nome.trim(),
     });
-    const { error } = await supabase.from("agendamentos").insert({
-      barbearia_id: barbearia.id,
-      barbeiro_id: barbeiroId,
-      data,
-      hora,
-      cliente_nome: nome.trim(),
-      cliente_whatsapp: whatsClean,
-      cliente_id: cliId ?? null,
-      duracao_minutos: duracaoTotal,
-      status: "confirmado",
-      observacao: obs,
-    });
+    const { data: createdAppointment, error } = await supabase
+      .from("agendamentos")
+      .insert({
+        barbearia_id: barbearia.id,
+        barbeiro_id: barbeiroId,
+        data,
+        hora,
+        cliente_nome: nome.trim(),
+        cliente_whatsapp: whatsClean,
+        cliente_id: cliId ?? null,
+        duracao_minutos: duracaoTotal,
+        status: "confirmado",
+        observacao: obs,
+        requires_client_confirmation: wantsReminder,
+      })
+      .select("id")
+      .single();
 
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else if (isSubscriptionBlockError(error.message)) {
         toast.error(subscriptionBlockMessage());
@@ -383,12 +390,27 @@ const PublicBooking = ({
       return;
     }
 
+    if (wantsReminder && createdAppointment?.id) {
+      const pushResult = await registerAppointmentPush(createdAppointment.id).catch((err) => ({
+        ok: false,
+        message: err instanceof Error ? err.message : "falha inesperada",
+      }));
+      if (pushResult.ok) {
+        toast.success("Agendamento confirmado e lembrete ativado!");
+      } else {
+        toast.warning(`Agendamento confirmado, mas o lembrete não foi ativado: ${pushResult.message}`);
+      }
+    } else {
+      toast.success("Agendamento confirmado!");
+    }
+
+    setSubmitting(false);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
-    toast.success("Agendamento confirmado!");
     setDone(false);
     setHora("");
     setServSel([]);
     setObservacao("");
+    setWantsReminder(false);
   };
 
   const alterBooking = () => {
@@ -499,6 +521,9 @@ const PublicBooking = ({
     Boolean(barbeiroId) && duracaoTotal > 0 && slotsDoBarbeiroNoDia.all.length > 0 && slotsDoBarbeiroNoDia.livres.length === 0;
   const barbeiroSemDispNoDia = Boolean(barbeiroId && barbeiroSel && !barbeiroTemDispNoDia(barbeiroId));
   const waLink = whatsappHref(barbearia.telefone);
+  const isIos = typeof window !== "undefined" && isIosDevice();
+  const iosNeedsInstall = isIos && !isStandalonePwa();
+  const pushAvailable = typeof window !== "undefined" && supportsWebPush();
 
   return (
     <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden">
@@ -788,6 +813,49 @@ const PublicBooking = ({
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm resize-none"
               />
             </div>
+            {!isReschedule && (
+              <Card className="p-3.5 bg-card border-border">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 accent-primary"
+                    checked={wantsReminder}
+                    onChange={(e) => setWantsReminder(e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <Bell className="h-4 w-4" />
+                      Receber lembrete pelo navegador
+                    </span>
+                    <span className="mt-1 block text-muted-foreground">
+                      Enviaremos uma confirmação 1 dia antes e um lembrete cerca de 3h antes do horário.
+                    </span>
+                  </span>
+                </label>
+                {wantsReminder && (
+                  <div className="mt-3 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground space-y-1.5">
+                    {iosNeedsInstall ? (
+                      <>
+                        <p className="font-semibold text-foreground">Atenção para iPhone</p>
+                        <p>
+                          Para receber notificações no iPhone, abra este link no Safari, toque em Compartilhar,
+                          escolha "Adicionar à Tela de Início" e depois abra pelo ícone criado.
+                        </p>
+                      </>
+                    ) : isIos ? (
+                      <p>No iPhone, mantenha o app aberto pelo ícone instalado na tela inicial para permitir notificações.</p>
+                    ) : (
+                      <p>No Android, basta aceitar a permissão de notificação quando o navegador solicitar.</p>
+                    )}
+                    {!pushAvailable && (
+                      <p className="text-unavailable">
+                        Este navegador não informou suporte a notificações push. O agendamento continuará normal.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </Card>
+            )}
           </section>
 
           <Button
