@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Camera, Check, Copy, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +17,8 @@ type Shop = {
   slug: string;
   display_name: string;
   avatar_url: string | null;
+  slot_interval_minutes: number;
+  slot_pause_minutes: number;
 };
 
 export default function Settings() {
@@ -29,6 +31,9 @@ export default function Settings() {
   const [cropOpen, setCropOpen] = useState(false);
   const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [slotInterval, setSlotInterval] = useState("30");
+  const [slotPause, setSlotPause] = useState("0");
+  const [savingSlots, setSavingSlots] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,8 +44,17 @@ export default function Settings() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from("barbershops").select("*").eq("owner_id", user.id).maybeSingle();
-      setShop(data as Shop | null);
+      const { data } = await supabase
+        .from("barbershops")
+        .select("id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      const row = data as Shop | null;
+      setShop(row);
+      if (row) {
+        setSlotInterval(String(row.slot_interval_minutes ?? 30));
+        setSlotPause(row.slot_pause_minutes ? String(row.slot_pause_minutes) : "0");
+      }
       setLoading(false);
     })();
   }, [user]);
@@ -122,6 +136,47 @@ export default function Settings() {
 
   async function handleCropConfirm(blob: Blob) {
     stageAvatarBlob(blob);
+  }
+
+  async function handleSaveSlotSettings() {
+    if (!shop) return;
+
+    const interval = parseInt(slotInterval, 10);
+    const pause = slotPause.trim() === "" ? 0 : parseInt(slotPause, 10);
+
+    if (!Number.isFinite(interval) || interval < 5 || interval > 120) {
+      toast({
+        title: "Intervalo inválido",
+        description: "Use um valor entre 5 e 120 minutos.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!Number.isFinite(pause) || pause < 0 || pause > 60) {
+      toast({
+        title: "Pausa inválida",
+        description: "Use um valor entre 0 e 60 minutos, ou deixe vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingSlots(true);
+    const { error } = await supabase
+      .from("barbershops")
+      .update({ slot_interval_minutes: interval, slot_pause_minutes: pause })
+      .eq("id", shop.id);
+    setSavingSlots(false);
+
+    if (error) {
+      toast({ title: "Erro ao salvar grade", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setShop({ ...shop, slot_interval_minutes: interval, slot_pause_minutes: pause });
+    setSlotInterval(String(interval));
+    setSlotPause(pause ? String(pause) : "0");
+    toast({ title: "Grade de horários salva" });
   }
 
   function copyBookingLink() {
@@ -233,20 +288,59 @@ export default function Settings() {
                     {copiedBooking ? "Copiado" : "Copiar link"}
                   </Button>
                 </div>
-                <a
-                  href={bookingUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  Abrir agendamento <ExternalLink className="h-3 w-3" />
-                </a>
               </div>
             </form>
           </CardContent>
         </Card>
 
         <StaffOperationsSection barbershopId={shop.id} />
+
+        <Card className="glass-panel border-border/80">
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="slot-interval">Intervalo de tempo na grade de horários</Label>
+              <Input
+                id="slot-interval"
+                type="number"
+                min={5}
+                max={120}
+                step={5}
+                value={slotInterval}
+                onChange={(e) => setSlotInterval(e.target.value)}
+                className="max-w-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ex.: 45 min → 09:00, 09:45, 10:30… · 30 min → 10:00, 10:30, 11:00…
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="slot-pause">Defina uma pausa (ou deixe 0 ou vazio)</Label>
+              <Input
+                id="slot-pause"
+                type="number"
+                min={0}
+                max={60}
+                step={5}
+                placeholder="0"
+                value={slotPause}
+                onChange={(e) => setSlotPause(e.target.value)}
+                className="max-w-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ex.: intervalo 45 min + pausa 10 min → 09:00, 09:55, 10:50, 11:45…
+              </p>
+            </div>
+            <Button type="button" className="w-full sm:w-auto" disabled={savingSlots} onClick={handleSaveSlotSettings}>
+              {savingSlots ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
+                </>
+              ) : (
+                "Salvar"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </>
   );

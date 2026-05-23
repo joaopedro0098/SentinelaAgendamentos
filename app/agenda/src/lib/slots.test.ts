@@ -5,6 +5,16 @@ describe("filtrarSlotsLivres", () => {
   const windows = [{ hora_inicio: "09:00", hora_fim: "19:00" }];
   const all = buildSlots(windows, 30);
 
+  it("buildSlots with pause uses interval + pause between every slot", () => {
+    const windows = [{ hora_inicio: "09:00", hora_fim: "12:00" }];
+    expect(buildSlots(windows, 45, 10)).toEqual(["09:00", "09:55", "10:50"]);
+  });
+
+  it("buildSlots without pause keeps fixed interval", () => {
+    const windows = [{ hora_inicio: "10:00", hora_fim: "11:00" }];
+    expect(buildSlots(windows, 20, 0)).toEqual(["10:00", "10:20", "10:40"]);
+  });
+
   it("não oferece início se a duração total invade agendamento existente", () => {
     const ocupados = new Map<string, number>([
       ["17:00", 30],

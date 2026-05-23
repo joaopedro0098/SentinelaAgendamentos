@@ -114,6 +114,8 @@ const PublicBooking = ({
   const [wantsReminder, setWantsReminder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [slotInterval, setSlotInterval] = useState(30);
+  const [slotPause, setSlotPause] = useState(0);
 
   useEffect(() => {
     if (reschedule) return;
@@ -162,7 +164,7 @@ const PublicBooking = ({
           `)
           .eq("slug", slug)
           .maybeSingle(),
-        supabase.from("barbershops").select("whatsapp_number").eq("slug", slug).maybeSingle(),
+        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, slot_pause_minutes").eq("slug", slug).maybeSingle(),
       ]);
 
       if (barbErr) {
@@ -175,8 +177,15 @@ const PublicBooking = ({
 
       if (!b) { setBarbearia(null); setLoading(false); return; }
 
-      const contato =
-        (shopRes.data as { whatsapp_number?: string | null } | null)?.whatsapp_number ?? null;
+      const shopRow = shopRes.data as {
+        whatsapp_number?: string | null;
+        slot_interval_minutes?: number | null;
+        slot_pause_minutes?: number | null;
+      } | null;
+
+      const contato = shopRow?.whatsapp_number ?? null;
+      setSlotInterval(shopRow?.slot_interval_minutes ?? 30);
+      setSlotPause(shopRow?.slot_pause_minutes ?? 0);
 
       setBarbearia({
         id: b.id,
@@ -240,9 +249,9 @@ const PublicBooking = ({
       .filter((s) => servSel.includes(s.id))
       .reduce((a, s) => a + s.duracao_minutos, 0);
     if (soma > 0) return soma;
-    if (servicosDoBarbeiro.length === 0) return barbeiroSel?.slot_minutos ?? 30;
+    if (servicosDoBarbeiro.length === 0) return slotInterval;
     return 0;
-  }, [servicosDoBarbeiro, servSel, barbeiroSel, reschedule, isReschedule]);
+  }, [servicosDoBarbeiro, servSel, slotInterval, reschedule, isReschedule]);
 
   type SlotsDiaRaw = {
     all: string[];
@@ -259,7 +268,7 @@ const PublicBooking = ({
         const dow = d.getDay();
         const windows = bb.disponibilidades.filter((x) => x.dia_semana === dow);
         m.set(`${bb.id}|${key}`, {
-          all: buildSlots(windows, bb.slot_minutos ?? 30),
+          all: buildSlots(windows, slotInterval, slotPause),
           windows,
           ocup: agOcupados.get(`${bb.id}|${key}`) ?? new Map(),
           dayBloqs: bb.bloqueios.filter((b) => b.data === key),
@@ -267,19 +276,19 @@ const PublicBooking = ({
       }
     }
     return m;
-  }, [barbeiros, dias, agOcupados]);
+  }, [barbeiros, dias, agOcupados, slotInterval, slotPause]);
 
   const livresComDuracao = (bbId: string, dayKey: string, dur: number) => {
     if (dur <= 0) return [];
     const raw = slotsRaw.get(`${bbId}|${dayKey}`);
     if (!raw) return [];
-    return filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, dur);
+    return filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, dur, slotPause);
   };
 
   /** Para cor do nome: precisa caber o maior serviço do barbeiro (não só barba/encaixe curto). */
   const duracaoExigidaNoCarrossel = (bb: Barbeiro) => {
     if (isReschedule && reschedule && bb.id === barbeiroId) return reschedule.duracao_minutos;
-    return duracaoReferenciaBarbeiro(bb.servicos, bb.slot_minutos ?? 30);
+    return duracaoReferenciaBarbeiro(bb.servicos, slotInterval);
   };
 
   const diaTemDisp = (k: string) =>
@@ -295,9 +304,9 @@ const PublicBooking = ({
     if (!barbeiroId) return { all: [] as string[], livres: [] as string[] };
     const raw = slotsRaw.get(`${barbeiroId}|${data}`);
     if (!raw) return { all: [], livres: [] };
-    const livres = duracaoTotal > 0 ? filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, duracaoTotal) : [];
+    const livres = duracaoTotal > 0 ? filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, duracaoTotal, slotPause) : [];
     return { all: raw.all, livres };
-  }, [barbeiroId, data, slotsRaw, duracaoTotal]);
+  }, [barbeiroId, data, slotsRaw, duracaoTotal, slotPause]);
 
   useEffect(() => {
     if (hora && !slotsDoBarbeiroNoDia.livres.includes(hora)) setHora("");

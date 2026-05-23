@@ -20,13 +20,15 @@ const toMin = (hhmm: string) => {
 const toHHMM = (mins: number) =>
   `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-/** Gera grade base de horários no intervalo de slot, dentro das janelas de trabalho. */
-export const buildSlots = (windows: Window[], slotMin: number): string[] => {
+/** Gera grade base de horários: cada próximo início = anterior + intervalo + pausa. */
+export const buildSlots = (windows: Window[], slotMin: number, pauseMin = 0): string[] => {
   const out: string[] = [];
+  const pause = Math.max(0, pauseMin);
+  const step = slotMin + pause;
   for (const w of windows) {
     const start = toMin(w.hora_inicio.slice(0, 5));
     const end = toMin(w.hora_fim.slice(0, 5));
-    for (let t = start; t + slotMin <= end; t += slotMin) {
+    for (let t = start; t + slotMin <= end; t += step) {
       out.push(toHHMM(t));
     }
   }
@@ -52,12 +54,14 @@ export const filtrarSlotsLivres = (
   ocupados: Map<string, number>,
   dayBloqs: Bloq[],
   duracaoTotal: number,
+  pauseMin = 0,
 ): string[] => {
+  const pause = Math.max(0, pauseMin);
   // Constrói lista de intervalos ocupados (em minutos)
   const ocupIntervals: [number, number][] = [];
   for (const [hora, dur] of ocupados.entries()) {
     const s = toMin(hora);
-    ocupIntervals.push([s, s + dur]);
+    ocupIntervals.push([s, s + dur + pause]);
   }
   for (const b of dayBloqs) {
     if (!b.hora_inicio || !b.hora_fim) {

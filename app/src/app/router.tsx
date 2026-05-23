@@ -49,7 +49,7 @@ export function AppRouter() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="agendar" replace />} />
+        <Route index element={<Navigate to="settings" replace />} />
         <Route path="agendar" element={<AgendarPage />} />
         <Route path="agendamentos" element={<AgendamentosPage />} />
         <Route path="settings" element={<SettingsPage />} />
