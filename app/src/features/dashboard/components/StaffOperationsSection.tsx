@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,32 +211,57 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     await load();
   }
 
-  async function addService(staffId: string, name: string, duration: number) {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setBusy(`svc-add-${staffId}`);
-    const { error } = await supabase.from("staff_services").insert({
-      staff_id: staffId,
-      name: trimmed,
-      duration_minutes: duration,
-    });
-    setBusy(null);
-    if (error) {
-      toast({ title: "Erro ao adicionar serviço", description: error.message, variant: "destructive" });
+  async function saveAllServices(
+    staffId: string,
+    drafts: { id: string; name: string; duration_minutes: number }[],
+    original: ServiceRow[],
+    newService?: { name: string; duration_minutes: number },
+  ) {
+    const invalidDraft = drafts.find((d) => !d.name.trim());
+    if (invalidDraft) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Preencha o nome de todos os serviços antes de salvar.",
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: "Serviço adicionado" });
-    await load();
-  }
 
-  async function updateService(id: string, patch: { name?: string; duration_minutes?: number }) {
-    setBusy(`svc-${id}`);
-    const { error } = await supabase.from("staff_services").update(patch).eq("id", id);
-    setBusy(null);
-    if (error) {
-      toast({ title: "Erro ao salvar serviço", description: error.message, variant: "destructive" });
-      return;
+    setBusy(`svc-save-${staffId}`);
+
+    const updates = drafts.filter((d) => {
+      const orig = original.find((o) => o.id === d.id);
+      if (!orig) return false;
+      return orig.name !== d.name.trim() || orig.duration_minutes !== d.duration_minutes;
+    });
+
+    for (const item of updates) {
+      const { error } = await supabase
+        .from("staff_services")
+        .update({ name: item.name.trim(), duration_minutes: item.duration_minutes })
+        .eq("id", item.id);
+      if (error) {
+        setBusy(null);
+        toast({ title: "Erro ao salvar serviços", description: error.message, variant: "destructive" });
+        return;
+      }
     }
+
+    if (newService?.name.trim()) {
+      const { error } = await supabase.from("staff_services").insert({
+        staff_id: staffId,
+        name: newService.name.trim(),
+        duration_minutes: newService.duration_minutes,
+      });
+      if (error) {
+        setBusy(null);
+        toast({ title: "Erro ao adicionar serviço", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
+
+    setBusy(null);
+    toast({ title: "Serviços salvos" });
     await load();
   }
 
@@ -326,8 +351,9 @@ export function StaffOperationsSection({ barbershopId }: Props) {
                 busy={busy}
                 onRename={(name) => renameStaff(member.id, name)}
                 onRemove={() => removeStaff(member.id)}
-                onAddService={(name, dur) => addService(member.id, name, dur)}
-                onUpdateService={updateService}
+                onSaveAllServices={(drafts, newService) =>
+                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id), newService)
+                }
                 onRemoveService={removeService}
                 onSaveSchedules={(rows) => saveSchedules(member.id, rows)}
               />
@@ -380,8 +406,7 @@ function StaffCard({
   busy,
   onRename,
   onRemove,
-  onAddService,
-  onUpdateService,
+  onSaveAllServices,
   onRemoveService,
   onSaveSchedules,
 }: {
@@ -393,8 +418,10 @@ function StaffCard({
   busy: string | null;
   onRename: (name: string) => void;
   onRemove: () => void;
-  onAddService: (name: string, duration: number) => void;
-  onUpdateService: (id: string, patch: { name?: string; duration_minutes?: number }) => void;
+  onSaveAllServices: (
+    drafts: { id: string; name: string; duration_minutes: number }[],
+    newService?: { name: string; duration_minutes: number },
+  ) => Promise<void>;
   onRemoveService: (id: string) => void;
   onSaveSchedules: (rows: ScheduleDraft[]) => void;
 }) {
@@ -472,8 +499,10 @@ function StaffCard({
           setNewSvcName={setNewSvcName}
           newSvcDuration={newSvcDuration}
           setNewSvcDuration={setNewSvcDuration}
-          onAddService={onAddService}
-          onUpdateService={onUpdateService}
+          onSaveAllServices={async (drafts, newService) => {
+            await onSaveAllServices(drafts, newService);
+            setNewSvcName("");
+          }}
           onRemoveService={onRemoveService}
           scheduleDraft={scheduleDraft}
           setScheduleDraft={setScheduleDraft}
@@ -492,8 +521,10 @@ function StaffExpanded(props: {
   setNewSvcName: (v: string) => void;
   newSvcDuration: string;
   setNewSvcDuration: (v: string) => void;
-  onAddService: (name: string, duration: number) => void;
-  onUpdateService: (id: string, patch: { name?: string; duration_minutes?: number }) => void;
+  onSaveAllServices: (
+    drafts: { id: string; name: string; duration_minutes: number }[],
+    newService?: { name: string; duration_minutes: number },
+  ) => Promise<void>;
   onRemoveService: (id: string) => void;
   scheduleDraft: ScheduleDraft[];
   setScheduleDraft: React.Dispatch<React.SetStateAction<ScheduleDraft[]>>;
@@ -507,19 +538,42 @@ function StaffExpanded(props: {
     setNewSvcName,
     newSvcDuration,
     setNewSvcDuration,
-    onAddService,
-    onUpdateService,
+    onSaveAllServices,
     onRemoveService,
     scheduleDraft,
     setScheduleDraft,
     onSaveSchedules,
   } = props;
 
+  const [serviceDrafts, setServiceDrafts] = useState<Array<{ id: string; name: string; duration: string }>>([]);
+
+  useEffect(() => {
+    setServiceDrafts(
+      services.map((s) => ({
+        id: s.id,
+        name: s.name,
+        duration: String(s.duration_minutes),
+      })),
+    );
+  }, [services]);
+
+  async function handleSaveServices() {
+    const drafts = serviceDrafts.map((d) => ({
+      id: d.id,
+      name: d.name.trim(),
+      duration_minutes: parseInt(d.duration, 10) || 30,
+    }));
+    const newService = newSvcName.trim()
+      ? { name: newSvcName.trim(), duration_minutes: parseInt(newSvcDuration, 10) || 30 }
+      : undefined;
+    await onSaveAllServices(drafts, newService);
+  }
+
   return (
     <div className="border-t border-border px-3 py-4 space-y-5 bg-muted/20">
       <section className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <ServiceNameField newSvcName={newSvcName} setNewSvcName={setNewSvcName} onAdd={() => onAddService(newSvcName, parseInt(newSvcDuration, 10) || 30)} />
+          <ServiceNameField newSvcName={newSvcName} setNewSvcName={setNewSvcName} />
           <div className="space-y-1.5 w-full sm:w-28">
             <Label htmlFor={`dur-${member.id}`}>Minutos</Label>
             <Input
@@ -532,32 +586,34 @@ function StaffExpanded(props: {
               onChange={(e) => setNewSvcDuration(e.target.value)}
             />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            disabled={busy === `svc-add-${member.id}` || !newSvcName.trim()}
-            onClick={() => {
-              onAddService(newSvcName, parseInt(newSvcDuration, 10) || 30);
-              setNewSvcName("");
-            }}
-          >
-            <Plus className="h-4 w-4" /> Serviço
-          </Button>
+          <span className="pb-2 text-xs text-muted-foreground sm:pb-2.5">min</span>
         </div>
-        {services.length > 0 && (
+        {serviceDrafts.length > 0 && (
           <ul className="space-y-2">
-            {services.map((svc) => (
+            {serviceDrafts.map((draft, idx) => (
               <ServiceRowEditor
-                key={svc.id}
-                svc={svc}
-                busy={busy}
-                onUpdate={onUpdateService}
-                onRemove={onRemoveService}
+                key={draft.id}
+                name={draft.name}
+                duration={draft.duration}
+                onNameChange={(name) => {
+                  const next = [...serviceDrafts];
+                  next[idx] = { ...draft, name };
+                  setServiceDrafts(next);
+                }}
+                onDurationChange={(duration) => {
+                  const next = [...serviceDrafts];
+                  next[idx] = { ...draft, duration };
+                  setServiceDrafts(next);
+                }}
+                onRemove={() => onRemoveService(draft.id)}
               />
             ))}
           </ul>
         )}
+        <Button type="button" size="sm" disabled={busy === `svc-save-${member.id}`} onClick={handleSaveServices}>
+          {busy === `svc-save-${member.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Salvar serviços
+        </Button>
       </section>
 
       <section className="space-y-3 pt-3">
@@ -624,11 +680,9 @@ function StaffExpanded(props: {
 function ServiceNameField({
   newSvcName,
   setNewSvcName,
-  onAdd,
 }: {
   newSvcName: string;
   setNewSvcName: (v: string) => void;
-  onAdd: () => void;
 }) {
   return (
     <div className="flex-1 space-y-1.5">
@@ -638,58 +692,37 @@ function ServiceNameField({
         value={newSvcName}
         onChange={(e) => setNewSvcName(e.target.value)}
         maxLength={120}
-        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onAdd())}
       />
     </div>
   );
 }
 
 function ServiceRowEditor({
-  svc,
-  busy,
-  onUpdate,
+  name,
+  duration,
+  onNameChange,
+  onDurationChange,
   onRemove,
 }: {
-  svc: ServiceRow;
-  busy: string | null;
-  onUpdate: (id: string, patch: { name?: string; duration_minutes?: number }) => void;
-  onRemove: (id: string) => void;
+  name: string;
+  duration: string;
+  onNameChange: (value: string) => void;
+  onDurationChange: (value: string) => void;
+  onRemove: () => void;
 }) {
-  const [name, setName] = useState(svc.name);
-  const [duration, setDuration] = useState(String(svc.duration_minutes));
-
-  useEffect(() => {
-    setName(svc.name);
-    setDuration(String(svc.duration_minutes));
-  }, [svc.name, svc.duration_minutes]);
-
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2">
-      <Input className="h-8 flex-1 min-w-[120px]" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+      <Input className="h-8 flex-1 min-w-[120px]" value={name} onChange={(e) => onNameChange(e.target.value)} maxLength={120} />
       <Input
         type="number"
         className="h-8 w-20"
         min={5}
         max={480}
         value={duration}
-        onChange={(e) => setDuration(e.target.value)}
+        onChange={(e) => onDurationChange(e.target.value)}
       />
       <span className="text-xs text-muted-foreground">min</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={busy === `svc-${svc.id}`}
-        onClick={() =>
-          onUpdate(svc.id, {
-            name: name.trim(),
-            duration_minutes: parseInt(duration, 10) || svc.duration_minutes,
-          })
-        }
-      >
-        Salvar
-      </Button>
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => onRemove(svc.id)}>
+      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onRemove}>
         <Trash2 className="h-4 w-4" />
       </Button>
     </li>
