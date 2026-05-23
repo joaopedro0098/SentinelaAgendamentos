@@ -41,7 +41,9 @@ const MeusAgendamentos = () => {
       try {
         const c = JSON.parse(saved);
         if (c.whatsapp) setWhatsapp(maskPhone(c.whatsapp));
-      } catch {}
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     }
   }, []);
 

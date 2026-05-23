@@ -2,12 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim();
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+
 export function isIosDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
 export function isStandalonePwa() {
-  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as NavigatorWithStandalone).standalone === true;
 }
 
 export function supportsWebPush() {

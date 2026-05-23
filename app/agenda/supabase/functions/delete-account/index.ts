@@ -17,6 +17,8 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+type IdRow = { id: string };
+
     // Cliente como o usuário (pra pegar o user a partir do JWT)
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -31,12 +33,12 @@ Deno.serve(async (req) => {
 
     // Pega barbearia(s) do usuário
     const { data: barbearias } = await admin.from("barbearias").select("id").eq("owner_id", userId);
-    const barbeariaIds = (barbearias ?? []).map((b: any) => b.id);
+    const barbeariaIds = ((barbearias ?? []) as IdRow[]).map((b) => b.id);
 
     if (barbeariaIds.length > 0) {
       // pega ids dos barbeiros pra remover dependentes
       const { data: barbeiros } = await admin.from("barbeiros").select("id").in("barbearia_id", barbeariaIds);
-      const barbeiroIds = (barbeiros ?? []).map((b: any) => b.id);
+      const barbeiroIds = ((barbeiros ?? []) as IdRow[]).map((b) => b.id);
 
       if (barbeiroIds.length > 0) {
         await admin.from("bloqueios").delete().in("barbeiro_id", barbeiroIds);

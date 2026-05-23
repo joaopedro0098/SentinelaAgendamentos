@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Bot, Calendar, CalendarCheck, LogOut, Menu, Settings, User, X } from "lucide-react";
+import { Calendar, CalendarCheck, LogOut, Menu, Settings, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -96,7 +96,7 @@ export default function AppLayout() {
             <div className="flex items-center justify-between gap-2 px-4 h-14 border-b border-border">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
+                  <CalendarCheck className="w-4 h-4 text-white" />
                 </span>
                 <span className="font-semibold text-sm truncate">{shop?.display_name ?? "Painel"}</span>
               </div>
@@ -146,7 +146,7 @@ export default function AppLayout() {
         <div className="glass-panel m-3 rounded-2xl flex flex-col flex-1 overflow-hidden w-full">
           <div className="flex items-center gap-2 px-4 py-4 border-b border-border/60">
             <span className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-glow">
-              <Bot className="w-4 h-4 text-white" />
+              <CalendarCheck className="w-4 h-4 text-white" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Painel</p>

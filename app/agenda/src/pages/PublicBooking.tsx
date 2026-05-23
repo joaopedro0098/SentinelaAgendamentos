@@ -36,6 +36,25 @@ interface Barbeiro {
   servicos: { id: string; nome: string; duracao_minutos: number }[];
 }
 
+type RawBarbeiro = {
+  id: string;
+  nome: string;
+  foto_url: string | null;
+  ativo?: boolean;
+  slot_minutos: number | null;
+  disponibilidades?: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
+  bloqueios?: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
+  barbeiro_services?: { id: string; nome: string; duracao_minutos: number; ativo?: boolean }[];
+};
+
+type AgendamentoOcupado = {
+  id: string;
+  barbeiro_id: string;
+  data: string;
+  hora: string;
+  duracao_minutos: number | null;
+};
+
 const STORAGE_KEY = "agendabarber:cliente";
 const DAYS_AHEAD = 14;
 
@@ -104,7 +123,9 @@ const PublicBooking = ({
         const c = JSON.parse(saved);
         if (c.nome) setNome(c.nome);
         if (c.whatsapp) setWhatsapp(maskPhone(c.whatsapp));
-      } catch {}
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     }
   }, [reschedule]);
 
@@ -165,18 +186,18 @@ const PublicBooking = ({
         telefone: contato,
       });
 
-      const bbs = ((b as { barbeiros?: unknown[] }).barbeiros ?? [])
-        .filter((bb: { ativo?: boolean }) => bb.ativo !== false)
-        .map((bb: any) => ({
+      const bbs = ((b as { barbeiros?: RawBarbeiro[] }).barbeiros ?? [])
+        .filter((bb) => bb.ativo !== false)
+        .map((bb) => ({
         id: bb.id,
         nome: bb.nome,
         foto_url: bb.foto_url,
         slot_minutos: bb.slot_minutos ?? 30,
         disponibilidades: bb.disponibilidades ?? [],
-        bloqueios: (bb.bloqueios ?? []).filter((bl: any) => bl.data >= fromYmd && bl.data <= toYmd),
+        bloqueios: (bb.bloqueios ?? []).filter((bl) => bl.data >= fromYmd && bl.data <= toYmd),
         servicos: (bb.barbeiro_services ?? [])
-          .filter((s: any) => s.ativo)
-          .map((s: any) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
+          .filter((s) => s.ativo)
+          .map((s) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
       })) as Barbeiro[];
       setBarbeiros(bbs);
 
@@ -190,7 +211,7 @@ const PublicBooking = ({
           .gte("data", fromYmd)
           .lte("data", toYmd);
         const map = new Map<string, Map<string, number>>();
-        (ag ?? []).forEach((a: any) => {
+        ((ag ?? []) as AgendamentoOcupado[]).forEach((a) => {
           if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
           const k = `${a.barbeiro_id}|${a.data}`;
           if (!map.has(k)) map.set(k, new Map());
@@ -211,7 +232,7 @@ const PublicBooking = ({
   }, []);
 
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
-  const servicosDoBarbeiro = barbeiroSel?.servicos ?? [];
+  const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
 
   const duracaoTotal = useMemo(() => {
     if (isReschedule && reschedule) return reschedule.duracao_minutos;

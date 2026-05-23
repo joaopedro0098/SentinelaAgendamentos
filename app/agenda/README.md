@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Sentinela Agenda
 
-TODO: Document your project here
+Interface pública de agendamento usada pelo Sentinela Agendamentos.

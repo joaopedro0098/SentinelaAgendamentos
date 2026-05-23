@@ -5,6 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*",
 };
 
+type WebhookPayload = {
+  type?: string;
+  data?: { id?: string };
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -13,7 +18,7 @@ Deno.serve(async (req) => {
     const topic = url.searchParams.get("topic") || url.searchParams.get("type");
     const idQs = url.searchParams.get("id") || url.searchParams.get("data.id");
 
-    let payload: any = {};
+    let payload: WebhookPayload = {};
     try { payload = await req.json(); } catch { /* ignore */ }
 
     console.log("MP webhook:", { topic, idQs, payload });

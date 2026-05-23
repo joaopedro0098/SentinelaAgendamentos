@@ -17,6 +17,6 @@ export default defineConfig({
     alias: {
       "@agenda": path.resolve(__dirname, "./agenda/src"),
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
 });
