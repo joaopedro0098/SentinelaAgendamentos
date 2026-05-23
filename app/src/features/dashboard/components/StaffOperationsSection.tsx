@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Clock, Loader2, Pencil, Plus, Scissors, Trash2, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,71 @@ const DAYS: { value: number; label: string }[] = [
 
 function timeToInput(t: string) {
   return t?.slice(0, 5) ?? "09:00";
+}
+
+function isValidTime(value: string) {
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return false;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
+
+function normalizeTimeOnBlur(value: string, fallback: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  if (isValidTime(trimmed)) return trimmed;
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 3) {
+    const candidate = `${digits[0].padStart(2, "0")}:${digits.slice(1).padStart(2, "0")}`;
+    if (isValidTime(candidate)) return candidate;
+  }
+  if (digits.length === 4) {
+    const candidate = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+    if (isValidTime(candidate)) return candidate;
+  }
+
+  return fallback;
+}
+
+function TimeTextInput({
+  value,
+  onChange,
+  disabled,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const lastValid = useRef(value);
+
+  useEffect(() => {
+    if (isValidTime(value)) lastValid.current = value;
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      spellCheck={false}
+      placeholder="09:00"
+      className={className}
+      value={value}
+      disabled={disabled}
+      maxLength={5}
+      onChange={(e) => onChange(e.target.value.replace(/[^\d:]/g, "").slice(0, 5))}
+      onBlur={() => {
+        const next = normalizeTimeOnBlur(value, lastValid.current);
+        onChange(next);
+        lastValid.current = next;
+      }}
+    />
+  );
 }
 
 function buildScheduleDraft(existing: ScheduleRow[]): ScheduleDraft[] {
@@ -194,14 +259,25 @@ export function StaffOperationsSection({ barbershopId }: Props) {
       toast({ title: "Erro ao salvar horários", description: delErr.message, variant: "destructive" });
       return;
     }
-    const toInsert = rows
-      .filter((r) => r.enabled)
-      .map((r) => ({
-        staff_id: staffId,
-        day_of_week: r.day_of_week,
-        start_time: `${r.start_time}:00`,
-        end_time: `${r.end_time}:00`,
-      }));
+    const enabledRows = rows.filter((r) => r.enabled);
+    const invalidRow = enabledRows.find((r) => !isValidTime(r.start_time) || !isValidTime(r.end_time));
+    if (invalidRow) {
+      setBusy(null);
+      const day = DAYS.find((d) => d.value === invalidRow.day_of_week)?.label ?? "dia";
+      toast({
+        title: "Horário inválido",
+        description: `Use o formato HH:MM (ex.: 09:00) em ${day}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const toInsert = enabledRows.map((r) => ({
+      staff_id: staffId,
+      day_of_week: r.day_of_week,
+      start_time: `${r.start_time}:00`,
+      end_time: `${r.end_time}:00`,
+    }));
     if (toInsert.length > 0) {
       const { error } = await supabase.from("staff_schedules").insert(toInsert);
       if (error) {
@@ -219,7 +295,7 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     <Card className="glass-panel border-border/80">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Scissors className="h-4 w-4 text-primary" />
+          <CalendarCheck className="h-4 w-4 text-primary" />
           Equipe e atendimento
         </CardTitle>
         <CardDescription>
@@ -442,22 +518,6 @@ function StaffExpanded(props: {
   return (
     <div className="border-t border-border px-3 py-4 space-y-5 bg-muted/20">
       <section className="space-y-3">
-        <h4 className="text-sm font-medium">Serviços e duração</h4>
-        {services.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nenhum serviço cadastrado.</p>
-        ) : (
-          <ul className="space-y-2">
-            {services.map((svc) => (
-              <ServiceRowEditor
-                key={svc.id}
-                svc={svc}
-                busy={busy}
-                onUpdate={onUpdateService}
-                onRemove={onRemoveService}
-              />
-            ))}
-          </ul>
-        )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <ServiceNameField newSvcName={newSvcName} setNewSvcName={setNewSvcName} onAdd={() => onAddService(newSvcName, parseInt(newSvcDuration, 10) || 30)} />
           <div className="space-y-1.5 w-full sm:w-28">
@@ -485,9 +545,22 @@ function StaffExpanded(props: {
             <Plus className="h-4 w-4" /> Serviço
           </Button>
         </div>
+        {services.length > 0 && (
+          <ul className="space-y-2">
+            {services.map((svc) => (
+              <ServiceRowEditor
+                key={svc.id}
+                svc={svc}
+                busy={busy}
+                onUpdate={onUpdateService}
+                onRemove={onRemoveService}
+              />
+            ))}
+          </ul>
+        )}
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 pt-3">
         <h4 className="text-sm font-medium flex items-center gap-1.5">
           <Clock className="h-4 w-4" /> Horário de atendimento
         </h4>
@@ -514,26 +587,24 @@ function StaffExpanded(props: {
                   />
                   {label}
                 </label>
-                <Input
-                  type="time"
-                  className="h-8 w-full"
+                <TimeTextInput
+                  className="h-8 w-full text-center tabular-nums"
                   value={row.start_time}
                   disabled={!row.enabled}
-                  onChange={(e) => {
+                  onChange={(start_time) => {
                     const next = [...scheduleDraft];
-                    next[idx] = { ...row, start_time: e.target.value };
+                    next[idx] = { ...row, start_time };
                     setScheduleDraft(next);
                   }}
                 />
                 <span className="text-center text-muted-foreground text-xs">até</span>
-                <Input
-                  type="time"
-                  className="h-8 w-full"
+                <TimeTextInput
+                  className="h-8 w-full text-center tabular-nums"
                   value={row.end_time}
                   disabled={!row.enabled}
-                  onChange={(e) => {
+                  onChange={(end_time) => {
                     const next = [...scheduleDraft];
-                    next[idx] = { ...row, end_time: e.target.value };
+                    next[idx] = { ...row, end_time };
                     setScheduleDraft(next);
                   }}
                 />
@@ -561,7 +632,7 @@ function ServiceNameField({
 }) {
   return (
     <div className="flex-1 space-y-1.5">
-      <Label>Nome do serviço</Label>
+      <Label>Adicionar serviços</Label>
       <Input
         placeholder="Ex.: Corte, Barba…"
         value={newSvcName}
