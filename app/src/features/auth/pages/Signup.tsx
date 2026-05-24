@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,12 @@ import {
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { PageReveal } from "@/components/layout/PageReveal";
+import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
+import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/features/auth/face-verification/facialRecognitionController";
+
+const FaceVerification = lazy(() =>
+  import("@/features/auth/face-verification/FaceVerification").then((m) => ({ default: m.FaceVerification })),
+);
 
 const schema = z
   .object({
@@ -47,6 +53,8 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const pendingSignupRef = useRef<z.infer<typeof schema> | null>(null);
 
   useEffect(() => {
     document.title = "Teste grátis 14 dias — Sentinela Agendamentos";
@@ -84,14 +92,23 @@ export default function Signup() {
       return;
     }
     setLoading(true);
+    pendingSignupRef.current = parsed.data;
+    setShowFaceVerification(true);
+    setLoading(false);
+  }
+
+  async function completeSignup(parsed: z.infer<typeof schema>, verification: FacialVerificationResult) {
+    setLoading(true);
+    setShowFaceVerification(false);
     const { data, error } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
+      email: parsed.email,
+      password: parsed.password,
       options: {
         emailRedirectTo: `${window.location.origin}/app`,
         data: {
-          display_name: parsed.data.display_name,
-          shop_name: parsed.data.shop_name,
+          display_name: parsed.display_name,
+          shop_name: parsed.shop_name,
+          face_embedding: verification.embedding,
         },
       },
     });
@@ -112,21 +129,40 @@ export default function Signup() {
     }
 
     if (data.session && data.user) {
-      // Barbearia criada pelo trigger handle_new_user (trial 14 dias).
-      await supabase.auth.updateUser({ data: { shop_name: parsed.data.shop_name } });
+      await supabase.auth.updateUser({ data: { shop_name: parsed.shop_name } });
+      if (!verification.trialEligible) {
+        authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+      }
       navigate("/app", { replace: true });
     } else {
       toast({
         title: "Confira seu e-mail",
-        description: "Enviamos um link para confirmar sua conta.",
+        description: verification.trialEligible
+          ? "Enviamos um link para confirmar sua conta."
+          : `Enviamos um link para confirmar sua conta. ${FACIAL_TRIAL_BLOCKED_MESSAGE}`,
       });
       navigate("/login", { replace: true });
     }
     setLoading(false);
+    pendingSignupRef.current = null;
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+    <>
+      <Suspense fallback={null}>
+        <FaceVerification
+          open={showFaceVerification}
+          onClose={() => {
+            setShowFaceVerification(false);
+            pendingSignupRef.current = null;
+          }}
+          onVerified={(result) => {
+            const pending = pendingSignupRef.current;
+            if (pending) void completeSignup(pending, result);
+          }}
+        />
+      </Suspense>
+      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
       <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
         <PageReveal className="flex flex-col gap-4">
           <div className="text-center sm:text-left">
@@ -138,8 +174,12 @@ export default function Signup() {
 
           <GoogleButton
             label="Cadastrar com Google"
+            authFlow="signup"
             className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
           />
+          <p className="text-[11px] text-center text-muted-foreground">
+            Após o Google, faremos uma verificação facial rápida (poucos segundos).
+          </p>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex-1 h-px bg-border/80" />
@@ -231,5 +271,6 @@ export default function Signup() {
         </PageReveal>
       </div>
     </main>
+    </>
   );
 }

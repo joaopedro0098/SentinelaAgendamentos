@@ -7,9 +7,11 @@ import { useState } from "react";
 export function GoogleButton({
   label = "Continuar com Google",
   className,
+  authFlow = "login",
 }: {
   label?: string;
   className?: string;
+  authFlow?: "signup" | "login";
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +20,7 @@ export function GoogleButton({
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?flow=${authFlow}`,
       },
     });
     if (error) {

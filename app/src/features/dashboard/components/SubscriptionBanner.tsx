@@ -10,11 +10,15 @@ export function SubscriptionBanner() {
 
   const message =
     info.subscription_notice ??
-    (info.subscription_status === "grace"
-      ? "Pagamento pendente. Regularize em até a data de tolerância para continuar agendando."
-      : info.subscription_status === "trial"
-        ? "Seu teste grátis terminou. Assine para liberar novos agendamentos."
-        : "Assinatura inativa. Realize o pagamento para liberar novos agendamentos.");
+    (info.facial_trial_used && !info.can_book
+      ? "Identificamos um cadastro anterior associado a esta biometria facial. Para fazer novos agendamentos, assine o plano."
+      : info.trial_already_used && !info.can_book
+        ? "Este e-mail já utilizou o teste grátis. Assine para liberar novos agendamentos."
+        : info.subscription_status === "grace"
+        ? "Pagamento pendente. Regularize em até a data de tolerância para continuar agendando."
+        : info.subscription_status === "trial"
+          ? "Seu teste grátis terminou. Assine para liberar novos agendamentos."
+          : "Assinatura inativa. Realize o pagamento para liberar novos agendamentos.");
 
   return (
     <div className="mx-4 mt-4 md:mx-8 md:mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">

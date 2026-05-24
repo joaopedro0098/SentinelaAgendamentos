@@ -15,6 +15,7 @@ import SignupPage from "@/features/auth/pages/Signup";
 import RecoverPage from "@/features/auth/pages/Recover";
 import ResetPasswordPage from "@/features/auth/pages/ResetPassword";
 import AuthCallbackPage from "@/features/auth/pages/AuthCallback";
+import AuthCompleteVerificationPage from "@/features/auth/pages/AuthCompleteVerification";
 
 import AppLayout from "@/features/dashboard/pages/AppLayout";
 import SettingsPage from "@/features/dashboard/pages/Settings";
@@ -42,6 +43,14 @@ export function AppRouter() {
       <Route path="/agendar/:slug/meus" element={<MeusAgendamentosRoute />} />
       <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointmentPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route
+        path="/auth/complete-verification"
+        element={
+          <RequireAuth skipFaceCheck>
+            <AuthCompleteVerificationPage />
+          </RequireAuth>
+        }
+      />
 
       <Route
         path="/app"

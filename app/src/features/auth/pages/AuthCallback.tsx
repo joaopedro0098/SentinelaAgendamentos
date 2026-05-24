@@ -1,19 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialRecognitionController";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const [handled, setHandled] = useState(false);
+
   useEffect(() => {
-    // Supabase processa o hash automaticamente; quando a sessão aparecer, redirecionamos
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate("/app", { replace: true });
+    let active = true;
+
+    async function finishAuth() {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+
+      if (!data.session) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      const needsFace = await userNeedsFaceVerification();
+      if (!active) return;
+
+      if (needsFace) {
+        navigate("/auth/complete-verification", { replace: true });
+        return;
+      }
+
+      navigate("/app", { replace: true });
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session || handled) return;
+      setHandled(true);
+      void finishAuth();
     });
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate("/app", { replace: true });
+      if (data.session && !handled) {
+        setHandled(true);
+        void finishAuth();
+      }
     });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [navigate, handled]);
+
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
       Concluindo login…

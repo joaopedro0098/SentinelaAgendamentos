@@ -32,8 +32,16 @@ Deno.serve(async (req) => {
       });
     }
     const userId = userData.user.id;
+    const userEmail = userData.user.email?.trim().toLowerCase();
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    if (userEmail) {
+      await admin.from("trial_claims").upsert(
+        { email: userEmail, user_id: userId, claimed_at: new Date().toISOString() },
+        { onConflict: "email" },
+      );
+    }
 
     const { data: shops } = await admin.from("barbershops").select("id, slug").eq("owner_id", userId);
 
@@ -64,6 +72,7 @@ Deno.serve(async (req) => {
     }
 
     await admin.from("barbershops").delete().eq("owner_id", userId);
+    await admin.from("facial_embeddings").update({ user_id: null }).eq("user_id", userId);
     await admin.from("profiles").delete().eq("id", userId);
     await admin.from("user_roles").delete().eq("user_id", userId);
 
