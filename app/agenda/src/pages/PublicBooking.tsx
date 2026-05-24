@@ -300,6 +300,16 @@ const PublicBooking = ({
     return livresComDuracao(bbId, data, duracaoExigidaNoCarrossel(bb)).length > 0;
   };
 
+  const barbeiroMotivoIndisponivel = (bb: Barbeiro) => {
+    if (bb.disponibilidades.length === 0) {
+      return "Configure horários em Configurações → Equipe e atendimento";
+    }
+    const dow = new Date(`${data}T12:00:00`).getDay();
+    const temHorarioNoDia = bb.disponibilidades.some((x) => x.dia_semana === dow);
+    if (!temHorarioNoDia) return "Sem horário de atendimento neste dia";
+    return "Sem horários livres neste dia";
+  };
+
   const slotsDoBarbeiroNoDia = useMemo(() => {
     if (!barbeiroId) return { all: [] as string[], livres: [] as string[] };
     const raw = slotsRaw.get(`${barbeiroId}|${data}`);
@@ -669,7 +679,7 @@ const PublicBooking = ({
                       data-barbeiro={b.id}
                       type="button"
                       aria-disabled={!ok}
-                      title={ok ? undefined : "Sem disponibilidade neste dia"}
+                      title={ok ? undefined : barbeiroMotivoIndisponivel(b)}
                       onClick={(e) => {
                         if (ok) {
                           setBarbeiroId(b.id);

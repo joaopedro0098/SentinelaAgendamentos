@@ -293,7 +293,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <StaffOperationsSection barbershopId={shop.id} />
+        <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} />
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6 space-y-4">

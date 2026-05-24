@@ -7,6 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
+
+type Props = {
+  barbershopId: string;
+  barbershopSlug?: string;
+};
 
 type StaffRow = { id: string; name: string; sort_order: number };
 type ServiceRow = { id: string; staff_id: string; name: string; duration_minutes: number };
@@ -140,11 +146,29 @@ function buildScheduleDraft(existing: ScheduleRow[]): ScheduleDraft[] {
   });
 }
 
+const DEFAULT_WEEKDAYS = [1, 2, 3, 4, 5] as const;
+
+function defaultScheduleRows(staffId: string) {
+  return DEFAULT_WEEKDAYS.map((day_of_week) => ({
+    staff_id: staffId,
+    day_of_week,
+    start_time: "09:00:00",
+    end_time: "18:00:00",
+  }));
+}
+
+async function syncAgendaQuiet(slug: string | undefined) {
+  const { error } = await syncAgendaFromSlug(slug);
+  if (error) {
+    console.warn("[staff] falha ao sincronizar agenda:", error.message);
+  }
+}
+
 function showQuickSavedToast(title: string) {
   toast({ title, duration: 2000 });
 }
 
-export function StaffOperationsSection({ barbershopId }: Props) {
+export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) {
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
@@ -202,14 +226,42 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     const name = newName.trim();
     if (!name) return;
     setBusy("add-staff");
-    const { error } = await supabase.from("staff").insert({ barbershop_id: barbershopId, name, sort_order: staff.length });
-    setBusy(null);
+    const { data: created, error } = await supabase
+      .from("staff")
+      .insert({ barbershop_id: barbershopId, name, sort_order: staff.length })
+      .select("id")
+      .single();
     if (error) {
+      setBusy(null);
       toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
       return;
     }
+
+    // Horários seg–sex 09:00–18:00 são gravados pelo trigger no banco (seed_default_staff_schedules).
+    // Fallback no app caso a migration ainda não tenha sido aplicada.
+    const { count: scheduleCount } = await supabase
+      .from("staff_schedules")
+      .select("id", { count: "exact", head: true })
+      .eq("staff_id", created.id);
+
+    if (!scheduleCount) {
+      const { error: scheduleError } = await supabase.from("staff_schedules").insert(defaultScheduleRows(created.id));
+      if (scheduleError) {
+        setBusy(null);
+        toast({
+          title: "Colaborador criado, mas horários não foram salvos",
+          description: scheduleError.message,
+          variant: "destructive",
+        });
+        await load();
+        return;
+      }
+    }
+
+    await syncAgendaQuiet(barbershopSlug);
+    setBusy(null);
     setNewName("");
-    toast({ title: "Colaborador adicionado" });
+    toast({ title: "Colaborador adicionado", description: "Já disponível para agendamento (seg–sex, 09:00–18:00)." });
     await load();
   }
 
@@ -238,6 +290,7 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     }
     if (expandedId === id) setExpandedId(null);
     toast({ title: "Colaborador removido" });
+    await syncAgendaQuiet(barbershopSlug);
     await load();
   }
 
@@ -316,6 +369,7 @@ export function StaffOperationsSection({ barbershopId }: Props) {
 
     setBusy(null);
     showQuickSavedToast("Serviços salvos");
+    await syncAgendaQuiet(barbershopSlug);
     await load({ silent: true });
   }
 
@@ -367,6 +421,7 @@ export function StaffOperationsSection({ barbershopId }: Props) {
     }
     setBusy(null);
     showQuickSavedToast("Horários salvos");
+    await syncAgendaQuiet(barbershopSlug);
     await load({ silent: true });
   }
 
@@ -378,7 +433,8 @@ export function StaffOperationsSection({ barbershopId }: Props) {
           Equipe e atendimento
         </CardTitle>
         <CardDescription>
-          Cadastre colaboradores, os serviços que cada um realiza, a duração de cada serviço e o horário de atendimento.
+          Ao adicionar um colaborador, os horários seg–sex (09:00–18:00) já ficam salvos e prontos para agendamento.
+          Ajuste serviços e horários abaixo se quiser.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -486,7 +542,7 @@ function StaffCard({
 
   useEffect(() => {
     if (expanded) setScheduleDraft(buildScheduleDraft(schedules));
-  }, [expanded, member.id]);
+  }, [expanded, member.id, schedules]);
 
   return (
     <li className="rounded-lg border border-border bg-card/50 overflow-hidden">
