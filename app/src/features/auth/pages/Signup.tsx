@@ -16,8 +16,12 @@ import {
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { PageReveal } from "@/components/layout/PageReveal";
+import {
+  FACIAL_TRIAL_BLOCKED_MESSAGE,
+  registerUserFacialEmbedding,
+} from "@/features/auth/face-verification/facialRecognitionController";
+import { savePendingFaceEmbedding } from "@/features/auth/face-verification/pendingFaceStorage";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
-import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/features/auth/face-verification/facialRecognitionController";
 
 const FaceVerification = lazy(() =>
   import("@/features/auth/face-verification/FaceVerification").then((m) => ({ default: m.FaceVerification })),
@@ -108,7 +112,6 @@ export default function Signup() {
         data: {
           display_name: parsed.display_name,
           shop_name: parsed.shop_name,
-          face_embedding: verification.embedding,
         },
       },
     });
@@ -130,11 +133,21 @@ export default function Signup() {
 
     if (data.session && data.user) {
       await supabase.auth.updateUser({ data: { shop_name: parsed.shop_name } });
-      if (!verification.trialEligible) {
-        authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+      try {
+        const registered = await registerUserFacialEmbedding(verification.embedding);
+        if (!registered.trialEligible || registered.facialMatch) {
+          authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+        }
+      } catch {
+        authInfoToast("Conta criada, mas a verificação facial não foi salva. Entre de novo para concluir.");
+        navigate("/auth/complete-verification", { replace: true });
+        setLoading(false);
+        pendingSignupRef.current = null;
+        return;
       }
       navigate("/app", { replace: true });
     } else {
+      savePendingFaceEmbedding(verification.embedding);
       toast({
         title: "Confira seu e-mail",
         description: verification.trialEligible

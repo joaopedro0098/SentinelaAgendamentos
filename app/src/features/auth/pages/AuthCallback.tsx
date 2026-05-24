@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialRecognitionController";
+import { authInfoToast } from "@/features/auth/lib/authToast";
+import {
+  FACIAL_TRIAL_BLOCKED_MESSAGE,
+  registerUserFacialEmbedding,
+  userNeedsFaceVerification,
+} from "@/features/auth/face-verification/facialRecognitionController";
+import {
+  clearPendingFaceEmbedding,
+  loadPendingFaceEmbedding,
+} from "@/features/auth/face-verification/pendingFaceStorage";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -17,6 +26,23 @@ export default function AuthCallback() {
       if (!data.session) {
         navigate("/login", { replace: true });
         return;
+      }
+
+      const pending = loadPendingFaceEmbedding();
+      if (pending) {
+        try {
+          const registered = await registerUserFacialEmbedding(pending.embedding);
+          clearPendingFaceEmbedding();
+          if (!registered.trialEligible || registered.facialMatch) {
+            authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+          }
+          navigate("/app", { replace: true });
+          return;
+        } catch {
+          clearPendingFaceEmbedding();
+          navigate("/auth/complete-verification", { replace: true });
+          return;
+        }
       }
 
       const needsFace = await userNeedsFaceVerification();

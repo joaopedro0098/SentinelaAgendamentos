@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
@@ -7,6 +7,10 @@ import {
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
+import {
+  clearPendingFaceEmbedding,
+  loadPendingFaceEmbedding,
+} from "@/features/auth/face-verification/pendingFaceStorage";
 
 const FaceVerification = lazy(() =>
   import("@/features/auth/face-verification/FaceVerification").then((m) => ({ default: m.FaceVerification })),
@@ -16,6 +20,25 @@ export default function AuthCompleteVerification() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const pending = loadPendingFaceEmbedding();
+    if (!pending) return;
+    setSubmitting(true);
+    void registerUserFacialEmbedding(pending.embedding)
+      .then((registered) => {
+        clearPendingFaceEmbedding();
+        if (!registered.trialEligible || registered.facialMatch) {
+          authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+        }
+        navigate("/app", { replace: true });
+      })
+      .catch(() => {
+        clearPendingFaceEmbedding();
+        authInfoToast("Não foi possível concluir a verificação. Refaça o processo.");
+        setSubmitting(false);
+      });
+  }, [navigate]);
 
   const handleVerified = useCallback(
     async (result: FacialVerificationResult) => {
