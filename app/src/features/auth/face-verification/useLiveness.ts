@@ -34,12 +34,13 @@ async function getFaceLandmarker(): Promise<FaceLandmarker> {
 }
 
 type Options = {
+  key?: number;
   video: HTMLVideoElement | null;
   active: boolean;
   onComplete: () => void;
 };
 
-export function useLiveness({ video, active, onComplete }: Options) {
+export function useLiveness({ key = 0, video, active, onComplete }: Options) {
   const [phase, setPhase] = useState<LivenessPhase>("positioning");
   const [message, setMessage] = useState<LivenessStepMessage>("Olhe para a câmera");
   const [faceDetected, setFaceDetected] = useState(false);
@@ -51,13 +52,31 @@ export function useLiveness({ video, active, onComplete }: Options) {
   const rafRef = useRef<number>(0);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
   const lastTsRef = useRef(-1);
+  const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const updatePhase = useCallback((next: LivenessPhase) => {
     phaseRef.current = next;
     setPhase(next);
     setMessage(messageForPhase(next));
-    if (next === "done") onComplete();
-  }, [onComplete]);
+    if (next === "done" && !completedRef.current) {
+      completedRef.current = true;
+      onCompleteRef.current();
+    }
+  }, []);
+
+  useEffect(() => {
+    phaseRef.current = "positioning";
+    setPhase("positioning");
+    setMessage("Olhe para a câmera");
+    setFaceDetected(false);
+    baselineYawRef.current = null;
+    blinkSeenRef.current = false;
+    stableFramesRef.current = 0;
+    completedRef.current = false;
+    lastTsRef.current = -1;
+  }, [key, active]);
 
   useEffect(() => {
     if (!active || !video) return;
@@ -69,8 +88,8 @@ export function useLiveness({ video, active, onComplete }: Options) {
       if (cancelled) return;
 
       const tick = () => {
-        if (cancelled || !video || video.readyState < 2 || !landmarkerRef.current) {
-          rafRef.current = requestAnimationFrame(tick);
+        if (cancelled || completedRef.current || !video || video.readyState < 2 || !landmarkerRef.current) {
+          if (!cancelled && !completedRef.current) rafRef.current = requestAnimationFrame(tick);
           return;
         }
 
@@ -137,7 +156,7 @@ export function useLiveness({ video, active, onComplete }: Options) {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
     };
-  }, [active, video, updatePhase]);
+  }, [active, video, updatePhase, key]);
 
   return { phase, message, faceDetected, blinkSeen: blinkSeenRef.current };
 }

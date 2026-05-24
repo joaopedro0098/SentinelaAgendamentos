@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, ScanFace, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toUserFaceError } from "./faceEmbeddingService";
 import { useCamera } from "./useCamera";
 import { useLiveness } from "./useLiveness";
 import {
@@ -21,22 +22,27 @@ type Props = {
 export function FaceVerification({ open, onClose, onVerified }: Props) {
   const { videoRef, start, stop, captureFrame, ready, error: cameraError } = useCamera();
   const [processing, setProcessing] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [progress, setProgress] = useState<FacialVerificationProgress>({
     stage: "camera",
     message: "Olhe para a câmera",
   });
   const [livenessActive, setLivenessActive] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const finishingRef = useRef(false);
 
   const finishVerification = useCallback(async () => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
     setProcessing(true);
     setLivenessActive(false);
+    setFailed(null);
     setProgress({ stage: "embedding", message: "Finalizando verificação…" });
 
     try {
       const canvas = captureFrame();
-      stop();
       if (!canvas) throw new Error("Não foi possível capturar a imagem. Tente novamente.");
+      stop();
 
       const embedding = await buildEmbeddingFromSnapshot(canvas, setProgress);
       setProgress({ stage: "checking", message: "Validando…" });
@@ -45,11 +51,11 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
       setProgress({ stage: "done", message: "Pronto ✅" });
       onVerified({ embedding, trialEligible, facialMatch });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Falha na verificação facial.";
-      setFailed(msg);
-      setProgress({ stage: "error", message: msg });
+      setFailed(toUserFaceError(e));
+      setProgress({ stage: "liveness", message: "Olhe para a câmera" });
     } finally {
       setProcessing(false);
+      finishingRef.current = false;
     }
   }, [captureFrame, stop, onVerified]);
 
@@ -57,7 +63,8 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     void finishVerification();
   }, [finishVerification]);
 
-  const { message, faceDetected, phase } = useLiveness({
+  const { message, faceDetected } = useLiveness({
+    key: attempt,
     video: ready ? videoRef.current : null,
     active: open && livenessActive && !processing,
     onComplete: handleLivenessComplete,
@@ -68,20 +75,22 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
       setLivenessActive(false);
       setProcessing(false);
       setFailed(null);
+      finishingRef.current = false;
       stop();
       return;
     }
     setProgress({ stage: "camera", message: "Olhe para a câmera" });
     setFailed(null);
+    finishingRef.current = false;
     void start().then(() => setLivenessActive(true));
     return () => stop();
-  }, [open, start, stop]);
+  }, [open, start, stop, attempt]);
 
   useEffect(() => {
-    if (livenessActive && !processing && phase !== "done") {
+    if (livenessActive && !processing && !failed) {
       setProgress({ stage: "liveness", message });
     }
-  }, [message, livenessActive, processing, phase]);
+  }, [message, livenessActive, processing, failed]);
 
   if (!open) return null;
 
@@ -98,26 +107,37 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        <div className="px-6 pt-6 pb-4 text-center space-y-1">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-brand text-white mb-1">
+        <div className="px-6 pt-6 pb-4 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-brand text-white mb-2">
             <ScanFace className="w-5 h-5" />
           </div>
-          <h2 className="font-display text-lg font-semibold">Verificação rápida</h2>
-          <p className="text-xs text-muted-foreground">Leva poucos segundos. Só rodamos no seu aparelho.</p>
+          <h2 className="font-display text-lg font-semibold">Verificação facial</h2>
         </div>
 
-        <div className="relative mx-6 aspect-[4/3] rounded-2xl overflow-hidden bg-black/90">
+        <div className="relative mx-6 aspect-[3/4] max-h-[min(58vh,400px)] rounded-2xl overflow-hidden bg-black">
           <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" playsInline muted />
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-6 rounded-[40%] border-2 transition-colors duration-300",
-              faceDetected ? "border-[hsl(var(--brand-green)/0.85)]" : "border-white/40",
-              phase === "done" && "border-[hsl(var(--brand-green))]",
-            )}
-          />
-          {(processing || !ready) && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+
+          {/* Contorno vertical em formato de rosto — só a borda, sem área branca por fora */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div
+              className={cn(
+                "w-[68%] h-[80%] border-[3.5px] transition-colors duration-300",
+                "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
+                faceDetected ? "border-[hsl(var(--brand-green))]" : "border-white/30",
+              )}
+            />
+          </div>
+
+          {!ready && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
               <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+          )}
+
+          {processing && (
+            <div className="absolute inset-x-0 bottom-0 py-3 bg-gradient-to-t from-black/60 to-transparent flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-white mr-2" />
+              <span className="text-xs text-white/90 self-center">Finalizando…</span>
             </div>
           )}
         </div>
@@ -136,7 +156,8 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
               onClick={() => {
                 setFailed(null);
                 setProcessing(false);
-                void start().then(() => setLivenessActive(true));
+                finishingRef.current = false;
+                setAttempt((n) => n + 1);
               }}
             >
               Tentar novamente
@@ -144,7 +165,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           )}
 
           <p className="text-[11px] text-center text-muted-foreground leading-relaxed">
-            Usamos apenas esta foto para evitar teste grátis duplicado. Nada é enviado a serviços pagos externos.
+            Usamos esta verificação para evitar teste grátis duplicado.
           </p>
         </div>
       </div>

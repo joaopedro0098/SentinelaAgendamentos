@@ -20,6 +20,7 @@ export async function loadFaceApiModels(): Promise<void> {
       await ensureBackend();
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_BASE),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_BASE),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_BASE),
       ]);
     })();
@@ -30,13 +31,34 @@ export async function loadFaceApiModels(): Promise<void> {
 /** Uma única inferência no snapshot final — não usar em loop. */
 export async function computeFaceEmbedding(canvas: HTMLCanvasElement): Promise<number[]> {
   await loadFaceApiModels();
+
   const detection = await faceapi
-    .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+    .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.45 }))
+    .withFaceLandmarks()
     .withFaceDescriptor();
 
   if (!detection?.descriptor) {
-    throw new Error("Não foi possível gerar a biometria facial. Tente novamente com boa iluminação.");
+    throw new Error("Não foi possível concluir a verificação. Posicione o rosto na moldura com boa iluminação.");
   }
 
   return Array.from(detection.descriptor);
+}
+
+export function toUserFaceError(error: unknown): string {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("is not a function") || msg.includes("faceapi") || msg.includes("tensor")) {
+      return "Não foi possível concluir a verificação. Tente novamente com boa iluminação.";
+    }
+    if (
+      msg.includes("verificação") ||
+      msg.includes("capturar") ||
+      msg.includes("iluminação") ||
+      msg.includes("moldura") ||
+      msg.includes("câmera")
+    ) {
+      return error.message;
+    }
+  }
+  return "Não foi possível concluir a verificação. Tente novamente.";
 }
