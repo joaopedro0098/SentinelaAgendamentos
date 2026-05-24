@@ -11,8 +11,10 @@ import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/P
 import { toast } from "@/hooks/use-toast";
 import {
   AUTH_CONFIG_ERROR_MESSAGE,
+  EMAIL_CONFIRMATION_PENDING_MESSAGE,
   isEmailAlreadyRegistered,
   isInvalidApiKeyError,
+  toSignupErrorDescription,
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { PageReveal } from "@/components/layout/PageReveal";
@@ -21,6 +23,11 @@ import {
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
 import { savePendingFaceEmbedding } from "@/features/auth/face-verification/pendingFaceStorage";
+import {
+  getEmailSignupStatus,
+  resendSignupConfirmation,
+  signupConfirmationRedirectUrl,
+} from "@/features/auth/lib/emailSignupStatus";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 
 const FaceVerification = lazy(() =>
@@ -108,7 +115,7 @@ export default function Signup() {
       email: parsed.email,
       password: parsed.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/app`,
+        emailRedirectTo: signupConfirmationRedirectUrl(),
         data: {
           display_name: parsed.display_name,
           shop_name: parsed.shop_name,
@@ -117,6 +124,13 @@ export default function Signup() {
     });
     if (isEmailAlreadyRegistered(error, data)) {
       setLoading(false);
+      const status = await getEmailSignupStatus(parsed.email);
+      if (status.status === "pending_confirmation") {
+        await resendSignupConfirmation(parsed.email);
+        authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
+        navigate("/login", { replace: true });
+        return;
+      }
       authInfoToast("E-mail já cadastrado. Faça o login normalmente.");
       return;
     }
@@ -127,7 +141,14 @@ export default function Signup() {
         toast({ title: "Configuração do servidor", description: AUTH_CONFIG_ERROR_MESSAGE, variant: "destructive" });
         return;
       }
-      toast({ title: "Falha ao cadastrar", description: error.message, variant: "destructive" });
+      const status = await getEmailSignupStatus(parsed.email);
+      if (status.status === "pending_confirmation") {
+        await resendSignupConfirmation(parsed.email);
+        authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
+        navigate("/login", { replace: true });
+        return;
+      }
+      toast({ title: "Falha ao cadastrar", description: toSignupErrorDescription(error), variant: "destructive" });
       return;
     }
 
@@ -147,12 +168,12 @@ export default function Signup() {
       }
       navigate("/app", { replace: true });
     } else {
-      savePendingFaceEmbedding(verification.embedding);
+      savePendingFaceEmbedding(verification.embedding, parsed.email);
       toast({
         title: "Confira seu e-mail",
         description: verification.trialEligible
-          ? "Enviamos um link para confirmar sua conta."
-          : `Enviamos um link para confirmar sua conta. ${FACIAL_TRIAL_BLOCKED_MESSAGE}`,
+          ? EMAIL_CONFIRMATION_PENDING_MESSAGE
+          : `${EMAIL_CONFIRMATION_PENDING_MESSAGE} ${FACIAL_TRIAL_BLOCKED_MESSAGE}`,
       });
       navigate("/login", { replace: true });
     }

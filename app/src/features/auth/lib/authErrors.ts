@@ -42,3 +42,32 @@ export function isEmailAlreadyRegistered(error: AuthError | null, data: SignUpDa
 
 export const AUTH_CONFIG_ERROR_MESSAGE =
   "Não foi possível conectar ao Supabase. No EasyPanel, confira VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (chave anon public) e faça um novo deploy.";
+
+export const EMAIL_CONFIRMATION_PENDING_MESSAGE =
+  "Enviamos um e-mail para você. Abra-o e clique em confirmar para finalizar seu cadastro.";
+
+export function isEmailNotConfirmedError(error: SupabaseLikeError): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "").toLowerCase();
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    code === "email_not_confirmed" ||
+    msg.includes("email not confirmed") ||
+    msg.includes("e-mail not confirmed") ||
+    msg.includes("email address not confirmed")
+  );
+}
+
+export function isSignupDatabaseError(error: SupabaseLikeError): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return msg.includes("database error saving new user") || msg.includes("database error");
+}
+
+export function toSignupErrorDescription(error: AuthError | null): string {
+  if (!error) return "Não foi possível concluir o cadastro.";
+  if (isEmailNotConfirmedError(error) || isSignupDatabaseError(error)) {
+    return EMAIL_CONFIRMATION_PENDING_MESSAGE;
+  }
+  return error.message;
+}

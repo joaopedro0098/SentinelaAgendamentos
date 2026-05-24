@@ -1,1 +1,17 @@
 project_id = "zdmecbyyfubpmwrzzbqf"
+
+[auth.email.template.confirmation]
+subject = "Confirme seu cadastro — Sentinela Agendamentos"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Redefinir senha — Sentinela Agendamentos"
+
+[auth.email.template.magic_link]
+subject = "Seu link de acesso — Sentinela Agendamentos"
+
+[auth.email.template.email_change]
+subject = "Confirme a alteração de e-mail — Sentinela Agendamentos"
+
+[auth.email.template.invite]
+subject = "Convite — Sentinela Agendamentos"

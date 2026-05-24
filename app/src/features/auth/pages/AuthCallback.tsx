@@ -28,7 +28,7 @@ export default function AuthCallback() {
         return;
       }
 
-      const pending = loadPendingFaceEmbedding();
+      const pending = loadPendingFaceEmbedding(data.session.user.email ?? undefined);
       if (pending) {
         try {
           const registered = await registerUserFacialEmbedding(pending.embedding);
