@@ -25,6 +25,7 @@ function createSupabaseClient(): SupabaseClient<Database> {
       storage: localStorage,
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: true,
     },
   });
 }

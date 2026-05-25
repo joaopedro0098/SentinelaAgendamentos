@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
@@ -15,12 +15,15 @@ import {
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [handled, setHandled] = useState(false);
+  const finishedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
 
     async function finishAuth() {
+      if (!active || finishedRef.current) return;
+      finishedRef.current = true;
+
       const { data } = await supabase.auth.getSession();
       if (!active) return;
 
@@ -55,24 +58,35 @@ export default function AuthCallback() {
       navigate("/app", { replace: true });
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session || handled) return;
-      setHandled(true);
-      void finishAuth();
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !handled) {
-        setHandled(true);
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) return;
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
         void finishAuth();
       }
     });
 
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) void finishAuth();
+    });
+
+    const timeout = window.setTimeout(() => {
+      if (!active || finishedRef.current) return;
+      void supabase.auth.getSession().then(({ data }) => {
+        if (finishedRef.current) return;
+        if (data.session) {
+          void finishAuth();
+          return;
+        }
+        navigate("/login", { replace: true });
+      });
+    }, 10000);
+
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       sub.subscription.unsubscribe();
     };
-  }, [navigate, handled, searchParams]);
+  }, [navigate, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
