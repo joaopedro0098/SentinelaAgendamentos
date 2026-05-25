@@ -13,7 +13,10 @@ async function purgeUserCompletely(admin: SupabaseClient, userId: string, userEm
     await admin.from("trial_claims").delete().eq("email", normEmail);
   }
 
-  await admin.from("facial_embeddings").delete().eq("user_id", userId);
+  const { error: facialErr } = await admin.rpc("admin_purge_facial_data_for_user", {
+    p_user_id: userId,
+  });
+  if (facialErr) throw new Error(facialErr.message);
 
   const { data: shops } = await admin.from("barbershops").select("id, slug, avatar_url").eq("owner_id", userId);
 
