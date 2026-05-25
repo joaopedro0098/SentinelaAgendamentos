@@ -157,13 +157,11 @@ async function resolveShop(supabase: SupabaseClient, ownerId: string): Promise<S
 }
 
 async function resolveOwnerIdByEmail(supabase: SupabaseClient, email: string): Promise<string | null> {
-  const norm = email.trim().toLowerCase();
-  const { data: profile } = await supabase.from("profiles").select("id").ilike("email", norm).maybeSingle();
-  if (profile?.id) return profile.id;
-
-  const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const match = listData.users.find((u) => u.email?.trim().toLowerCase() === norm);
-  return match?.id ?? null;
+  const { data, error } = await supabase.rpc("admin_get_user_id_by_email", {
+    p_email: email.trim().toLowerCase(),
+  });
+  if (error || !data) return null;
+  return String(data);
 }
 
 Deno.serve(async (req) => {
@@ -206,7 +204,15 @@ Deno.serve(async (req) => {
     if (!mpToken) return jsonResponse({ error: "Mercado Pago não configurado." }, 503);
 
     const shop = await resolveShop(supabase, ownerId);
-    if (!shop) return jsonResponse({ error: "Empresa não encontrada" }, 404);
+    if (!shop) {
+      if (targetEmail) {
+        const { data: lookup } = await userClient.rpc("admin_lookup_user_by_email", {
+          p_email: lookupEmail,
+        });
+        return jsonResponse({ ok: true, synced: false, subscription: lookup });
+      }
+      return jsonResponse({ error: "Empresa não encontrada" }, 404);
+    }
 
     let result: { synced: boolean; mp_status?: string; subscription_status?: string } = { synced: false };
 

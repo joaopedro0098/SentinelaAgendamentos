@@ -33,6 +33,7 @@ type AdminUserInfo = {
   subscription_label?: string;
   mp_subscription_id?: string | null;
   current_period_end?: string | null;
+  email_confirmed?: boolean;
 };
 
 function yesNo(value: boolean) {
@@ -96,15 +97,6 @@ export default function AdminPage() {
     setUserInfo(null);
 
     try {
-      const syncResult = await invokeFunction<{ subscription?: unknown; synced?: boolean }>("mp-sync-subscription", {
-        email: trimmed,
-      });
-      const synced = parseLookupPayload(syncResult.subscription);
-      if (synced) {
-        setUserInfo(synced);
-        return;
-      }
-
       const { data, error } = await supabase.rpc("admin_lookup_user_by_email", { p_email: trimmed });
       if (error) throw new Error(error.message);
 
@@ -118,7 +110,16 @@ export default function AdminPage() {
         toast({ title: "Busca inválida", description: "Verifique o e-mail informado.", variant: "destructive" });
         return;
       }
-      setUserInfo(lookup);
+
+      try {
+        const syncResult = await invokeFunction<{ subscription?: unknown }>("mp-sync-subscription", {
+          email: trimmed,
+        });
+        const synced = parseLookupPayload(syncResult.subscription);
+        setUserInfo(synced ?? lookup);
+      } catch {
+        setUserInfo(lookup);
+      }
     } catch (err) {
       toast({
         title: "Erro na busca",
@@ -213,6 +214,10 @@ export default function AdminPage() {
               <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
                 <dt className="text-muted-foreground">Nome da empresa</dt>
                 <dd className="font-medium text-right">{userInfo.shop_name}</dd>
+              </div>
+              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                <dt className="text-muted-foreground">E-mail confirmado</dt>
+                <dd className="font-medium">{yesNo(userInfo.email_confirmed ?? false)}</dd>
               </div>
               <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
                 <dt className="text-muted-foreground">Status no banco</dt>
