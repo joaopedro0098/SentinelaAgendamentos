@@ -160,11 +160,7 @@ export default function Signup() {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
       } catch {
-        authInfoToast("Conta criada, mas a verificação facial não foi salva. Entre de novo para concluir.");
-        navigate("/auth/complete-verification", { replace: true });
-        setLoading(false);
-        pendingSignupRef.current = null;
-        return;
+        authInfoToast("Conta criada. Entre normalmente após confirmar seu e-mail.");
       }
       navigate("/app", { replace: true });
     } else {

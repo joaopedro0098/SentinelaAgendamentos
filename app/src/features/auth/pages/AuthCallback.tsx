@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import {
@@ -14,6 +14,7 @@ import {
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [handled, setHandled] = useState(false);
 
   useEffect(() => {
@@ -36,21 +37,19 @@ export default function AuthCallback() {
           if (!registered.trialEligible || registered.facialMatch) {
             authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
           }
-          navigate("/app", { replace: true });
-          return;
         } catch {
           clearPendingFaceEmbedding();
-          navigate("/auth/complete-verification", { replace: true });
-          return;
         }
       }
 
-      const needsFace = await userNeedsFaceVerification();
-      if (!active) return;
-
-      if (needsFace) {
-        navigate("/auth/complete-verification", { replace: true });
-        return;
+      const isSignupFlow = searchParams.get("flow") === "signup";
+      if (isSignupFlow) {
+        const needsFace = await userNeedsFaceVerification();
+        if (!active) return;
+        if (needsFace) {
+          navigate("/auth/complete-verification", { replace: true });
+          return;
+        }
       }
 
       navigate("/app", { replace: true });
@@ -73,7 +72,7 @@ export default function AuthCallback() {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [navigate, handled]);
+  }, [navigate, handled, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">

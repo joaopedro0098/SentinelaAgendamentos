@@ -46,7 +46,7 @@ export function AppRouter() {
       <Route
         path="/auth/complete-verification"
         element={
-          <RequireAuth skipFaceCheck>
+          <RequireAuth>
             <AuthCompleteVerificationPage />
           </RequireAuth>
         }
