@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
     const origin = cleanUrl(Deno.env.get("APP_URL")) ||
       cleanUrl(req.headers.get("origin")) ||
       "https://sentinelagendamentos.com";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -93,6 +94,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         payer_email: user.email,
         back_url: `${origin}/app/perfil?subscription=success`,
+        notification_url: `${supabaseUrl}/functions/v1/mp-webhook`,
         external_reference: shop.id,
         reason: `Assinatura Sentinela — ${shop.display_name}`,
         status: "pending",

@@ -30,13 +30,23 @@ type AdminUserInfo = {
   is_subscriber: boolean;
   is_on_trial: boolean;
   subscription_status: string;
+  subscription_label?: string;
+  mp_subscription_id?: string | null;
+  current_period_end?: string | null;
 };
 
 function yesNo(value: boolean) {
   return value ? "Sim" : "Não";
 }
 
-async function invokeAdminFunction(email: string) {
+function formatDateBr(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+async function invokeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Faça login novamente.");
@@ -44,20 +54,26 @@ async function invokeAdminFunction(email: string) {
     throw new Error("Supabase não configurado no app.");
   }
 
-  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/functions/v1/admin-purge-user`, {
+  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/functions/v1/${functionName}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: SUPABASE_PUBLISHABLE_KEY,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(body),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) {
-    throw new Error(payload.error ?? "Não foi possível excluir o usuário.");
+    throw new Error(payload.error ?? "Erro na requisição.");
   }
+  return payload;
+}
+
+function parseLookupPayload(data: unknown): AdminUserInfo | null {
+  if (!data || typeof data !== "object" || "error" in data) return null;
+  return data as AdminUserInfo;
 }
 
 export default function AdminPage() {
@@ -78,36 +94,47 @@ export default function AdminPage() {
 
     setSearching(true);
     setUserInfo(null);
-    const { data, error } = await supabase.rpc("admin_lookup_user_by_email", { p_email: trimmed });
-    setSearching(false);
 
-    if (error) {
-      toast({ title: "Erro na busca", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    if (!data || typeof data !== "object" || "error" in data) {
-      const code = data && typeof data === "object" && "error" in data ? String(data.error) : "unknown";
-      if (code === "not_found") {
-        toast({ title: "Usuário não encontrado", description: "Nenhuma conta com este e-mail." });
+    try {
+      const syncResult = await invokeFunction<{ subscription?: unknown; synced?: boolean }>("mp-sync-subscription", {
+        email: trimmed,
+      });
+      const synced = parseLookupPayload(syncResult.subscription);
+      if (synced) {
+        setUserInfo(synced);
         return;
       }
-      if (code === "forbidden") {
-        toast({ title: "Acesso negado", variant: "destructive" });
+
+      const { data, error } = await supabase.rpc("admin_lookup_user_by_email", { p_email: trimmed });
+      if (error) throw new Error(error.message);
+
+      const lookup = parseLookupPayload(data);
+      if (!lookup) {
+        const code = data && typeof data === "object" && "error" in data ? String(data.error) : "unknown";
+        if (code === "not_found") {
+          toast({ title: "Usuário não encontrado", description: "Nenhuma conta com este e-mail." });
+          return;
+        }
+        toast({ title: "Busca inválida", description: "Verifique o e-mail informado.", variant: "destructive" });
         return;
       }
-      toast({ title: "Busca inválida", description: "Verifique o e-mail informado.", variant: "destructive" });
-      return;
+      setUserInfo(lookup);
+    } catch (err) {
+      toast({
+        title: "Erro na busca",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSearching(false);
     }
-
-    setUserInfo(data as AdminUserInfo);
   }
 
   async function handleDelete() {
     if (!userInfo) return;
     setDeleting(true);
     try {
-      await invokeAdminFunction(userInfo.email);
+      await invokeFunction("admin-purge-user", { email: userInfo.email });
       toast({
         title: "Usuário excluído",
         description: "Todos os dados deste usuário foram removidos do sistema.",
@@ -144,7 +171,9 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Buscar usuário</CardTitle>
-          <CardDescription>Informe o e-mail cadastrado na plataforma.</CardDescription>
+          <CardDescription>
+            Informe o e-mail cadastrado. A busca sincroniza o status de pagamento com o Mercado Pago.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
@@ -186,12 +215,20 @@ export default function AdminPage() {
                 <dd className="font-medium text-right">{userInfo.shop_name}</dd>
               </div>
               <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                <dt className="text-muted-foreground">Status no banco</dt>
+                <dd className="font-medium text-right">{userInfo.subscription_label ?? userInfo.subscription_status}</dd>
+              </div>
+              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
                 <dt className="text-muted-foreground">Assinante</dt>
                 <dd className="font-medium">{yesNo(userInfo.is_subscriber)}</dd>
               </div>
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
                 <dt className="text-muted-foreground">Teste grátis</dt>
                 <dd className="font-medium">{yesNo(userInfo.is_on_trial)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Vencimento do plano</dt>
+                <dd className="font-medium">{formatDateBr(userInfo.current_period_end)}</dd>
               </div>
             </dl>
 

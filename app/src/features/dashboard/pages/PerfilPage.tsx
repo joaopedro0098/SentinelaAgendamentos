@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,6 +67,7 @@ async function invokeBillingFunction<T>(functionName: string): Promise<T> {
 export default function PerfilPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { info, loading, refresh } = useSubscription();
 
   const [newEmail, setNewEmail] = useState("");
@@ -86,6 +87,27 @@ export default function PerfilPage() {
   useEffect(() => {
     if (user?.email) setNewEmail(user.email);
   }, [user?.email]);
+
+  useEffect(() => {
+    const shouldSync =
+      searchParams.get("subscription") === "success" || searchParams.get("payment") === "success";
+    if (!shouldSync) return;
+
+    void invokeBillingFunction("mp-sync-subscription")
+      .then(() => refresh())
+      .then(() => {
+        toast({ title: "Pagamento confirmado", description: "Sua assinatura foi atualizada." });
+      })
+      .catch(() => {
+        toast({
+          title: "Pagamento recebido?",
+          description: "Se o status não atualizar em instantes, recarregue esta página.",
+        });
+      })
+      .finally(() => {
+        setSearchParams({}, { replace: true });
+      });
+  }, [searchParams, setSearchParams, refresh]);
 
   async function handleSubscribe() {
     setSubscribing(true);
