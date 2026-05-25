@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, CalendarCheck, LogOut, Menu, Settings, User, X } from "lucide-react";
+import { Calendar, CalendarCheck, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -161,6 +161,14 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
+              {subscriptionInfo?.is_admin && (
+                <MobileNavItem
+                  to="/app/admin"
+                  icon={<Shield className="h-4 w-4" />}
+                  label="Admin"
+                  onNavigate={closeMenu}
+                />
+              )}
             </nav>
 
             <div className="p-3 border-t border-border space-y-2">
@@ -192,6 +200,9 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
             <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
+            {subscriptionInfo?.is_admin && (
+              <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
+            )}
           </nav>
 
           <div className="flex flex-col gap-2 p-3 border-t border-border/60">

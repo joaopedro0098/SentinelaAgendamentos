@@ -15,7 +15,9 @@ import SignupPage from "@/features/auth/pages/Signup";
 import RecoverPage from "@/features/auth/pages/Recover";
 import ResetPasswordPage from "@/features/auth/pages/ResetPassword";
 import AuthCallbackPage from "@/features/auth/pages/AuthCallback";
+import AdminPage from "@/features/dashboard/pages/AdminPage";
 import AuthCompleteVerificationPage from "@/features/auth/pages/AuthCompleteVerification";
+import { RequireAdmin } from "@/components/guards/RequireAdmin";
 
 import AppLayout from "@/features/dashboard/pages/AppLayout";
 import SettingsPage from "@/features/dashboard/pages/Settings";
@@ -65,6 +67,14 @@ export function AppRouter() {
         <Route path="agendamentos" element={<AgendamentosPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="perfil" element={<PerfilPage />} />
+        <Route
+          path="admin"
+          element={
+            <RequireAdmin>
+              <AdminPage />
+            </RequireAdmin>
+          }
+        />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
