@@ -40,7 +40,7 @@ const VideoDemo = () => {
               size="lg"
               className="bg-gradient-brand hover:opacity-90 text-white border-0 rounded-full px-8 h-14 text-base shadow-glow animate-pulse-glow w-full sm:w-auto"
             >
-              <Link to="/planos">Começar agora <ArrowRight className="w-5 h-5 ml-1" /></Link>
+              <Link to="/signup">Teste 14 dias grátis <ArrowRight className="w-5 h-5 ml-1" /></Link>
             </Button>
             <Button
               asChild

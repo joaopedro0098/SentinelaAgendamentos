@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 import { PageReveal } from "@/components/layout/PageReveal";
 
 const features = [
-  "Link público para clientes agendarem",
-  "Cadastro de colaboradores, serviços e horários",
-  "Painel para acompanhar e reagendar",
-  "Pagamento mensal com cartão ou Pix avulso",
-  "Suporte direto conosco por WhatsApp",
-  "14 dias grátis para testar — sem cartão",
+  "Cadastre colaboradores (ilimitados) e serviços",
+  "Painel para gerenciar seus agendamentos",
+  "Cliente recebe confirmação automática 1 dia antes",
+  "Link para o cliente agendar por conta (opcional)",
+  "Não exigimos cartão para o cadastro",
+  "Você pode pagar a mensalidade via PIX ou cartão",
+  "Suporte conosco via WhatsApp",
 ];
 
 const Planos = () => {
@@ -31,15 +32,11 @@ const Planos = () => {
 
             <div className="max-w-md mx-auto">
               <div className="relative rounded-3xl p-8 flex flex-col glass glow-border shadow-glow">
-                <h3 className="text-2xl font-bold font-display">Plano Sentinela</h3>
-                <div className="mt-6 mb-2">
-                  <span className="text-sm text-muted-foreground">R$</span>
-                  <span className="text-5xl font-bold font-display mx-1">19,90</span>
-                  <span className="text-sm text-muted-foreground">/mês</span>
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl md:text-4xl font-bold font-display leading-tight text-gradient">
+                    Teste 14 dias grátis
+                  </h2>
                 </div>
-                <p className="text-sm text-[hsl(var(--brand-cyan))] font-medium mb-6">
-                  Agendamentos ilimitados · 14 dias grátis ao criar conta
-                </p>
 
                 <ul className="space-y-3 mb-8 flex-1">
                   {features.map((f) => (
@@ -52,6 +49,12 @@ const Planos = () => {
                   ))}
                 </ul>
 
+                <div className="text-center mb-6">
+                  <span className="text-sm text-muted-foreground">R$</span>
+                  <span className="text-5xl font-bold font-display mx-1">19,90</span>
+                  <span className="text-sm text-muted-foreground">/mês</span>
+                </div>
+
                 <Button
                   asChild
                   size="lg"
@@ -61,9 +64,6 @@ const Planos = () => {
                     Começar teste grátis <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </Button>
-                <p className="text-xs text-center text-muted-foreground mt-4">
-                  Sem cartão no cadastro. Você assina dentro do app quando quiser continuar.
-                </p>
               </div>
             </div>
           </PageReveal>
