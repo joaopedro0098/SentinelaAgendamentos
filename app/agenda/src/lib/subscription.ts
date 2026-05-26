@@ -1,10 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export const SUBSCRIPTION_BLOCK_OWNER =
-  "Renove a assinatura para agendar.";
+export const SUBSCRIPTION_BLOCK_OWNER = "Renove a assinatura para agendar.";
 
+export function getClientBookingBlockMessage(profileName: string | undefined): string {
+  const name = profileName?.trim() || "o estabelecimento";
+  return `Sistema bloqueado, entre em contato com ${name} por WhatsApp para que eles realizem o desbloqueio.`;
+}
+
+/** @deprecated Use getClientBookingBlockMessage */
 export function getSubscriptionBlockClient(shopName: string | undefined): string {
-  return `Aguardando desbloqueio de "${shopName?.trim() || "empresa"}".`;
+  return getClientBookingBlockMessage(shopName);
 }
 
 export function isSubscriptionBlockError(message: string | undefined): boolean {

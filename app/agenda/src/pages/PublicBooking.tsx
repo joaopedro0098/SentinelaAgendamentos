@@ -14,7 +14,7 @@ import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib
 import { isIosDevice, isStandalonePwa, registerAppointmentPush, supportsWebPush } from "@/lib/pushNotifications";
 import {
   checkBarbeariaCanBook,
-  getSubscriptionBlockClient,
+  getClientBookingBlockMessage,
   SUBSCRIPTION_BLOCK_OWNER,
   isSubscriptionBlockError,
 } from "../lib/subscription";
@@ -86,6 +86,8 @@ export type PublicBookingProps = {
   hideMeusAgendamentos?: boolean;
   reschedule?: RescheduleContext | null;
   onRescheduleComplete?: () => void;
+  ownerBookingBlockMessage?: string;
+  onOwnerBookingBlocked?: (message: string) => void;
 };
 
 const PublicBooking = ({
@@ -94,6 +96,8 @@ const PublicBooking = ({
   hideMeusAgendamentos = false,
   reschedule = null,
   onRescheduleComplete,
+  ownerBookingBlockMessage,
+  onOwnerBookingBlocked,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
   const { slug: slugParam } = useParams();
@@ -114,6 +118,7 @@ const PublicBooking = ({
   const [wantsReminder, setWantsReminder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [canBookAppointments, setCanBookAppointments] = useState<boolean | null>(null);
   const [slotInterval, setSlotInterval] = useState(30);
   const [slotPause, setSlotPause] = useState(0);
 
@@ -330,8 +335,23 @@ const PublicBooking = ({
   const horarioAindaDisponivel = () =>
     Boolean(hora && slotsDoBarbeiroNoDia.livres.includes(hora));
 
-  const subscriptionBlockMessage = () =>
-    slugOverride ? SUBSCRIPTION_BLOCK_OWNER : getSubscriptionBlockClient(barbearia?.nome);
+  const ownerBlockMessage = () =>
+    ownerBookingBlockMessage?.trim() || SUBSCRIPTION_BLOCK_OWNER;
+
+  const clientBlockMessage = () => getClientBookingBlockMessage(barbearia?.nome);
+
+  const notifyBookingBlocked = () => {
+    if (slugOverride) {
+      const message = ownerBlockMessage();
+      if (onOwnerBookingBlocked) {
+        onOwnerBookingBlocked(message);
+        return;
+      }
+      toast.error(message, { position: "top-center" });
+      return;
+    }
+    toast.error(clientBlockMessage(), { position: "top-center" });
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,13 +366,15 @@ const PublicBooking = ({
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
     if (!reschedule) {
+      const canBook = await checkBarbeariaCanBook(barbearia.id);
+      setCanBookAppointments(canBook);
       setDone(true);
       return;
     }
 
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
-      toast.error(subscriptionBlockMessage());
+      notifyBookingBlocked();
       return;
     }
 
@@ -370,7 +392,7 @@ const PublicBooking = ({
     if (error) {
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else if (isSubscriptionBlockError(error.message)) {
-        toast.error(subscriptionBlockMessage());
+        notifyBookingBlocked();
       } else toast.error(error.message);
       return;
     }
@@ -390,7 +412,7 @@ const PublicBooking = ({
 
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
-      toast.error(subscriptionBlockMessage());
+      notifyBookingBlocked();
       return;
     }
 
@@ -425,7 +447,7 @@ const PublicBooking = ({
       setSubmitting(false);
       if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
       else if (isSubscriptionBlockError(error.message)) {
-        toast.error(subscriptionBlockMessage());
+        notifyBookingBlocked();
       } else toast.error(error.message);
       return;
     }
@@ -509,6 +531,11 @@ const PublicBooking = ({
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
         <Card className="max-w-sm w-full p-6">
+          {!slugOverride && canBookAppointments === false && (
+            <div className="mb-4 rounded-xl border border-border bg-white px-4 py-3.5 text-[15px] leading-snug text-foreground text-center">
+              {clientBlockMessage()}
+            </div>
+          )}
           <h1 className="font-display text-xl font-bold text-center">Confirme seu agendamento</h1>
           <p className="mt-2 text-muted-foreground text-sm text-center">
             Revise os dados antes de salvar. Você pode alterar se algo estiver errado.

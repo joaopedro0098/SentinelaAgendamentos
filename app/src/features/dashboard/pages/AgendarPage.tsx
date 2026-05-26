@@ -3,9 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import PublicBooking, { type RescheduleContext } from "@agenda/pages/PublicBooking";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
-import { SubscriptionBanner } from "@/features/dashboard/components/SubscriptionBanner";
 import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { getOwnerBookingBlockMessage, showOwnerBookingBlockedToast } from "@/lib/subscriptionMessages";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +16,7 @@ type LocationState = {
 
 export default function AgendarPage() {
   const { user } = useAuth();
+  const { info: subscriptionInfo } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
@@ -94,15 +96,21 @@ export default function AgendarPage() {
     );
   }
 
+  const ownerBookingBlockMessage =
+    subscriptionInfo && !subscriptionInfo.can_book && !subscriptionInfo.is_admin
+      ? getOwnerBookingBlockMessage(subscriptionInfo)
+      : undefined;
+
   return (
     <AgendaShell>
-      <SubscriptionBanner />
       <PublicBooking
         slugOverride={slug}
         backHref={backHref}
         hideMeusAgendamentos
         reschedule={reschedule}
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}
+        ownerBookingBlockMessage={ownerBookingBlockMessage}
+        onOwnerBookingBlocked={showOwnerBookingBlockedToast}
       />
     </AgendaShell>
   );

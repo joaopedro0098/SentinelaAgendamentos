@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { computeFaceEmbedding } from "./faceEmbeddingService";
+import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 
 export type FacialVerificationResult = {
   embedding: number[];
@@ -60,5 +61,4 @@ export async function buildEmbeddingFromSnapshot(
   return computeFaceEmbedding(canvas);
 }
 
-export const FACIAL_TRIAL_BLOCKED_MESSAGE =
-  "Identificamos um cadastro anterior associado a esta biometria facial. Para fazer novos agendamentos, assine o plano.";
+export { FACIAL_TRIAL_BLOCKED_MESSAGE };
