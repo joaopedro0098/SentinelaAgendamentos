@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/components/guards/RequireAuth";
+import { RequireFaceVerification } from "@/components/guards/RequireFaceVerification";
 import { MarketingLayout } from "@/features/landing/layout/MarketingLayout";
 import HomePage from "@/features/landing/pages/HomePage";
 import PlanosPage from "@/features/landing/pages/PlanosPage";
@@ -58,7 +59,9 @@ export function AppRouter() {
         path="/app"
         element={
           <RequireAuth>
-            <AppLayout />
+            <RequireFaceVerification>
+              <AppLayout />
+            </RequireFaceVerification>
           </RequireAuth>
         }
       >

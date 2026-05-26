@@ -97,12 +97,12 @@ export default function AppLayout() {
           <Menu className="h-5 w-5" />
         </button>
         <Link to="/app/settings" className="min-w-0 flex-1 font-semibold text-sm truncate">
-          {shop?.display_name ?? "Painel"}
+          {shop?.display_name?.trim() || "Painel"}
         </Link>
         <Avatar className="h-8 w-8 shrink-0">
           {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
           <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            {(shop?.display_name ?? "SA").slice(0, 2).toUpperCase()}
+            {(shop?.display_name?.trim() || "?").slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
       </header>
@@ -129,7 +129,7 @@ export default function AppLayout() {
                 <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
                   <CalendarCheck className="w-4 h-4 text-white" />
                 </span>
-                <span className="font-semibold text-sm truncate">{shop?.display_name ?? "Painel"}</span>
+                <span className="font-semibold text-sm truncate">{shop?.display_name?.trim() || "Painel"}</span>
               </div>
               <button
                 type="button"
@@ -190,7 +190,7 @@ export default function AppLayout() {
             <div className="min-w-0 flex-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Painel</p>
               <Link to="/app/settings" className="font-semibold truncate block text-sm hover:text-primary transition">
-                {shop?.display_name ?? "Sua empresa"}
+                {shop?.display_name?.trim() || "Sua empresa"}
               </Link>
             </div>
           </div>

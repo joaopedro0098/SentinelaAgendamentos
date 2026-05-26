@@ -243,7 +243,7 @@ export default function Settings() {
                   <Avatar className="h-24 w-24">
                     {displayedAvatarUrl && <AvatarImage src={displayedAvatarUrl} alt={shop.display_name} />}
                     <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      {shop.display_name.slice(0, 2).toUpperCase()}
+                      {(shop.display_name.trim() || "?").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/25 pb-[3px] pt-[2px]">
@@ -259,6 +259,7 @@ export default function Settings() {
                       value={shop.display_name}
                       onChange={(e) => setShop({ ...shop, display_name: e.target.value })}
                       maxLength={80}
+                      placeholder="Defina o nome do perfil"
                       required
                     />
                   </div>

@@ -85,7 +85,10 @@ export default function AuthCompleteVerification() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background gap-3">
+      <p className="text-sm text-muted-foreground text-center max-w-md">
+        Para concluir seu cadastro, faça a verificação facial. Leva poucos segundos.
+      </p>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Carregando verificação…</p>}>
         <FaceVerification
           open
