@@ -11,7 +11,6 @@ import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/P
 import { toast } from "@/hooks/use-toast";
 import {
   AUTH_CONFIG_ERROR_MESSAGE,
-  EMAIL_CONFIRMATION_PENDING_MESSAGE,
   isEmailAlreadyRegistered,
   isInvalidApiKeyError,
   toSignupErrorDescription,
@@ -127,8 +126,7 @@ export default function Signup() {
       const status = await getEmailSignupStatus(parsed.email);
       if (status.status === "pending_confirmation") {
         await resendSignupConfirmation(parsed.email);
-        authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
-        navigate("/login", { replace: true });
+        navigate("/signup/verify-email", { replace: true });
         return;
       }
       authInfoToast("E-mail já cadastrado. Faça o login normalmente.");
@@ -144,8 +142,7 @@ export default function Signup() {
       const status = await getEmailSignupStatus(parsed.email);
       if (status.status === "pending_confirmation") {
         await resendSignupConfirmation(parsed.email);
-        authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
-        navigate("/login", { replace: true });
+        navigate("/signup/verify-email", { replace: true });
         return;
       }
       toast({ title: "Falha ao cadastrar", description: toSignupErrorDescription(error), variant: "destructive" });
@@ -165,13 +162,7 @@ export default function Signup() {
       navigate("/app", { replace: true });
     } else {
       savePendingFaceEmbedding(verification.embedding, parsed.email);
-      toast({
-        title: "Confira seu e-mail",
-        description: verification.trialEligible
-          ? EMAIL_CONFIRMATION_PENDING_MESSAGE
-          : `${EMAIL_CONFIRMATION_PENDING_MESSAGE} ${FACIAL_TRIAL_BLOCKED_MESSAGE}`,
-      });
-      navigate("/login", { replace: true });
+      navigate("/signup/verify-email", { replace: true });
     }
     setLoading(false);
     pendingSignupRef.current = null;

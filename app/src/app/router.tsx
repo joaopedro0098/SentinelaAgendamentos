@@ -18,6 +18,7 @@ import ResetPasswordPage from "@/features/auth/pages/ResetPassword";
 import AuthCallbackPage from "@/features/auth/pages/AuthCallback";
 import AdminPage from "@/features/dashboard/pages/AdminPage";
 import AuthCompleteVerificationPage from "@/features/auth/pages/AuthCompleteVerification";
+import VerifyEmailSignupPage from "@/features/auth/pages/VerifyEmailSignup";
 import { RequireAdmin } from "@/components/guards/RequireAdmin";
 
 import AppLayout from "@/features/dashboard/pages/AppLayout";
@@ -38,6 +39,7 @@ export function AppRouter() {
         <Route path="/termos-de-servico" element={<TermosServicoPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/verify-email" element={<VerifyEmailSignupPage />} />
         <Route path="/recover" element={<RecoverPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Route>
