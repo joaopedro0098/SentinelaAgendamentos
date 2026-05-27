@@ -631,9 +631,9 @@ const PublicBooking = ({
             </div>
           )}
 
-          {bookingConfirmed && ownerPanel && backHref && (
+          {bookingConfirmed && ownerPanel && (
             <Button asChild className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow">
-              <Link to={backHref}>Sair</Link>
+              <Link to="/app/agendamentos">Sair</Link>
             </Button>
           )}
         </Card>
