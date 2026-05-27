@@ -10,6 +10,7 @@ const LANDING_PATHS = new Set([
   "/signup/verify-email",
   "/recover",
   "/reset-password",
+  "/reset-password/success",
   "/politica-de-privacidade",
   "/termos-de-servico",
 ]);

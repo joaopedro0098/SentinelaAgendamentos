@@ -15,6 +15,7 @@ import LoginPage from "@/features/auth/pages/Login";
 import SignupPage from "@/features/auth/pages/Signup";
 import RecoverPage from "@/features/auth/pages/Recover";
 import ResetPasswordPage from "@/features/auth/pages/ResetPassword";
+import ResetPasswordSuccessPage from "@/features/auth/pages/ResetPasswordSuccess";
 import AuthCallbackPage from "@/features/auth/pages/AuthCallback";
 import AdminPage from "@/features/dashboard/pages/AdminPage";
 import AuthCompleteVerificationPage from "@/features/auth/pages/AuthCompleteVerification";
@@ -42,6 +43,7 @@ export function AppRouter() {
         <Route path="/signup/verify-email" element={<VerifyEmailSignupPage />} />
         <Route path="/recover" element={<RecoverPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password/success" element={<ResetPasswordSuccessPage />} />
       </Route>
 
       <Route path="/agendar/:slug" element={<PublicBookingRoute />} />

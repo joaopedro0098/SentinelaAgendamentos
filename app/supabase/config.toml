@@ -6,6 +6,7 @@ content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
 subject = "Redefinir senha — Sentinela Agendamentos"
+content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.magic_link]
 subject = "Seu link de acesso — Sentinela Agendamentos"

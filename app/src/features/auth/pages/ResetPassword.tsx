@@ -1,10 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
-import { toast } from "@/hooks/use-toast";
+import { authInfoToast } from "@/features/auth/lib/authToast";
+import { bootstrapPasswordRecoverySession } from "@/features/auth/lib/passwordReset";
+
+const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
+
+const schema = z
+  .object({
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
+      .max(72),
+    confirm: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`)
+      .max(72),
+  })
+  .refine((data) => data.password === data.confirm, {
+    message: PASSWORDS_MISMATCH_MESSAGE,
+    path: ["confirm"],
+  });
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -12,93 +32,156 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Nova senha — Sentinela Agendamentos";
+    document.title = "Recuperação de senha — Sentinela Agendamentos";
   }, []);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+    let active = true;
+    let timeoutId: number | undefined;
+
+    async function validateLink() {
+      const result = await bootstrapPasswordRecoverySession();
+      if (!active) return;
+
+      if (result === "ready") {
+        setReady(true);
+        return;
+      }
+
+      if (result === "invalid") {
+        setLinkError("Link inválido ou expirado. Solicite um novo e-mail de recuperação.");
+        return;
+      }
+
+      timeoutId = window.setTimeout(async () => {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        if (data.session) {
+          setReady(true);
+          return;
+        }
+        setLinkError("Link inválido ou expirado. Solicite um novo e-mail de recuperação.");
+      }, 8000);
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) return;
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setReady(true);
+        setLinkError(null);
+      }
     });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    void validateLink();
+
+    return () => {
+      active = false;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      toast({
-        title: "Senha curta",
-        description: `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres`,
-        variant: "destructive",
-      });
-      return;
-    }
+
     if (password !== confirm) {
-      toast({ title: "Senhas diferentes", variant: "destructive" });
+      authInfoToast(PASSWORDS_MISMATCH_MESSAGE);
       return;
     }
+
+    const parsed = schema.safeParse({ password, confirm });
+    if (!parsed.success) {
+      const mismatch = parsed.error.issues.some((issue) => issue.message === PASSWORDS_MISMATCH_MESSAGE);
+      if (mismatch) {
+        authInfoToast(PASSWORDS_MISMATCH_MESSAGE);
+        return;
+      }
+      authInfoToast(parsed.error.issues[0].message);
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      setLoading(false);
+      authInfoToast(error.message);
       return;
     }
-    toast({ title: "Senha atualizada!" });
-    navigate("/app", { replace: true });
+
+    await supabase.auth.signOut();
+    setLoading(false);
+    navigate("/reset-password/success", { replace: true });
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
-          <div className="mb-6 text-center sm:text-left">
-            <h1 className="font-display text-2xl font-semibold tracking-tight">Definir nova senha</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">Crie uma senha forte para sua conta.</p>
-          </div>
-
-          {!ready ? (
-            <p className="text-sm text-muted-foreground text-center">Validando link…</p>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="p1" className="text-xs font-medium text-muted-foreground">
-                  Nova senha
-                </Label>
-                <PasswordInput
-                  id="p1"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="p2" className="text-xs font-medium text-muted-foreground">
-                  Confirmar senha
-                </Label>
-                <PasswordInput
-                  id="p2"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                  showHint={false}
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-                disabled={loading}
-              >
-                {loading ? "Salvando…" : "Salvar nova senha"}
-              </Button>
-            </form>
-          )}
+    <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16 bg-background">
+      <div className="w-full max-w-[420px] rounded-2xl border border-[hsl(var(--brand-green)/0.2)] bg-white p-6 sm:p-8 shadow-soft">
+        <div className="mb-6 text-center">
+          <p className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[hsl(var(--brand-green))]">
+            Sentinela
+          </p>
+          <h1 className="mt-2 font-display text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            Recuperação de senha
+          </h1>
         </div>
-      </main>
+
+        {linkError ? (
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">{linkError}</p>
+            <Button
+              asChild
+              className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+            >
+              <Link to="/recover">Solicitar novo link</Link>
+            </Button>
+          </div>
+        ) : !ready ? (
+          <p className="text-sm text-muted-foreground text-center">Validando link…</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="p1" className="text-xs font-medium text-muted-foreground">
+                Nova senha
+              </Label>
+              <PasswordInput
+                id="p1"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/80 bg-white focus-visible:ring-[hsl(var(--brand-green)/0.45)]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p2" className="text-xs font-medium text-muted-foreground">
+                Confirmar senha
+              </Label>
+              <PasswordInput
+                id="p2"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                showHint={false}
+                className="h-11 rounded-xl border-border/80 bg-white focus-visible:ring-[hsl(var(--brand-green)/0.45)]"
+              />
+              {confirm.length > 0 && password !== confirm && (
+                <p className="text-[11px] leading-tight text-destructive pl-0.5">{PASSWORDS_MISMATCH_MESSAGE}</p>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              disabled={loading}
+            >
+              {loading ? "Salvando…" : "Confirmar"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </main>
   );
 }
