@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
+import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 
 export interface ServicoItem {
   id: string;
@@ -9,16 +9,24 @@ export interface ServicoItem {
 
 interface Props {
   servicos: ServicoItem[];
-  selecionados: string[]; // ids
+  selecionados: string[];
   onToggle: (id: string) => void;
+  stripClassName?: string;
+  bleedClassName?: string;
 }
 
-export const ServicosCarousel = ({ servicos, selecionados, onToggle }: Props) => {
+export const ServicosCarousel = ({
+  servicos,
+  selecionados,
+  onToggle,
+  stripClassName,
+  bleedClassName,
+}: Props) => {
   if (!servicos.length) return null;
   const total = servicos.filter((s) => selecionados.includes(s.id)).reduce((a, s) => a + s.duracao_minutos, 0);
   return (
     <div>
-      <HorizontalScrollStrip>
+      <ResponsivePagedStrip bleedClassName={bleedClassName} mobileClassName={stripClassName}>
         {servicos.map((s) => {
           const sel = selecionados.includes(s.id);
           return (
@@ -27,8 +35,8 @@ export const ServicosCarousel = ({ servicos, selecionados, onToggle }: Props) =>
               type="button"
               onClick={() => onToggle(s.id)}
               className={cn(
-                "snap-start shrink-0 min-w-[8.5rem] h-14 px-3 rounded-2xl flex flex-col items-center justify-center font-semibold transition active:scale-95",
-                sel ? "bg-foreground text-background" : "bg-muted text-foreground"
+                "snap-start shrink-0 min-w-[8.5rem] h-14 px-3 rounded-2xl flex flex-col items-center justify-center font-semibold transition active:scale-95 md:h-12",
+                sel ? "bg-foreground text-background" : "bg-muted text-foreground",
               )}
             >
               <span className="text-sm leading-tight truncate max-w-[8rem]">{s.nome}</span>
@@ -36,9 +44,9 @@ export const ServicosCarousel = ({ servicos, selecionados, onToggle }: Props) =>
             </button>
           );
         })}
-      </HorizontalScrollStrip>
+      </ResponsivePagedStrip>
       {total > 0 && (
-        <p className="mt-1.5 text-[11px] text-muted-foreground text-center">
+        <p className="mt-1.5 text-[11px] text-muted-foreground text-center md:text-left">
           Tempo total: <b className="text-foreground">{total} min</b>
         </p>
       )}

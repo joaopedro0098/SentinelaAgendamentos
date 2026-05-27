@@ -213,7 +213,6 @@ export default function AgendamentosPage() {
       toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Agendamento excluído" });
     setDeleteTarget(null);
     loadAgendamentos();
   }

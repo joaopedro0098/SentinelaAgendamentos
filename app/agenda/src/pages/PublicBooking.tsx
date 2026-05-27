@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Bell, Check, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, Bell, Check, ChevronLeft, ChevronRight, Loader2, Scissors, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
+import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { isIosDevice, isStandalonePwa, registerAppointmentPush, supportsWebPush } from "@/lib/pushNotifications";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
@@ -20,6 +21,45 @@ import {
   SUBSCRIPTION_BLOCK_OWNER,
   isSubscriptionBlockError,
 } from "../lib/subscription";
+
+const bookingPageX = "px-3 sm:px-5 md:px-0";
+const bookingScrollBleed = "-mx-3 sm:-mx-5 md:mx-0";
+const bookingScrollPad = "px-3 sm:px-5 md:px-0";
+
+function dayChipClass(ok: boolean, sel: boolean) {
+  return cn(
+    "rounded-2xl flex flex-col items-center justify-center font-semibold transition-all cursor-pointer",
+    "max-md:snap-start max-md:shrink-0 max-md:w-[68px] max-md:h-20",
+    ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+    sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+  );
+}
+
+function desktopDayChipClass(ok: boolean, sel: boolean, inRange: boolean) {
+  return cn(
+    "rounded-xl flex items-center justify-center font-semibold transition-all h-10 w-10 mx-auto",
+    !inRange && "bg-muted/50 text-muted-foreground/50 cursor-default",
+    inRange && ok && "bg-available text-available-foreground cursor-pointer active:scale-95",
+    inRange && !ok && "bg-unavailable text-unavailable-foreground opacity-90 cursor-pointer",
+    sel && ok && inRange && "ring-2 ring-foreground ring-offset-1 ring-offset-surface",
+  );
+}
+
+function barbeiroChipClass(ok: boolean, sel: boolean) {
+  return cn(
+    "snap-start shrink-0 min-w-[8.5rem] px-4 h-14 rounded-2xl flex items-center justify-center font-semibold transition-all cursor-pointer md:h-12",
+    ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+    sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+  );
+}
+
+function horarioChipClass(livre: boolean, sel: boolean) {
+  return cn(
+    "snap-start shrink-0 w-[72px] h-12 rounded-xl flex items-center justify-center font-semibold text-sm transition-all cursor-pointer md:w-[4.5rem] md:h-10",
+    livre ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
+    sel && livre && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
+  );
+}
 
 interface Barbearia {
   id: string;
@@ -59,12 +99,51 @@ type AgendamentoOcupado = {
 
 const STORAGE_KEY = "agendabarber:cliente";
 const DAYS_AHEAD = 14;
+const BOOKING_MONTHS = 2;
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_COMPLETOS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function parseYmd(value: string) {
+  const [y, m, day] = value.split("-").map(Number);
+  return new Date(y, m - 1, day);
+}
+
+function monthStart(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function getBookableRange(minDayOffset: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const first = new Date(today);
+  first.setDate(today.getDate() + minDayOffset);
+  const last = new Date(first.getFullYear(), first.getMonth() + BOOKING_MONTHS, 0);
+  const days: Date[] = [];
+  const cur = new Date(first);
+  while (cur <= last) {
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return { first, last, days };
+}
 
 function bookableDayOffset(ownerPanel: boolean, isReschedule: boolean) {
   return ownerPanel || isReschedule ? 0 : 1;
@@ -144,6 +223,9 @@ const PublicBooking = ({
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
   const [slotPause, setSlotPause] = useState(0);
+  const [desktopViewMonth, setDesktopViewMonth] = useState(() =>
+    monthStart(parseYmd(initialBookingDate(ownerPanel, isReschedule))),
+  );
 
   useEffect(() => {
     if (reschedule) return;
@@ -175,10 +257,7 @@ const PublicBooking = ({
     const load = async () => {
       setLoading(true);
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const start = new Date(today);
-      start.setDate(today.getDate() + minDayOffset);
-      const limite = new Date(today);
-      limite.setDate(today.getDate() + minDayOffset + DAYS_AHEAD);
+      const { first: start, last: limite } = getBookableRange(minDayOffset);
       const fromYmd = ymd(start);
       const toYmd = ymd(limite);
 
@@ -264,14 +343,38 @@ const PublicBooking = ({
     load();
   }, [slug, reschedule?.agendamentoId, minDayOffset]);
 
-  const dias = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return Array.from({ length: DAYS_AHEAD }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() + minDayOffset + i);
-      return d;
-    });
-  }, [minDayOffset]);
+  const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
+
+  const dias = useMemo(
+    () => bookableRange.days.slice(0, DAYS_AHEAD),
+    [bookableRange],
+  );
+
+  const allowedMonths = useMemo(() => {
+    const first = monthStart(bookableRange.first);
+    const second = new Date(first.getFullYear(), first.getMonth() + 1, 1);
+    return { first, second };
+  }, [bookableRange.first]);
+
+  const desktopCalendarCells = useMemo(() => {
+    const year = desktopViewMonth.getFullYear();
+    const month = desktopViewMonth.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = Array.from({ length: firstOfMonth.getDay() }, () => null);
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push(new Date(year, month, day));
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [desktopViewMonth]);
+
+  const isDayInBookableRange = (d: Date) =>
+    d.getTime() >= bookableRange.first.getTime() && d.getTime() <= bookableRange.last.getTime();
+
+  const canGoPrevDesktopMonth = desktopViewMonth.getTime() > allowedMonths.first.getTime();
+  const canGoNextDesktopMonth = desktopViewMonth.getTime() < allowedMonths.second.getTime();
+  const showDesktopSplit = servSel.length > 0;
 
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
   const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
@@ -296,7 +399,7 @@ const PublicBooking = ({
   const slotsRaw = useMemo(() => {
     const m = new Map<string, SlotsDiaRaw>();
     for (const bb of barbeiros) {
-      for (const d of dias) {
+      for (const d of bookableRange.days) {
         const key = ymd(d);
         const dow = d.getDay();
         const windows = bb.disponibilidades.filter((x) => x.dia_semana === dow);
@@ -309,7 +412,7 @@ const PublicBooking = ({
       }
     }
     return m;
-  }, [barbeiros, dias, agOcupados, slotInterval, slotPause]);
+  }, [barbeiros, bookableRange.days, agOcupados, slotInterval, slotPause]);
 
   const livresComDuracao = (bbId: string, dayKey: string, dur: number) => {
     if (dur <= 0) return [];
@@ -354,6 +457,10 @@ const PublicBooking = ({
   useEffect(() => {
     if (hora && !slotsDoBarbeiroNoDia.livres.includes(hora)) setHora("");
   }, [hora, slotsDoBarbeiroNoDia.livres]);
+
+  useEffect(() => {
+    setDesktopViewMonth(monthStart(parseYmd(data)));
+  }, [data]);
 
   const toggleServico = (id: string) => {
     setServSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -475,7 +582,7 @@ const PublicBooking = ({
         duracao_minutos: duracaoTotal,
         status: "confirmado",
         observacao: obs,
-        requires_client_confirmation: wantsReminder,
+        requires_client_confirmation: !ownerPanel && wantsReminder,
       })
       .select("id")
       .single();
@@ -489,7 +596,7 @@ const PublicBooking = ({
       return;
     }
 
-    if (wantsReminder && createdAppointment?.id) {
+    if (!ownerPanel && wantsReminder && createdAppointment?.id) {
       await registerAppointmentPush(createdAppointment.id).catch(() => undefined);
     }
 
@@ -512,7 +619,7 @@ const PublicBooking = ({
   );
 
   if (!barbearia) return (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center bg-surface">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 text-center bg-surface">
       <div>
         <h1 className="font-display text-2xl font-bold">Barbearia não encontrada</h1>
         <p className="mt-2 text-muted-foreground text-sm">Verifique o link e tente novamente.</p>
@@ -521,7 +628,7 @@ const PublicBooking = ({
   );
 
   if (!barbearia.ativa) return (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center bg-surface">
+    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 text-center bg-surface">
       <div className="max-w-sm">
         <h1 className="font-display text-2xl font-bold">Agenda indisponível</h1>
         <p className="mt-2 text-muted-foreground text-sm">
@@ -536,7 +643,7 @@ const PublicBooking = ({
 
     if (isReschedule) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
+        <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
           <Card className="max-w-sm w-full p-6 text-center">
             <div className="mx-auto h-12 w-12 rounded-full bg-available/10 flex items-center justify-center">
               <Check className="h-6 w-6 text-available" />
@@ -555,7 +662,7 @@ const PublicBooking = ({
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
+      <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
         <Card className="relative max-w-sm w-full p-6">
           {bookingConfirmed && showClientExit && (
             <button
@@ -646,36 +753,220 @@ const PublicBooking = ({
   const iosNeedsInstall = isIos && !isStandalonePwa();
   const pushAvailable = typeof window !== "undefined" && supportsWebPush();
 
+  const onDayClick = (d: Date, ok: boolean, el: HTMLElement) => {
+    if (ok) {
+      setData(ymd(d));
+      setBarbeiroId("");
+      setHora("");
+      setServSel([]);
+    } else {
+      centralizarChipCarrossel(el);
+    }
+  };
+
+  const renderDayButton = (d: Date) => {
+    const key = ymd(d);
+    const ok = diaTemDisp(key);
+    const sel = key === data;
+    return (
+      <button
+        key={key}
+        data-day={key}
+        type="button"
+        aria-disabled={!ok}
+        title={ok ? undefined : "Sem disponibilidade neste dia"}
+        onClick={(e) => onDayClick(d, ok, e.currentTarget)}
+        className={dayChipClass(ok, sel)}
+        aria-pressed={sel && ok}
+      >
+        <span className="text-[11px] opacity-90 font-medium">{DIAS[d.getDay()]}</span>
+        <span className="font-display text-xl leading-none my-0.5">{d.getDate()}</span>
+        <span className="text-[10px] opacity-80">{MESES[d.getMonth()]}</span>
+      </button>
+    );
+  };
+
+  const renderDesktopDayButton = (d: Date) => {
+    const key = ymd(d);
+    const inRange = isDayInBookableRange(d);
+    const ok = inRange && diaTemDisp(key);
+    const sel = key === data;
+    return (
+      <button
+        key={key}
+        data-day={key}
+        type="button"
+        disabled={!inRange}
+        aria-disabled={!inRange || !ok}
+        title={
+          !inRange
+            ? "Data fora do período disponível"
+            : ok
+              ? undefined
+              : "Sem disponibilidade neste dia"
+        }
+        onClick={(e) => {
+          if (!inRange) return;
+          onDayClick(d, ok, e.currentTarget);
+        }}
+        className={desktopDayChipClass(ok, sel, inRange)}
+        aria-pressed={sel && ok}
+      >
+        <span className="font-display text-base leading-none">{d.getDate()}</span>
+      </button>
+    );
+  };
+
+  const renderBarbeiroButton = (b: Barbeiro) => {
+    const ok = barbeiroTemDispNoDia(b.id);
+    const sel = b.id === barbeiroId;
+    return (
+      <button
+        key={b.id}
+        data-barbeiro={b.id}
+        type="button"
+        aria-disabled={!ok}
+        title={ok ? undefined : barbeiroMotivoIndisponivel(b)}
+        onClick={(e) => {
+          if (ok) {
+            setBarbeiroId(b.id);
+            setHora("");
+            setServSel([]);
+          } else {
+            centralizarChipCarrossel(e.currentTarget);
+          }
+        }}
+        className={barbeiroChipClass(ok, sel)}
+        aria-pressed={sel && ok}
+      >
+        {b.nome}
+      </button>
+    );
+  };
+
+  const renderHorarioButton = (s: string) => {
+    const livre = slotsDoBarbeiroNoDia.livres.includes(s);
+    const sel = s === hora;
+    return (
+      <button
+        key={s}
+        data-slot={s}
+        type="button"
+        aria-disabled={!livre}
+        title={livre ? undefined : "Horário indisponível"}
+        onClick={(e) => {
+          if (livre) setHora(s);
+          else centralizarChipCarrossel(e.currentTarget);
+        }}
+        className={horarioChipClass(livre, sel)}
+        aria-pressed={sel && livre}
+      >
+        {s}
+      </button>
+    );
+  };
+
+  const horariosContent =
+    !barbeiroId ? (
+      <p className="text-sm text-muted-foreground">Escolha um barbeiro acima para ver os horários.</p>
+    ) : barbeiroSemDispNoDia ? null : precisaEscolherServico ? (
+      <Card className="p-3.5 bg-muted/40 border-border text-sm text-foreground md:p-3">
+        Selecione um ou mais serviços acima. Os horários aparecem conforme o tempo total dos serviços.
+      </Card>
+    ) : semHorariosNoDia ? (
+      <Card className="p-3.5 bg-unavailable-soft border-unavailable/20 text-sm text-foreground md:p-3">
+        Sem horários para essa data com <b>{barbeiroSel?.nome}</b>. Escolha outra data ou outro barbeiro.
+      </Card>
+    ) : semBlocoParaServicos ? (
+      <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2 md:p-3">
+        <p>
+          <b>Não há disponibilidade</b> para os serviços selecionados ({duracaoTotal} min) nesta data com{" "}
+          <b>{barbeiroSel?.nome}</b>.
+        </p>
+        <p className="text-muted-foreground">
+          Escolha outra data ou outro barbeiro
+          {waLink ? (
+            <>
+              , ou{" "}
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground font-semibold underline underline-offset-2"
+              >
+                fale conosco no WhatsApp
+              </a>{" "}
+              para ver se conseguimos encaixá-lo.
+            </>
+          ) : (
+            "."
+          )}
+        </p>
+      </Card>
+    ) : (
+      <>
+        <div className={cn("md:hidden", bookingScrollBleed)}>
+          <HorizontalScrollStrip centerOn={hora ? `[data-slot="${hora}"]` : null} className={bookingScrollPad}>
+            {slotsDoBarbeiroNoDia.all.map(renderHorarioButton)}
+          </HorizontalScrollStrip>
+        </div>
+        <div className="hidden md:flex md:flex-wrap md:gap-1.5 md:py-0.5">
+          {slotsDoBarbeiroNoDia.all.map(renderHorarioButton)}
+        </div>
+      </>
+    );
+
   return (
-    <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden">
-      <div className="mx-auto w-full max-w-md overflow-x-hidden">
+    <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden md:min-h-0">
+      <div className="mx-auto w-full sm:max-w-md md:max-w-6xl md:px-6 overflow-x-hidden">
         {/* HEADER */}
-        <header className="bg-card border-b border-border px-5 pt-6 pb-4">
+        <header className={cn("bg-card border-b border-border pt-6 pb-4 md:pt-4 md:pb-3", bookingPageX)}>
           {backHref && (
             <Link
               to={backHref}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 md:mb-2"
             >
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Link>
           )}
-          <div className="flex items-center gap-3">
-            {barbearia.logo_url ? (
-              <img src={barbearia.logo_url} alt={barbearia.nome} className="h-12 w-12 rounded-full object-cover bg-foreground shrink-0" />
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-foreground text-background flex items-center justify-center shrink-0">
-                <Scissors className="h-5 w-5" />
-              </div>
+          <div
+            className={cn(
+              "md:grid md:grid-cols-2 md:gap-x-8 md:items-center",
+              showDesktopSplit && "md:gap-x-0",
             )}
-            <h1 className="font-display text-2xl font-bold leading-tight flex-1 truncate">{barbearia.nome}</h1>
-          </div>
-          <div className="mt-3 flex items-center justify-center gap-5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+          >
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 md:gap-4 min-w-0",
+                showDesktopSplit && "md:pr-8",
+              )}
+            >
+              <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                {barbearia.logo_url ? (
+                  <img src={barbearia.logo_url} alt={barbearia.nome} className="h-12 w-12 md:h-[3.25rem] md:w-[3.25rem] rounded-full object-cover bg-foreground shrink-0" />
+                ) : (
+                  <div className="h-12 w-12 md:h-[3.25rem] md:w-[3.25rem] rounded-full bg-foreground text-background flex items-center justify-center shrink-0">
+                    <Scissors className="h-5 w-5 md:h-6 md:w-6" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h1 className="font-display text-2xl md:text-[1.65rem] font-bold leading-tight truncate">{barbearia.nome}</h1>
+                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground md:hidden">
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden md:flex items-center gap-5 text-xs text-muted-foreground shrink-0">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+              </div>
+            </div>
+            <div className="hidden md:block" aria-hidden="true" />
           </div>
           {!hideMeusAgendamentos && slug && (
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 md:mt-2 flex justify-center md:justify-start">
               <Link
                 to={`/agendar/${slug}/meus`}
                 className="text-xs font-semibold underline-offset-4 hover:underline text-foreground"
@@ -686,9 +977,9 @@ const PublicBooking = ({
           )}
         </header>
 
-        <form onSubmit={submit} className="px-5 py-5 space-y-6">
+        <form onSubmit={submit} className={cn("py-5 max-md:space-y-6 md:py-4", bookingPageX)}>
           {isReschedule && (
-            <Card className="p-3.5 bg-primary/10 border-primary/25 text-sm">
+            <Card className="p-3.5 bg-primary/10 border-primary/25 text-sm md:p-3 md:mb-3">
               <p className="font-semibold text-foreground">Alterar horário</p>
               <p className="text-muted-foreground mt-1">
                 Cliente: <span className="text-foreground font-medium">{nome}</span>
@@ -703,295 +994,238 @@ const PublicBooking = ({
             </Card>
           )}
 
-          {/* DIAS */}
-          <section>
-            <h2 className="font-display text-base font-semibold mb-2.5">Selecione o dia</h2>
-            <HorizontalScrollStrip centerOn={`[data-day="${data}"]`}>
-              {dias.map((d) => {
-                const key = ymd(d);
-                const ok = diaTemDisp(key);
-                const sel = key === data;
-                return (
-                  <button
-                    key={key}
-                    data-day={key}
-                    type="button"
-                    aria-disabled={!ok}
-                    title={ok ? undefined : "Sem disponibilidade neste dia"}
-                    onClick={(e) => {
-                      if (ok) {
-                        setData(key);
-                        setBarbeiroId("");
-                        setHora("");
-                        setServSel([]);
-                      } else {
-                        centralizarChipCarrossel(e.currentTarget);
-                      }
-                    }}
-                    className={cn(
-                      "snap-start shrink-0 w-[68px] h-20 rounded-2xl flex flex-col items-center justify-center font-semibold transition-all cursor-pointer",
-                      ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
-                      sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
-                    )}
-                    aria-pressed={sel && ok}
-                  >
-                    <span className="text-[11px] opacity-90 font-medium">{DIAS[d.getDay()]}</span>
-                    <span className="font-display text-xl leading-none my-0.5">{d.getDate()}</span>
-                    <span className="text-[10px] opacity-80">{MESES[d.getMonth()]}</span>
-                  </button>
-                );
-              })}
-            </HorizontalScrollStrip>
-          </section>
-
-          {/* BARBEIROS */}
-          <section>
-            <h2 className="font-display text-base font-semibold mb-2.5">Selecione o barbeiro</h2>
-            {barbeiros.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
-            ) : (
-              <HorizontalScrollStrip centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}>
-                {barbeiros.map((b) => {
-                  const ok = barbeiroTemDispNoDia(b.id);
-                  const sel = b.id === barbeiroId;
-                  return (
-                    <button
-                      key={b.id}
-                      data-barbeiro={b.id}
-                      type="button"
-                      aria-disabled={!ok}
-                      title={ok ? undefined : barbeiroMotivoIndisponivel(b)}
-                      onClick={(e) => {
-                        if (ok) {
-                          setBarbeiroId(b.id);
-                          setHora("");
-                          setServSel([]);
-                        } else {
-                          centralizarChipCarrossel(e.currentTarget);
-                        }
-                      }}
-                      className={cn(
-                        "snap-start shrink-0 min-w-[8.5rem] px-4 h-14 rounded-2xl flex items-center justify-center font-semibold transition-all cursor-pointer",
-                        ok ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
-                        sel && ok && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
-                      )}
-                      aria-pressed={sel && ok}
-                    >
-                      {b.nome}
-                    </button>
-                  );
-                })}
-              </HorizontalScrollStrip>
+          <div
+            className={cn(
+              "max-md:space-y-6 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-3 md:items-start",
+              showDesktopSplit && "md:gap-x-0",
             )}
-            {barbeiroSemDispNoDia && (
-              <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5">
-                <p>
-                  <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
-                </p>
-                <p className="text-muted-foreground">
-                  Escolha outro dia ou outro barbeiro
-                  {waLink ? (
-                    <>
-                      , ou{" "}
-                      <a
-                        href={waLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground font-semibold underline underline-offset-2"
-                      >
-                        entre em contato conosco
-                      </a>{" "}
-                      para ver se conseguimos um encaixe.
-                    </>
-                  ) : (
-                    "."
-                  )}
-                </p>
-              </Card>
-            )}
-          </section>
-
-          {/* SERVIÇOS */}
-          {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
-            <section>
-              <h2 className="font-display text-base font-semibold mb-2.5">Serviços</h2>
-              <ServicosCarousel
-                servicos={servicosDoBarbeiro}
-                selecionados={servSel}
-                onToggle={toggleServico}
-              />
-            </section>
-          )}
-
-          {/* HORÁRIOS */}
-          <section>
-            <h2 className="font-display text-base font-semibold mb-2.5">Selecione o horário</h2>
-            {!barbeiroId ? (
-              <p className="text-sm text-muted-foreground">Escolha um barbeiro acima para ver os horários.</p>
-            ) : barbeiroSemDispNoDia ? null : precisaEscolherServico ? (
-              <Card className="p-3.5 bg-muted/40 border-border text-sm text-foreground">
-                Selecione um ou mais serviços acima. Os horários aparecem conforme o tempo total dos serviços.
-              </Card>
-            ) : semHorariosNoDia ? (
-              <Card className="p-3.5 bg-unavailable-soft border-unavailable/20 text-sm text-foreground">
-                Sem horários para essa data com <b>{barbeiroSel?.nome}</b>. Escolha outra data ou outro barbeiro.
-              </Card>
-            ) : semBlocoParaServicos ? (
-              <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2">
-                <p>
-                  <b>Não há disponibilidade</b> para os serviços selecionados ({duracaoTotal} min) nesta data com{" "}
-                  <b>{barbeiroSel?.nome}</b>.
-                </p>
-                <p className="text-muted-foreground">
-                  Escolha outra data ou outro barbeiro
-                  {waLink ? (
-                    <>
-                      , ou{" "}
-                      <a
-                        href={waLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground font-semibold underline underline-offset-2"
-                      >
-                        fale conosco no WhatsApp
-                      </a>{" "}
-                      para ver se conseguimos encaixá-lo.
-                    </>
-                  ) : (
-                    "."
-                  )}
-                </p>
-              </Card>
-            ) : (
-              <HorizontalScrollStrip centerOn={hora ? `[data-slot="${hora}"]` : null}>
-                {slotsDoBarbeiroNoDia.all.map((s) => {
-                  const livre = slotsDoBarbeiroNoDia.livres.includes(s);
-                  const sel = s === hora;
-                  return (
-                    <button
-                      key={s}
-                      data-slot={s}
-                      type="button"
-                      aria-disabled={!livre}
-                      title={livre ? undefined : "Horário indisponível"}
-                      onClick={(e) => {
-                        if (livre) setHora(s);
-                        else centralizarChipCarrossel(e.currentTarget);
-                      }}
-                      className={cn(
-                        "snap-start shrink-0 w-[72px] h-12 rounded-xl flex items-center justify-center font-semibold text-sm transition-all cursor-pointer",
-                        livre ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
-                        sel && livre && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
-                      )}
-                      aria-pressed={sel && livre}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
-              </HorizontalScrollStrip>
-            )}
-          </section>
-
-          {/* DADOS */}
-          <section className="space-y-3">
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">
-                {isReschedule ? "Cliente" : "Seu nome"}
-              </label>
-              <Input
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Como devemos te chamar"
-                required
-                maxLength={80}
-                readOnly={isReschedule}
-                className={cn("h-12 text-base", isReschedule && "bg-muted/50")}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">WhatsApp</label>
-              <Input
-                inputMode="tel"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
-                placeholder="(11) 91234-5678"
-                required
-                readOnly={isReschedule}
-                className={cn("h-12 text-base", isReschedule && "bg-muted/50")}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">
-                Observação <span className="font-normal text-muted-foreground">(opcional)</span>
-              </label>
-              <textarea
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Ex.: preferência de corte, alergia, pedido especial..."
-                maxLength={500}
-                rows={3}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm resize-none"
-              />
-            </div>
-            {!isReschedule && (
-              <Card className="p-3.5 bg-card border-border">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 accent-primary"
-                    checked={wantsReminder}
-                    onChange={(e) => setWantsReminder(e.target.checked)}
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold flex items-center gap-1.5">
-                      <Bell className="h-4 w-4" />
-                      Receber lembrete pelo navegador
-                    </span>
-                    <span className="mt-1 block text-muted-foreground">
-                      Enviaremos uma confirmação 1 dia antes e um lembrete cerca de 3h antes do horário.
-                    </span>
-                  </span>
-                </label>
-                {wantsReminder && (
-                  <div className="mt-3 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground space-y-1.5">
-                    {iosNeedsInstall ? (
-                      <>
-                        <p className="font-semibold text-foreground">Atenção para iPhone</p>
-                        <p>
-                          Para receber notificações no iPhone, abra este link no Safari, toque em Compartilhar,
-                          escolha "Adicionar à Tela de Início" e depois abra pelo ícone criado.
-                        </p>
-                      </>
-                    ) : isIos ? (
-                      <p>No iPhone, mantenha o app aberto pelo ícone instalado na tela inicial para permitir notificações.</p>
-                    ) : (
-                      <p>No Android, basta aceitar a permissão de notificação quando o navegador solicitar.</p>
-                    )}
-                    {!pushAvailable && (
-                      <p className="text-unavailable">
-                        Este navegador não informou suporte a notificações push. O agendamento continuará normal.
-                      </p>
+          >
+            <div className={cn("max-md:space-y-6 md:space-y-3", showDesktopSplit && "md:pr-8")}>
+              {/* DIAS */}
+              <section>
+                <h2 className="font-display text-base font-semibold mb-2.5 md:hidden">Selecione o dia</h2>
+                <div className={cn("md:hidden", bookingScrollBleed)}>
+                  <HorizontalScrollStrip centerOn={`[data-day="${data}"]`} className={bookingScrollPad}>
+                    {dias.map(renderDayButton)}
+                  </HorizontalScrollStrip>
+                </div>
+                <div className="hidden md:block">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="w-28">
+                      {canGoPrevDesktopMonth ? (
+                        <button
+                          type="button"
+                          onClick={() => setDesktopViewMonth(allowedMonths.first)}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          {MESES_COMPLETOS[allowedMonths.first.getMonth()]}
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="font-display text-sm font-semibold text-center">
+                      {MESES_COMPLETOS[desktopViewMonth.getMonth()]} {desktopViewMonth.getFullYear()}
+                    </p>
+                    <div className="w-28 text-right">
+                      {canGoNextDesktopMonth ? (
+                        <button
+                          type="button"
+                          onClick={() => setDesktopViewMonth(allowedMonths.second)}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground ml-auto"
+                        >
+                          {MESES_COMPLETOS[allowedMonths.second.getMonth()]}
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {DIAS.map((label) => (
+                      <span key={label} className="text-[10px] text-center text-muted-foreground font-medium">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 py-0.5">
+                    {desktopCalendarCells.map((d, index) =>
+                      d ? renderDesktopDayButton(d) : <div key={`empty-${index}`} className="h-10" aria-hidden />,
                     )}
                   </div>
-                )}
-              </Card>
-            )}
-          </section>
+                </div>
+              </section>
 
-          <Button
-            type="submit"
-            disabled={submitting || !barbeiroId || !hora}
-            className="w-full h-13 text-base font-semibold py-3.5 rounded-xl"
-          >
-            {submitting ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : isReschedule ? (
-              "Confirmar novo horário"
-            ) : (
-              "Confirmar agendamento"
-            )}
-          </Button>
+              {/* BARBEIROS */}
+              <section>
+                <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o barbeiro</h2>
+                {barbeiros.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+                ) : (
+                  <ResponsivePagedStrip
+                    bleedClassName={bookingScrollBleed}
+                    mobileClassName={bookingScrollPad}
+                    centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
+                  >
+                    {barbeiros.map(renderBarbeiroButton)}
+                  </ResponsivePagedStrip>
+                )}
+                {barbeiroSemDispNoDia && (
+                  <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:mt-2 md:p-3">
+                    <p>
+                      <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Escolha outro dia ou outro barbeiro
+                      {waLink ? (
+                        <>
+                          , ou{" "}
+                          <a
+                            href={waLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-foreground font-semibold underline underline-offset-2"
+                          >
+                            entre em contato conosco
+                          </a>{" "}
+                          para ver se conseguimos um encaixe.
+                        </>
+                      ) : (
+                        "."
+                      )}
+                    </p>
+                  </Card>
+                )}
+              </section>
+
+              {/* SERVIÇOS */}
+              {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
+                <section>
+                  <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
+                  <ServicosCarousel
+                    servicos={servicosDoBarbeiro}
+                    selecionados={servSel}
+                    onToggle={toggleServico}
+                    stripClassName={bookingScrollPad}
+                    bleedClassName={bookingScrollBleed}
+                  />
+                </section>
+              )}
+            </div>
+
+            <div
+              className={cn(
+                "max-md:space-y-6 md:space-y-3",
+                showDesktopSplit && "md:pl-8 booking-split-divider",
+              )}
+            >
+              {/* HORÁRIOS */}
+              <section>
+                <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o horário</h2>
+                {horariosContent}
+              </section>
+
+              {/* DADOS */}
+              <section className="space-y-3 md:space-y-2">
+                <div className="md:grid md:grid-cols-2 md:gap-3 md:space-y-0 space-y-3">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5 md:mb-1 md:text-xs">
+                      {isReschedule ? "Cliente" : "Seu nome"}
+                    </label>
+                    <Input
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Como devemos te chamar"
+                      required
+                      maxLength={80}
+                      readOnly={isReschedule}
+                      className={cn("h-12 md:h-10 text-base md:text-sm", isReschedule && "bg-muted/50")}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5 md:mb-1 md:text-xs">WhatsApp</label>
+                    <Input
+                      inputMode="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
+                      placeholder="(11) 91234-5678"
+                      required
+                      readOnly={isReschedule}
+                      className={cn("h-12 md:h-10 text-base md:text-sm", isReschedule && "bg-muted/50")}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 md:mb-1 md:text-xs">
+                    Observação <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </label>
+                  <textarea
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    placeholder="Ex.: preferência de corte, alergia, pedido especial..."
+                    maxLength={500}
+                    rows={3}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none md:min-h-[4.25rem] md:max-h-[4.25rem]"
+                  />
+                </div>
+                {!isReschedule && !ownerPanel && (
+                  <Card className="p-3.5 bg-card border-border md:p-3">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 accent-primary"
+                        checked={wantsReminder}
+                        onChange={(e) => setWantsReminder(e.target.checked)}
+                      />
+                      <span className="text-sm md:text-xs">
+                        <span className="font-semibold flex items-center gap-1.5">
+                          <Bell className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                          Receber lembrete pelo navegador
+                        </span>
+                        <span className="mt-1 block text-muted-foreground">
+                          Enviaremos uma confirmação 1 dia antes e um lembrete cerca de 3h antes do horário.
+                        </span>
+                      </span>
+                    </label>
+                    {wantsReminder && (
+                      <div className="mt-3 md:mt-2 rounded-lg bg-muted/60 p-3 md:p-2.5 text-xs text-muted-foreground space-y-1.5">
+                        {iosNeedsInstall ? (
+                          <>
+                            <p className="font-semibold text-foreground">Atenção para iPhone</p>
+                            <p>
+                              Para receber notificações no iPhone, abra este link no Safari, toque em Compartilhar,
+                              escolha "Adicionar à Tela de Início" e depois abra pelo ícone criado.
+                            </p>
+                          </>
+                        ) : isIos ? (
+                          <p>No iPhone, mantenha o app aberto pelo ícone instalado na tela inicial para permitir notificações.</p>
+                        ) : (
+                          <p>No Android, basta aceitar a permissão de notificação quando o navegador solicitar.</p>
+                        )}
+                        {!pushAvailable && (
+                          <p className="text-unavailable">
+                            Este navegador não informou suporte a notificações push. O agendamento continuará normal.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </section>
+
+              <Button
+                type="submit"
+                disabled={submitting || !barbeiroId || !hora}
+                className="w-full h-13 md:h-11 text-base md:text-sm font-semibold py-3.5 md:py-2.5 rounded-xl"
+              >
+                {submitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isReschedule ? (
+                  "Confirmar novo horário"
+                ) : (
+                  "Confirmar agendamento"
+                )}
+              </Button>
+            </div>
+          </div>
         </form>
       </div>
     </div>

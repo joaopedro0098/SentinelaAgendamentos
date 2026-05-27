@@ -146,4 +146,23 @@
   .shadow-glow {
     box-shadow: 0 0 52px hsl(152 55% 42% / 0.28);
   }
+  .booking-split-divider::before {
+    content: none;
+  }
+  @media (min-width: 768px) {
+    .booking-split-divider {
+      position: relative;
+    }
+    .booking-split-divider::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: calc(-2.5rem - 20px);
+      width: 4px;
+      border-radius: 9999px;
+      background: linear-gradient(180deg, hsl(152 55% 30%), hsl(142 76% 45%));
+      box-shadow: 0 0 14px hsl(142 76% 45% / 0.45);
+    }
+  }
 }
