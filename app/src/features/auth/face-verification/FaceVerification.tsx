@@ -13,6 +13,8 @@ import {
   type FacialVerificationResult,
 } from "./facialRecognitionController";
 
+const FACE_CLIP_PATH = "ellipse(34% 40% at 50% 50%)";
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -42,17 +44,16 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     try {
       const canvas = captureFrame();
       if (!canvas) throw new Error("Não foi possível capturar a imagem. Tente novamente.");
-      stop();
 
       const embedding = await buildEmbeddingFromSnapshot(canvas, setProgress);
       setProgress({ stage: "checking", message: "Validando…" });
       const { trialEligible, facialMatch } = await checkFacialTrialEligibility(embedding);
 
+      stop();
       setProgress({ stage: "done", message: "Pronto ✅" });
       onVerified({ embedding, trialEligible, facialMatch });
     } catch (e) {
       setFailed(toUserFaceError(e));
-      setProgress({ stage: "liveness", message: "Olhe para a câmera" });
     } finally {
       setProcessing(false);
       finishingRef.current = false;
@@ -66,7 +67,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
   const { message, faceDetected } = useLiveness({
     key: attempt,
     video: ready ? videoRef.current : null,
-    active: open && livenessActive && !processing,
+    active: open && livenessActive && !processing && !failed,
     onComplete: handleLivenessComplete,
   });
 
@@ -92,6 +93,21 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     }
   }, [message, livenessActive, processing, failed]);
 
+  const instructionMessage = failed
+    ? null
+    : processing
+      ? progress.message
+      : progress.stage === "liveness"
+        ? message
+        : progress.message;
+
+  function handleRetry() {
+    setFailed(null);
+    setProcessing(false);
+    finishingRef.current = false;
+    setAttempt((n) => n + 1);
+  }
+
   if (!open) return null;
 
   return (
@@ -107,63 +123,81 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        <div className="px-6 pt-6 pb-4 text-center">
+        <div className="px-6 pt-6 pb-3 text-center">
           <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-brand text-white mb-2">
             <ScanFace className="w-5 h-5" />
           </div>
           <h2 className="font-display text-lg font-semibold">Verificação facial</h2>
+          <p
+            className={cn(
+              "mt-3 leading-snug",
+              failed
+                ? "text-base sm:text-lg font-semibold text-foreground"
+                : "text-sm font-medium text-muted-foreground",
+            )}
+          >
+            Vá para um local bem iluminado
+          </p>
         </div>
 
-        <div className="relative mx-6 aspect-[3/4] max-h-[min(58vh,400px)] rounded-2xl overflow-hidden bg-black">
-          <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" playsInline muted />
+        <div className="px-6 pb-3 min-h-[5.5rem]">
+          {failed ? (
+            <div className="space-y-3 text-center">
+              <p className="text-sm sm:text-base font-medium text-destructive leading-snug">{failed}</p>
+              <Button type="button" className="w-full rounded-full" onClick={handleRetry}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <>
+              {instructionMessage && (
+                <p className="text-center text-base sm:text-lg font-semibold text-foreground leading-snug">
+                  {instructionMessage}
+                </p>
+              )}
+              {cameraError && <p className="mt-2 text-center text-sm text-destructive">{cameraError}</p>}
+            </>
+          )}
+        </div>
 
-          {/* Contorno vertical em formato de rosto — só a borda, sem área branca por fora */}
+        <div className="relative mx-6 aspect-[3/4] max-h-[min(58vh,400px)] rounded-2xl overflow-hidden bg-white">
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+            style={{ clipPath: FACE_CLIP_PATH, WebkitClipPath: FACE_CLIP_PATH }}
+            playsInline
+            muted
+          />
+
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <div
               className={cn(
-                "w-[68%] h-[80%] border-[3.5px] transition-colors duration-300",
+                "w-[68%] h-[80%] border-[3.5px] transition-colors duration-300 bg-transparent",
                 "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
-                faceDetected ? "border-[hsl(var(--brand-green))]" : "border-white/30",
+                faceDetected && !failed && !processing
+                  ? "border-[hsl(var(--brand-green))]"
+                  : failed
+                    ? "border-destructive/70"
+                    : "border-[hsl(var(--brand-green)/0.45)]",
               )}
             />
           </div>
 
-          {!ready && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <Loader2 className="w-8 h-8 animate-spin text-white" />
+          {!ready && !failed && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white">
+              <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--brand-green))]" />
             </div>
           )}
 
-          {processing && (
-            <div className="absolute inset-x-0 bottom-0 py-3 bg-gradient-to-t from-black/60 to-transparent flex justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-white mr-2" />
-              <span className="text-xs text-white/90 self-center">Finalizando…</span>
+          {processing && !failed && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75 gap-2">
+              <Loader2 className="w-7 h-7 animate-spin text-[hsl(var(--brand-green))]" />
+              <span className="text-sm font-medium text-foreground">Finalizando…</span>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-5 space-y-3">
-          <p className="text-center text-sm font-medium min-h-[1.25rem]">{progress.message}</p>
-
-          {cameraError && <p className="text-center text-sm text-destructive">{cameraError}</p>}
-          {failed && <p className="text-center text-sm text-destructive">{failed}</p>}
-
-          {failed && (
-            <Button
-              type="button"
-              className="w-full rounded-full"
-              variant="secondary"
-              onClick={() => {
-                setFailed(null);
-                setProcessing(false);
-                finishingRef.current = false;
-                setAttempt((n) => n + 1);
-              }}
-            >
-              Tentar novamente
-            </Button>
-          )}
-
+        <div className="px-6 py-5">
           <p className="text-[11px] text-center text-muted-foreground leading-relaxed">
             Usamos esta verificação para evitar teste grátis duplicado.
           </p>
