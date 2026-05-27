@@ -1,5 +1,29 @@
 project_id = "zdmecbyyfubpmwrzzbqf"
 
+[auth]
+site_url = "https://sentinelagendamentos.com"
+additional_redirect_urls = [
+  "http://localhost:8081/auth/callback",
+  "http://localhost:8081/**",
+  "https://sentinelagendamentos.com/**",
+  "http://localhost:8080/**",
+  "https://sentinelaagendamentos-nj3c9ckq1-joao-pedro-s-projects9.vercel.app/**",
+  "https://sentinelaagendamentos.vercel.app/**",
+  "https://www.sentinelagendamentos.com/**",
+  "https://sentinelagendamentos.com/reset-password",
+  "https://www.sentinelagendamentos.com/reset-password",
+  "http://localhost:5173/reset-password",
+]
+
+[auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [auth.email.template.confirmation]
 subject = "Confirme seu cadastro — Sentinela Agendamentos"
 content_path = "./supabase/templates/confirmation.html"
