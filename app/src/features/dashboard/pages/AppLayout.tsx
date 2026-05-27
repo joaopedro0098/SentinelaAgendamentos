@@ -85,6 +85,8 @@ export default function AppLayout() {
     setMenuOpen(false);
   }
 
+  const hideMobileHeaderAvatar = location.pathname === "/app/agendar";
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
@@ -96,15 +98,17 @@ export default function AppLayout() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link to="/app/settings" className="min-w-0 flex-1 font-semibold text-sm truncate">
-          {shop?.display_name?.trim() || "Painel"}
-        </Link>
-        <Avatar className="h-8 w-8 shrink-0">
-          {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            {(shop?.display_name?.trim() || "?").slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        {!hideMobileHeaderAvatar && (
+          <Link to="/app/settings" className="shrink-0" aria-label={shop?.display_name?.trim() || "Configurações"}>
+            <Avatar className="h-9 w-9">
+              {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                {(shop?.display_name?.trim() || "?").slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        )}
+        <div className="flex-1 min-w-0" />
       </header>
 
       {menuMounted && (
@@ -124,13 +128,8 @@ export default function AppLayout() {
               menuEntered ? "translate-x-0" : "-translate-x-full",
             )}
           >
-            <div className="flex items-center justify-between gap-2 px-4 h-14 border-b border-border">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                  <CalendarCheck className="w-4 h-4 text-white" />
-                </span>
-                <span className="font-semibold text-sm truncate">{shop?.display_name?.trim() || "Painel"}</span>
-              </div>
+            <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border">
+              <ShopPanelBrand shop={shop} avatarClassName="h-9 w-9" />
               <button
                 type="button"
                 onClick={closeMenu}
@@ -183,16 +182,8 @@ export default function AppLayout() {
 
       <aside className="hidden md:flex md:w-64 border-r border-border shrink-0">
         <div className="glass-panel m-3 rounded-2xl flex flex-col flex-1 overflow-hidden w-full">
-          <div className="flex items-center gap-2 px-4 py-4 border-b border-border/60">
-            <span className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-glow">
-              <CalendarCheck className="w-4 h-4 text-white" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Painel</p>
-              <Link to="/app/settings" className="font-semibold truncate block text-sm hover:text-primary transition">
-                {shop?.display_name?.trim() || "Sua empresa"}
-              </Link>
-            </div>
+          <div className="px-4 py-4 border-b border-border/60">
+            <ShopPanelBrand shop={shop} avatarClassName="h-12 w-12" />
           </div>
 
           <nav className="flex flex-col gap-1 p-2 flex-1">
@@ -219,6 +210,30 @@ export default function AppLayout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+function ShopPanelBrand({
+  shop,
+  avatarClassName,
+}: {
+  shop: { display_name: string; avatar_url: string | null } | null;
+  avatarClassName: string;
+}) {
+  const displayName = shop?.display_name?.trim() || "Sua empresa";
+  return (
+    <Link to="/app/settings" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity">
+      <Avatar className={cn("shrink-0", avatarClassName)}>
+        {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={displayName} />}
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+          {displayName.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium leading-none">Painel</p>
+        <p className="mt-1 font-semibold text-base text-foreground truncate leading-tight">{displayName}</p>
+      </div>
+    </Link>
   );
 }
 

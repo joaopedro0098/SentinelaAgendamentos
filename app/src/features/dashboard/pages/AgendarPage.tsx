@@ -106,7 +106,6 @@ export default function AgendarPage() {
       <PublicBooking
         slugOverride={slug}
         backHref={backHref}
-        hideMeusAgendamentos
         ownerPanel
         reschedule={reschedule}
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}

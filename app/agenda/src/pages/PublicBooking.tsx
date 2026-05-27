@@ -61,6 +61,23 @@ function horarioChipClass(livre: boolean, sel: boolean) {
   );
 }
 
+function ShopAvatar({ logoUrl, name, className }: { logoUrl: string | null; name: string; className?: string }) {
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt={name}
+        className={cn("rounded-full object-cover bg-foreground shrink-0", className)}
+      />
+    );
+  }
+  return (
+    <div className={cn("rounded-full bg-foreground text-background flex items-center justify-center shrink-0", className)}>
+      <Scissors className="h-5 w-5" />
+    </div>
+  );
+}
+
 interface Barbearia {
   id: string;
   nome: string;
@@ -181,7 +198,6 @@ export type RescheduleContext = {
 export type PublicBookingProps = {
   slugOverride?: string;
   backHref?: string;
-  hideMeusAgendamentos?: boolean;
   reschedule?: RescheduleContext | null;
   onRescheduleComplete?: () => void;
   ownerBookingBlockMessage?: string;
@@ -193,7 +209,6 @@ export type PublicBookingProps = {
 const PublicBooking = ({
   slugOverride,
   backHref,
-  hideMeusAgendamentos = false,
   reschedule = null,
   onRescheduleComplete,
   ownerBookingBlockMessage,
@@ -921,7 +936,7 @@ const PublicBooking = ({
       <div className="mx-auto w-full sm:max-w-md md:max-w-6xl md:px-6 overflow-x-hidden">
         {/* HEADER */}
         <header className={cn("bg-card border-b border-border pt-6 pb-4 md:pt-4 md:pb-3", bookingPageX)}>
-          {backHref && (
+          {backHref && !ownerPanel && (
             <Link
               to={backHref}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 md:mb-2"
@@ -936,48 +951,40 @@ const PublicBooking = ({
               showDesktopSplit && "md:gap-x-0",
             )}
           >
-            <div
-              className={cn(
-                "flex items-center justify-between gap-3 md:gap-4 min-w-0",
-                showDesktopSplit && "md:pr-8",
-              )}
-            >
-              <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                {barbearia.logo_url ? (
-                  <img src={barbearia.logo_url} alt={barbearia.nome} className="h-12 w-12 md:h-[3.25rem] md:w-[3.25rem] rounded-full object-cover bg-foreground shrink-0" />
-                ) : (
-                  <div className="h-12 w-12 md:h-[3.25rem] md:w-[3.25rem] rounded-full bg-foreground text-background flex items-center justify-center shrink-0">
-                    <Scissors className="h-5 w-5 md:h-6 md:w-6" />
+            <div className={cn("min-w-0", showDesktopSplit && "md:pr-8")}>
+              <div className="flex items-center justify-center gap-4 py-1 text-xs text-muted-foreground md:hidden">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+              </div>
+              {!ownerPanel && (
+                <div className="hidden md:flex items-center justify-between gap-4 min-w-0 md:pl-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-[3.25rem] w-[3.25rem]" />
+                    <h1 className="font-display text-[1.65rem] font-bold leading-tight truncate text-foreground">{barbearia.nome}</h1>
                   </div>
-                )}
-                <div className="min-w-0">
-                  <h1 className="font-display text-2xl md:text-[1.65rem] font-bold leading-tight truncate">{barbearia.nome}</h1>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground md:hidden">
+                  <div className="flex items-center gap-5 text-xs text-muted-foreground shrink-0">
                     <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
                     <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
                   </div>
                 </div>
-              </div>
-              <div className="hidden md:flex items-center gap-5 text-xs text-muted-foreground shrink-0">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
-              </div>
+              )}
+              {ownerPanel && (
+                <div className="hidden md:flex items-center justify-center gap-5 py-1 text-xs text-muted-foreground w-full">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+                </div>
+              )}
             </div>
             <div className="hidden md:block" aria-hidden="true" />
           </div>
-          {!hideMeusAgendamentos && slug && (
-            <div className="mt-3 md:mt-2 flex justify-center md:justify-start">
-              <Link
-                to={`/agendar/${slug}/meus`}
-                className="text-xs font-semibold underline-offset-4 hover:underline text-foreground"
-              >
-                Meus agendamentos
-              </Link>
-            </div>
-          )}
         </header>
 
         <form onSubmit={submit} className={cn("py-5 max-md:space-y-6 md:py-4", bookingPageX)}>
+          <div className="flex items-center gap-3 min-w-0 md:hidden">
+            <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-12 w-12" />
+            <h1 className="font-display text-2xl font-bold leading-tight truncate">{barbearia.nome}</h1>
+          </div>
+
           {isReschedule && (
             <Card className="p-3.5 bg-primary/10 border-primary/25 text-sm md:p-3 md:mb-3">
               <p className="font-semibold text-foreground">Alterar horário</p>
