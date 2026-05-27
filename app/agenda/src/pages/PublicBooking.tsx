@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Bell, Check, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, Bell, Check, Loader2, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { isIosDevice, isStandalonePwa, registerAppointmentPush, supportsWebPush } from "@/lib/pushNotifications";
+import { exitClientBookingFlow } from "@/lib/clientBookingExit";
 import {
   checkBarbeariaCanBook,
   getClientBookingBlockMessage,
@@ -109,6 +110,22 @@ export type PublicBookingProps = {
   /** Painel do barbeiro (`/app/agendar`) — altera botões da tela de confirmação. */
   ownerPanel?: boolean;
 };
+
+function ClientExitButton({ visible, className }: { visible: boolean; className?: string }) {
+  if (!visible) return null;
+  return (
+    <Button
+      type="button"
+      className={cn(
+        "w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow",
+        className,
+      )}
+      onClick={exitClientBookingFlow}
+    >
+      Sair
+    </Button>
+  );
+}
 
 const PublicBooking = ({
   slugOverride,
@@ -502,14 +519,7 @@ const PublicBooking = ({
     setDone(false);
   };
 
-  const exitConfirmationScreen = () => {
-    setBookingConfirmed(false);
-    setDone(false);
-    setHora("");
-    setServSel([]);
-    setObservacao("");
-    setWantsReminder(false);
-  };
+  const showClientExit = !ownerPanel && !isReschedule;
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-surface">
@@ -562,18 +572,7 @@ const PublicBooking = ({
 
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
-        <Card className="relative max-w-sm w-full p-6">
-          {bookingConfirmed && !ownerPanel && (
-            <button
-              type="button"
-              onClick={exitConfirmationScreen}
-              className="absolute top-3 right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Fechar"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-
+        <Card className="max-w-sm w-full p-6">
           {bookingConfirmed && (
             <div className="mb-5 rounded-2xl border border-border bg-white px-4 py-4 text-center shadow-sm">
               <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-brand shadow-glow">
@@ -621,14 +620,17 @@ const PublicBooking = ({
             )}
           </ul>
           {!bookingConfirmed && (
-            <div className="mt-6 flex gap-2">
-              <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
-                Alterar
-              </Button>
-              <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
-              </Button>
-            </div>
+            <>
+              <div className="mt-6 flex gap-2">
+                <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
+                  Alterar
+                </Button>
+                <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
+                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
+                </Button>
+              </div>
+              <ClientExitButton visible={showClientExit} className="mt-3" />
+            </>
           )}
 
           {bookingConfirmed && ownerPanel && (
@@ -636,6 +638,8 @@ const PublicBooking = ({
               <Link to="/app/agendamentos">Sair</Link>
             </Button>
           )}
+
+          <ClientExitButton visible={bookingConfirmed && showClientExit} className="mt-6" />
         </Card>
       </div>
     );
@@ -998,6 +1002,8 @@ const PublicBooking = ({
               "Confirmar agendamento"
             )}
           </Button>
+
+          <ClientExitButton visible={showClientExit} className="mt-3" />
         </form>
       </div>
     </div>
