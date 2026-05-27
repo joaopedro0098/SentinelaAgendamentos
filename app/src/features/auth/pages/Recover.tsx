@@ -45,8 +45,7 @@ export default function Recover() {
               Verifique seu email e Spam
             </h1>
             <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-md mx-auto">
-              Clique em <strong className="font-medium text-foreground">recuperar senha</strong> no e-mail que enviamos
-              para continuar.
+              Se este e-mail existir, você receberá um link em instantes.
             </p>
           </div>
 
