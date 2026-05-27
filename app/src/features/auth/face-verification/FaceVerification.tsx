@@ -64,7 +64,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     void finishVerification();
   }, [finishVerification]);
 
-  const { message, faceDetected } = useLiveness({
+  const { message } = useLiveness({
     key: attempt,
     video: ready ? videoRef.current : null,
     active: open && livenessActive && !processing && !failed,
@@ -174,11 +174,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
               className={cn(
                 "w-[68%] h-[80%] border-[6px] transition-colors duration-300 bg-transparent",
                 "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
-                faceDetected && !failed && !processing
-                  ? "border-[hsl(var(--brand-green))]"
-                  : failed
-                    ? "border-destructive/70"
-                    : "border-[hsl(var(--brand-green)/0.45)]",
+                failed ? "border-destructive" : "border-[hsl(var(--brand-green))]",
               )}
             />
           </div>
