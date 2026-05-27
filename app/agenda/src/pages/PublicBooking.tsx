@@ -65,6 +65,23 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+function bookableDayOffset(ownerPanel: boolean, isReschedule: boolean) {
+  return ownerPanel || isReschedule ? 0 : 1;
+}
+
+function initialBookingDate(ownerPanel: boolean, isReschedule: boolean) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + bookableDayOffset(ownerPanel, isReschedule));
+  return ymd(d);
+}
+
+function isSameDayOrEarlier(selectedYmd: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return selectedYmd <= ymd(today);
+}
+
 /** No PC, clique no chip vermelho só centraliza no carrossel (não seleciona). */
 const centralizarChipCarrossel = (el: HTMLElement) => {
   el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -104,6 +121,7 @@ const PublicBooking = ({
   ownerPanel = false,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
+  const minDayOffset = bookableDayOffset(ownerPanel, isReschedule);
   const { slug: slugParam } = useParams();
   const slug = slugOverride ?? slugParam;
   const [loading, setLoading] = useState(true);
@@ -112,7 +130,7 @@ const PublicBooking = ({
   // chave: barbeiroId|YYYY-MM-DD -> Map<hora, duracao>
   const [agOcupados, setAgOcupados] = useState<Map<string, Map<string, number>>>(new Map());
 
-  const [data, setData] = useState<string>(ymd(new Date()));
+  const [data, setData] = useState(() => initialBookingDate(ownerPanel, isReschedule));
   const [barbeiroId, setBarbeiroId] = useState<string>("");
   const [hora, setHora] = useState<string>("");
   const [servSel, setServSel] = useState<string[]>([]);
@@ -156,8 +174,11 @@ const PublicBooking = ({
     const load = async () => {
       setLoading(true);
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const limite = new Date(today); limite.setDate(today.getDate() + DAYS_AHEAD);
-      const fromYmd = ymd(today);
+      const start = new Date(today);
+      start.setDate(today.getDate() + minDayOffset);
+      const limite = new Date(today);
+      limite.setDate(today.getDate() + minDayOffset + DAYS_AHEAD);
+      const fromYmd = ymd(start);
       const toYmd = ymd(limite);
 
       const [{ data: b, error: barbErr }, shopRes] = await Promise.all([
@@ -240,14 +261,16 @@ const PublicBooking = ({
       setLoading(false);
     };
     load();
-  }, [slug, reschedule?.agendamentoId]);
+  }, [slug, reschedule?.agendamentoId, minDayOffset]);
 
   const dias = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     return Array.from({ length: DAYS_AHEAD }, (_, i) => {
-      const d = new Date(today); d.setDate(today.getDate() + i); return d;
+      const d = new Date(today);
+      d.setDate(today.getDate() + minDayOffset + i);
+      return d;
     });
-  }, []);
+  }, [minDayOffset]);
 
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
   const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
@@ -339,6 +362,14 @@ const PublicBooking = ({
   const horarioAindaDisponivel = () =>
     Boolean(hora && slotsDoBarbeiroNoDia.livres.includes(hora));
 
+  const rejectSameDayPublicBooking = () => {
+    if (minDayOffset > 0 && isSameDayOrEarlier(data)) {
+      toast.error("Pelo link de agendamento, só é possível marcar a partir de amanhã.");
+      return true;
+    }
+    return false;
+  };
+
   const ownerBlockMessage = () =>
     ownerBookingBlockMessage?.trim() || SUBSCRIPTION_BLOCK_OWNER;
 
@@ -368,6 +399,7 @@ const PublicBooking = ({
     }
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
+    if (rejectSameDayPublicBooking()) return;
 
     if (!reschedule) {
       setBookingConfirmed(false);
@@ -404,6 +436,7 @@ const PublicBooking = ({
 
   const confirmBooking = async () => {
     if (!barbearia || !barbeiroId || !data || !hora) return;
+    if (rejectSameDayPublicBooking()) return;
     if (servicosDoBarbeiro.length > 0 && servSel.length === 0) {
       toast.error("Selecione pelo menos um serviço");
       return;
