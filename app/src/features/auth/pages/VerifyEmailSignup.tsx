@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export default function VerifyEmailSignupPage() {
   useEffect(() => {
-    document.title = "Verifique seu e-mail — Sentinela Agendamentos";
+    document.title = "Verifique seu email e spam — Sentinela Agendamentos";
   }, []);
 
   return (
@@ -17,11 +17,10 @@ export default function VerifyEmailSignupPage() {
 
         <div className="space-y-3 sm:space-y-4 px-1">
           <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-            Verifique seu e-mail
+            Verifique seu email e spam
           </h1>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-md mx-auto">
-            Também veja o spam e clique em <strong className="font-medium text-foreground">Confirmar</strong> no
-            e-mail que enviamos para finalizar seu cadastro.
+            E clique em confirmar para finalizar seu cadastro
           </p>
         </div>
 
