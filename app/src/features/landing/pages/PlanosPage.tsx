@@ -9,9 +9,8 @@ const features = [
   "Painel para gerenciar seus agendamentos",
   "Cliente recebe confirmação automática 1 dia antes",
   "Link para o cliente agendar por conta (opcional)",
-  "Não exigimos cartão para o cadastro",
-  "Você pode pagar a mensalidade via PIX ou cartão",
   "Suporte conosco via WhatsApp",
+  "Não exigimos cartão para fazer seu teste grátis",
 ];
 
 const Planos = () => {
