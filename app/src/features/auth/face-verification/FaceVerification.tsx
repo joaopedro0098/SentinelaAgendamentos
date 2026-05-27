@@ -151,7 +151,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           ) : (
             <>
               {instructionMessage && (
-                <p className="text-center text-base sm:text-lg font-semibold text-foreground leading-snug">
+                <p className="text-center text-xl sm:text-2xl font-bold text-foreground leading-tight">
                   {instructionMessage}
                 </p>
               )}
@@ -172,7 +172,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <div
               className={cn(
-                "w-[68%] h-[80%] border-[3.5px] transition-colors duration-300 bg-transparent",
+                "w-[68%] h-[80%] border-[6px] transition-colors duration-300 bg-transparent",
                 "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
                 faceDetected && !failed && !processing
                   ? "border-[hsl(var(--brand-green))]"
