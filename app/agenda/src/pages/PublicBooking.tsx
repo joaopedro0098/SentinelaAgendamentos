@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Bell, Check, Loader2, Scissors } from "lucide-react";
+import { ArrowLeft, Bell, Check, Loader2, Scissors, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
@@ -89,6 +89,8 @@ export type PublicBookingProps = {
   onRescheduleComplete?: () => void;
   ownerBookingBlockMessage?: string;
   onOwnerBookingBlocked?: (message: string) => void;
+  /** Painel do barbeiro (`/app/agendar`) — altera botões da tela de confirmação. */
+  ownerPanel?: boolean;
 };
 
 const PublicBooking = ({
@@ -99,6 +101,7 @@ const PublicBooking = ({
   onRescheduleComplete,
   ownerBookingBlockMessage,
   onOwnerBookingBlocked,
+  ownerPanel = false,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
   const { slug: slugParam } = useParams();
@@ -119,6 +122,7 @@ const PublicBooking = ({
   const [wantsReminder, setWantsReminder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
   const [slotPause, setSlotPause] = useState(0);
 
@@ -366,6 +370,7 @@ const PublicBooking = ({
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
     if (!reschedule) {
+      setBookingConfirmed(false);
       setDone(true);
       return;
     }
@@ -451,30 +456,26 @@ const PublicBooking = ({
     }
 
     if (wantsReminder && createdAppointment?.id) {
-      const pushResult = await registerAppointmentPush(createdAppointment.id).catch((err) => ({
-        ok: false,
-        message: err instanceof Error ? err.message : "falha inesperada",
-      }));
-      if (pushResult.ok) {
-        toast.success("Agendamento confirmado e lembrete ativado!");
-      } else {
-        toast.warning(`Agendamento confirmado, mas o lembrete não foi ativado: ${pushResult.message}`);
-      }
-    } else {
-      toast.success("Agendamento confirmado!");
+      await registerAppointmentPush(createdAppointment.id).catch(() => undefined);
     }
 
     setSubmitting(false);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
+    setBookingConfirmed(true);
+  };
+
+  const alterBooking = () => {
+    setBookingConfirmed(false);
+    setDone(false);
+  };
+
+  const exitConfirmationScreen = () => {
+    setBookingConfirmed(false);
     setDone(false);
     setHora("");
     setServSel([]);
     setObservacao("");
     setWantsReminder(false);
-  };
-
-  const alterBooking = () => {
-    setDone(false);
   };
 
   if (loading) return (
@@ -528,12 +529,37 @@ const PublicBooking = ({
 
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-surface">
-        <Card className="max-w-sm w-full p-6">
-          <h1 className="font-display text-xl font-bold text-center">Confirme seu agendamento</h1>
-          <p className="mt-2 text-muted-foreground text-sm text-center">
-            Revise os dados antes de salvar. Você pode alterar se algo estiver errado.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm border-t border-border pt-4">
+        <Card className="relative max-w-sm w-full p-6">
+          {bookingConfirmed && !ownerPanel && (
+            <button
+              type="button"
+              onClick={exitConfirmationScreen}
+              className="absolute top-3 right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
+          {bookingConfirmed && (
+            <div className="mb-5 rounded-2xl border border-border bg-white px-4 py-4 text-center shadow-sm">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-brand shadow-glow">
+                <Check className="h-6 w-6 text-white" strokeWidth={2.5} />
+              </div>
+              <p className="mt-3 font-display text-xl font-bold text-gradient">Agendamento confirmado!</p>
+            </div>
+          )}
+
+          {!bookingConfirmed && (
+            <>
+              <h1 className="font-display text-xl font-bold text-center">Confirme seu agendamento</h1>
+              <p className="mt-2 text-muted-foreground text-sm text-center">
+                Revise os dados antes de salvar. Você pode alterar se algo estiver errado.
+              </p>
+            </>
+          )}
+
+          <ul className={cn("space-y-2 text-sm border-t border-border pt-4", !bookingConfirmed && "mt-4")}>
             <li className="flex justify-between gap-2">
               <span className="text-muted-foreground">Data</span>
               <span className="font-medium">{new Date(data + "T00:00:00").toLocaleDateString("pt-BR")}</span>
@@ -561,14 +587,22 @@ const PublicBooking = ({
               </li>
             )}
           </ul>
-          <div className="mt-6 flex gap-2">
-            <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
-              Alterar
+          {!bookingConfirmed && (
+            <div className="mt-6 flex gap-2">
+              <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
+                Alterar
+              </Button>
+              <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
+                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
+              </Button>
+            </div>
+          )}
+
+          {bookingConfirmed && ownerPanel && backHref && (
+            <Button asChild className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow">
+              <Link to={backHref}>Sair</Link>
             </Button>
-            <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
-              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
-            </Button>
-          </div>
+          )}
         </Card>
       </div>
     );
