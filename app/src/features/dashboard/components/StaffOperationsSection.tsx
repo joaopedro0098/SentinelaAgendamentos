@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { CalendarCheck, ChevronDown, ChevronUp, Clock, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,18 +265,29 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
     await load();
   }
 
-  async function renameStaff(id: string, name: string) {
+  async function updateStaffNameIfNeeded(staffId: string, name: string): Promise<boolean> {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    setBusy(`staff-${id}`);
-    const { error } = await supabase.from("staff").update({ name: trimmed }).eq("id", id);
+    if (!trimmed) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Informe o nome do colaborador antes de salvar.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const current = staff.find((s) => s.id === staffId)?.name;
+    if (trimmed === current) return true;
+
+    setBusy(`staff-${staffId}`);
+    const { error } = await supabase.from("staff").update({ name: trimmed }).eq("id", staffId);
     setBusy(null);
     if (error) {
-      toast({ title: "Erro ao renomear", description: error.message, variant: "destructive" });
-      return;
+      toast({ title: "Erro ao salvar nome", description: error.message, variant: "destructive" });
+      return false;
     }
-    toast({ title: "Nome atualizado" });
-    await load();
+    await syncAgendaQuiet(barbershopSlug);
+    return true;
   }
 
   async function removeStaff(id: string) {
@@ -294,7 +305,17 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
     await load();
   }
 
-  async function saveAllServices(staffId: string, drafts: ServiceDraft[], original: ServiceRow[]) {
+  async function saveAllServices(
+    staffId: string,
+    drafts: ServiceDraft[],
+    original: ServiceRow[],
+    staffName?: string,
+  ) {
+    if (staffName !== undefined) {
+      const nameSaved = await updateStaffNameIfNeeded(staffId, staffName);
+      if (!nameSaved) return;
+    }
+
     const existingDrafts = drafts.filter((d) => !isNewServiceDraft(d.id));
     const newDrafts = drafts.filter((d) => isNewServiceDraft(d.id) && normalizeServiceName(d.name));
 
@@ -368,7 +389,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
     }
 
     setBusy(null);
-    showQuickSavedToast("Serviços salvos");
+    showQuickSavedToast("Alterações salvas");
     await syncAgendaQuiet(barbershopSlug);
     await load({ silent: true });
   }
@@ -384,7 +405,12 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
     await load({ silent: true });
   }
 
-  async function saveSchedules(staffId: string, rows: ScheduleDraft[]) {
+  async function saveSchedules(staffId: string, rows: ScheduleDraft[], staffName?: string) {
+    if (staffName !== undefined) {
+      const nameSaved = await updateStaffNameIfNeeded(staffId, staffName);
+      if (!nameSaved) return;
+    }
+
     setBusy(`sch-${staffId}`);
     const { error: delErr } = await supabase.from("staff_schedules").delete().eq("staff_id", staffId);
     if (delErr) {
@@ -420,7 +446,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
       }
     }
     setBusy(null);
-    showQuickSavedToast("Horários salvos");
+    showQuickSavedToast("Alterações salvas");
     await syncAgendaQuiet(barbershopSlug);
     await load({ silent: true });
   }
@@ -459,13 +485,12 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
                 expanded={expandedId === member.id}
                 onToggle={() => setExpandedId((id) => (id === member.id ? null : member.id))}
                 busy={busy}
-                onRename={(name) => renameStaff(member.id, name)}
                 onRemove={() => removeStaff(member.id)}
-                onSaveAllServices={(drafts) =>
-                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id))
+                onSaveAllServices={(drafts, staffName) =>
+                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id), staffName)
                 }
                 onRemoveService={removeService}
-                onSaveSchedules={(rows) => saveSchedules(member.id, rows)}
+                onSaveSchedules={(rows, staffName) => saveSchedules(member.id, rows, staffName)}
               />
             ))}
           </ul>
@@ -514,7 +539,6 @@ function StaffCard({
   expanded,
   onToggle,
   busy,
-  onRename,
   onRemove,
   onSaveAllServices,
   onRemoveService,
@@ -526,14 +550,12 @@ function StaffCard({
   expanded: boolean;
   onToggle: () => void;
   busy: string | null;
-  onRename: (name: string) => void;
   onRemove: () => void;
-  onSaveAllServices: (drafts: ServiceDraft[]) => Promise<void>;
+  onSaveAllServices: (drafts: ServiceDraft[], staffName: string) => Promise<void>;
   onRemoveService: (id: string) => void;
-  onSaveSchedules: (rows: ScheduleDraft[]) => void;
+  onSaveSchedules: (rows: ScheduleDraft[], staffName: string) => void;
 }) {
   const [editName, setEditName] = useState(member.name);
-  const [editingName, setEditingName] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>(() => buildScheduleDraft(schedules));
 
   useEffect(() => {
@@ -541,52 +563,26 @@ function StaffCard({
   }, [member.name]);
 
   useEffect(() => {
-    if (expanded) setScheduleDraft(buildScheduleDraft(schedules));
-  }, [expanded, member.id, schedules]);
+    if (expanded) {
+      setEditName(member.name);
+      setScheduleDraft(buildScheduleDraft(schedules));
+    }
+  }, [expanded, member.id, member.name, schedules]);
 
   return (
     <li className="rounded-lg border border-border bg-card/50 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        {editingName ? (
+        {expanded ? (
           <Input
             className="h-8 flex-1"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onRename(editName);
-                setEditingName(false);
-              }
-              if (e.key === "Escape") {
-                setEditName(member.name);
-                setEditingName(false);
-              }
-            }}
-            autoFocus
+            maxLength={80}
+            aria-label="Nome do colaborador"
           />
         ) : (
-          <button type="button" className="flex-1 text-left font-medium truncate" onClick={onToggle}>
-            {member.name}
-          </button>
+          <span className="flex-1 font-medium truncate">{member.name}</span>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={() => {
-            if (editingName) {
-              onRename(editName);
-              setEditingName(false);
-            } else {
-              setEditingName(true);
-            }
-          }}
-          disabled={busy === `staff-${member.id}`}
-          aria-label="Editar nome"
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={onRemove} aria-label="Excluir">
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -600,11 +596,11 @@ function StaffCard({
           member={member}
           services={services}
           busy={busy}
-          onSaveAllServices={onSaveAllServices}
+          onSaveAllServices={(drafts) => onSaveAllServices(drafts, editName)}
           onRemoveService={onRemoveService}
           scheduleDraft={scheduleDraft}
           setScheduleDraft={setScheduleDraft}
-          onSaveSchedules={onSaveSchedules}
+          onSaveSchedules={(rows) => onSaveSchedules(rows, editName)}
         />
       )}
     </li>
