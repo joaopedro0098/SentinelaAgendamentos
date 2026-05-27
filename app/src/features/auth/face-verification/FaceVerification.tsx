@@ -14,6 +14,8 @@ import {
 } from "./facialRecognitionController";
 
 const FACE_CLIP_PATH = "ellipse(34% 40% at 50% 50%)";
+const FACE_BORDER_COLOR = "hsl(152, 55%, 42%)";
+const FACE_BORDER_WIDTH_PX = 8;
 
 type Props = {
   open: boolean;
@@ -151,7 +153,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           ) : (
             <>
               {instructionMessage && (
-                <p className="text-center text-xl sm:text-2xl font-bold text-foreground leading-tight">
+                <p className="text-center text-[clamp(1.375rem,5.5vw,1.875rem)] font-bold text-foreground leading-tight">
                   {instructionMessage}
                 </p>
               )}
@@ -172,10 +174,14 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <div
               className={cn(
-                "w-[68%] h-[80%] border-[6px] transition-colors duration-300 bg-transparent",
+                "w-[68%] h-[80%] box-border transition-colors duration-300 bg-transparent",
                 "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
-                failed ? "border-destructive" : "border-[hsl(var(--brand-green))]",
               )}
+              style={{
+                borderStyle: "solid",
+                borderWidth: FACE_BORDER_WIDTH_PX,
+                borderColor: failed ? "hsl(0, 84%, 60%)" : FACE_BORDER_COLOR,
+              }}
             />
           </div>
 
