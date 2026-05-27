@@ -1,4 +1,0 @@
-project_id = "gjlghaejxbxffbmtmtbo"
-
-[functions.mp-webhook]
-verify_jwt = false

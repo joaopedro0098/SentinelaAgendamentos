@@ -10,11 +10,6 @@ export function getClientBookingBlockMessage(profileName: string | undefined): s
   return `Sistema bloqueado, entre em contato com ${name} por WhatsApp para que eles realizem o desbloqueio.`;
 }
 
-/** @deprecated Use getClientBookingBlockMessage */
-export function getSubscriptionBlockClient(shopName: string | undefined): string {
-  return getClientBookingBlockMessage(shopName);
-}
-
 export function showClientBookingBlockedToast(message: string) {
   toast.error(message, {
     position: "top-center",
