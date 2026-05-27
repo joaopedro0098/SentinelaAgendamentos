@@ -47,6 +47,12 @@ export default function Recover() {
             <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-md mx-auto">
               Se este e-mail existir, você receberá um link em instantes.
             </p>
+            <p className="text-sm sm:text-base leading-relaxed max-w-md mx-auto rounded-xl border border-red-200/80 bg-red-50/60 px-4 py-3 text-left sm:text-center">
+              <span className="font-semibold text-red-600">Atenção:</span>{" "}
+              Se o seu e-mail reconhecer a mensagem como não segura, você precisará clicar no botão{" "}
+              <strong className="font-semibold text-foreground">confirmando</strong> que é segura para disponibilizar o
+              link.
+            </p>
           </div>
 
           <Button
