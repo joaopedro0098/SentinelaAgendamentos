@@ -96,6 +96,12 @@ Deno.serve(async (req) => {
       const { data: shop } = await shopQuery.maybeSingle();
       if (!shop) return new Response("ok", { status: 200, headers: corsHeaders });
 
+      const { data: shopRow } = await supabase
+        .from("barbershops")
+        .select("subscription_status")
+        .eq("id", shop.id)
+        .maybeSingle();
+
       const { data: owner } = await supabase.auth.admin.getUserById(shop.owner_id);
       const email = owner?.user?.email;
 
@@ -114,27 +120,41 @@ Deno.serve(async (req) => {
           })
           .eq("id", shop.id);
       } else if (status === "paused" || status === "pending") {
-        const graceUntil = new Date();
-        graceUntil.setDate(graceUntil.getDate() + 3);
-        const graceStr = graceUntil.toISOString().slice(0, 10);
-        const notice =
-          "Pagamento pendente. Você tem 3 dias para regularizar antes de bloquear novos agendamentos.";
-        await supabase
-          .from("barbershops")
-          .update({
-            subscription_status: "grace",
-            grace_until: graceStr,
-            subscription_notice: notice,
-          })
-          .eq("id", shop.id);
-        await notifyOwner(
-          supabase,
-          shop.id,
-          email,
-          "Sentinela — pagamento pendente",
-          notice,
-          notice,
-        );
+        const currentStatus = shopRow?.subscription_status as string | undefined;
+        const hadPaidBefore =
+          currentStatus === "active" || currentStatus === "grace" || currentStatus === "cancelled";
+
+        if (hadPaidBefore) {
+          const graceUntil = new Date();
+          graceUntil.setDate(graceUntil.getDate() + 3);
+          const graceStr = graceUntil.toISOString().slice(0, 10);
+          const notice =
+            "Pagamento pendente. Você tem 3 dias para regularizar antes de bloquear novos agendamentos.";
+          await supabase
+            .from("barbershops")
+            .update({
+              subscription_status: "grace",
+              grace_until: graceStr,
+              subscription_notice: notice,
+            })
+            .eq("id", shop.id);
+          await notifyOwner(
+            supabase,
+            shop.id,
+            email,
+            "Sentinela — pagamento pendente",
+            notice,
+            notice,
+          );
+        } else {
+          await supabase
+            .from("barbershops")
+            .update({
+              mp_subscription_id: null,
+              subscription_notice: "Complete o pagamento no Mercado Pago para ativar sua assinatura.",
+            })
+            .eq("id", shop.id);
+        }
       } else if (status === "cancelled") {
         const periodEnd = nextPayment ?? new Date().toISOString().slice(0, 10);
         const notice = "Assinatura cancelada. O acesso continua até o fim do período já pago.";

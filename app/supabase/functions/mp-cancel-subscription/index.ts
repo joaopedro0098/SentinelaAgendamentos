@@ -57,17 +57,47 @@ Deno.serve(async (req) => {
 
     const { data: shop } = await supabase
       .from("barbershops")
-      .select("id, mp_subscription_id, current_period_end")
+      .select("id, mp_subscription_id, current_period_end, subscription_status")
       .eq("owner_id", userData.user.id)
       .maybeSingle();
 
     if (!shop?.mp_subscription_id) {
-      return jsonResponse({ error: "Nenhuma assinatura ativa encontrada." }, 404);
+      return jsonResponse({ error: "Nenhuma assinatura com cartão ativa encontrada." }, 404);
     }
 
     const mpToken = Deno.env.get("MP_ACCESS_TOKEN")?.trim();
     if (!mpToken) {
       return jsonResponse({ error: "Mercado Pago não configurado." }, 503);
+    }
+
+    const lookupRes = await fetch(`https://api.mercadopago.com/preapproval/${shop.mp_subscription_id}`, {
+      headers: { Authorization: `Bearer ${mpToken}` },
+    });
+    const current = await readJsonOrText(lookupRes);
+    const mpStatus = String((current as { status?: string })?.status ?? "");
+
+    if (!lookupRes.ok) {
+      return jsonResponse(
+        {
+          error: `Não foi possível consultar a assinatura: ${getMpErrorMessage(current)}`,
+          details: current,
+        },
+        502,
+      );
+    }
+
+    if (mpStatus !== "authorized") {
+      await supabase
+        .from("barbershops")
+        .update({
+          mp_subscription_id: null,
+          subscription_notice:
+            shop.subscription_status === "trial"
+              ? "Complete o pagamento no Mercado Pago para ativar sua assinatura."
+              : null,
+        })
+        .eq("id", shop.id);
+      return jsonResponse({ error: "Não há assinatura com cartão ativa para cancelar." }, 400);
     }
 
     const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${shop.mp_subscription_id}`, {

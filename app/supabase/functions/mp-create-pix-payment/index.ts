@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getPlanMonthlyAmount } from "../_shared/planPricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,7 @@ async function createCheckoutPreference(params: {
   userEmail?: string;
   shopId: string;
   shopName: string;
+  planAmount: number;
 }) {
   const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
     method: "POST",
@@ -61,7 +63,7 @@ async function createCheckoutPreference(params: {
           description: `Pagamento mensal avulso — ${params.shopName}`,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: 29.9,
+          unit_price: params.planAmount,
         },
       ],
       payer: { email: params.userEmail },
@@ -152,6 +154,7 @@ Deno.serve(async (req) => {
     const origin = cleanUrl(Deno.env.get("APP_URL")) ||
       cleanUrl(req.headers.get("origin")) ||
       "https://sentinelagendamentos.com";
+    const planAmount = getPlanMonthlyAmount();
 
     const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
@@ -161,7 +164,7 @@ Deno.serve(async (req) => {
         "X-Idempotency-Key": crypto.randomUUID(),
       },
       body: JSON.stringify({
-        transaction_amount: 29.9,
+        transaction_amount: planAmount,
         description: `Mensalidade Sentinela Agendamentos — ${shop.display_name}`,
         payment_method_id: "pix",
         payer: { email: user.email },
@@ -181,6 +184,7 @@ Deno.serve(async (req) => {
         userEmail: user.email,
         shopId: shop.id,
         shopName: shop.display_name,
+        planAmount,
       });
 
       if (fallback.ok) {

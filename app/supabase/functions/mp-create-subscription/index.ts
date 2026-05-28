@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getPlanMonthlyAmount } from "../_shared/planPricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +85,7 @@ Deno.serve(async (req) => {
       cleanUrl(req.headers.get("origin")) ||
       "https://sentinelagendamentos.com";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const planAmount = getPlanMonthlyAmount();
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -101,7 +103,7 @@ Deno.serve(async (req) => {
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: 29.9,
+          transaction_amount: planAmount,
           currency_id: "BRL",
         },
       }),
@@ -122,7 +124,6 @@ Deno.serve(async (req) => {
     await supabase
       .from("barbershops")
       .update({
-        mp_subscription_id: mpData.id,
         subscription_notice: "Complete o pagamento no Mercado Pago para ativar sua assinatura.",
       })
       .eq("id", shop.id);

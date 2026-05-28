@@ -253,7 +253,7 @@ export default function PerfilPage() {
   const showCancel =
     !info?.is_admin &&
     Boolean(info?.mp_subscription_id) &&
-    (info?.subscription_status === "active" || info?.subscription_status === "grace");
+    info?.subscription_status === "active";
 
   const showPlanStatus = loading || info?.is_admin || info?.subscription_status !== "trial";
 

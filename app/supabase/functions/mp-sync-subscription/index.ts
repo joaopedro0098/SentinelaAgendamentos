@@ -35,7 +35,12 @@ type ShopRow = {
   owner_id: string;
   mp_subscription_id: string | null;
   current_period_end: string | null;
+  subscription_status: string | null;
 };
+
+function hadPaidCardSubscription(status: string | null | undefined) {
+  return status === "active" || status === "grace" || status === "cancelled";
+}
 
 async function applyPreapprovalToShop(
   supabase: SupabaseClient,
@@ -60,17 +65,28 @@ async function applyPreapprovalToShop(
   }
 
   if (status === "paused" || status === "pending") {
-    const graceStr = toDateOnly(addDays(new Date(), 3));
+    if (hadPaidCardSubscription(shop.subscription_status)) {
+      const graceStr = toDateOnly(addDays(new Date(), 3));
+      await supabase
+        .from("barbershops")
+        .update({
+          subscription_status: "grace",
+          grace_until: graceStr,
+          subscription_notice:
+            "Pagamento pendente. Você tem 3 dias para regularizar antes de bloquear novos agendamentos.",
+        })
+        .eq("id", shop.id);
+      return "grace";
+    }
+
     await supabase
       .from("barbershops")
       .update({
-        subscription_status: "grace",
-        grace_until: graceStr,
-        subscription_notice:
-          "Pagamento pendente. Você tem 3 dias para regularizar antes de bloquear novos agendamentos.",
+        mp_subscription_id: null,
+        subscription_notice: "Complete o pagamento no Mercado Pago para ativar sua assinatura.",
       })
       .eq("id", shop.id);
-    return "grace";
+    return shop.subscription_status ?? "trial";
   }
 
   if (status === "cancelled") {
@@ -79,6 +95,7 @@ async function applyPreapprovalToShop(
       .from("barbershops")
       .update({
         subscription_status: "cancelled",
+        mp_subscription_id: null,
         current_period_end: periodEnd,
         subscription_notice: "Assinatura cancelada. O acesso continua até o fim do período já pago.",
       })
@@ -90,10 +107,22 @@ async function applyPreapprovalToShop(
     .from("barbershops")
     .update({
       subscription_status: "expired",
+      mp_subscription_id: null,
       subscription_notice: "Assinatura inativa. Assine novamente em Perfil para liberar agendamentos.",
     })
     .eq("id", shop.id);
   return "expired";
+}
+
+async function findLatestPreapproval(mpToken: string, shopId: string) {
+  const searchRes = await fetch(
+    `https://api.mercadopago.com/preapproval/search?external_reference=${encodeURIComponent(shopId)}&sort=date_created&criteria=desc&limit=5`,
+    { headers: { Authorization: `Bearer ${mpToken}` } },
+  );
+  const searchData = await searchRes.json();
+  if (!searchRes.ok) return null;
+  const results = (searchData.results ?? []) as Array<{ id?: string; status?: string; next_payment_date?: string }>;
+  return results[0] ?? null;
 }
 
 async function syncShopFromMercadoPago(
@@ -101,16 +130,23 @@ async function syncShopFromMercadoPago(
   mpToken: string,
   shop: ShopRow,
 ): Promise<{ synced: boolean; mp_status?: string; subscription_status?: string }> {
-  if (!shop.mp_subscription_id) {
-    return { synced: false };
-  }
+  let preapprovalId = shop.mp_subscription_id;
+  let sub: { id?: string; status?: string; next_payment_date?: string } | null = null;
 
-  const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${shop.mp_subscription_id}`, {
-    headers: { Authorization: `Bearer ${mpToken}` },
-  });
-  const sub = await mpRes.json();
-  if (!mpRes.ok) {
-    throw new Error(sub?.message ?? "Não foi possível consultar assinatura no Mercado Pago.");
+  if (preapprovalId) {
+    const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+      headers: { Authorization: `Bearer ${mpToken}` },
+    });
+    sub = await mpRes.json();
+    if (!mpRes.ok) {
+      throw new Error(sub?.message ?? "Não foi possível consultar assinatura no Mercado Pago.");
+    }
+  } else {
+    sub = await findLatestPreapproval(mpToken, shop.id);
+    preapprovalId = sub?.id ?? null;
+    if (!sub || !preapprovalId) {
+      return { synced: false };
+    }
   }
 
   const subscriptionStatus = await applyPreapprovalToShop(supabase, shop, sub);
@@ -150,7 +186,7 @@ async function syncRecentPixPayment(
 async function resolveShop(supabase: SupabaseClient, ownerId: string): Promise<ShopRow | null> {
   const { data: shop } = await supabase
     .from("barbershops")
-    .select("id, owner_id, mp_subscription_id, current_period_end")
+    .select("id, owner_id, mp_subscription_id, current_period_end, subscription_status")
     .eq("owner_id", ownerId)
     .maybeSingle();
   return shop;
@@ -216,9 +252,7 @@ Deno.serve(async (req) => {
 
     let result: { synced: boolean; mp_status?: string; subscription_status?: string } = { synced: false };
 
-    if (shop.mp_subscription_id) {
-      result = await syncShopFromMercadoPago(supabase, mpToken, shop);
-    }
+    result = await syncShopFromMercadoPago(supabase, mpToken, shop);
 
     if (!result.synced || result.subscription_status !== "active") {
       const pixResult = await syncRecentPixPayment(supabase, mpToken, shop);
