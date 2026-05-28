@@ -7,7 +7,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
@@ -284,14 +284,10 @@ export default function PerfilPage() {
           <CardTitle className="text-base flex items-center gap-2">
             <CreditCard className="h-4 w-4" /> Plano
           </CardTitle>
-          <CardDescription>{planPriceLabel}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm">
             <p className="font-medium">{statusLabel}</p>
-            {!info?.is_admin && info?.subscription_status === "trial" && info.trial_last_day && (
-              <p className="text-muted-foreground mt-1">Último dia do teste: {formatDateBr(info.trial_last_day)}</p>
-            )}
             {!info?.is_admin && info?.current_period_end && info.subscription_status !== "trial" && (
               <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
             )}
@@ -318,8 +314,9 @@ export default function PerfilPage() {
                 {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Ao assinar com cartão, a cobrança será automática todo mês. Você pode cancelar quando quiser pelo
-                app ou pelo Mercado Pago em &quot;Minhas assinaturas&quot;.
+                Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
+                <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
+                do Mercado Pago em &quot;Minhas assinaturas&quot;.
               </p>
             </div>
           )}
