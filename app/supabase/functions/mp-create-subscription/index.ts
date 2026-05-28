@@ -1,5 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getPlanMonthlyAmount } from "../_shared/planPricing.ts";
+import {
+  buildAutoRecurring,
+  cancelPreapproval,
+  findLatestPreapproval,
+  getPreapproval,
+  readJsonOrText,
+  resolvePreapprovalCheckoutUrl,
+} from "../_shared/mpPreapproval.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,16 +25,6 @@ function cleanUrl(value: string | null | undefined) {
   return value?.trim().replace(/\/+$/, "");
 }
 
-async function readJsonOrText(res: Response) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { message: text };
-  }
-}
-
 function getMpErrorMessage(details: unknown) {
   if (!details || typeof details !== "object") return "erro não informado pelo Mercado Pago.";
 
@@ -38,6 +36,10 @@ function getMpErrorMessage(details: unknown) {
 
   const cause = record.cause?.find((item) => item.description)?.description;
   return cause ?? record.message ?? record.error ?? "erro não informado pelo Mercado Pago.";
+}
+
+function sameEmail(a: string | null | undefined, b: string | null | undefined) {
+  return Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
 }
 
 Deno.serve(async (req) => {
@@ -81,11 +83,44 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
+    if (!user.email?.trim()) {
+      return jsonResponse({ error: "Sua conta precisa de um e-mail válido para assinar com cartão." }, 400);
+    }
+
     const origin = cleanUrl(Deno.env.get("APP_URL")) ||
       cleanUrl(req.headers.get("origin")) ||
       "https://sentinelagendamentos.com";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const planAmount = getPlanMonthlyAmount();
+    const planId = Deno.env.get("MP_PREAPPROVAL_PLAN_ID")?.trim() || null;
+    const backUrl = `${origin}/app/perfil?subscription=return`;
+
+    const latest = await findLatestPreapproval(mpToken, shop.id);
+    if (latest?.id && latest.status === "pending" && sameEmail(latest.payer_email, user.email)) {
+      const fresh = (await getPreapproval(mpToken, latest.id)) ?? latest;
+      const checkoutUrl = resolvePreapprovalCheckoutUrl(fresh, mpToken);
+      if (checkoutUrl) {
+        return jsonResponse({ init_point: checkoutUrl, id: fresh.id, reused: true });
+      }
+    }
+
+    if (latest?.id && latest.status === "pending") {
+      await cancelPreapproval(mpToken, latest.id);
+    }
+
+    const body: Record<string, unknown> = {
+      payer_email: user.email.trim(),
+      back_url: backUrl,
+      notification_url: `${supabaseUrl}/functions/v1/mp-webhook`,
+      external_reference: shop.id,
+      reason: `Assinatura Sentinela — ${shop.display_name}`,
+      status: "pending",
+      auto_recurring: buildAutoRecurring(planAmount),
+    };
+
+    if (planId) {
+      body.preapproval_plan_id = planId;
+    }
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -93,20 +128,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${mpToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        payer_email: user.email,
-        back_url: `${origin}/app/perfil?subscription=success`,
-        notification_url: `${supabaseUrl}/functions/v1/mp-webhook`,
-        external_reference: shop.id,
-        reason: `Assinatura Sentinela — ${shop.display_name}`,
-        status: "pending",
-        auto_recurring: {
-          frequency: 1,
-          frequency_type: "months",
-          transaction_amount: planAmount,
-          currency_id: "BRL",
-        },
-      }),
+      body: JSON.stringify(body),
     });
 
     const mpData = await readJsonOrText(mpRes);
@@ -124,16 +146,18 @@ Deno.serve(async (req) => {
     await supabase
       .from("barbershops")
       .update({
-        subscription_notice: "Complete o pagamento no Mercado Pago para ativar sua assinatura.",
+        subscription_notice:
+          "No Mercado Pago, entre com o mesmo e-mail da sua conta Sentinela para concluir a assinatura.",
       })
       .eq("id", shop.id);
 
-    const data = mpData as { init_point?: string; id?: string };
-    if (!data.init_point) {
+    const data = mpData as { init_point?: string; sandbox_init_point?: string; id?: string };
+    const checkoutUrl = resolvePreapprovalCheckoutUrl(data, mpToken);
+    if (!checkoutUrl) {
       return jsonResponse({ error: "Mercado Pago não retornou o link de pagamento.", details: mpData }, 502);
     }
 
-    return jsonResponse({ init_point: data.init_point, id: data.id });
+    return jsonResponse({ init_point: checkoutUrl, id: data.id });
   } catch (e) {
     console.error("mp-create-subscription:", e);
     return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);

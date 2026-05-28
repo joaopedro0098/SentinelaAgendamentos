@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { findLatestPreapproval, getPreapproval } from "../_shared/mpPreapproval.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,17 +115,6 @@ async function applyPreapprovalToShop(
   return "expired";
 }
 
-async function findLatestPreapproval(mpToken: string, shopId: string) {
-  const searchRes = await fetch(
-    `https://api.mercadopago.com/preapproval/search?external_reference=${encodeURIComponent(shopId)}&sort=date_created&criteria=desc&limit=5`,
-    { headers: { Authorization: `Bearer ${mpToken}` } },
-  );
-  const searchData = await searchRes.json();
-  if (!searchRes.ok) return null;
-  const results = (searchData.results ?? []) as Array<{ id?: string; status?: string; next_payment_date?: string }>;
-  return results[0] ?? null;
-}
-
 async function syncShopFromMercadoPago(
   supabase: SupabaseClient,
   mpToken: string,
@@ -142,11 +132,12 @@ async function syncShopFromMercadoPago(
       throw new Error(sub?.message ?? "Não foi possível consultar assinatura no Mercado Pago.");
     }
   } else {
-    sub = await findLatestPreapproval(mpToken, shop.id);
-    preapprovalId = sub?.id ?? null;
-    if (!sub || !preapprovalId) {
+    const found = await findLatestPreapproval(mpToken, shop.id);
+    preapprovalId = found?.id ?? null;
+    if (!preapprovalId) {
       return { synced: false };
     }
+    sub = (await getPreapproval(mpToken, preapprovalId)) ?? found;
   }
 
   const subscriptionStatus = await applyPreapprovalToShop(supabase, shop, sub);

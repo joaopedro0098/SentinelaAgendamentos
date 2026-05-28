@@ -90,19 +90,35 @@ export default function PerfilPage() {
   }, [user?.email]);
 
   useEffect(() => {
-    const shouldSync =
-      searchParams.get("subscription") === "success" || searchParams.get("payment") === "success";
-    if (!shouldSync) return;
+    const subscriptionReturn = searchParams.get("subscription") === "return";
+    const paymentSuccess = searchParams.get("payment") === "success";
+    const legacySubscriptionSuccess = searchParams.get("subscription") === "success";
+    if (!subscriptionReturn && !paymentSuccess && !legacySubscriptionSuccess) return;
 
-    void invokeBillingFunction("mp-sync-subscription")
-      .then(() => refresh())
-      .then(() => {
-        toast({ title: "Pagamento confirmado", description: "Sua assinatura foi atualizada." });
+    void invokeBillingFunction<{ subscription?: { subscription_status?: string } }>("mp-sync-subscription")
+      .then(async (data) => {
+        await refresh();
+        const status = data.subscription?.subscription_status;
+        if (status === "active") {
+          toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
+        } else if (subscriptionReturn || legacySubscriptionSuccess) {
+          toast({
+            title: "Pagamento não concluído",
+            description:
+              "Se você saiu antes de finalizar, clique em Assinar com cartão novamente. Use o mesmo e-mail da sua conta Sentinela no Mercado Pago.",
+          });
+        } else {
+          toast({
+            title: "Pagamento recebido?",
+            description: "Se o status não atualizar em instantes, recarregue esta página.",
+          });
+        }
       })
       .catch(() => {
         toast({
-          title: "Pagamento recebido?",
-          description: "Se o status não atualizar em instantes, recarregue esta página.",
+          title: "Não foi possível verificar o pagamento",
+          description: "Recarregue a página ou tente novamente em instantes.",
+          variant: "destructive",
         });
       })
       .finally(() => {
@@ -116,7 +132,16 @@ export default function PerfilPage() {
       const data = await invokeBillingFunction<{ init_point?: string; error?: string }>("mp-create-subscription");
       const initPoint = (data as { init_point?: string })?.init_point;
       if (initPoint) {
-        window.location.href = initPoint;
+        const checkout = window.open(initPoint, "_blank", "noopener,noreferrer");
+        if (!checkout) {
+          window.location.href = initPoint;
+        } else {
+          toast({
+            title: "Mercado Pago aberto",
+            description:
+              "Conclua a assinatura na nova aba. Entre no Mercado Pago com o mesmo e-mail da sua conta Sentinela.",
+          });
+        }
         return;
       }
       throw new Error((data as { error?: string })?.error ?? "Não foi possível iniciar o pagamento.");
@@ -315,7 +340,8 @@ export default function PerfilPage() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
                 <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
-                do Mercado Pago em &quot;Minhas assinaturas&quot;.
+                do Mercado Pago em &quot;Minhas assinaturas&quot;. No checkout, use o{" "}
+                <span className="font-semibold text-white">mesmo e-mail</span> da sua conta Sentinela.
               </p>
             </div>
           )}
