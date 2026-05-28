@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageReveal } from "@/components/layout/PageReveal";
+import { PLAN_PRICE_DISPLAY, PLAN_PRICE_LABEL } from "@/lib/planPricing";
 
 const features = [
   "Cadastre colaboradores (ilimitados) e serviços",
@@ -25,7 +26,7 @@ const Planos = () => {
                 Um plano, <span className="text-gradient">tudo incluso</span>
               </h1>
               <p className="mt-4 text-muted-foreground">
-                Teste grátis por 14 dias. Depois, R$ 19,90/mês para continuar agendando sem limites.
+                Teste grátis por 14 dias. Depois, {PLAN_PRICE_LABEL} para continuar agendando sem limites.
               </p>
             </div>
 
@@ -50,7 +51,7 @@ const Planos = () => {
 
                 <div className="text-center mb-6">
                   <span className="text-sm text-muted-foreground">R$</span>
-                  <span className="text-5xl font-bold font-display mx-1">19,90</span>
+                  <span className="text-5xl font-bold font-display mx-1">{PLAN_PRICE_DISPLAY}</span>
                   <span className="text-sm text-muted-foreground">/mês</span>
                 </div>
 

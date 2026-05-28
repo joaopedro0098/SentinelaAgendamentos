@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
+import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -252,6 +253,7 @@ export default function PerfilPage() {
     return "—";
   })();
 
+  const planPriceLabel = info?.plan_price_label ?? PLAN_PRICE_LABEL;
   const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
   const showCancel =
     !info?.is_admin &&
@@ -276,7 +278,7 @@ export default function PerfilPage() {
           <CardTitle className="text-base flex items-center gap-2">
             <CreditCard className="h-4 w-4" /> Plano
           </CardTitle>
-          <CardDescription>{info?.plan_price_label ?? "R$ 19,90/mês"}</CardDescription>
+          <CardDescription>{planPriceLabel}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm">
@@ -299,7 +301,7 @@ export default function PerfilPage() {
                 onClick={handleSubscribe}
                 disabled={subscribing || creatingPix}
               >
-                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assinar com cartão — R$ 19,90/mês"}
+                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${planPriceLabel}`}
               </Button>
               <Button
                 variant="outline"
@@ -307,7 +309,7 @@ export default function PerfilPage() {
                 onClick={handlePixPayment}
                 disabled={subscribing || creatingPix}
               >
-                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pagar este mês com Pix — R$ 19,90"}
+                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Pix libera 30 dias após a confirmação do Mercado Pago. Cartão mantém cobrança automática.

@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: 19.9,
+          transaction_amount: 29.9,
           currency_id: "BRL",
         },
       }),

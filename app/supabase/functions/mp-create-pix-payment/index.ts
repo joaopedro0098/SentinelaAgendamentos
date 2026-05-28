@@ -61,7 +61,7 @@ async function createCheckoutPreference(params: {
           description: `Pagamento mensal avulso — ${params.shopName}`,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: 19.9,
+          unit_price: 29.9,
         },
       ],
       payer: { email: params.userEmail },
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
         "X-Idempotency-Key": crypto.randomUUID(),
       },
       body: JSON.stringify({
-        transaction_amount: 19.9,
+        transaction_amount: 29.9,
         description: `Mensalidade Sentinela Agendamentos — ${shop.display_name}`,
         payment_method_id: "pix",
         payer: { email: user.email },
