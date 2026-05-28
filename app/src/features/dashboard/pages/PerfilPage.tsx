@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
+import { CreditCard, Loader2, Mail, Shield, Trash2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { PLAN_FEATURES, PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
+import { PLAN_ACCOUNT_FEATURES, PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -301,36 +301,41 @@ export default function PerfilPage() {
           )}
 
           {showPay && (
-            <div className="space-y-2">
-              <Button
-                className="w-full rounded-full bg-gradient-brand text-white border-0"
-                onClick={handleSubscribe}
-                disabled={subscribing || creatingPix}
-              >
-                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${planPriceLabel}`}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={handlePixPayment}
-                disabled={subscribing || creatingPix}
-              >
-                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
-              </Button>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
-                <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
-                do Mercado Pago em &quot;Minhas assinaturas&quot;.
-              </p>
-              <div className="pt-1 space-y-1.5">
-                <p className="text-xs text-muted-foreground font-medium">Benefícios</p>
-                <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4 leading-relaxed">
-                  {PLAN_FEATURES.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+            <>
+              <ul className="space-y-2">
+                {PLAN_ACCOUNT_FEATURES.map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-xs text-muted-foreground leading-relaxed">
+                    <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 bg-gradient-brand">
+                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="space-y-2">
+                <Button
+                  className="w-full rounded-full bg-gradient-brand text-white border-0"
+                  onClick={handleSubscribe}
+                  disabled={subscribing || creatingPix}
+                >
+                  {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${planPriceLabel}`}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-full"
+                  onClick={handlePixPayment}
+                  disabled={subscribing || creatingPix}
+                >
+                  {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
+                </Button>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
+                  <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
+                  do Mercado Pago em &quot;Minhas assinaturas&quot;.
+                </p>
               </div>
-            </div>
+            </>
           )}
 
           {showCancel && (
