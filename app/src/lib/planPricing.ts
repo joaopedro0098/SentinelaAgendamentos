@@ -11,9 +11,3 @@ export const PLAN_FEATURES = [
   "Suporte conosco via WhatsApp",
   "Não exigimos cartão para fazer seu teste grátis",
 ];
-
-export const PLAN_ACCOUNT_FEATURES = PLAN_FEATURES.filter(
-  (feature) =>
-    feature !== "Painel para gerenciar seus agendamentos" &&
-    feature !== "Não exigimos cartão para fazer seu teste grátis",
-);

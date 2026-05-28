@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CreditCard, Loader2, Mail, Shield, Trash2, Check } from "lucide-react";
+import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { PLAN_ACCOUNT_FEATURES, PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
+import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -242,10 +242,6 @@ export default function PerfilPage() {
   const statusLabel = (() => {
     if (loading) return "Carregando…";
     if (info?.is_admin) return info.label ?? "Administrador";
-    if (info?.subscription_status === "trial") {
-      const d = info.trial_days_left ?? 0;
-      return d > 0 ? `Teste grátis — ${d} dia${d === 1 ? "" : "s"} restante${d === 1 ? "" : "s"}` : "Teste encerrado";
-    }
     if (info?.subscription_status === "active") return "Assinatura ativa";
     if (info?.subscription_status === "grace") return "Pagamento pendente — tolerância";
     if (info?.subscription_status === "cancelled") return "Cancelada (acesso até o vencimento)";
@@ -253,7 +249,6 @@ export default function PerfilPage() {
     return "—";
   })();
 
-  const planPriceLabel = PLAN_PRICE_LABEL;
   const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
   const showCancel =
     !info?.is_admin &&
@@ -291,7 +286,7 @@ export default function PerfilPage() {
           {showPlanStatus && (
             <div className="text-sm">
               <p className="font-medium">{statusLabel}</p>
-              {!info?.is_admin && info?.current_period_end && info.subscription_status !== "trial" && (
+              {!info?.is_admin && info?.current_period_end && (
                 <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
               )}
               {!info?.is_admin && info?.grace_until && (
@@ -301,41 +296,28 @@ export default function PerfilPage() {
           )}
 
           {showPay && (
-            <>
-              <ul className="space-y-2">
-                {PLAN_ACCOUNT_FEATURES.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-xs text-muted-foreground leading-relaxed">
-                    <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 bg-gradient-brand">
-                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                    </span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="space-y-2">
-                <Button
-                  className="w-full rounded-full bg-gradient-brand text-white border-0"
-                  onClick={handleSubscribe}
-                  disabled={subscribing || creatingPix}
-                >
-                  {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${planPriceLabel}`}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full rounded-full"
-                  onClick={handlePixPayment}
-                  disabled={subscribing || creatingPix}
-                >
-                  {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
-                </Button>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
-                  <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
-                  do Mercado Pago em &quot;Minhas assinaturas&quot;.
-                </p>
-              </div>
-            </>
+            <div className="space-y-2">
+              <Button
+                className="w-full rounded-full bg-gradient-brand text-white border-0"
+                onClick={handleSubscribe}
+                disabled={subscribing || creatingPix}
+              >
+                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${PLAN_PRICE_LABEL}`}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full rounded-full"
+                onClick={handlePixPayment}
+                disabled={subscribing || creatingPix}
+              >
+                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
+              </Button>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
+                <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
+                do Mercado Pago em &quot;Minhas assinaturas&quot;.
+              </p>
+            </div>
           )}
 
           {showCancel && (
