@@ -260,6 +260,8 @@ export default function PerfilPage() {
     Boolean(info?.mp_subscription_id) &&
     (info?.subscription_status === "active" || info?.subscription_status === "grace");
 
+  const showPlanStatus = loading || info?.is_admin || info?.subscription_status !== "trial";
+
   const showBookingBlockedMessage =
     !info?.is_admin &&
     info?.subscription_status !== "trial" &&
@@ -286,15 +288,17 @@ export default function PerfilPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-sm">
-            <p className="font-medium">{statusLabel}</p>
-            {!info?.is_admin && info?.current_period_end && info.subscription_status !== "trial" && (
-              <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
-            )}
-            {!info?.is_admin && info?.grace_until && (
-              <p className="text-muted-foreground mt-1">Tolerância até: {formatDateBr(info.grace_until)}</p>
-            )}
-          </div>
+          {showPlanStatus && (
+            <div className="text-sm">
+              <p className="font-medium">{statusLabel}</p>
+              {!info?.is_admin && info?.current_period_end && info.subscription_status !== "trial" && (
+                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
+              )}
+              {!info?.is_admin && info?.grace_until && (
+                <p className="text-muted-foreground mt-1">Tolerância até: {formatDateBr(info.grace_until)}</p>
+              )}
+            </div>
+          )}
 
           {showPay && (
             <div className="space-y-2">
