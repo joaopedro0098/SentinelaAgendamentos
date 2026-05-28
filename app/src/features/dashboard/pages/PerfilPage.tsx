@@ -260,6 +260,12 @@ export default function PerfilPage() {
     Boolean(info?.mp_subscription_id) &&
     (info?.subscription_status === "active" || info?.subscription_status === "grace");
 
+  const showBookingBlockedMessage =
+    !info?.is_admin &&
+    info?.subscription_status !== "trial" &&
+    !info?.can_book &&
+    info?.subscription_status !== "grace";
+
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
       <div>
@@ -312,9 +318,8 @@ export default function PerfilPage() {
                 {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Para evitar o esquecimento da mensalidade ocasionando no bloqueio das funcionalidades do app,
-                recomendamos a assinatura com cartão. A cobrança será automática todos os meses, e você poderá
-                cancelar quando quiser pelo app ou pelo seu app do Mercado Pago, em &quot;Minhas assinaturas&quot;.
+                Ao assinar com cartão, a cobrança será automática todo mês. Você pode cancelar quando quiser pelo
+                app ou pelo Mercado Pago em &quot;Minhas assinaturas&quot;.
               </p>
             </div>
           )}
@@ -325,8 +330,8 @@ export default function PerfilPage() {
             </Button>
           )}
 
-          {!info?.can_book && !info?.is_admin && (
-            <p className="text-xs text-muted-foreground">
+          {showBookingBlockedMessage && (
+            <p className="text-xs text-destructive font-medium">
               Novos agendamentos estão bloqueados. Assine para liberar o painel e o link do cliente.
             </p>
           )}
