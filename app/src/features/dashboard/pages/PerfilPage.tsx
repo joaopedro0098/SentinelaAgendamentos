@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
+import { PLAN_FEATURES, PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -322,6 +322,14 @@ export default function PerfilPage() {
                 <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
                 do Mercado Pago em &quot;Minhas assinaturas&quot;.
               </p>
+              <div className="pt-1 space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium">Benefícios</p>
+                <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4 leading-relaxed">
+                  {PLAN_FEATURES.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
 

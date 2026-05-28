@@ -3,16 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageReveal } from "@/components/layout/PageReveal";
-import { PLAN_PRICE_DISPLAY, PLAN_PRICE_LABEL } from "@/lib/planPricing";
-
-const features = [
-  "Cadastre colaboradores (ilimitados) e serviços",
-  "Painel para gerenciar seus agendamentos",
-  "Cliente recebe confirmação automática 1 dia antes",
-  "Link para o cliente agendar por conta (opcional)",
-  "Suporte conosco via WhatsApp",
-  "Não exigimos cartão para fazer seu teste grátis",
-];
+import { PLAN_FEATURES, PLAN_PRICE_DISPLAY, PLAN_PRICE_LABEL } from "@/lib/planPricing";
 
 const Planos = () => {
   return (
@@ -39,7 +30,7 @@ const Planos = () => {
                 </div>
 
                 <ul className="space-y-3 mb-8 flex-1">
-                  {features.map((f) => (
+                  {PLAN_FEATURES.map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
                       <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 bg-gradient-brand">
                         <Check className="w-3 h-3 text-white" strokeWidth={3} />
