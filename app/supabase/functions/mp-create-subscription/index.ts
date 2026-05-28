@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getPlanMonthlyAmount } from "../_shared/planPricing.ts";
 import {
+  buildAutoRecurring,
   cancelPreapproval,
-  ensurePreapprovalPlan,
   findLatestPreapproval,
   getPreapproval,
   readJsonOrText,
@@ -94,18 +94,6 @@ Deno.serve(async (req) => {
     const planAmount = getPlanMonthlyAmount();
     const backUrl = `${origin}/app/perfil?subscription=return`;
 
-    let planId: string;
-    try {
-      planId = await ensurePreapprovalPlan(mpToken, planAmount, backUrl);
-    } catch (planError) {
-      return jsonResponse(
-        {
-          error: planError instanceof Error ? planError.message : "Falha ao preparar plano de assinatura.",
-        },
-        502,
-      );
-    }
-
     const latest = await findLatestPreapproval(mpToken, shop.id);
     if (latest?.id && latest.status === "pending" && sameEmail(latest.payer_email, user.email)) {
       const fresh = (await getPreapproval(mpToken, latest.id)) ?? latest;
@@ -119,13 +107,16 @@ Deno.serve(async (req) => {
       await cancelPreapproval(mpToken, latest.id);
     }
 
-    const body: Record<string, unknown> = {
-      preapproval_plan_id: planId,
+    // Assinatura sem plano + status pending: redireciona ao checkout do MP (não exige card_token_id).
+    // Planos associados exigem card_token_id + status authorized (formulário no nosso app).
+    const body = {
       payer_email: user.email.trim(),
       back_url: backUrl,
       notification_url: `${supabaseUrl}/functions/v1/mp-webhook`,
       external_reference: shop.id,
+      reason: `Assinatura Sentinela — ${shop.display_name}`,
       status: "pending",
+      auto_recurring: buildAutoRecurring(planAmount),
     };
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
