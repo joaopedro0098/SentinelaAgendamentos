@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getPlanMonthlyAmount } from "../_shared/planPricing.ts";
 import {
-  buildAutoRecurring,
   cancelPreapproval,
+  ensurePreapprovalPlan,
   findLatestPreapproval,
   getPreapproval,
   readJsonOrText,
@@ -92,8 +92,19 @@ Deno.serve(async (req) => {
       "https://sentinelagendamentos.com";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const planAmount = getPlanMonthlyAmount();
-    const planId = Deno.env.get("MP_PREAPPROVAL_PLAN_ID")?.trim() || null;
     const backUrl = `${origin}/app/perfil?subscription=return`;
+
+    let planId: string;
+    try {
+      planId = await ensurePreapprovalPlan(mpToken, planAmount, backUrl);
+    } catch (planError) {
+      return jsonResponse(
+        {
+          error: planError instanceof Error ? planError.message : "Falha ao preparar plano de assinatura.",
+        },
+        502,
+      );
+    }
 
     const latest = await findLatestPreapproval(mpToken, shop.id);
     if (latest?.id && latest.status === "pending" && sameEmail(latest.payer_email, user.email)) {
@@ -109,18 +120,13 @@ Deno.serve(async (req) => {
     }
 
     const body: Record<string, unknown> = {
+      preapproval_plan_id: planId,
       payer_email: user.email.trim(),
       back_url: backUrl,
       notification_url: `${supabaseUrl}/functions/v1/mp-webhook`,
       external_reference: shop.id,
-      reason: `Assinatura Sentinela — ${shop.display_name}`,
       status: "pending",
-      auto_recurring: buildAutoRecurring(planAmount),
     };
-
-    if (planId) {
-      body.preapproval_plan_id = planId;
-    }
 
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
@@ -147,7 +153,7 @@ Deno.serve(async (req) => {
       .from("barbershops")
       .update({
         subscription_notice:
-          "No Mercado Pago, entre com o mesmo e-mail da sua conta Sentinela para concluir a assinatura.",
+          "No Mercado Pago: use o mesmo e-mail da Sentinela. Na tela \"Confirme sua assinatura\", toque no cartão para selecioná-lo e libere o botão Confirmar.",
       })
       .eq("id", shop.id);
 

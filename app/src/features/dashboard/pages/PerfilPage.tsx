@@ -139,7 +139,7 @@ export default function PerfilPage() {
           toast({
             title: "Mercado Pago aberto",
             description:
-              "Conclua a assinatura na nova aba. Entre no Mercado Pago com o mesmo e-mail da sua conta Sentinela.",
+              "Conclua na nova aba com o mesmo e-mail da Sentinela. Na confirmação, toque no cartão para selecioná-lo antes de clicar em Confirmar.",
           });
         }
         return;
@@ -341,7 +341,8 @@ export default function PerfilPage() {
                 Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
                 <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
                 do Mercado Pago em &quot;Minhas assinaturas&quot;. No checkout, use o{" "}
-                <span className="font-semibold text-white">mesmo e-mail</span> da sua conta Sentinela.
+                <span className="font-semibold text-white">mesmo e-mail</span> da sua conta Sentinela e, na confirmação,
+                toque no cartão para selecioná-lo antes de Confirmar.
               </p>
             </div>
           )}
