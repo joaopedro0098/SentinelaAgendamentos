@@ -237,6 +237,7 @@ const PublicBooking = ({
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [clientExitHint, setClientExitHint] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
   const [slotPause, setSlotPause] = useState(0);
   const [desktopViewMonth, setDesktopViewMonth] = useState(() =>
@@ -690,10 +691,12 @@ const PublicBooking = ({
     return (
       <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
         <Card className="relative max-w-sm w-full p-6">
-          {bookingConfirmed && showClientExit && (
+          {bookingConfirmed && showClientExit && !clientExitHint && (
             <button
               type="button"
-              onClick={exitClientBookingFlow}
+              onClick={() => {
+                if (!exitClientBookingFlow()) setClientExitHint(true);
+              }}
               className="absolute top-3 right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-foreground bg-white text-foreground shadow-md hover:bg-muted/80 transition-colors"
               aria-label="Fechar"
             >
@@ -701,6 +704,18 @@ const PublicBooking = ({
             </button>
           )}
 
+          {clientExitHint ? (
+            <div className="py-6 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-brand shadow-glow">
+                <Check className="h-6 w-6 text-white" strokeWidth={2.5} />
+              </div>
+              <p className="mt-4 font-display text-xl font-bold text-gradient">Tudo certo!</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Seu agendamento foi confirmado. Pode fechar esta aba ou voltar ao app de onde veio.
+              </p>
+            </div>
+          ) : (
+            <>
           {bookingConfirmed && (
             <div className="mb-5 rounded-2xl border border-border bg-white px-4 py-4 text-center shadow-sm">
               <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gradient-brand shadow-glow">
@@ -762,6 +777,8 @@ const PublicBooking = ({
             <Button asChild className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow">
               <Link to="/app/agendamentos">Sair</Link>
             </Button>
+          )}
+            </>
           )}
         </Card>
       </div>

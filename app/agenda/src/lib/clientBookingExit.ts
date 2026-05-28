@@ -1,18 +1,31 @@
 /** Tenta encerrar a sessão de agendamento do cliente (aba, PWA ou janela). */
-export function exitClientBookingFlow() {
+export function exitClientBookingFlow(): boolean {
   const tryClose = () => {
-    window.open("", "_self");
-    window.close();
+    try {
+      window.close();
+    } catch {
+      /* navegador bloqueou */
+    }
   };
+
+  if (window.opener) {
+    tryClose();
+    return true;
+  }
 
   tryClose();
 
-  if (window.history.length > 1) {
-    window.history.go(-(window.history.length - 1));
-    window.setTimeout(tryClose, 120);
+  const referrer = document.referrer;
+  if (referrer && !referrer.startsWith(window.location.origin)) {
+    window.location.replace(referrer);
+    return true;
   }
 
-  window.setTimeout(() => {
-    window.location.replace("about:blank");
-  }, 280);
+  if (window.history.length > 1) {
+    window.history.back();
+    window.setTimeout(tryClose, 120);
+    return true;
+  }
+
+  return false;
 }
