@@ -39,7 +39,7 @@ BEGIN
     PERFORM cron.schedule(
       'purge-old-agendamentos-daily',
       '15 4 * * *',
-      $$SELECT public.purge_old_agendamentos();$$
+      'SELECT public.purge_old_agendamentos();'
     );
   END IF;
 EXCEPTION

@@ -34,6 +34,7 @@ export type Database = {
           reminder_push_sent_at: string | null
           requires_client_confirmation: boolean
           service_id: string | null
+          servicos_nomes: string[]
           status: Database["public"]["Enums"]["agendamento_status"]
         }
         Insert: {
@@ -55,6 +56,7 @@ export type Database = {
           reminder_push_sent_at?: string | null
           requires_client_confirmation?: boolean
           service_id?: string | null
+          servicos_nomes?: string[]
           status?: Database["public"]["Enums"]["agendamento_status"]
         }
         Update: {
@@ -76,6 +78,7 @@ export type Database = {
           reminder_push_sent_at?: string | null
           requires_client_confirmation?: boolean
           service_id?: string | null
+          servicos_nomes?: string[]
           status?: Database["public"]["Enums"]["agendamento_status"]
         }
         Relationships: [
@@ -518,6 +521,7 @@ export type Database = {
           p_barbeiro_id: string
           p_duracao_minutos: number
           p_observacao?: string | null
+          p_servicos_nomes?: string[] | null
         }
         Returns: undefined
       }

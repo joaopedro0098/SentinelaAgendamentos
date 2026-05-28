@@ -183,7 +183,7 @@ export default function PerfilPage() {
     }
     toast({
       title: "Confirme o novo e-mail",
-      description: "Enviamos um link de confirmação para o endereço informado.",
+      description: "Enviamos um link só para o endereço novo. Clique nele para concluir a alteração.",
     });
   }
 

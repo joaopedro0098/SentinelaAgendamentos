@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Trash2, User } from "lucide-react";
+import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -34,6 +34,7 @@ type AgendamentoRow = {
   cliente_nome: string;
   cliente_whatsapp: string;
   duracao_minutos: number;
+  servicos_nomes: string[];
   observacao: string | null;
   barbeiro_id: string;
   barbeiros: { id: string; nome: string } | null;
@@ -121,14 +122,21 @@ export default function AgendamentosPage() {
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, observacao, barbeiro_id, barbeiros ( id, nome )",
+        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, barbeiros ( id, nome )",
       )
       .eq("barbearia_id", barbeariaId)
       .eq("data", selectedDate)
       .eq("status", "confirmado")
       .order("hora", { ascending: true });
 
-    if (!error) setAgendamentos((data ?? []) as AgendamentoRow[]);
+    if (!error) {
+      setAgendamentos(
+        (data ?? []).map((row) => ({
+          ...row,
+          servicos_nomes: row.servicos_nomes ?? [],
+        })) as AgendamentoRow[],
+      );
+    }
     setLoadingList(false);
   }, [barbeariaId, selectedDate]);
 
@@ -198,6 +206,7 @@ export default function AgendamentosPage() {
       cliente_whatsapp: a.cliente_whatsapp,
       observacao: a.observacao,
       duracao_minutos: a.duracao_minutos,
+      servicos_nomes: a.servicos_nomes?.length ? a.servicos_nomes : undefined,
     };
     navigate("/app/agendar", { state: { reschedule: payload } });
   }
@@ -359,9 +368,6 @@ export default function AgendamentosPage() {
                       <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
                         <Clock className="h-4 w-4 shrink-0" />
                         <span className="text-lg">{formatHora(a.hora)}</span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          · {a.duracao_minutos} min
-                        </span>
                       </div>
                       {!selectedBarbeiroId && a.barbeiros?.nome && (
                         <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary shrink-0">
@@ -378,6 +384,17 @@ export default function AgendamentosPage() {
                         <Phone className="h-4 w-4 shrink-0" />
                         {formatWhatsApp(a.cliente_whatsapp)}
                       </p>
+                      {a.servicos_nomes?.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="flex items-start gap-2 text-foreground">
+                            <Scissors className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                            <span>{a.servicos_nomes.join(" · ")}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground tabular-nums pl-6">
+                            {a.duracao_minutos} min no total
+                          </p>
+                        </div>
+                      )}
                       {a.observacao?.trim() && (
                         <p className="flex items-start gap-2 text-muted-foreground pt-1 border-t border-border/60">
                           <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" />

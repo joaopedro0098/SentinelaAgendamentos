@@ -193,6 +193,7 @@ export type RescheduleContext = {
   cliente_whatsapp: string;
   observacao: string | null;
   duracao_minutos: number;
+  servicos_nomes?: string[];
 };
 
 export type PublicBookingProps = {
@@ -538,6 +539,10 @@ const PublicBooking = ({
 
     setSubmitting(true);
     const obs = observacao.trim() || null;
+    const servicosNomes =
+      servSel.length > 0
+        ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
+        : (reschedule.servicos_nomes ?? []);
     const { error } = await supabase.rpc("reagendar_agendamento", {
       p_agendamento_id: reschedule.agendamentoId,
       p_data: data,
@@ -545,6 +550,7 @@ const PublicBooking = ({
       p_barbeiro_id: barbeiroId,
       p_duracao_minutos: duracaoTotal,
       p_observacao: obs,
+      p_servicos_nomes: servicosNomes,
     });
     setSubmitting(false);
     if (error) {
@@ -578,6 +584,10 @@ const PublicBooking = ({
     setSubmitting(true);
     const whatsClean = unmaskPhone(whatsapp);
     const obs = observacao.trim() || null;
+    const servicosNomes =
+      servSel.length > 0
+        ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
+        : [];
 
     const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
       _barbearia_id: barbearia.id,
@@ -595,6 +605,7 @@ const PublicBooking = ({
         cliente_whatsapp: whatsClean,
         cliente_id: cliId ?? null,
         duracao_minutos: duracaoTotal,
+        servicos_nomes: servicosNomes,
         status: "confirmado",
         observacao: obs,
         requires_client_confirmation: !ownerPanel && wantsReminder,

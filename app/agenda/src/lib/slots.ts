@@ -87,3 +87,20 @@ export const filtrarSlotsLivres = (
     return true;
   });
 };
+
+/** Horários de grade ocupados por um agendamento (início + duração). */
+export function occupiedSlotStarts(
+  hora: string,
+  duracaoMinutos: number,
+  slotInterval: number,
+  slotPause = 0,
+): string[] {
+  const start = toMin(hora.slice(0, 5));
+  const end = start + Math.max(1, duracaoMinutos);
+  const step = Math.max(1, slotInterval + Math.max(0, slotPause));
+  const out: string[] = [];
+  for (let t = start; t < end; t += step) {
+    out.push(toHHMM(t));
+  }
+  return out;
+}
