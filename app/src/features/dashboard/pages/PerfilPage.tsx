@@ -253,7 +253,7 @@ export default function PerfilPage() {
     return "—";
   })();
 
-  const planPriceLabel = info?.plan_price_label ?? PLAN_PRICE_LABEL;
+  const planPriceLabel = PLAN_PRICE_LABEL;
   const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
   const showCancel =
     !info?.is_admin &&
@@ -311,8 +311,10 @@ export default function PerfilPage() {
               >
                 {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Pix libera 30 dias após a confirmação do Mercado Pago. Cartão mantém cobrança automática.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Para evitar o esquecimento da mensalidade ocasionando no bloqueio das funcionalidades do app,
+                recomendamos a assinatura com cartão. A cobrança será automática todos os meses, e você poderá
+                cancelar quando quiser pelo app ou pelo seu app do Mercado Pago, em &quot;Minhas assinaturas&quot;.
               </p>
             </div>
           )}
