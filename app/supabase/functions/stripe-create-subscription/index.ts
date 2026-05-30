@@ -59,8 +59,23 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Você já possui uma assinatura ativa com cartão." }, 400);
     }
 
-    // Cliente Stripe reutilizado por barbearia.
+    // Cliente Stripe reutilizado por barbearia (IDs de teste não existem em live e vice-versa).
     let customerId = shop.stripe_customer_id;
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch {
+        customerId = null;
+        await supabase
+          .from("barbershops")
+          .update({
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            subscription_notice: null,
+          })
+          .eq("id", shop.id);
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email.trim(),
