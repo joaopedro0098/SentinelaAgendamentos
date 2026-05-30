@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { findLatestPreapproval, getPreapproval } from "../_shared/mpPreapproval.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,115 +33,8 @@ function getNextPeriodEnd(currentPeriodEnd: string | null | undefined) {
 type ShopRow = {
   id: string;
   owner_id: string;
-  mp_subscription_id: string | null;
   current_period_end: string | null;
-  subscription_status: string | null;
 };
-
-function hadPaidCardSubscription(status: string | null | undefined) {
-  return status === "active" || status === "grace" || status === "cancelled";
-}
-
-async function applyPreapprovalToShop(
-  supabase: SupabaseClient,
-  shop: ShopRow,
-  sub: { id?: string; status?: string; next_payment_date?: string },
-) {
-  const status = String(sub.status ?? "");
-  const nextPayment = sub.next_payment_date ? String(sub.next_payment_date).slice(0, 10) : null;
-
-  if (status === "authorized") {
-    await supabase
-      .from("barbershops")
-      .update({
-        subscription_status: "active",
-        mp_subscription_id: sub.id ?? shop.mp_subscription_id,
-        current_period_end: nextPayment,
-        grace_until: null,
-        subscription_notice: null,
-      })
-      .eq("id", shop.id);
-    return "active";
-  }
-
-  if (status === "paused" || status === "pending") {
-    if (hadPaidCardSubscription(shop.subscription_status)) {
-      const graceStr = toDateOnly(addDays(new Date(), 3));
-      await supabase
-        .from("barbershops")
-        .update({
-          subscription_status: "grace",
-          grace_until: graceStr,
-          subscription_notice:
-            "Pagamento pendente. Você tem 3 dias para regularizar antes de bloquear novos agendamentos.",
-        })
-        .eq("id", shop.id);
-      return "grace";
-    }
-
-    await supabase
-      .from("barbershops")
-      .update({
-        mp_subscription_id: null,
-        subscription_notice: "Complete o pagamento no Mercado Pago para ativar sua assinatura.",
-      })
-      .eq("id", shop.id);
-    return shop.subscription_status ?? "trial";
-  }
-
-  if (status === "cancelled") {
-    const periodEnd = nextPayment ?? toDateOnly(new Date());
-    await supabase
-      .from("barbershops")
-      .update({
-        subscription_status: "cancelled",
-        mp_subscription_id: null,
-        current_period_end: periodEnd,
-        subscription_notice: "Assinatura cancelada. O acesso continua até o fim do período já pago.",
-      })
-      .eq("id", shop.id);
-    return "cancelled";
-  }
-
-  await supabase
-    .from("barbershops")
-    .update({
-      subscription_status: "expired",
-      mp_subscription_id: null,
-      subscription_notice: "Assinatura inativa. Assine novamente em Perfil para liberar agendamentos.",
-    })
-    .eq("id", shop.id);
-  return "expired";
-}
-
-async function syncShopFromMercadoPago(
-  supabase: SupabaseClient,
-  mpToken: string,
-  shop: ShopRow,
-): Promise<{ synced: boolean; mp_status?: string; subscription_status?: string }> {
-  let preapprovalId = shop.mp_subscription_id;
-  let sub: { id?: string; status?: string; next_payment_date?: string } | null = null;
-
-  if (preapprovalId) {
-    const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
-      headers: { Authorization: `Bearer ${mpToken}` },
-    });
-    sub = await mpRes.json();
-    if (!mpRes.ok) {
-      throw new Error(sub?.message ?? "Não foi possível consultar assinatura no Mercado Pago.");
-    }
-  } else {
-    const found = await findLatestPreapproval(mpToken, shop.id);
-    preapprovalId = found?.id ?? null;
-    if (!preapprovalId) {
-      return { synced: false };
-    }
-    sub = (await getPreapproval(mpToken, preapprovalId)) ?? found;
-  }
-
-  const subscriptionStatus = await applyPreapprovalToShop(supabase, shop, sub);
-  return { synced: true, mp_status: String(sub.status ?? ""), subscription_status: subscriptionStatus };
-}
 
 async function syncRecentPixPayment(
   supabase: SupabaseClient,
@@ -177,7 +69,7 @@ async function syncRecentPixPayment(
 async function resolveShop(supabase: SupabaseClient, ownerId: string): Promise<ShopRow | null> {
   const { data: shop } = await supabase
     .from("barbershops")
-    .select("id, owner_id, mp_subscription_id, current_period_end, subscription_status")
+    .select("id, owner_id, current_period_end")
     .eq("owner_id", ownerId)
     .maybeSingle();
   return shop;
@@ -241,14 +133,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    let result: { synced: boolean; mp_status?: string; subscription_status?: string } = { synced: false };
-
-    result = await syncShopFromMercadoPago(supabase, mpToken, shop);
-
-    if (!result.synced || result.subscription_status !== "active") {
-      const pixResult = await syncRecentPixPayment(supabase, mpToken, shop);
-      if (pixResult.synced) result = { synced: true, subscription_status: pixResult.subscription_status };
-    }
+    const result = await syncRecentPixPayment(supabase, mpToken, shop);
 
     const isAdminLookup = Boolean(targetEmail);
     if (isAdminLookup) {
@@ -258,7 +143,6 @@ Deno.serve(async (req) => {
       return jsonResponse({
         ok: true,
         synced: result.synced,
-        mp_status: result.mp_status ?? null,
         subscription: lookup,
       });
     }
@@ -267,7 +151,6 @@ Deno.serve(async (req) => {
     return jsonResponse({
       ok: true,
       synced: result.synced,
-      mp_status: result.mp_status ?? null,
       subscription,
     });
   } catch (e) {

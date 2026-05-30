@@ -1,4 +1,4 @@
-/** Valor mensal cobrado (Mercado Pago). Sobrescreva com PLAN_MONTHLY_AMOUNT no Supabase. */
+/** Valor mensal (Pix Mercado Pago / assinatura Stripe). Sobrescreva com PLAN_MONTHLY_AMOUNT no Supabase. */
 export function getPlanMonthlyAmount(): number {
   const raw = Deno.env.get("PLAN_MONTHLY_AMOUNT")?.trim();
   const parsed = raw ? Number(raw) : NaN;

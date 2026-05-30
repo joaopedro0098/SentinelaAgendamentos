@@ -79,6 +79,8 @@ async function createCheckoutPreference(params: {
       expiration_date_to: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       payment_methods: {
         excluded_payment_types: [
+          { id: "credit_card" },
+          { id: "debit_card" },
           { id: "ticket" },
           { id: "atm" },
         ],

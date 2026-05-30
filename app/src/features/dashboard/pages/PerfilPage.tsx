@@ -102,11 +102,17 @@ export default function PerfilPage() {
   }
 
   async function handleCancelPlan() {
+    if (!info?.stripe_subscription_id) {
+      toast({
+        title: "Cancelamento indisponível",
+        description: "Só assinaturas com cartão (Stripe) podem ser canceladas aqui. Pix é pagamento avulso por mês.",
+      });
+      return;
+    }
     if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago.")) return;
     setCancelling(true);
     try {
-      const fn = info?.stripe_subscription_id ? "stripe-cancel-subscription" : "mp-cancel-subscription";
-      const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>(fn);
+      const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>("stripe-cancel-subscription");
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast({ title: "Assinatura cancelada", description: "O acesso continua até a data de vencimento." });
       await refresh();
@@ -201,9 +207,8 @@ export default function PerfilPage() {
 
   const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
   const hasStripeCard = Boolean(info?.stripe_subscription_id);
-  const hasMpCard = Boolean(info?.mp_subscription_id);
   const showCancel =
-    !info?.is_admin && info?.subscription_status === "active" && (hasStripeCard || hasMpCard);
+    !info?.is_admin && info?.subscription_status === "active" && hasStripeCard;
 
   const showPlanStatus = loading || info?.is_admin || info?.subscription_status !== "trial";
 

@@ -173,7 +173,7 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="text-lg">Buscar usuário</CardTitle>
           <CardDescription>
-            Informe o e-mail cadastrado. A busca sincroniza o status de pagamento com o Mercado Pago.
+            Informe o e-mail cadastrado. A busca sincroniza pagamentos Pix (Mercado Pago) quando aplicável.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -100,7 +100,6 @@ Deno.serve(async (req) => {
       .from("barbershops")
       .update({
         stripe_subscription_id: subscription.id,
-        subscription_notice: "Finalize o pagamento com cartão para ativar sua assinatura.",
       })
       .eq("id", shop.id);
 
