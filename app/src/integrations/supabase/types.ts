@@ -23,6 +23,8 @@ export type Database = {
           grace_until: string | null
           id: string
           mp_subscription_id: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           n8n_webhook_url: string | null
           owner_id: string | null
           sheet_url: string | null

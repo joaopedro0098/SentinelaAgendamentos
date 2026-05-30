@@ -42,3 +42,10 @@ subject = "Confirme a alteração de e-mail — Sentinela Agendamentos"
 
 [auth.email.template.invite]
 subject = "Convite — Sentinela Agendamentos"
+
+# Webhooks externos (Stripe / Mercado Pago) não enviam JWT do Supabase.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.mp-webhook]
+verify_jwt = false

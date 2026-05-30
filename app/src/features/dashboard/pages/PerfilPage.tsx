@@ -4,6 +4,7 @@ import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { invokeBillingFunction } from "@/lib/billingApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,52 +20,6 @@ function formatDateBr(iso: string | null | undefined) {
   return `${d}/${m}/${y}`;
 }
 
-const SUPABASE_FUNCTIONS_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
-const SUPABASE_PUBLISHABLE_KEY = String(
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
-).trim();
-
-async function readFunctionPayload(response: Response) {
-  const text = await response.text();
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text) as { error?: string; message?: string; [key: string]: unknown };
-  } catch {
-    return { message: text };
-  }
-}
-
-async function invokeBillingFunction<T>(functionName: string): Promise<T> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-
-  if (!token) {
-    throw new Error("Faça login novamente para continuar.");
-  }
-
-  if (!SUPABASE_FUNCTIONS_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    throw new Error("Supabase não configurado no app.");
-  }
-
-  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/functions/v1/${functionName}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      "Content-Type": "application/json",
-    },
-    body: "{}",
-  });
-  const payload = await readFunctionPayload(response);
-
-  if (!response.ok) {
-    throw new Error(payload?.error ?? payload?.message ?? "Edge Function retornou erro sem mensagem.");
-  }
-
-  return payload as T;
-}
-
 export default function PerfilPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -76,7 +31,6 @@ export default function PerfilPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [subscribing, setSubscribing] = useState(false);
   const [creatingPix, setCreatingPix] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -90,22 +44,22 @@ export default function PerfilPage() {
   }, [user?.email]);
 
   useEffect(() => {
-    const subscriptionReturn = searchParams.get("subscription") === "return";
+    const stripeReturn = searchParams.get("stripe") === "return";
     const paymentSuccess = searchParams.get("payment") === "success";
-    const legacySubscriptionSuccess = searchParams.get("subscription") === "success";
-    if (!subscriptionReturn && !paymentSuccess && !legacySubscriptionSuccess) return;
+    if (!stripeReturn && !paymentSuccess) return;
 
-    void invokeBillingFunction<{ subscription?: { subscription_status?: string } }>("mp-sync-subscription")
+    const syncFn = stripeReturn ? "stripe-sync-subscription" : "mp-sync-subscription";
+
+    void invokeBillingFunction<{ subscription?: { subscription_status?: string } }>(syncFn)
       .then(async (data) => {
         await refresh();
         const status = data.subscription?.subscription_status;
         if (status === "active") {
           toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
-        } else if (subscriptionReturn || legacySubscriptionSuccess) {
+        } else if (stripeReturn) {
           toast({
-            title: "Pagamento não concluído",
-            description:
-              "Se você saiu antes de finalizar, clique em Assinar com cartão novamente. Use o mesmo e-mail da sua conta Sentinela no Mercado Pago.",
+            title: "Pagamento em processamento",
+            description: "Se o status não atualizar em instantes, recarregue esta página.",
           });
         } else {
           toast({
@@ -125,36 +79,6 @@ export default function PerfilPage() {
         setSearchParams({}, { replace: true });
       });
   }, [searchParams, setSearchParams, refresh]);
-
-  async function handleSubscribe() {
-    setSubscribing(true);
-    try {
-      const data = await invokeBillingFunction<{ init_point?: string; error?: string }>("mp-create-subscription");
-      const initPoint = (data as { init_point?: string })?.init_point;
-      if (initPoint) {
-        const checkout = window.open(initPoint, "_blank", "noopener,noreferrer");
-        if (!checkout) {
-          window.location.href = initPoint;
-        } else {
-          toast({
-            title: "Mercado Pago aberto",
-            description:
-              "Conclua na nova aba com o mesmo e-mail da Sentinela. Na confirmação, toque no cartão para selecioná-lo antes de clicar em Confirmar.",
-          });
-        }
-        return;
-      }
-      throw new Error((data as { error?: string })?.error ?? "Não foi possível iniciar o pagamento.");
-    } catch (e) {
-      toast({
-        title: "Pagamento indisponível",
-        description: e instanceof Error ? e.message : "Configure o Mercado Pago ou tente mais tarde.",
-        variant: "destructive",
-      });
-    } finally {
-      setSubscribing(false);
-    }
-  }
 
   async function handlePixPayment() {
     setCreatingPix(true);
@@ -181,7 +105,8 @@ export default function PerfilPage() {
     if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago.")) return;
     setCancelling(true);
     try {
-      const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>("mp-cancel-subscription");
+      const fn = info?.stripe_subscription_id ? "stripe-cancel-subscription" : "mp-cancel-subscription";
+      const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>(fn);
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast({ title: "Assinatura cancelada", description: "O acesso continua até a data de vencimento." });
       await refresh();
@@ -275,10 +200,10 @@ export default function PerfilPage() {
   })();
 
   const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
+  const hasStripeCard = Boolean(info?.stripe_subscription_id);
+  const hasMpCard = Boolean(info?.mp_subscription_id);
   const showCancel =
-    !info?.is_admin &&
-    Boolean(info?.mp_subscription_id) &&
-    info?.subscription_status === "active";
+    !info?.is_admin && info?.subscription_status === "active" && (hasStripeCard || hasMpCard);
 
   const showPlanStatus = loading || info?.is_admin || info?.subscription_status !== "trial";
 
@@ -324,25 +249,22 @@ export default function PerfilPage() {
             <div className="space-y-2">
               <Button
                 className="w-full rounded-full bg-gradient-brand text-white border-0"
-                onClick={handleSubscribe}
-                disabled={subscribing || creatingPix}
+                onClick={() => navigate("/app/perfil/assinar-cartao")}
+                disabled={creatingPix}
               >
-                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : `Assinar com cartão — ${PLAN_PRICE_LABEL}`}
+                Assinar com cartão — {PLAN_PRICE_LABEL}
               </Button>
               <Button
                 variant="outline"
                 className="w-full rounded-full"
                 onClick={handlePixPayment}
-                disabled={subscribing || creatingPix}
+                disabled={creatingPix}
               >
                 {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Ao assinar com cartão, a cobrança será automática todo mês. Você poderá{" "}
-                <span className="font-semibold text-white">cancelar quando quiser</span> aqui mesmo ou pelo seu app
-                do Mercado Pago em &quot;Minhas assinaturas&quot;. No checkout, use o{" "}
-                <span className="font-semibold text-white">mesmo e-mail</span> da sua conta Sentinela e, na confirmação,
-                toque no cartão para selecioná-lo antes de Confirmar.
+                Cartão: cobrança automática todo mês, cancelável aqui. Pix: pagamento avulso pelo Mercado Pago (copie
+                o código no app do seu banco).
               </p>
             </div>
           )}

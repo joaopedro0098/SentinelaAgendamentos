@@ -16,6 +16,7 @@ export type SubscriptionInfo = {
   plan_price_label?: string;
   label?: string;
   mp_subscription_id?: string | null;
+  stripe_subscription_id?: string | null;
 };
 
 export function useSubscription() {
