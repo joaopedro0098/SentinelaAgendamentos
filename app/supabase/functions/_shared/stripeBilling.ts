@@ -66,6 +66,7 @@ export async function applyStripeSubscriptionToShop(
       .update({
         subscription_status: "active",
         stripe_subscription_id: subscription.id,
+        last_payment_method: "card",
         current_period_end: periodEnd,
         grace_until: null,
         subscription_notice: cancelAtPeriodEnd
@@ -82,6 +83,7 @@ export async function applyStripeSubscriptionToShop(
       .update({
         subscription_status: "grace",
         stripe_subscription_id: subscription.id,
+        last_payment_method: "card",
         grace_until: graceUntilIso(),
         subscription_notice:
           "Pagamento do cartão pendente. Regularize em até 3 dias para não bloquear novos agendamentos.",

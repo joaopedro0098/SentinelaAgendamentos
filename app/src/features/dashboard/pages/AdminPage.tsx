@@ -36,6 +36,24 @@ type AdminUserInfo = {
   email_confirmed?: boolean;
 };
 
+type AdminStats = {
+  total_subscribers: number;
+  subscribers_card: number;
+  subscribers_pix: number;
+  trial_users: number;
+};
+
+function parseAdminStats(data: unknown): AdminStats | null {
+  if (!data || typeof data !== "object" || "error" in data) return null;
+  const row = data as Record<string, unknown>;
+  return {
+    total_subscribers: Number(row.total_subscribers ?? 0),
+    subscribers_card: Number(row.subscribers_card ?? 0),
+    subscribers_pix: Number(row.subscribers_pix ?? 0),
+    trial_users: Number(row.trial_users ?? 0),
+  };
+}
+
 function yesNo(value: boolean) {
   return value ? "Sim" : "Não";
 }
@@ -83,10 +101,32 @@ export default function AdminPage() {
   const [userInfo, setUserInfo] = useState<AdminUserInfo | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Admin — Sentinela Agendamentos";
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      setStatsLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("admin_subscription_stats");
+        if (error) throw error;
+        setStats(parseAdminStats(data));
+      } catch {
+        setStats(null);
+      } finally {
+        setStatsLoading(false);
+      }
+    })();
+  }, []);
+
+  async function refreshStats() {
+    const { data } = await supabase.rpc("admin_subscription_stats");
+    setStats(parseAdminStats(data));
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -143,6 +183,7 @@ export default function AdminPage() {
       setUserInfo(null);
       setEmail("");
       setConfirmOpen(false);
+      await refreshStats();
     } catch (e) {
       toast({
         title: "Falha ao excluir",
@@ -168,6 +209,40 @@ export default function AdminPage() {
           Consulte usuários cadastrados e remova contas por completo quando necessário.
         </p>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Painel</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : stats ? (
+            <dl className="grid gap-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Total de assinantes</dt>
+                <dd className="font-semibold tabular-nums">{stats.total_subscribers}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Cartão</dt>
+                <dd className="font-medium tabular-nums">{stats.subscribers_card}</dd>
+              </div>
+              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
+                <dt className="text-muted-foreground">Pix</dt>
+                <dd className="font-medium tabular-nums">{stats.subscribers_pix}</dd>
+              </div>
+              <div className="flex justify-between gap-4 pt-1">
+                <dt className="text-muted-foreground">Teste grátis</dt>
+                <dd className="font-medium tabular-nums">{stats.trial_users}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-muted-foreground">Não foi possível carregar os números.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

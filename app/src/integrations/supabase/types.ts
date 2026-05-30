@@ -22,6 +22,7 @@ export type Database = {
           display_name: string
           grace_until: string | null
           id: string
+          last_payment_method: string | null
           mp_subscription_id: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null

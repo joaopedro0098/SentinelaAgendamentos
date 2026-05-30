@@ -57,6 +57,7 @@ async function syncRecentPixPayment(
     .from("barbershops")
     .update({
       subscription_status: "active",
+      last_payment_method: "pix",
       current_period_end: periodEnd,
       grace_until: null,
       subscription_notice: null,

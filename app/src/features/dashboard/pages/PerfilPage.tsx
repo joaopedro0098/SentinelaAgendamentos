@@ -268,8 +268,7 @@ export default function PerfilPage() {
                 {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Cartão: cobrança automática todo mês, cancelável aqui. Pix: pagamento avulso pelo Mercado Pago (copie
-                o código no app do seu banco).
+                Ao escolher cartão, você será cobrado mensalmente e poderá cancelar aqui mesmo a qualquer momento.
               </p>
             </div>
           )}
