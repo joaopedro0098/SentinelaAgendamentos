@@ -1,4 +1,4 @@
-import { ScanFace, X } from "lucide-react";
+import { ScanFace, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,30 +22,27 @@ export function FaceVerificationOrientation({ onProceed, onClose, variant = "ove
         </button>
       ) : null}
 
-      <div className="px-6 pt-8 pb-4 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-brand text-white mb-3">
-          <ScanFace className="w-6 h-6" />
+      <div className="px-6 pt-8 pb-5 text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-brand text-white mb-4">
+          <ScanFace className="w-7 h-7" />
         </div>
-        <h2 className="font-display text-xl font-semibold tracking-tight">Reconhecimento facial</h2>
-        <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-          Vá para um local bem iluminado para que possamos realizar o reconhecimento facial.
+        <h2 className="font-display text-2xl font-semibold tracking-tight">Reconhecimento facial</h2>
+        <p className="mt-4 text-lg sm:text-xl font-semibold text-foreground leading-snug">
+          Vá para um local bem iluminado.
+        </p>
+        <p className="mt-3 text-base text-muted-foreground leading-relaxed">
+          Sem luz suficiente, a verificação falha e você precisa tentar de novo.
         </p>
       </div>
 
-      <ul className="mx-6 mb-6 space-y-2.5 text-sm text-muted-foreground">
-        <li className="flex gap-2.5">
-          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--brand-green))]" />
-          <span>Prefira luz natural ou um ambiente claro</span>
-        </li>
-        <li className="flex gap-2.5">
-          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--brand-green))]" />
-          <span>Evite contraluz ou ficar de costas para a janela</span>
-        </li>
-        <li className="flex gap-2.5">
-          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--brand-green))]" />
-          <span>Mantenha o rosto visível, sem boné ou óculos escuros</span>
-        </li>
-      </ul>
+      <div className="mx-6 mb-7 flex items-start gap-3 rounded-2xl border border-[hsl(var(--brand-green)/0.25)] bg-[hsl(var(--brand-green)/0.08)] px-4 py-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--brand-green)/0.15)] text-[hsl(var(--brand-green))]">
+          <Sun className="h-5 w-5" />
+        </div>
+        <p className="text-base font-medium text-foreground leading-snug pt-1.5">
+          Fique de frente para a luz, com o rosto descoberto.
+        </p>
+      </div>
 
       <div className="px-6 pb-8">
         <Button
