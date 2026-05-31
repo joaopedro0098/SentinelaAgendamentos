@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
@@ -10,6 +11,22 @@ type LegalPageShellProps = {
 
 /** Fundo claro verde/branco + navbar, alinhado às páginas legais. */
 export function LegalPageShell({ title, subtitle, children }: LegalPageShellProps) {
+  useEffect(() => {
+    document.title = `${title} — Sentinela Agendamentos`;
+
+    let robots = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+    if (!robots) {
+      robots = document.createElement("meta");
+      robots.name = "robots";
+      document.head.appendChild(robots);
+    }
+    robots.content = "noindex, follow";
+
+    return () => {
+      robots?.remove();
+    };
+  }, [title]);
+
   return (
     <div className="flex-1 flex flex-col">
       <main className="flex-1 pt-28 pb-16 px-4">
