@@ -10,6 +10,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
+import { SupportNavItem } from "@/features/dashboard/components/SupportNavItem";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -154,6 +155,7 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
+              <SupportNavItem onNavigate={closeMenu} />
               {subscriptionInfo?.is_admin && (
                 <MobileNavItem
                   to="/app/admin"
@@ -191,6 +193,7 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
             <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
+            <SupportNavItem />
             {subscriptionInfo?.is_admin && (
               <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
             )}

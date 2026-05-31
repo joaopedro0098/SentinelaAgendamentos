@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Search, Shield, Trash2 } from "lucide-react";
+import { Loader2, Search, Shield, Trash2, Headphones } from "lucide-react";
+import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
+import { buildSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,9 +105,31 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportLoading, setSupportLoading] = useState(true);
+  const [supportSaving, setSupportSaving] = useState(false);
 
   useEffect(() => {
     document.title = "Admin — Sentinela Agendamentos";
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      setSupportLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("admin_get_support_whatsapp");
+        if (error) throw error;
+        if (typeof data === "string" && data.trim()) {
+          setSupportPhone(maskPhone(data));
+        } else {
+          setSupportPhone("");
+        }
+      } catch {
+        setSupportPhone("");
+      } finally {
+        setSupportLoading(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -195,6 +219,48 @@ export default function AdminPage() {
     }
   }
 
+  async function handleSaveSupportWhatsApp(e: React.FormEvent) {
+    e.preventDefault();
+    setSupportSaving(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_set_support_whatsapp", {
+        p_whatsapp: unmaskPhone(supportPhone),
+      });
+      if (error) throw new Error(error.message);
+
+      const payload = data as { error?: string; support_whatsapp?: string | null };
+      if (payload.error === "invalid_phone") {
+        toast({
+          title: "Número inválido",
+          description: "Informe DDD + número (10 ou 11 dígitos).",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (payload.error) {
+        throw new Error(payload.error);
+      }
+
+      if (payload.support_whatsapp) {
+        setSupportPhone(maskPhone(payload.support_whatsapp));
+      } else {
+        setSupportPhone("");
+      }
+
+      toast({ title: "WhatsApp de suporte salvo" });
+    } catch (err) {
+      toast({
+        title: "Erro ao salvar",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSupportSaving(false);
+    }
+  }
+
+  const supportPreviewUrl = buildSupportWhatsAppUrl(unmaskPhone(supportPhone));
+
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
       <div>
@@ -240,6 +306,51 @@ export default function AdminPage() {
             </dl>
           ) : (
             <p className="text-sm text-muted-foreground">Não foi possível carregar os números.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Headphones className="h-5 w-5 text-primary" />
+            Suporte aos barbeiros
+          </CardTitle>
+          <CardDescription>
+            Número que abre no WhatsApp quando o barbeiro clica em &quot;Suporte&quot; no menu lateral.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {supportLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <form onSubmit={handleSaveSupportWhatsApp} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="support-whatsapp">Seu WhatsApp (com DDD)</Label>
+                <Input
+                  id="support-whatsapp"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={supportPhone}
+                  onChange={(e) => setSupportPhone(maskPhone(e.target.value))}
+                  className="h-11 rounded-xl max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Apenas dígitos — o sistema gera o link wa.me automaticamente. Deixe vazio para desativar o botão.
+                </p>
+              </div>
+              {supportPreviewUrl && (
+                <p className="text-xs text-muted-foreground break-all">
+                  Prévia: {supportPreviewUrl}
+                </p>
+              )}
+              <Button type="submit" disabled={supportSaving} className="rounded-full">
+                {supportSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar WhatsApp de suporte"}
+              </Button>
+            </form>
           )}
         </CardContent>
       </Card>

@@ -272,16 +272,19 @@ export type Database = {
         Row: {
           id: number
           n8n_webhook_url: string | null
+          support_whatsapp: string | null
           updated_at: string
         }
         Insert: {
           id?: number
           n8n_webhook_url?: string | null
+          support_whatsapp?: string | null
           updated_at?: string
         }
         Update: {
           id?: number
           n8n_webhook_url?: string | null
+          support_whatsapp?: string | null
           updated_at?: string
         }
         Relationships: []
