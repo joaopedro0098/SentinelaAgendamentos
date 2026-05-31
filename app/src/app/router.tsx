@@ -7,7 +7,10 @@ import PlanosPage from "@/features/landing/pages/PlanosPage";
 import PoliticaPrivacidadePage from "@/features/landing/pages/PoliticaPrivacidadePage";
 import TermosServicoPage from "@/features/landing/pages/TermosServicoPage";
 
-import PublicBookingRoute from "@/features/agenda/pages/PublicBookingRoute";
+import PublicAgendaLayout from "@/features/agenda/pages/PublicAgendaLayout";
+import PublicBookingHub from "@agenda/pages/PublicBookingHub";
+import PublicBookingPage from "@/features/agenda/pages/PublicBookingPage";
+import MeusAgendamentosPage from "@agenda/pages/MeusAgendamentos";
 import ConfirmAppointmentPage from "@/features/agenda/pages/ConfirmAppointmentPage";
 
 import LoginPage from "@/features/auth/pages/Login";
@@ -46,7 +49,11 @@ export function AppRouter() {
         <Route path="/reset-password/success" element={<ResetPasswordSuccessPage />} />
       </Route>
 
-      <Route path="/agendar/:slug" element={<PublicBookingRoute />} />
+      <Route path="/agendar/:slug" element={<PublicAgendaLayout />}>
+        <Route index element={<PublicBookingHub />} />
+        <Route path="agendar" element={<PublicBookingPage />} />
+        <Route path="meus-agendamentos" element={<MeusAgendamentosPage />} />
+      </Route>
       <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointmentPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route
