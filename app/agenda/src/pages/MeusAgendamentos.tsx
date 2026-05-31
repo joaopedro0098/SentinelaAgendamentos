@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Scissors } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PublicShopHeader } from "@/components/PublicShopHeader";
+import { useBarbeariaResumo } from "@/hooks/useBarbeariaResumo";
 import { maskPhone, unmaskPhone, isValidPhone } from "@/lib/phone";
 
 type ClientAppointment = {
@@ -29,6 +31,7 @@ function formatTime(value: string) {
 
 export default function MeusAgendamentosPage() {
   const { slug } = useParams<{ slug: string }>();
+  const { loading: shopLoading, barbearia } = useBarbeariaResumo(slug);
   const [whatsapp, setWhatsapp] = useState("");
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -57,18 +60,24 @@ export default function MeusAgendamentosPage() {
   const hubHref = `/agendar/${slug}`;
 
   return (
-    <div className="min-h-screen bg-surface px-4 py-6">
+    <div className="relative min-h-screen bg-surface px-4 py-8">
+      <Link
+        to={hubHref}
+        className="absolute left-4 top-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Voltar
+      </Link>
+
       <div className="mx-auto w-full max-w-md space-y-6">
-        <Link
-          to={hubHref}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Link>
+        <PublicShopHeader
+          nome={barbearia?.nome ?? null}
+          logoUrl={barbearia?.logo_url ?? null}
+          loading={shopLoading}
+        />
 
         <div>
-          <h1 className="font-display text-2xl font-bold">Meus agendamentos</h1>
+          <h2 className="font-display text-lg font-semibold">Meus agendamentos</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Informe seu WhatsApp para ver os horários futuros confirmados.
           </p>
@@ -96,20 +105,30 @@ export default function MeusAgendamentosPage() {
 
         <div className="space-y-3">
           {items.map((item) => (
-            <Card key={item.id} className="p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold">
-                  {formatDateBr(item.data)} · {formatTime(item.hora)}
-                </p>
-                <span className="text-xs text-muted-foreground">{item.duracao_minutos} min</span>
-              </div>
-              <p className="text-sm">
-                <Scissors className="inline h-3.5 w-3.5 mr-1 opacity-70" />
-                {item.barbeiro_nome}
-              </p>
-              {item.servicos_nomes && item.servicos_nomes.length > 0 && (
-                <p className="text-sm text-muted-foreground">{item.servicos_nomes.join(" · ")}</p>
-              )}
+            <Card key={item.id} className="p-4 space-y-3">
+              <p className="font-semibold">{formatDateBr(item.data)}</p>
+              <dl className="grid gap-2 text-sm">
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground shrink-0">Cliente:</dt>
+                  <dd className="font-medium">{item.cliente_nome}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground shrink-0">Profissional:</dt>
+                  <dd className="font-medium">{item.barbeiro_nome}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground shrink-0">Horário:</dt>
+                  <dd className="font-medium">{formatTime(item.hora)}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground shrink-0">Serviço:</dt>
+                  <dd className="font-medium">
+                    {item.servicos_nomes && item.servicos_nomes.length > 0
+                      ? item.servicos_nomes.join(" · ")
+                      : "—"}
+                  </dd>
+                </div>
+              </dl>
             </Card>
           ))}
         </div>

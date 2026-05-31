@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Bell, CalendarDays, Download, List, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShopAvatar } from "@/components/ShopAvatar";
+import { PublicShopHeader } from "@/components/PublicShopHeader";
+import { useBarbeariaResumo } from "@/hooks/useBarbeariaResumo";
 import {
   isIosDevice,
   isStandalonePwa,
@@ -12,15 +12,9 @@ import {
   type BeforeInstallPromptEvent,
 } from "@/lib/pushNotifications";
 
-type BarbeariaResumo = {
-  nome: string;
-  logo_url: string | null;
-};
-
 export default function PublicBookingHub() {
   const { slug } = useParams<{ slug: string }>();
-  const [loading, setLoading] = useState(true);
-  const [barbearia, setBarbearia] = useState<BarbeariaResumo | null>(null);
+  const { loading, barbearia } = useBarbeariaResumo(slug);
   const [installed, setInstalled] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
@@ -38,25 +32,6 @@ export default function PublicBookingHub() {
     if (installed) return;
     return listenForInstallPrompt((event) => setInstallPrompt(event));
   }, [installed]);
-
-  useEffect(() => {
-    if (!slug) return;
-    let active = true;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("barbearias")
-        .select("nome, logo_url")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (!active) return;
-      setBarbearia(data);
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [slug]);
 
   async function handleInstallClick() {
     if (installPrompt) {
@@ -81,15 +56,12 @@ export default function PublicBookingHub() {
   return (
     <div className="min-h-screen bg-surface px-4 py-8">
       <div className="mx-auto w-full max-w-md space-y-6">
-        <div className="text-center space-y-3">
-          <ShopAvatar
-            logoUrl={barbearia?.logo_url ?? null}
-            name={barbearia?.nome ?? "Barbearia"}
-            className="h-16 w-16 mx-auto"
-          />
-          <h1 className="font-display text-2xl font-bold">{barbearia?.nome ?? "Agendamento"}</h1>
-          <p className="text-sm text-muted-foreground">Escolha uma opção abaixo</p>
-        </div>
+        <PublicShopHeader
+          nome={barbearia?.nome ?? null}
+          logoUrl={barbearia?.logo_url ?? null}
+          loading={loading}
+          subtitle="Escolha uma opção abaixo"
+        />
 
         <div className="space-y-3">
           <Button asChild className="w-full h-12 rounded-xl text-base font-semibold">
