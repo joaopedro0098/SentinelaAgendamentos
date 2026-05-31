@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Menu, User, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { cn } from "@/lib/utils";
 
 const Navbar = () => {
@@ -93,6 +94,13 @@ const Navbar = () => {
               </Button>
             )}
 
+            <PwaInstallButton
+              label="Baixar"
+              helpPresentation="dialog"
+              className="hidden sm:block"
+              buttonClassName="border-border bg-transparent hover:bg-secondary"
+            />
+
             <button
               type="button"
               aria-label={open ? "Fechar menu" : "Abrir menu"}
@@ -150,6 +158,13 @@ const Navbar = () => {
                 </Link>
               </Button>
             )}
+
+            <PwaInstallButton
+              label="Baixar"
+              helpPresentation="dialog"
+              buttonClassName="w-full border-border bg-transparent hover:bg-secondary/40"
+              onNavigate={closeMenu}
+            />
           </div>
         )}
       </div>

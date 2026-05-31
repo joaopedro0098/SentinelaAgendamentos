@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -161,6 +162,12 @@ export default function AppLayout() {
             </nav>
 
             <div className="p-3 border-t border-border space-y-2">
+              <PwaInstallButton
+                label="Instalar"
+                helpPresentation="inline"
+                buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+                variant="default"
+              />
               <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Sair
@@ -187,6 +194,12 @@ export default function AppLayout() {
           </nav>
 
           <div className="flex flex-col gap-2 p-3 border-t border-border/60">
+            <PwaInstallButton
+              label="Instalar"
+              helpPresentation="inline"
+              buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              variant="default"
+            />
             <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
             <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
               <LogOut className="h-4 w-4" /> Sair
