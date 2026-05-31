@@ -67,6 +67,13 @@ const Navbar = () => {
               </Button>
             )}
 
+            <PwaInstallButton
+              label="Baixar"
+              helpPresentation="dialog"
+              className="hidden sm:block"
+              buttonClassName="border-border bg-transparent hover:bg-secondary"
+            />
+
             {!isPlanosPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnDesktop}>
                 <Link to="/planos">Planos</Link>
@@ -93,13 +100,6 @@ const Navbar = () => {
                 </Link>
               </Button>
             )}
-
-            <PwaInstallButton
-              label="Baixar"
-              helpPresentation="dialog"
-              className="hidden sm:block"
-              buttonClassName="border-border bg-transparent hover:bg-secondary"
-            />
 
             <button
               type="button"
@@ -130,6 +130,13 @@ const Navbar = () => {
               </Button>
             )}
 
+            <PwaInstallButton
+              label="Baixar"
+              helpPresentation="dialog"
+              buttonClassName="w-full border-border bg-transparent hover:bg-secondary/40"
+              onNavigate={closeMenu}
+            />
+
             {!isPlanosPage && (
               <Button asChild size="sm" variant="outline" className={outlineBtnMobile}>
                 <Link to="/planos" onClick={closeMenu}>
@@ -158,13 +165,6 @@ const Navbar = () => {
                 </Link>
               </Button>
             )}
-
-            <PwaInstallButton
-              label="Baixar"
-              helpPresentation="dialog"
-              buttonClassName="w-full border-border bg-transparent hover:bg-secondary/40"
-              onNavigate={closeMenu}
-            />
           </div>
         )}
       </div>
