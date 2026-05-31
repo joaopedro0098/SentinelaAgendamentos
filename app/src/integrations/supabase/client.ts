@@ -17,7 +17,7 @@ export const isSupabaseConfigured = Boolean(
 function createSupabaseClient(): SupabaseClient<Database> {
   if (!isSupabaseConfigured) {
     throw new Error(
-      "Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no build (EasyPanel → Ambiente).",
+      "Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no build.",
     );
   }
   return createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {

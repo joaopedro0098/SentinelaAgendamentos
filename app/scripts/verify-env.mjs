@@ -1,6 +1,6 @@
 /**
  * Falha o build de produção se as variáveis Vite do Supabase não existirem.
- * No EasyPanel elas precisam estar em Ambiente ANTES do `npm run build`.
+ * Elas precisam estar disponíveis antes do `npm run build`.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -48,7 +48,7 @@ if (problems.length) {
   console.error("\n[build] Variáveis do Supabase ausentes ou inválidas:\n");
   for (const p of problems) console.error(`  - ${p}`);
   console.error(
-    "\nNo EasyPanel: Ambiente → adicione URL + anon key → salve → faça DEPLOY (build), não só restart.\n",
+    "\nDefina as variáveis no ambiente de build (.env local ou painel do hosting) e rode npm run build de novo.\n",
   );
   process.exit(1);
 }

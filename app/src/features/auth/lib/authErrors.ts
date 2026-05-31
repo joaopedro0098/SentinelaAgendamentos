@@ -41,7 +41,7 @@ export function isEmailAlreadyRegistered(error: AuthError | null, data: SignUpDa
 }
 
 export const AUTH_CONFIG_ERROR_MESSAGE =
-  "Não foi possível conectar ao Supabase. No EasyPanel, confira VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (chave anon public) e faça um novo deploy.";
+  "Não foi possível conectar ao Supabase. Confira VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (chave anon public) no ambiente de build e faça um novo deploy.";
 
 export const EMAIL_CONFIRMATION_PENDING_MESSAGE =
   "Enviamos um e-mail para você. Abra-o e clique em confirmar para finalizar seu cadastro.";
