@@ -1,8 +1,14 @@
 {
+  "id": "/",
   "name": "Sentinela Agendamentos",
   "short_name": "Sentinela",
-  "start_url": "/app/settings",
+  "description": "Agendamento online para barbearias",
+  "lang": "pt-BR",
+  "start_url": "/app/settings?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "handle_links": "preferred",
   "background_color": "#2fa66a",
   "theme_color": "#2fa66a",
   "icons": [

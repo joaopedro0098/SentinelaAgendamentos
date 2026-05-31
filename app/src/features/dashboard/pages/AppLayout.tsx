@@ -155,7 +155,9 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
-              <SupportNavItem onNavigate={closeMenu} />
+              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+                <SupportNavItem onNavigate={closeMenu} />
+              )}
               {subscriptionInfo?.is_admin && (
                 <MobileNavItem
                   to="/app/admin"
@@ -193,7 +195,7 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
             <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
-            <SupportNavItem />
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && <SupportNavItem />}
             {subscriptionInfo?.is_admin && (
               <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
             )}

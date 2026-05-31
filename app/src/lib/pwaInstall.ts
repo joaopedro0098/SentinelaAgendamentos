@@ -35,9 +35,19 @@ export function isIosDevice() {
 
 export function isStandalonePwa() {
   return (
-    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches ||
     (window.navigator as NavigatorWithStandalone).standalone === true
   );
+}
+
+const PWA_WINDOW_TITLE = "Sentinela";
+
+/** Mantém título curto no app instalado (sem sufixo de página / URL na barra do sistema). */
+export function applyPwaWindowTitle() {
+  if (!isStandalonePwa()) return;
+  if (document.title !== PWA_WINDOW_TITLE) {
+    document.title = PWA_WINDOW_TITLE;
+  }
 }
 
 export const BARBER_PWA_HOME = "/app/settings";
@@ -88,7 +98,5 @@ export function listenForInstallPrompt(onAvailable: (prompt: BeforeInstallPrompt
 
 export function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  window.addEventListener("load", () => {
-    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-  });
+  void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
 }

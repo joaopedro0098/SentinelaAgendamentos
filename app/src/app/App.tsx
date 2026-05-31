@@ -7,6 +7,7 @@ import { ThemeFromRoute } from "@/components/theme/ThemeFromRoute";
 import { AppRouter } from "@/app/router";
 import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
 import { BarberPwaEntryRedirect } from "@/components/pwa/BarberPwaEntryRedirect";
+import { PwaStandaloneChrome } from "@/components/pwa/PwaStandaloneChrome";
 
 const App = () => (
   <TooltipProvider>
@@ -16,6 +17,7 @@ const App = () => (
       <PwaInstallProvider>
         <AuthProvider>
           <ThemeFromRoute />
+          <PwaStandaloneChrome />
           <BarberPwaEntryRedirect />
           <AppRouter />
         </AuthProvider>
