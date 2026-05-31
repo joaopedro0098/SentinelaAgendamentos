@@ -12,8 +12,10 @@ import {
   loadPendingFaceEmbedding,
 } from "@/features/auth/face-verification/pendingFaceStorage";
 
-const FaceVerification = lazy(() =>
-  import("@/features/auth/face-verification/FaceVerification").then((m) => ({ default: m.FaceVerification })),
+const FaceVerificationFlow = lazy(() =>
+  import("@/features/auth/face-verification/FaceVerificationFlow").then((m) => ({
+    default: m.FaceVerificationFlow,
+  })),
 );
 
 type Phase = "checking" | "verify" | "submitting";
@@ -85,17 +87,19 @@ export default function AuthCompleteVerification() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background gap-3">
-      <p className="text-sm text-muted-foreground text-center max-w-md">
-        Para concluir seu cadastro, faça a verificação facial. Leva poucos segundos.
-      </p>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Carregando verificação…</p>}>
-        <FaceVerification
-          open
-          onClose={() => void handleClose()}
-          onVerified={(result) => void handleVerified(result)}
-        />
-      </Suspense>
-    </div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
+          Carregando verificação…
+        </div>
+      }
+    >
+      <FaceVerificationFlow
+        open
+        orientationVariant="page"
+        onClose={() => void handleClose()}
+        onVerified={(result) => void handleVerified(result)}
+      />
+    </Suspense>
   );
 }

@@ -29,8 +29,10 @@ import {
 } from "@/features/auth/lib/emailSignupStatus";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 
-const FaceVerification = lazy(() =>
-  import("@/features/auth/face-verification/FaceVerification").then((m) => ({ default: m.FaceVerification })),
+const FaceVerificationFlow = lazy(() =>
+  import("@/features/auth/face-verification/FaceVerificationFlow").then((m) => ({
+    default: m.FaceVerificationFlow,
+  })),
 );
 
 const schema = z
@@ -171,7 +173,7 @@ export default function Signup() {
   return (
     <>
       <Suspense fallback={null}>
-        <FaceVerification
+        <FaceVerificationFlow
           open={showFaceVerification}
           onClose={() => {
             setShowFaceVerification(false);

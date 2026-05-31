@@ -130,16 +130,6 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
             <ScanFace className="w-5 h-5" />
           </div>
           <h2 className="font-display text-lg font-semibold">Verificação facial</h2>
-          <p
-            className={cn(
-              "mt-3 leading-snug",
-              failed
-                ? "text-base sm:text-lg font-semibold text-foreground"
-                : "text-sm font-medium text-muted-foreground",
-            )}
-          >
-            Vá para um local bem iluminado
-          </p>
         </div>
 
         <div className="px-6 pb-3 min-h-[5.5rem]">
