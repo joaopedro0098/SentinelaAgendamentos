@@ -11,6 +11,7 @@ import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
 } from "@/features/auth/face-verification/pendingFaceStorage";
+import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 
 const FaceVerificationFlow = lazy(() =>
   import("@/features/auth/face-verification/FaceVerificationFlow").then((m) => ({
@@ -42,7 +43,7 @@ export default function AuthCompleteVerification() {
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
-        navigate("/app", { replace: true });
+        navigate(getBarberPostLoginPath(), { replace: true });
       } catch {
         clearPendingFaceEmbedding();
         authInfoToast("Não foi possível concluir a verificação. Refaça o processo.");
@@ -64,7 +65,7 @@ export default function AuthCompleteVerification() {
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
-        navigate("/app", { replace: true });
+        navigate(getBarberPostLoginPath(), { replace: true });
       } catch {
         authInfoToast("Não foi possível concluir a verificação. Tente novamente.");
         setPhase("verify");

@@ -40,6 +40,28 @@ export function isStandalonePwa() {
   );
 }
 
+export const BARBER_PWA_HOME = "/app/settings";
+
+const BARBER_PWA_MARKETING_PATHS = new Set([
+  "/",
+  "/planos",
+  "/politica-de-privacidade",
+  "/termos-de-servico",
+  "/login",
+  "/signup",
+  "/signup/verify-email",
+  "/recover",
+]);
+
+export function isBarberPwaMarketingPath(pathname: string) {
+  return BARBER_PWA_MARKETING_PATHS.has(pathname);
+}
+
+/** Destino após login/cadastro do barbeiro (PWA instalado → Configurações). */
+export function getBarberPostLoginPath() {
+  return isStandalonePwa() ? BARBER_PWA_HOME : "/app";
+}
+
 export function getCachedInstallPrompt() {
   return cachedInstallPrompt;
 }

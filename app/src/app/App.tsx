@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeFromRoute } from "@/components/theme/ThemeFromRoute";
 import { AppRouter } from "@/app/router";
 import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
+import { BarberPwaEntryRedirect } from "@/components/pwa/BarberPwaEntryRedirect";
 
 const App = () => (
   <TooltipProvider>
@@ -15,6 +16,7 @@ const App = () => (
       <PwaInstallProvider>
         <AuthProvider>
           <ThemeFromRoute />
+          <BarberPwaEntryRedirect />
           <AppRouter />
         </AuthProvider>
       </PwaInstallProvider>

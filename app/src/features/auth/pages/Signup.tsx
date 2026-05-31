@@ -18,6 +18,7 @@ import {
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { PageReveal } from "@/components/layout/PageReveal";
 import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
+import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import {
   FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
@@ -73,7 +74,7 @@ export default function Signup() {
     document.title = "Teste grátis 14 dias — Sentinela Agendamentos";
   }, []);
   useEffect(() => {
-    if (session) navigate("/app", { replace: true });
+    if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,7 +163,7 @@ export default function Signup() {
       } catch {
         authInfoToast("Conta criada. Entre normalmente após confirmar seu e-mail.");
       }
-      navigate("/app", { replace: true });
+      navigate(getBarberPostLoginPath(), { replace: true });
     } else {
       savePendingFaceEmbedding(verification.embedding, parsed.email);
       navigate("/signup/verify-email", { replace: true });

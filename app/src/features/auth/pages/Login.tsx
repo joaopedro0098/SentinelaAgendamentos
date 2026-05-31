@@ -15,7 +15,7 @@ import { authInfoToast } from "@/features/auth/lib/authToast";
 import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
-import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
+import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
 
@@ -46,7 +46,7 @@ export default function Login() {
     document.title = "Entrar — Sentinela Agendamentos";
   }, []);
   useEffect(() => {
-    if (session) navigate("/app", { replace: true });
+    if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -126,7 +126,7 @@ export default function Login() {
     }
 
     setLoading(false);
-    navigate("/app", { replace: true });
+    navigate(getBarberPostLoginPath(), { replace: true });
   }
 
   return (

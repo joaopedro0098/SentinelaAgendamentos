@@ -7,10 +7,7 @@ import {
   registerUserFacialEmbedding,
   userNeedsFaceVerification,
 } from "@/features/auth/face-verification/facialRecognitionController";
-import {
-  clearPendingFaceEmbedding,
-  loadPendingFaceEmbedding,
-} from "@/features/auth/face-verification/pendingFaceStorage";
+import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -51,7 +48,7 @@ export default function AuthCallback() {
         return;
       }
 
-      navigate("/app", { replace: true });
+      navigate(getBarberPostLoginPath(), { replace: true });
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {

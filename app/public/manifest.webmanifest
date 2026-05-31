@@ -1,7 +1,7 @@
 {
   "name": "Sentinela Agendamentos",
   "short_name": "Sentinela",
-  "start_url": "/",
+  "start_url": "/app/settings",
   "display": "standalone",
   "background_color": "#2fa66a",
   "theme_color": "#2fa66a",
