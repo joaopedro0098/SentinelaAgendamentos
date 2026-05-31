@@ -9,8 +9,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Sentinela Agendamentos";
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
-    icon: "/favicon.svg",
-    badge: "/favicon.svg",
+    icon: "/icon-192.png",
+    badge: "/favicon-48.png",
     data: {
       url: data.url || "/",
     },

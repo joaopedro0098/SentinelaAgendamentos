@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 
 export default function VerifyEmailSignupPage() {
   useEffect(() => {
@@ -11,6 +12,8 @@ export default function VerifyEmailSignupPage() {
   return (
     <main className="flex-1 flex items-center justify-center px-4 sm:px-6 pt-24 sm:pt-28 pb-12 sm:pb-16 min-h-[calc(100vh-4rem)]">
       <div className="w-full max-w-lg mx-auto text-center space-y-6 sm:space-y-8">
+        <AuthBrandHeader />
+
         <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-secondary/60 border border-border/60">
           <Mail className="h-7 w-7 sm:h-8 sm:w-8 text-[hsl(var(--brand-green))]" aria-hidden />
         </div>

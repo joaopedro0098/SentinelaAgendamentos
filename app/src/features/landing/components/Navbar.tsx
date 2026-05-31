@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CalendarCheck, Menu, User, X } from "lucide-react";
+import { ArrowRight, Menu, User, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { cn } from "@/lib/utils";
 
 const Navbar = () => {
@@ -56,14 +57,7 @@ const Navbar = () => {
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="container py-4">
         <nav className="glass rounded-full px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-base sm:text-lg shrink-0">
-            <span className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center shadow-glow shrink-0">
-              <CalendarCheck className="w-4 h-4 text-white" />
-            </span>
-            <span className="whitespace-nowrap">
-              Sentinela <span className="hidden sm:inline">Agendamentos</span>
-            </span>
-          </Link>
+          <BrandLogo linkTo="/" showName size="sm" className="shrink-0" />
 
           <div className="flex items-center gap-2">
             {showProdutoLink && (

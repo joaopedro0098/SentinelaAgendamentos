@@ -15,6 +15,7 @@ import { authInfoToast } from "@/features/auth/lib/authToast";
 import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
+import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
 
@@ -132,6 +133,7 @@ export default function Login() {
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
       <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
         <PageReveal className="flex flex-col gap-4">
+          <AuthBrandHeader className="mb-1" />
           <div className="text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Entrar</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">Acesse o painel da sua barbearia.</p>

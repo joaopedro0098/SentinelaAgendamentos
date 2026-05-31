@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const LegalLink = ({ to, children }: { to: string; children: ReactNode }) => (
   <Link
@@ -13,6 +14,7 @@ const LegalLink = ({ to, children }: { to: string; children: ReactNode }) => (
 const LandingFooter = () => (
   <footer className="border-t border-border/40 bg-background/40 backdrop-blur-sm">
     <div className="container py-8 flex flex-col items-center justify-center gap-5 text-center">
+      <BrandLogo linkTo="/" size="md" />
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
         <LegalLink to="/termos-de-servico">Termos de serviço</LegalLink>
         <span className="text-muted-foreground/40 select-none text-xs" aria-hidden>

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -87,7 +88,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
-      <header className="md:hidden sticky top-0 z-30 flex items-center px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
@@ -96,6 +97,8 @@ export default function AppLayout() {
         >
           <Menu className="h-5 w-5" />
         </button>
+        <BrandLogo size="xs" linkTo="/app/agendar" />
+        <div className="w-9" aria-hidden />
       </header>
 
       {menuMounted && (
