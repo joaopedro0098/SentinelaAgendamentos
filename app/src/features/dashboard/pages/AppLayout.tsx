@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
+import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -19,6 +20,8 @@ export default function AppLayout() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuEntered, setMenuEntered] = useState(false);
   const [shop, setShop] = useState<{ display_name: string; avatar_url: string | null } | null>(null);
+
+  useBarberPushRegistration();
 
   useEffect(() => {
     if (!user) return;

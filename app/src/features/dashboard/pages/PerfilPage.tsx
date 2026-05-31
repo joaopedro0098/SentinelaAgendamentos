@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
+import { CreditCard, Loader2, Mail, Shield, Trash2, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -12,6 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
+import {
+  barberPushStatusLabel,
+  registerBarberPush,
+  supportsWebPush,
+} from "@/lib/barberPushNotifications";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -34,6 +39,8 @@ export default function PerfilPage() {
   const [creatingPix, setCreatingPix] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [enablingPush, setEnablingPush] = useState(false);
+  const [pushStatus, setPushStatus] = useState(() => barberPushStatusLabel());
 
   useEffect(() => {
     document.title = "Conta — Sentinela Agendamentos";
@@ -169,6 +176,25 @@ export default function PerfilPage() {
     setConfirmPassword("");
   }
 
+  async function handleEnablePushNotifications() {
+    setEnablingPush(true);
+    try {
+      const result = await registerBarberPush({ requestPermission: true });
+      setPushStatus(barberPushStatusLabel());
+      if (result.ok) {
+        toast({ title: "Notificações ativadas", description: result.message });
+      } else {
+        toast({
+          title: "Não foi possível ativar",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setEnablingPush(false);
+    }
+  }
+
   async function handleDeleteAccount() {
     if (
       !confirm(
@@ -282,6 +308,35 @@ export default function PerfilPage() {
           {showBookingBlockedMessage && (
             <p className="text-xs text-destructive font-medium">
               Novos agendamentos estão bloqueados. Assine para liberar o painel e o link do cliente.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bell className="h-4 w-4" /> Novos agendamentos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Receba um aviso push quando um cliente agendar pelo link público, com nome, data e serviço.
+          </p>
+          <p className="text-sm font-medium">{pushStatus}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => void handleEnablePushNotifications()}
+            disabled={enablingPush || !supportsWebPush() || Notification.permission === "denied"}
+          >
+            {enablingPush ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ativar notificações neste dispositivo"}
+          </Button>
+          {Notification.permission === "denied" && (
+            <p className="text-xs text-muted-foreground">
+              As notificações estão bloqueadas no navegador. Libere em Configurações do site e tente novamente.
             </p>
           )}
         </CardContent>

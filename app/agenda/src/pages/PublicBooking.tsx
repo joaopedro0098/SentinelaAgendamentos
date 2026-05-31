@@ -610,6 +610,7 @@ const PublicBooking = ({
         status: "confirmado",
         observacao: obs,
         requires_client_confirmation: !ownerPanel && wantsReminder,
+        origem: ownerPanel ? "painel" : "link_publico",
       })
       .select("id")
       .single();
@@ -625,6 +626,12 @@ const PublicBooking = ({
 
     if (!ownerPanel && wantsReminder && createdAppointment?.id) {
       await registerAppointmentPush(createdAppointment.id).catch(() => undefined);
+    }
+
+    if (!ownerPanel && createdAppointment?.id) {
+      void supabase.functions
+        .invoke("notify-barber-new-booking", { body: { agendamento_id: createdAppointment.id } })
+        .catch(() => undefined);
     }
 
     setSubmitting(false);
