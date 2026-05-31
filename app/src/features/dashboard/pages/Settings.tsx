@@ -227,7 +227,7 @@ export default function Settings() {
               Perfil da empresa, link de agendamento e equipe de atendimento.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="relative z-10 flex items-center gap-2 shrink-0">
             <BarberPushToggle />
             <DashboardThemeToggle />
           </div>

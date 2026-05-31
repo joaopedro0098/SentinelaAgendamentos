@@ -10,6 +10,7 @@ export function BarberPushToggle({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false);
   const denied = typeof Notification !== "undefined" && Notification.permission === "denied";
   const unsupported = !supportsWebPush();
+  const vapidMissing = !import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim();
 
   useEffect(() => {
     setEnabled(isBarberPushEnabled());
@@ -19,7 +20,7 @@ export function BarberPushToggle({ className }: { className?: string }) {
     if (unsupported) {
       toast({
         title: "Sem suporte",
-        description: "Este navegador não suporta notificações push.",
+        description: "Use Chrome, Edge ou Firefox atualizado para ativar notificações no computador.",
         variant: "destructive",
       });
       return;
@@ -28,7 +29,17 @@ export function BarberPushToggle({ className }: { className?: string }) {
     if (denied) {
       toast({
         title: "Notificações bloqueadas",
-        description: "Libere nas configurações do navegador e tente novamente.",
+        description:
+          "No Chrome/Edge: clique no cadeado ao lado da URL → Configurações do site → Notificações → Permitir. Depois recarregue a página.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (vapidMissing) {
+      toast({
+        title: "Push não configurado",
+        description: "Notificações push ainda não foram configuradas neste ambiente.",
         variant: "destructive",
       });
       return;
@@ -66,10 +77,11 @@ export function BarberPushToggle({ className }: { className?: string }) {
       variant="outline"
       size="icon"
       className={cn(
-        "h-9 w-9 shrink-0 rounded-full transition-colors",
+        "h-9 w-9 shrink-0 rounded-full transition-colors relative z-10",
         enabled
           ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-          : "border-border bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground",
+          : "border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+        (denied || unsupported) && "opacity-80",
         className,
       )}
       aria-pressed={enabled}
@@ -87,7 +99,7 @@ export function BarberPushToggle({ className }: { className?: string }) {
               ? "Notificações de agendamento ativas"
               : "Ativar notificações de novos agendamentos"
       }
-      disabled={busy || unsupported || denied}
+      disabled={busy}
       onClick={() => void handleToggle()}
     >
       {busy ? (

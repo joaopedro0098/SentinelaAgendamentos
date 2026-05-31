@@ -34,7 +34,7 @@ export function BrandLogo({
       <img
         src={LOGO_SRC}
         alt="Sentinela Agendamentos"
-        className={cn("shrink-0 rounded-xl object-cover shadow-glow", sizeClasses[size], imageClassName)}
+        className={cn("shrink-0 rounded-[22%] object-cover shadow-glow", sizeClasses[size], imageClassName)}
       />
       {showName ? (
         <span className={cn("font-display font-bold text-base sm:text-lg whitespace-nowrap", nameClassName)}>
