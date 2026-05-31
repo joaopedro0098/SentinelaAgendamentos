@@ -8,6 +8,10 @@ import {
   userNeedsFaceVerification,
 } from "@/features/auth/face-verification/facialRecognitionController";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
+import {
+  clearPendingFaceEmbedding,
+  loadPendingFaceEmbedding,
+} from "@/features/auth/face-verification/pendingFaceStorage";
 
 export default function AuthCallback() {
   const navigate = useNavigate();

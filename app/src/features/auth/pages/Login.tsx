@@ -15,6 +15,7 @@ import { authInfoToast } from "@/features/auth/lib/authToast";
 import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
+import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
