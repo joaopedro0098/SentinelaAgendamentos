@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
@@ -56,7 +56,9 @@ function formatWhatsApp(w: string) {
 
 export default function AgendamentosPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const deepLinkApplied = useRef(false);
   const [slug, setSlug] = useState<string | null>(null);
   const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
   const [loadingShop, setLoadingShop] = useState(true);
@@ -64,6 +66,8 @@ export default function AgendamentosPage() {
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [focusDate, setFocusDate] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -73,16 +77,45 @@ export default function AgendamentosPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const total = DAYS_BACK + DAYS_AHEAD + 1;
-    return Array.from({ length: total }, (_, i) => {
+    const list = Array.from({ length: total }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() - DAYS_BACK + i);
       return d;
     });
-  }, []);
+
+    if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) {
+      const exists = list.some((d) => ymd(d) === focusDate);
+      if (!exists) {
+        list.push(new Date(`${focusDate}T12:00:00`));
+        list.sort((a, b) => a.getTime() - b.getTime());
+      }
+    }
+
+    return list;
+  }, [focusDate]);
 
   useEffect(() => {
     document.title = "Agendamentos - Sentinela Agendamentos";
   }, []);
+
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+
+    const data = searchParams.get("data");
+    const barbeiro = searchParams.get("barbeiro");
+    const agendamento = searchParams.get("agendamento");
+    if (!data && !barbeiro && !agendamento) return;
+
+    if (data && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      setSelectedDate(data);
+      setFocusDate(data);
+    }
+    if (barbeiro) setSelectedBarbeiroId(barbeiro);
+    if (agendamento) setHighlightedId(agendamento);
+
+    deepLinkApplied.current = true;
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!user) return;
@@ -181,6 +214,23 @@ export default function AgendamentosPage() {
     if (!selectedBarbeiroId) return agendamentos;
     return agendamentos.filter((a) => a.barbeiro_id === selectedBarbeiroId);
   }, [agendamentos, selectedBarbeiroId]);
+
+  useEffect(() => {
+    if (!highlightedId || loadingList) return;
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(`agendamento-${highlightedId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 120);
+
+    const clearTimer = window.setTimeout(() => setHighlightedId(null), 8000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [highlightedId, loadingList, listaFiltrada]);
 
   const dataLabel = useMemo(() => {
     const d = new Date(selectedDate + "T12:00:00");
@@ -361,8 +411,13 @@ export default function AgendamentosPage() {
         ) : (
           <ul className="space-y-3">
             {listaFiltrada.map((a) => (
-              <li key={a.id}>
-                <Card className="overflow-hidden border-border/80">
+              <li key={a.id} id={`agendamento-${a.id}`}>
+                <Card
+                  className={cn(
+                    "overflow-hidden border-border/80 transition-shadow",
+                    highlightedId === a.id && "ring-2 ring-primary shadow-glow border-primary/40",
+                  )}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">

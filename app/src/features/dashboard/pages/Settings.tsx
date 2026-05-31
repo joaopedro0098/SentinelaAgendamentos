@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
+import { BarberPushToggle } from "@/components/pwa/BarberPushToggle";
 
 type Shop = {
   id: string;
@@ -226,7 +227,10 @@ export default function Settings() {
               Perfil da empresa, link de agendamento e equipe de atendimento.
             </p>
           </div>
-          <DashboardThemeToggle />
+          <div className="flex items-center gap-2 shrink-0">
+            <BarberPushToggle />
+            <DashboardThemeToggle />
+          </div>
         </header>
 
         <Card className="glass-panel border-border/80">

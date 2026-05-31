@@ -15,6 +15,7 @@ const corsHeaders = {
 type AppointmentRow = {
   id: string;
   barbearia_id: string;
+  barbeiro_id: string;
   cliente_nome: string;
   data: string;
   servicos_nomes: string[] | null;
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
     const { data: appointment, error: appointmentError } = await supabase
       .from("agendamentos")
       .select(
-        "id, barbearia_id, cliente_nome, data, servicos_nomes, origem, status, barber_new_booking_push_sent_at, created_at",
+        "id, barbearia_id, barbeiro_id, cliente_nome, data, servicos_nomes, origem, status, barber_new_booking_push_sent_at, created_at",
       )
       .eq("id", agendamentoId)
       .maybeSingle();
@@ -106,7 +107,11 @@ Deno.serve(async (req) => {
       subscriptionTable: "barber_push_subscriptions",
       title: "Novo agendamento",
       body: buildNotificationBody(row),
-      url: `${getAppUrl()}/app/agendamentos`,
+      url: `${getAppUrl()}/app/agendamentos?${new URLSearchParams({
+        data: row.data,
+        barbeiro: row.barbeiro_id,
+        agendamento: row.id,
+      }).toString()}`,
     });
 
     if (sent > 0) {
