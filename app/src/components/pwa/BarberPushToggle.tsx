@@ -66,8 +66,10 @@ export function BarberPushToggle({ className }: { className?: string }) {
       variant="outline"
       size="icon"
       className={cn(
-        "h-9 w-9 shrink-0 rounded-full",
-        enabled && "border-primary bg-primary/10 text-primary hover:bg-primary/15",
+        "h-9 w-9 shrink-0 rounded-full transition-colors",
+        enabled
+          ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+          : "border-border bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground",
         className,
       )}
       aria-pressed={enabled}
@@ -91,7 +93,7 @@ export function BarberPushToggle({ className }: { className?: string }) {
       {busy ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <Bell className={cn("h-4 w-4", enabled && "fill-current")} />
+        <Bell className={cn("h-4 w-4", enabled && "fill-primary-foreground")} />
       )}
     </Button>
   );
