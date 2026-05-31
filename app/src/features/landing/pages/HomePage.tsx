@@ -8,7 +8,7 @@ import { PageReveal } from "@/components/layout/PageReveal";
 
 const HomePage = () => {
   useEffect(() => {
-    document.title = "Sentinela Agendamentos - Teste já, 14 dias grátis!";
+    document.title = "Sentinela Agendamentos — Teste agora 14 dias grátis";
   }, []);
 
   return (
