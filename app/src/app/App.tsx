@@ -5,16 +5,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeFromRoute } from "@/components/theme/ThemeFromRoute";
 import { AppRouter } from "@/app/router";
+import { PwaInstallProvider } from "@/providers/PwaInstallProvider";
 
 const App = () => (
   <TooltipProvider>
     <Toaster />
     <Sonner />
     <BrowserRouter>
-      <AuthProvider>
-        <ThemeFromRoute />
-        <AppRouter />
-      </AuthProvider>
+      <PwaInstallProvider>
+        <AuthProvider>
+          <ThemeFromRoute />
+          <AppRouter />
+        </AuthProvider>
+      </PwaInstallProvider>
     </BrowserRouter>
   </TooltipProvider>
 );

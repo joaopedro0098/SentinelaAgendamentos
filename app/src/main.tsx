@@ -1,8 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "@/app/App";
 import "@/styles/index.css";
-import { registerAppServiceWorker } from "@/lib/pwaInstall";
+import { registerAppServiceWorker, initInstallPromptCapture } from "@/lib/pwaInstall";
 
+initInstallPromptCapture();
 registerAppServiceWorker();
 
 createRoot(document.getElementById("root")!).render(<App />);

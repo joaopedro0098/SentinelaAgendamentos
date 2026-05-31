@@ -1,46 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  isIosDevice,
-  isStandalonePwa,
-  listenForInstallPrompt,
-  type BeforeInstallPromptEvent,
-} from "@/lib/pwaInstall";
+import { useCallback, useState } from "react";
+import { usePwaInstallContext } from "@/providers/PwaInstallProvider";
 
 export function usePwaInstall() {
-  const [installed, setInstalled] = useState(() =>
-    typeof window !== "undefined" ? isStandalonePwa() : false,
-  );
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const { showInstall, isIos, tryNativeInstall } = usePwaInstallContext();
   const [showHelp, setShowHelp] = useState(false);
-  const isIos = typeof window !== "undefined" && isIosDevice();
-
-  useEffect(() => {
-    setInstalled(isStandalonePwa());
-    const media = window.matchMedia("(display-mode: standalone)");
-    const onDisplayMode = () => setInstalled(isStandalonePwa());
-    media.addEventListener("change", onDisplayMode);
-    return () => media.removeEventListener("change", onDisplayMode);
-  }, []);
-
-  useEffect(() => {
-    if (installed) return;
-    return listenForInstallPrompt((event) => setInstallPrompt(event));
-  }, [installed]);
 
   const handleInstall = useCallback(async () => {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      await installPrompt.userChoice;
-      setInstallPrompt(null);
-      setInstalled(isStandalonePwa());
-      return;
+    const installedViaPrompt = await tryNativeInstall();
+    if (!installedViaPrompt) {
+      setShowHelp(true);
     }
-    setShowHelp(true);
-  }, [installPrompt]);
+  }, [tryNativeInstall]);
 
   return {
-    installed,
-    showInstall: !installed,
+    showInstall,
     isIos,
     showHelp,
     setShowHelp,

@@ -164,7 +164,7 @@ export default function AppLayout() {
             <div className="p-3 border-t border-border space-y-2">
               <PwaInstallButton
                 label="Instalar"
-                helpPresentation="inline"
+                helpPresentation="dialog"
                 buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                 variant="default"
               />
@@ -196,7 +196,7 @@ export default function AppLayout() {
           <div className="flex flex-col gap-2 p-3 border-t border-border/60">
             <PwaInstallButton
               label="Instalar"
-              helpPresentation="inline"
+              helpPresentation="dialog"
               buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
               variant="default"
             />
