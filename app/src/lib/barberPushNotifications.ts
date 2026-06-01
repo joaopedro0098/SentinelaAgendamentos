@@ -58,10 +58,3 @@ export async function registerBarberPush(options?: { requestPermission?: boolean
 export function isBarberPushEnabled() {
   return supportsWebPush() && Notification.permission === "granted";
 }
-
-export function barberPushStatusLabel() {
-  if (!supportsWebPush()) return "Navegador sem suporte a push";
-  if (Notification.permission === "granted") return "Ativadas neste dispositivo";
-  if (Notification.permission === "denied") return "Bloqueadas nas configurações do navegador";
-  return "Desativadas";
-}

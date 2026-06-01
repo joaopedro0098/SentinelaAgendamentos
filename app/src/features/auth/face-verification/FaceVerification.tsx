@@ -8,7 +8,6 @@ import { useLiveness } from "./useLiveness";
 import {
   buildEmbeddingFromSnapshot,
   checkFacialTrialEligibility,
-  FACIAL_TRIAL_BLOCKED_MESSAGE,
   type FacialVerificationProgress,
   type FacialVerificationResult,
 } from "./facialRecognitionController";
@@ -198,5 +197,3 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     </div>
   );
 }
-
-export { FACIAL_TRIAL_BLOCKED_MESSAGE };

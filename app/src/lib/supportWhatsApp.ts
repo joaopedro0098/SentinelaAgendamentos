@@ -1,6 +1,6 @@
 const SUPPORT_MESSAGE = "Olá! Preciso de suporte no Sentinela Agendamentos.";
 
-export function unmaskPhone(value: string) {
+function unmaskPhone(value: string) {
   return value.replace(/\D/g, "");
 }
 

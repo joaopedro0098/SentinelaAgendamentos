@@ -91,11 +91,6 @@ export function subscribeInstallPrompt(onAvailable: (prompt: BeforeInstallPrompt
   return () => installPromptSubscribers.delete(onAvailable);
 }
 
-/** @deprecated Use subscribeInstallPrompt for a single shared listener. */
-export function listenForInstallPrompt(onAvailable: (prompt: BeforeInstallPromptEvent) => void) {
-  return subscribeInstallPrompt(onAvailable);
-}
-
 export function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);

@@ -16,12 +16,3 @@ export const whatsappHref = (telefone: string | null | undefined) => {
   const full = d.length <= 11 && !d.startsWith("55") ? `55${d}` : d;
   return `https://wa.me/${full}`;
 };
-
-export const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);

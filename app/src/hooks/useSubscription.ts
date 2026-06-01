@@ -46,11 +46,3 @@ export function useSubscription() {
 
   return { info, loading, refresh };
 }
-
-export async function checkBarbeariaCanBook(barbeariaId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc("check_barbearia_pode_agendar", {
-    p_barbearia_id: barbeariaId,
-  });
-  if (error) return false;
-  return Boolean(data);
-}

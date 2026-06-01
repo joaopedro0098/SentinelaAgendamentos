@@ -6,11 +6,6 @@ export const FACIAL_TRIAL_BLOCKED_MESSAGE =
 
 export const SUBSCRIPTION_BLOCK_OWNER = "Renove a assinatura para agendar.";
 
-export function getClientBookingBlockMessage(profileName: string | undefined): string {
-  const name = profileName?.trim() || "o estabelecimento";
-  return `Sistema bloqueado, entre em contato com ${name} por WhatsApp para que eles realizem o desbloqueio.`;
-}
-
 export function getOwnerBookingBlockMessage(info: SubscriptionInfo): string {
   if (info.facial_trial_used) return FACIAL_TRIAL_BLOCKED_MESSAGE;
   if (info.trial_already_used) {
@@ -34,15 +29,4 @@ export function showOwnerBookingBlockedToast(message: string) {
       title: "!text-white !text-base !font-semibold !leading-snug",
     },
   });
-}
-
-export function isSubscriptionBlockError(message: string | undefined): boolean {
-  if (!message) return false;
-  const m = message.toLowerCase();
-  return (
-    m.includes("função bloqueada") ||
-    m.includes("pagamento da mensalidade") ||
-    m.includes("row-level security") ||
-    m.includes("barbearia_pode_agendar")
-  );
 }
