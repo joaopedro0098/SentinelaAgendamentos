@@ -5,8 +5,8 @@ import { authInfoToast } from "@/features/auth/lib/authToast";
 import {
   FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
-  userNeedsFaceVerification,
 } from "@/features/auth/face-verification/facialRecognitionController";
+import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import {
   clearPendingFaceEmbedding,

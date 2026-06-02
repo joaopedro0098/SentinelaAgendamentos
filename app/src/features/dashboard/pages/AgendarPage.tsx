@@ -1,13 +1,12 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import PublicBooking, { type RescheduleContext } from "@agenda/pages/PublicBooking";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
-import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
-import { useAuth } from "@/hooks/useAuth";
+import { getAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { getOwnerBookingBlockMessage, showOwnerBookingBlockedToast } from "@/lib/subscriptionMessages";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 type LocationState = {
@@ -15,43 +14,21 @@ type LocationState = {
 };
 
 export default function AgendarPage() {
-  const { user } = useAuth();
   const { info: subscriptionInfo } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
-
-  const [slug, setSlug] = useState<string | null>(null);
-  const [loadingShop, setLoadingShop] = useState(true);
-  const { phase, errorMsg } = useEnsureAgendaSync(slug ?? undefined);
+  const { slug, loading, agendaReady } = useDashboardShop();
+  const phase = slug ? getAgendaSyncPhase(slug) : "not_found";
 
   useEffect(() => {
     document.title = reschedule ? "Alterar horário - Sentinela Agendamentos" : "Agendar - Sentinela Agendamentos";
   }, [reschedule]);
 
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    (async () => {
-      setLoadingShop(true);
-      const { data } = await supabase
-        .from("barbershops")
-        .select("slug")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      if (active) {
-        setSlug(data?.slug ?? null);
-        setLoadingShop(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
   const backHref = reschedule ? "/app/agendamentos" : "/app/settings";
+  const booting = loading && !slug;
 
-  if (loadingShop || phase === "loading") {
+  if (booting || (slug && !agendaReady && phase === "loading")) {
     return (
       <AgendaShell>
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 p-6">
@@ -89,7 +66,9 @@ export default function AgendarPage() {
           <BackToPanel to={backHref} />
           <div>
             <h1 className="font-display text-xl font-bold">Não foi possível abrir a agenda</h1>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md">{errorMsg}</p>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md">
+              A sincronização da agenda falhou. Tente novamente em instantes.
+            </p>
           </div>
         </div>
       </AgendaShell>

@@ -4,9 +4,7 @@ import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Scissors, T
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase as appSupabase } from "@/integrations/supabase/client";
-import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,11 +55,8 @@ function formatWhatsApp(w: string) {
 export default function AgendamentosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { slug, barbeariaId, loading: shopLoading, agendaReady } = useDashboardShop();
   const deepLinkApplied = useRef(false);
-  const [slug, setSlug] = useState<string | null>(null);
-  const [barbeariaId, setBarbeariaId] = useState<string | null>(null);
-  const [loadingShop, setLoadingShop] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
@@ -71,7 +66,7 @@ export default function AgendamentosPage() {
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { phase } = useEnsureAgendaSync(slug ?? undefined);
+  const booting = shopLoading && !slug;
 
   const dias = useMemo(() => {
     const today = new Date();
@@ -116,38 +111,6 @@ export default function AgendamentosPage() {
     deepLinkApplied.current = true;
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    (async () => {
-      setLoadingShop(true);
-      const { data } = await appSupabase
-        .from("barbershops")
-        .select("slug")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      if (active) {
-        setSlug(data?.slug ?? null);
-        setLoadingShop(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!slug || phase !== "ready") return;
-    let active = true;
-    (async () => {
-      const { data } = await supabase.from("barbearias").select("id").eq("slug", slug).maybeSingle();
-      if (active) setBarbeariaId(data?.id ?? null);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [slug, phase]);
 
   const loadAgendamentos = useCallback(async () => {
     if (!barbeariaId) return;
@@ -276,7 +239,7 @@ export default function AgendamentosPage() {
     loadAgendamentos();
   }
 
-  if (loadingShop || phase === "loading") {
+  if (booting || (slug && !agendaReady)) {
     return (
       <div className="p-4 md:p-6 flex flex-col items-center justify-center min-h-[50vh] gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

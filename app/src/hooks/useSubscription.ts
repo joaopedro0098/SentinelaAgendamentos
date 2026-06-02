@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
 
 export type SubscriptionInfo = {
   is_admin: boolean;
@@ -20,29 +18,5 @@ export type SubscriptionInfo = {
 };
 
 export function useSubscription() {
-  const { user } = useAuth();
-  const [info, setInfo] = useState<SubscriptionInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    if (!user) {
-      setInfo(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabase.rpc("get_my_subscription");
-    if (!error && data && typeof data === "object" && !("error" in data)) {
-      setInfo(data as SubscriptionInfo);
-    } else {
-      setInfo(null);
-    }
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { info, loading, refresh };
+  return useSubscriptionContext();
 }

@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Calendar, CalendarCheck, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
@@ -17,40 +17,12 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
+  const { shop } = useDashboardShop();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuEntered, setMenuEntered] = useState(false);
-  const [shop, setShop] = useState<{ display_name: string; avatar_url: string | null } | null>(null);
 
   useBarberPushRegistration();
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    (async () => {
-      const { data } = await supabase
-        .from("barbershops")
-        .select("display_name, avatar_url")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      if (active) setShop(data ?? null);
-    })();
-    const channel = supabase
-      .channel(`shop:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "barbershops", filter: `owner_id=eq.${user.id}` },
-        (payload) => {
-          const n = payload.new as { display_name: string; avatar_url: string | null };
-          setShop({ display_name: n.display_name, avatar_url: n.avatar_url });
-        },
-      )
-      .subscribe();
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
 
   useEffect(() => {
     if (menuOpen) {
@@ -124,7 +96,10 @@ export default function AppLayout() {
             )}
           >
             <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border">
-              <ShopPanelBrand shop={shop} avatarClassName="h-9 w-9" />
+              <ShopPanelBrand
+                shop={shop ? { display_name: shop.display_name, avatar_url: shop.avatar_url } : null}
+                avatarClassName="h-9 w-9"
+              />
               <button
                 type="button"
                 onClick={closeMenu}
@@ -187,7 +162,10 @@ export default function AppLayout() {
       <aside className="hidden md:flex md:w-64 border-r border-border shrink-0">
         <div className="glass-panel m-3 rounded-2xl flex flex-col flex-1 overflow-hidden w-full">
           <div className="px-4 py-4 border-b border-border/60">
-            <ShopPanelBrand shop={shop} avatarClassName="h-12 w-12" />
+            <ShopPanelBrand
+              shop={shop ? { display_name: shop.display_name, avatar_url: shop.avatar_url } : null}
+              avatarClassName="h-12 w-12"
+            />
           </div>
 
           <nav className="flex flex-col gap-1 p-2 flex-1">

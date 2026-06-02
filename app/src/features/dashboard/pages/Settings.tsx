@@ -12,20 +12,12 @@ import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDial
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle } from "@/components/pwa/BarberPushToggle";
-
-type Shop = {
-  id: string;
-  slug: string;
-  display_name: string;
-  avatar_url: string | null;
-  slot_interval_minutes: number;
-  slot_pause_minutes: number;
-};
+import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
 
 export default function Settings() {
   const { user } = useAuth();
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { shop: contextShop, loading, refresh } = useDashboardShop();
+  const [shop, setShop] = useState<DashboardShop | null>(contextShop);
   const [saving, setSaving] = useState(false);
   const [copiedBooking, setCopiedBooking] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -42,23 +34,11 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("barbershops")
-        .select("id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      const row = data as Shop | null;
-      setShop(row);
-      if (row) {
-        setSlotInterval(String(row.slot_interval_minutes ?? 30));
-        setSlotPause(row.slot_pause_minutes ? String(row.slot_pause_minutes) : "0");
-      }
-      setLoading(false);
-    })();
-  }, [user]);
+    if (!contextShop) return;
+    setShop(contextShop);
+    setSlotInterval(String(contextShop.slot_interval_minutes ?? 30));
+    setSlotPause(contextShop.slot_pause_minutes ? String(contextShop.slot_pause_minutes) : "0");
+  }, [contextShop]);
 
   useEffect(() => {
     return () => {
@@ -111,6 +91,11 @@ export default function Settings() {
     }
 
     setShop({ ...shop, display_name: shop.display_name.trim().slice(0, 80), avatar_url: nextAvatarUrl });
+    patchDashboardShopCache({
+      display_name: shop.display_name.trim().slice(0, 80),
+      avatar_url: nextAvatarUrl,
+    });
+    void refresh();
     setPendingAvatarBlob(null);
     setAvatarPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);

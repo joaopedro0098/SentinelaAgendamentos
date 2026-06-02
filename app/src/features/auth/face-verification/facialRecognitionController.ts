@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { computeFaceEmbedding } from "./faceEmbeddingService";
 import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 
 export type FacialVerificationResult = {
@@ -24,12 +23,6 @@ export async function registerUserFacialEmbedding(
     trialEligible: row.trial_eligible !== false,
     facialMatch: row.facial_match === true,
   };
-}
-
-export async function userNeedsFaceVerification(): Promise<boolean> {
-  const { data, error } = await supabase.rpc("user_needs_face_verification");
-  if (error) return false;
-  return data === true;
 }
 
 export type FacialVerificationProgress = {
@@ -58,6 +51,7 @@ export async function buildEmbeddingFromSnapshot(
   onProgress?: (p: FacialVerificationProgress) => void,
 ): Promise<number[]> {
   onProgress?.({ stage: "embedding", message: "Gerando verificação facial…" });
+  const { computeFaceEmbedding } = await import("./faceEmbeddingService");
   return computeFaceEmbedding(canvas);
 }
 

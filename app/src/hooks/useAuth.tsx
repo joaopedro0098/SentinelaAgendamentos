@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { clearFaceVerificationCache } from "@/features/auth/face-verification/facialVerificationStatus";
+import { clearAgendaSyncCache } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import { clearDashboardShopCache } from "@/providers/DashboardShopProvider";
+import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 
 type AuthCtx = {
   session: Session | null;
@@ -39,6 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         signOut: async () => {
+          clearFaceVerificationCache();
+          clearAgendaSyncCache();
+          clearDashboardShopCache();
+          clearSubscriptionCache();
           if (isSupabaseConfigured) await getSupabase().auth.signOut();
         },
       }}
