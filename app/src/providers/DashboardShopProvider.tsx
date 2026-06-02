@@ -3,6 +3,7 @@ import { supabase as agendaSupabase } from "@agenda/integrations/supabase/client
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getAgendaSyncPhase, primeAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import { isCacheFresh } from "@/lib/providerCache";
 
 export type DashboardShop = {
   id: string;
@@ -13,13 +14,17 @@ export type DashboardShop = {
   slot_pause_minutes: number;
 };
 
+type RefreshOptions = {
+  force?: boolean;
+};
+
 type DashboardShopContextValue = {
   shop: DashboardShop | null;
   slug: string | null;
   barbeariaId: string | null;
   agendaReady: boolean;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (options?: RefreshOptions) => Promise<void>;
 };
 
 const DashboardShopContext = createContext<DashboardShopContextValue | null>(null);
@@ -27,6 +32,7 @@ const DashboardShopContext = createContext<DashboardShopContextValue | null>(nul
 let cachedUserId: string | null = null;
 let cachedShop: DashboardShop | null = null;
 let cachedBarbeariaId: string | null = null;
+let cachedFetchedAt: number | null = null;
 
 async function syncAgenda(slug: string) {
   const cached = getAgendaSyncPhase(slug);
@@ -59,60 +65,74 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? null;
   const hasWarmCache = Boolean(userId && userId === cachedUserId && cachedShop);
 
-  const [shop, setShop] = useState<DashboardShop | null>(() =>
-    hasWarmCache ? cachedShop : null,
-  );
-  const [barbeariaId, setBarbeariaId] = useState<string | null>(() =>
-    hasWarmCache ? cachedBarbeariaId : null,
-  );
+  const [shop, setShop] = useState<DashboardShop | null>(() => (hasWarmCache ? cachedShop : null));
+  const [barbeariaId, setBarbeariaId] = useState<string | null>(() => (hasWarmCache ? cachedBarbeariaId : null));
   const [loading, setLoading] = useState(!hasWarmCache);
 
-  const refresh = useCallback(async () => {
-    if (!userId) {
-      cachedUserId = null;
-      cachedShop = null;
-      cachedBarbeariaId = null;
-      setShop(null);
-      setBarbeariaId(null);
+  const refresh = useCallback(
+    async (options?: RefreshOptions) => {
+      if (!userId) {
+        cachedUserId = null;
+        cachedShop = null;
+        cachedBarbeariaId = null;
+        cachedFetchedAt = null;
+        setShop(null);
+        setBarbeariaId(null);
+        setLoading(false);
+        return;
+      }
+
+      const hasCache = cachedUserId === userId && cachedShop;
+      const fresh = hasCache && isCacheFresh(cachedFetchedAt) && !options?.force;
+
+      if (fresh) {
+        setShop(cachedShop);
+        setBarbeariaId(cachedBarbeariaId);
+        setLoading(false);
+        return;
+      }
+
+      if (!hasCache) {
+        setLoading(true);
+      }
+
+      const { data } = await supabase
+        .from("barbershops")
+        .select("id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes")
+        .eq("owner_id", userId)
+        .maybeSingle();
+
+      const row = (data as DashboardShop | null) ?? null;
+      cachedUserId = userId;
+      cachedShop = row;
+      cachedFetchedAt = Date.now();
+      setShop(row);
+
+      if (!row?.slug) {
+        cachedBarbeariaId = null;
+        setBarbeariaId(null);
+        setLoading(false);
+        return;
+      }
+
+      primeAgendaSyncPhase(row.slug, getAgendaSyncPhase(row.slug));
+      const phase = await syncAgenda(row.slug);
+      if (phase === "ready") {
+        const id =
+          cachedBarbeariaId && cachedShop?.slug === row.slug
+            ? cachedBarbeariaId
+            : await resolveBarbeariaId(row.slug);
+        cachedBarbeariaId = id;
+        setBarbeariaId(id);
+      } else {
+        cachedBarbeariaId = null;
+        setBarbeariaId(null);
+      }
+
       setLoading(false);
-      return;
-    }
-
-    if (!(cachedUserId === userId && cachedShop)) {
-      setLoading(true);
-    }
-
-    const { data } = await supabase
-      .from("barbershops")
-      .select("id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes")
-      .eq("owner_id", userId)
-      .maybeSingle();
-
-    const row = (data as DashboardShop | null) ?? null;
-    cachedUserId = userId;
-    cachedShop = row;
-    setShop(row);
-
-    if (!row?.slug) {
-      cachedBarbeariaId = null;
-      setBarbeariaId(null);
-      setLoading(false);
-      return;
-    }
-
-    primeAgendaSyncPhase(row.slug, getAgendaSyncPhase(row.slug));
-    const phase = await syncAgenda(row.slug);
-    if (phase === "ready") {
-      const id = cachedBarbeariaId && cachedShop?.slug === row.slug ? cachedBarbeariaId : await resolveBarbeariaId(row.slug);
-      cachedBarbeariaId = id;
-      setBarbeariaId(id);
-    } else {
-      cachedBarbeariaId = null;
-      setBarbeariaId(null);
-    }
-
-    setLoading(false);
-  }, [userId]);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     void refresh();
@@ -145,9 +165,11 @@ export function clearDashboardShopCache() {
   cachedUserId = null;
   cachedShop = null;
   cachedBarbeariaId = null;
+  cachedFetchedAt = null;
 }
 
 export function patchDashboardShopCache(next: Partial<DashboardShop>) {
   if (!cachedShop) return;
   cachedShop = { ...cachedShop, ...next };
+  cachedFetchedAt = Date.now();
 }

@@ -52,7 +52,7 @@ export default function PerfilPage() {
 
     void invokeBillingFunction<{ subscription?: { subscription_status?: string } }>(syncFn)
       .then(async (data) => {
-        await refresh();
+        await refresh({ force: true });
         const status = data.subscription?.subscription_status;
         if (status === "active") {
           toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
@@ -115,7 +115,7 @@ export default function PerfilPage() {
       const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>("stripe-cancel-subscription");
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast({ title: "Assinatura cancelada", description: "O acesso continua até a data de vencimento." });
-      await refresh();
+      await refresh({ force: true });
     } catch (e) {
       toast({
         title: "Não foi possível cancelar",

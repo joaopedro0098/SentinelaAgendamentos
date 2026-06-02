@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/components/guards/RequireAuth";
 import { AppGuard } from "@/components/guards/AppGuard";
 import { MarketingLayout } from "@/features/landing/layout/MarketingLayout";
-import { DashboardPageSkeleton, AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
+import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import { DashboardShopProvider } from "@/providers/DashboardShopProvider";
 
 const HomePage = lazy(() => import("@/features/landing/pages/HomePage"));
@@ -27,17 +27,9 @@ const AuthCompleteVerificationPage = lazy(() => import("@/features/auth/pages/Au
 const VerifyEmailSignupPage = lazy(() => import("@/features/auth/pages/VerifyEmailSignup"));
 
 const AppLayout = lazy(() => import("@/features/dashboard/pages/AppLayout"));
-const SettingsPage = lazy(() => import("@/features/dashboard/pages/Settings"));
-const PerfilPage = lazy(() => import("@/features/dashboard/pages/PerfilPage"));
-const AssinarCartaoPage = lazy(() => import("@/features/billing/pages/AssinarCartaoPage"));
-const AgendarPage = lazy(() => import("@/features/dashboard/pages/AgendarPage"));
-const AgendamentosPage = lazy(() => import("@/features/dashboard/pages/AgendamentosPage"));
-const AdminPage = lazy(() => import("@/features/dashboard/pages/AdminPage"));
+const DashboardRoutes = lazy(() => import("@/features/dashboard/pages/DashboardRoutes"));
 
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
-const RequireAdmin = lazy(() =>
-  import("@/components/guards/RequireAdmin").then((m) => ({ default: m.RequireAdmin })),
-);
 
 function RouteFallback() {
   return (
@@ -92,57 +84,7 @@ export function AppRouter() {
             </AppGuard>
           }
         >
-          <Route index element={<Navigate to="settings" replace />} />
-          <Route
-            path="agendar"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <AgendarPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="agendamentos"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <AgendamentosPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="settings"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <SettingsPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="perfil"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <PerfilPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="perfil/assinar-cartao"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <AssinarCartaoPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="admin"
-            element={
-              <Suspense fallback={<DashboardPageSkeleton />}>
-                <RequireAdmin>
-                  <AdminPage />
-                </RequireAdmin>
-              </Suspense>
-            }
-          />
+          <Route path="*" element={<DashboardRoutes />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

@@ -95,7 +95,7 @@ export default function Settings() {
       display_name: shop.display_name.trim().slice(0, 80),
       avatar_url: nextAvatarUrl,
     });
-    void refresh();
+    void refresh({ force: true });
     setPendingAvatarBlob(null);
     setAvatarPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
@@ -20,16 +20,44 @@ function hasStoredAuthSession() {
   }
 }
 
+function canSkipFaceCheck() {
+  try {
+    return sessionStorage.getItem("sentinela:face-ok") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function initialBootState(): BootState {
+  if (!hasStoredAuthSession()) return "login";
+  if (canSkipFaceCheck()) return "ready";
+  return "checking";
+}
+
 export function AppGuard({ children }: Props) {
   const { session, loading: authLoading } = useAuth();
   const location = useLocation();
-  const [boot, setBoot] = useState<BootState>(() => (hasStoredAuthSession() ? "checking" : "login"));
+  const [boot, setBoot] = useState<BootState>(initialBootState);
+  const verifiedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
 
     if (!session) {
+      verifiedUserIdRef.current = null;
       setBoot("login");
+      return;
+    }
+
+    const userId = session.user.id;
+    if (verifiedUserIdRef.current === userId) {
+      setBoot("ready");
+      return;
+    }
+
+    if (canSkipFaceCheck()) {
+      verifiedUserIdRef.current = userId;
+      setBoot("ready");
       return;
     }
 
@@ -39,10 +67,18 @@ export function AppGuard({ children }: Props) {
     void userNeedsFaceVerification()
       .then((needsFace) => {
         if (!active) return;
-        setBoot(needsFace ? "face" : "ready");
+        if (needsFace) {
+          verifiedUserIdRef.current = null;
+          setBoot("face");
+          return;
+        }
+        verifiedUserIdRef.current = userId;
+        setBoot("ready");
       })
       .catch(() => {
-        if (active) setBoot("ready");
+        if (!active) return;
+        verifiedUserIdRef.current = userId;
+        setBoot("ready");
       });
 
     return () => {

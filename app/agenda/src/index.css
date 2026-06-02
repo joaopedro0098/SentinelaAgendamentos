@@ -1,168 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+/* Utilitários do fluxo de agendamento (tokens vêm de booking-surface / data-theme=booking). */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Design system - Modern minimalista para SaaS de barbearias */
-
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-
-    --primary: 0 0% 7%;
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
-
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 7%;
-
-    --brand: 142 76% 45%;
-    --brand-foreground: 0 0% 7%;
-    --surface: 0 0% 98%;
-    --surface-2: 0 0% 94%;
-
-    /* Semáforo de disponibilidade — tons sóbrios e harmônicos */
-    --available: 152 55% 42%;
-    --available-foreground: 0 0% 100%;
-    --available-soft: 152 55% 95%;
-    --unavailable: 0 65% 55%;
-    --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 65% 96%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+.container-tight {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 72rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
-    font-feature-settings: "cv11", "ss01";
-  }
-
-  h1, h2, h3, h4, .font-display {
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
-    letter-spacing: -0.02em;
-  }
-}
-
-@layer utilities {
+@media (min-width: 640px) {
   .container-tight {
-    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
-  .grid-pattern {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 32px 32px;
+}
+
+.grid-pattern {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, hsl(152 55% 30%), hsl(142 76% 45%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-gradient-brand {
+  background: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
+}
+
+.shadow-glow {
+  box-shadow: 0 0 52px hsl(152 55% 42% / 0.28);
+}
+
+.booking-split-divider::before {
+  content: none;
+}
+
+@media (min-width: 768px) {
+  .booking-split-divider {
+    position: relative;
   }
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(152 55% 30%), hsl(142 76% 45%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .bg-gradient-brand {
-    background: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
-  }
-  .shadow-glow {
-    box-shadow: 0 0 52px hsl(152 55% 42% / 0.28);
-  }
+
   .booking-split-divider::before {
-    content: none;
-  }
-  @media (min-width: 768px) {
-    .booking-split-divider {
-      position: relative;
-    }
-    .booking-split-divider::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: calc(-2.5rem - 20px);
-      width: 4px;
-      border-radius: 9999px;
-      background: linear-gradient(180deg, hsl(152 55% 30%), hsl(142 76% 45%));
-      box-shadow: 0 0 14px hsl(142 76% 45% / 0.45);
-    }
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: calc(-2.5rem - 20px);
+    width: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, hsl(152 55% 30%), hsl(142 76% 45%));
+    box-shadow: 0 0 14px hsl(142 76% 45% / 0.45);
   }
 }

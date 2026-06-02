@@ -21,6 +21,7 @@ import {
   SUBSCRIPTION_BLOCK_OWNER,
   isSubscriptionBlockError,
 } from "../lib/subscription";
+import { getBookingStaticCache, setBookingStaticCache } from "../lib/bookingStaticCache";
 
 const bookingPageX = "px-3 sm:px-5 md:px-0";
 const bookingScrollBleed = "-mx-3 sm:-mx-5 md:mx-0";
@@ -271,12 +272,22 @@ const PublicBooking = ({
 
   useEffect(() => {
     if (!slug) return;
+
     const load = async () => {
-      setLoading(true);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
       const { first: start, last: limite } = getBookableRange(minDayOffset);
       const fromYmd = ymd(start);
       const toYmd = ymd(limite);
+
+      const cached = getBookingStaticCache(slug, fromYmd, toYmd);
+      if (cached) {
+        setBarbearia(cached.barbearia);
+        setBarbeiros(cached.barbeiros as Barbeiro[]);
+        setSlotInterval(cached.slotInterval);
+        setSlotPause(cached.slotPause);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
 
       const [{ data: b, error: barbErr }, shopRes] = await Promise.all([
         supabase
@@ -336,6 +347,22 @@ const PublicBooking = ({
           .map((s) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
       })) as Barbeiro[];
       setBarbeiros(bbs);
+
+      setBookingStaticCache(slug, {
+        barbeariaId: b.id,
+        barbearia: {
+          id: b.id,
+          nome: b.nome,
+          logo_url: b.logo_url,
+          ativa: b.ativa,
+          telefone: contato,
+        },
+        barbeiros: bbs,
+        slotInterval: shopRow?.slot_interval_minutes ?? 30,
+        slotPause: shopRow?.slot_pause_minutes ?? 0,
+        fromYmd,
+        toYmd,
+      });
 
       const bbIds = bbs.map((x) => x.id);
       if (bbIds.length) {

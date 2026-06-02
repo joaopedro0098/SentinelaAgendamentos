@@ -2,50 +2,73 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
+import { isCacheFresh } from "@/lib/providerCache";
+
+type RefreshOptions = {
+  force?: boolean;
+};
 
 type SubscriptionContextValue = {
   info: SubscriptionInfo | null;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (options?: RefreshOptions) => Promise<void>;
 };
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 let cachedUserId: string | null = null;
 let cachedInfo: SubscriptionInfo | null = null;
+let cachedFetchedAt: number | null = null;
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [info, setInfo] = useState<SubscriptionInfo | null>(() =>
-    userId && userId === cachedUserId ? cachedInfo : null,
-  );
-  const [loading, setLoading] = useState(() => !(userId && userId === cachedUserId && cachedInfo));
+  const hasWarmCache = Boolean(userId && userId === cachedUserId && cachedInfo);
 
-  const refresh = useCallback(async () => {
-    if (!userId) {
-      cachedUserId = null;
-      cachedInfo = null;
-      setInfo(null);
+  const [info, setInfo] = useState<SubscriptionInfo | null>(() => (hasWarmCache ? cachedInfo : null));
+  const [loading, setLoading] = useState(!hasWarmCache);
+
+  const refresh = useCallback(
+    async (options?: RefreshOptions) => {
+      if (!userId) {
+        cachedUserId = null;
+        cachedInfo = null;
+        cachedFetchedAt = null;
+        setInfo(null);
+        setLoading(false);
+        return;
+      }
+
+      const hasCache = cachedUserId === userId && cachedInfo;
+      const fresh = hasCache && isCacheFresh(cachedFetchedAt) && !options?.force;
+
+      if (fresh) {
+        setInfo(cachedInfo);
+        setLoading(false);
+        return;
+      }
+
+      if (!hasCache) {
+        setLoading(true);
+      }
+
+      const { data, error } = await supabase.rpc("get_my_subscription");
+      if (!error && data && typeof data === "object" && !("error" in data)) {
+        const next = data as SubscriptionInfo;
+        cachedUserId = userId;
+        cachedInfo = next;
+        cachedFetchedAt = Date.now();
+        setInfo(next);
+      } else {
+        cachedUserId = userId;
+        cachedInfo = null;
+        cachedFetchedAt = Date.now();
+        setInfo(null);
+      }
       setLoading(false);
-      return;
-    }
-
-    setLoading((current) => (cachedUserId === userId && cachedInfo ? current : true));
-
-    const { data, error } = await supabase.rpc("get_my_subscription");
-    if (!error && data && typeof data === "object" && !("error" in data)) {
-      const next = data as SubscriptionInfo;
-      cachedUserId = userId;
-      cachedInfo = next;
-      setInfo(next);
-    } else {
-      cachedUserId = userId;
-      cachedInfo = null;
-      setInfo(null);
-    }
-    setLoading(false);
-  }, [userId]);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     void refresh();
@@ -67,4 +90,5 @@ export function useSubscriptionContext() {
 export function clearSubscriptionCache() {
   cachedUserId = null;
   cachedInfo = null;
+  cachedFetchedAt = null;
 }

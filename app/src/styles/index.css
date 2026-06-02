@@ -255,6 +255,50 @@
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid hsl(var(--border));
   }
+
+  /* Tela de agendar no painel (/app/agendar): cores fixas do booking, mesmo com painel escuro */
+  .booking-surface {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 152 55% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 152 55% 48%;
+    --secondary: 152 40% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 0% 25%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 15% 90%;
+    --input: 150 10% 92%;
+    --ring: 152 55% 42%;
+    --radius: 0.5rem;
+    --brand: 142 76% 45%;
+    --brand-foreground: 0 0% 7%;
+    --surface: 0 0% 98%;
+    --surface-2: 0 0% 94%;
+    --available: 152 55% 42%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 152 55% 95%;
+    --unavailable: 0 65% 55%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 65% 96%;
+    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
+    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
+    --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
+    --glow-primary: 0 0 40px hsl(152 55% 42% / 0.3);
+    --glow-soft: 0 8px 32px -8px hsl(152 55% 42% / 0.2);
+    --shadow-elevated: 0 16px 40px -16px hsl(150 15% 20% / 0.12);
+    background-color: hsl(var(--surface));
+    color: hsl(var(--foreground));
+  }
 }
 
 @layer utilities {
