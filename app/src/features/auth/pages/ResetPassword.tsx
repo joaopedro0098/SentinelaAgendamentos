@@ -36,10 +36,6 @@ export default function ResetPassword() {
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Recuperação de senha — Sentinela Agendamentos";
-  }, []);
-
-  useEffect(() => {
     let active = true;
     let timeoutId: number | undefined;
 

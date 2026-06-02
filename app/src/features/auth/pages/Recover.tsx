@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +13,6 @@ export default function Recover() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-
-  useEffect(() => {
-    document.title = "Recuperar senha — Sentinela Agendamentos";
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

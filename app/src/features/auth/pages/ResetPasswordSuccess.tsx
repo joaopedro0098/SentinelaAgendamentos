@@ -1,14 +1,9 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 
 export default function ResetPasswordSuccessPage() {
-  useEffect(() => {
-    document.title = "Senha alterada — Sentinela Agendamentos";
-  }, []);
-
   return (
     <main className="relative flex-1 flex items-center justify-center px-4 sm:px-6 pt-24 sm:pt-28 pb-12 sm:pb-16 min-h-[calc(100vh-4rem)]">
       <Link

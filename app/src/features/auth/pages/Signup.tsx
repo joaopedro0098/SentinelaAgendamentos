@@ -71,9 +71,6 @@ export default function Signup() {
   const pendingSignupRef = useRef<z.infer<typeof schema> | null>(null);
 
   useEffect(() => {
-    document.title = "Teste grátis 14 dias — Sentinela Agendamentos";
-  }, []);
-  useEffect(() => {
     if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 

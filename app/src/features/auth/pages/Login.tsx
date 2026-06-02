@@ -44,9 +44,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = "Entrar — Sentinela Agendamentos";
-  }, []);
-  useEffect(() => {
     if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 
@@ -201,18 +198,6 @@ export default function Login() {
             <Link to="/signup" className="text-foreground hover:underline underline-offset-4">
               Cadastre-se
             </Link>
-          </p>
-
-          <p className="text-[11px] text-center text-muted-foreground leading-relaxed pt-1 border-t border-border/50">
-            Ao entrar, você concorda com nossos{" "}
-            <Link to="/termos-de-servico" className="text-foreground underline underline-offset-2">
-              Termos de serviço
-            </Link>{" "}
-            e{" "}
-            <Link to="/politica-de-privacidade" className="text-foreground underline underline-offset-2">
-              Política de privacidade
-            </Link>
-            .
           </p>
         </PageReveal>
       </div>

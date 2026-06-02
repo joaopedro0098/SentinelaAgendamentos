@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-/** Incremente ao trocar a logo para forçar atualização no navegador/PWA. */
-const LOGO_VERSION = "20260602";
-const LOGO_SRC = `/brand-logo.png?v=${LOGO_VERSION}`;
+import { BRAND_ASSET_VERSION } from "@/lib/marketingSeo";
+
+const LOGO_SRC = `/brand-logo.png?v=${BRAND_ASSET_VERSION}`;
 
 const sizeClasses = {
   xs: "h-7 w-7",
