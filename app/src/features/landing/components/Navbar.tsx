@@ -58,7 +58,7 @@ const Navbar = () => {
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="container py-4">
         <nav className="glass rounded-full px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          <BrandLogo linkTo="/" showName size="sm" className="shrink-0" />
+          <BrandLogo linkTo="/" showName showFullName size="sm" className="shrink-0" />
 
           <div className="flex items-center gap-2">
             {showProdutoLink && (

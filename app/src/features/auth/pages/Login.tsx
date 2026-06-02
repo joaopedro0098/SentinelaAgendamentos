@@ -202,6 +202,18 @@ export default function Login() {
               Cadastre-se
             </Link>
           </p>
+
+          <p className="text-[11px] text-center text-muted-foreground leading-relaxed pt-1 border-t border-border/50">
+            Ao entrar, você concorda com nossos{" "}
+            <Link to="/termos-de-servico" className="text-foreground underline underline-offset-2">
+              Termos de serviço
+            </Link>{" "}
+            e{" "}
+            <Link to="/politica-de-privacidade" className="text-foreground underline underline-offset-2">
+              Política de privacidade
+            </Link>
+            .
+          </p>
         </PageReveal>
       </div>
     </main>

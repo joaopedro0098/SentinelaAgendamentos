@@ -15,6 +15,8 @@ const sizeClasses = {
 type BrandLogoProps = {
   size?: keyof typeof sizeClasses;
   showName?: boolean;
+  /** Exibe "Sentinela Agendamentos" por completo (sem ocultar no mobile). */
+  showFullName?: boolean;
   linkTo?: string;
   className?: string;
   imageClassName?: string;
@@ -24,6 +26,7 @@ type BrandLogoProps = {
 export function BrandLogo({
   size = "sm",
   showName = false,
+  showFullName = false,
   linkTo,
   className,
   imageClassName,
@@ -38,7 +41,8 @@ export function BrandLogo({
       />
       {showName ? (
         <span className={cn("font-display font-bold text-base sm:text-lg whitespace-nowrap", nameClassName)}>
-          Sentinela <span className="hidden sm:inline">Agendamentos</span>
+          Sentinela{" "}
+          <span className={showFullName ? "inline" : "hidden sm:inline"}>Agendamentos</span>
         </span>
       ) : null}
     </>
