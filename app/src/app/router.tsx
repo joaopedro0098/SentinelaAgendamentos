@@ -3,8 +3,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/components/guards/RequireAuth";
 import { AppGuard } from "@/components/guards/AppGuard";
 import { MarketingLayout } from "@/features/landing/layout/MarketingLayout";
-import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import { DashboardShopProvider } from "@/providers/DashboardShopProvider";
+import AppLayout from "@/features/dashboard/pages/AppLayout";
+import DashboardRoutes from "@/features/dashboard/pages/DashboardRoutes";
 
 const HomePage = lazy(() => import("@/features/landing/pages/HomePage"));
 const PlanosPage = lazy(() => import("@/features/landing/pages/PlanosPage"));
@@ -25,9 +26,6 @@ const ResetPasswordSuccessPage = lazy(() => import("@/features/auth/pages/ResetP
 const AuthCallbackPage = lazy(() => import("@/features/auth/pages/AuthCallback"));
 const AuthCompleteVerificationPage = lazy(() => import("@/features/auth/pages/AuthCompleteVerification"));
 const VerifyEmailSignupPage = lazy(() => import("@/features/auth/pages/VerifyEmailSignup"));
-
-const AppLayout = lazy(() => import("@/features/dashboard/pages/AppLayout"));
-const DashboardRoutes = lazy(() => import("@/features/dashboard/pages/DashboardRoutes"));
 
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
 
@@ -77,13 +75,12 @@ export function AppRouter() {
           element={
             <AppGuard>
               <DashboardShopProvider>
-                <Suspense fallback={<AppBootSkeleton />}>
-                  <AppLayout />
-                </Suspense>
+                <AppLayout />
               </DashboardShopProvider>
             </AppGuard>
           }
         >
+          <Route index element={<Navigate to="agendamentos" replace />} />
           <Route path="*" element={<DashboardRoutes />} />
         </Route>
 

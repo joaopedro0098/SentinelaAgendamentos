@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { KeepAliveRoutes } from "@/components/layout/KeepAliveRoutes";
 import { RequireAdmin } from "@/components/guards/RequireAdmin";
 import AgendarPage from "@/features/dashboard/pages/AgendarPage";
@@ -21,12 +21,17 @@ const ROUTES = [
   },
 ] as const;
 
+/** Página exibida ao entrar no painel — montada junto com o layout para evitar tela branca. */
+const DEFAULT_PANEL_PATH = "/app/agendamentos";
+
 export default function DashboardRoutes() {
   const { pathname } = useLocation();
 
-  if (pathname === "/app" || pathname === "/app/") {
-    return <Navigate to="/app/settings" replace />;
-  }
-
-  return <KeepAliveRoutes pathname={pathname} routes={[...ROUTES]} />;
+  return (
+    <KeepAliveRoutes
+      pathname={pathname}
+      routes={[...ROUTES]}
+      prefetchPaths={[DEFAULT_PANEL_PATH]}
+    />
+  );
 }

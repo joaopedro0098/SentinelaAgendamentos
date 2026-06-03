@@ -20,8 +20,16 @@ function matchRoute(pathname: string, routes: KeepAliveRoute[]) {
 }
 
 /** Mantém páginas já visitadas montadas (estado preservado) ao trocar abas do painel. */
-export function KeepAliveRoutes({ pathname, routes }: { pathname: string; routes: KeepAliveRoute[] }) {
-  const visited = useRef(new Set<string>());
+export function KeepAliveRoutes({
+  pathname,
+  routes,
+  prefetchPaths = [],
+}: {
+  pathname: string;
+  routes: KeepAliveRoute[];
+  prefetchPaths?: string[];
+}) {
+  const visited = useRef(new Set<string>(prefetchPaths));
   const active = matchRoute(pathname, routes);
 
   if (active) visited.current.add(active.path);

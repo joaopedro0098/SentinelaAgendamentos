@@ -50,7 +50,7 @@ export function applyPwaWindowTitle() {
   }
 }
 
-export const BARBER_PWA_HOME = "/app/settings";
+export const BARBER_PWA_HOME = "/app/agendamentos";
 
 const BARBER_PWA_MARKETING_PATHS = new Set([
   "/",
@@ -67,9 +67,9 @@ export function isBarberPwaMarketingPath(pathname: string) {
   return BARBER_PWA_MARKETING_PATHS.has(pathname);
 }
 
-/** Destino após login/cadastro do barbeiro (PWA instalado → Configurações). */
+/** Destino após login/cadastro do barbeiro (PWA instalado → Agendamentos). */
 export function getBarberPostLoginPath() {
-  return isStandalonePwa() ? BARBER_PWA_HOME : "/app";
+  return isStandalonePwa() ? BARBER_PWA_HOME : "/app/agendamentos";
 }
 
 export function getCachedInstallPrompt() {
