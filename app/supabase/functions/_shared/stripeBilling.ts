@@ -122,7 +122,7 @@ export async function applyStripeSubscriptionToShop(
       .update({
         stripe_subscription_id: subscription.id,
       })
-      .eq("id", shop.id);
+      .eq("id", shopId);
     return "pending_payment";
   }
 

@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.notify-barber-new-booking]
 verify_jwt = false
+
+[functions.confirm-appointment]
+verify_jwt = false

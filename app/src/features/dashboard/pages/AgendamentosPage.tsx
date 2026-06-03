@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Clock, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
+import { CalendarDays, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -19,6 +19,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  buildAppointmentConfirmationMessage,
+  buildClientWhatsAppUrl,
+  getClientConfirmationBadge,
+} from "@/lib/appointmentConfirmationMessage";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -35,6 +40,8 @@ type AgendamentoRow = {
   servicos_nomes: string[];
   observacao: string | null;
   barbeiro_id: string;
+  confirmation_token: string;
+  client_confirmed_at: string | null;
   barbeiros: { id: string; nome: string } | null;
 };
 
@@ -118,7 +125,7 @@ export default function AgendamentosPage() {
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, barbeiros ( id, nome )",
+        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, confirmation_token, client_confirmed_at, barbeiros ( id, nome )",
       )
       .eq("barbearia_id", barbeariaId)
       .eq("data", selectedDate)
@@ -237,6 +244,24 @@ export default function AgendamentosPage() {
     }
     setDeleteTarget(null);
     loadAgendamentos();
+  }
+
+  function handleCopyConfirmationMessage(a: AgendamentoRow) {
+    const text = buildAppointmentConfirmationMessage(a);
+    void navigator.clipboard.writeText(text).then(
+      () => toast({ title: "Mensagem copiada" }),
+      () => toast({ title: "Não foi possível copiar", variant: "destructive" }),
+    );
+  }
+
+  function handleWhatsApp(a: AgendamentoRow) {
+    const message = buildAppointmentConfirmationMessage(a);
+    const url = buildClientWhatsAppUrl(a.cliente_whatsapp, message);
+    if (!url) {
+      toast({ title: "WhatsApp inválido", description: "Verifique o número do cliente.", variant: "destructive" });
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   if (booting || (slug && !agendaReady)) {
@@ -373,7 +398,9 @@ export default function AgendamentosPage() {
           </Card>
         ) : (
           <ul className="space-y-3">
-            {listaFiltrada.map((a) => (
+            {listaFiltrada.map((a) => {
+              const confirmationBadge = getClientConfirmationBadge(a);
+              return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
                   className={cn(
@@ -383,9 +410,24 @@ export default function AgendamentosPage() {
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
-                        <Clock className="h-4 w-4 shrink-0" />
-                        <span className="text-lg">{formatHora(a.hora)}</span>
+                      <div className="min-w-0 space-y-2">
+                        {confirmationBadge && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
+                              confirmationBadge === "pending" &&
+                                "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
+                              confirmationBadge === "confirmed" &&
+                                "bg-available/25 text-available border-available/90",
+                            )}
+                          >
+                            {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
+                          <Clock className="h-4 w-4 shrink-0" />
+                          <span className="text-lg">{formatHora(a.hora)}</span>
+                        </div>
                       </div>
                       {!selectedBarbeiroId && a.barbeiros?.nome && (
                         <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary shrink-0">
@@ -420,7 +462,30 @@ export default function AgendamentosPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 rounded-full border-available/40 text-available hover:bg-available/10 hover:text-available"
+                          onClick={() => handleWhatsApp(a)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          WhatsApp
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 rounded-full"
+                          onClick={() => handleCopyConfirmationMessage(a)}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copiar
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -445,11 +510,13 @@ export default function AgendamentosPage() {
                         <Trash2 className="h-4 w-4" />
                         Excluir
                       </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </section>
