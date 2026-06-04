@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import Stripe from "https://esm.sh/stripe@17.7.0?target=denonext";
 import {
   applyStripeSubscriptionToShop,
   findShopByStripeSubscription,
@@ -11,9 +11,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*",
 };
 
-async function readRawBody(req: Request): Promise<string> {
-  return await req.text();
-}
+/** Deno Edge Functions precisam do Web Crypto API para validar assinaturas Stripe. */
+const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -27,11 +26,17 @@ Deno.serve(async (req) => {
     }
 
     const stripe = getStripe();
-    const body = await readRawBody(req);
+    const body = await req.text();
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret,
+        undefined,
+        cryptoProvider,
+      );
     } catch (err) {
       console.error("stripe-webhook: assinatura inválida", err);
       return new Response("Assinatura inválida", { status: 400, headers: corsHeaders });
