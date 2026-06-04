@@ -24,7 +24,7 @@ import {
   buildClientWhatsAppUrl,
   getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
-import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
+import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -86,7 +86,7 @@ export default function AgendamentosPage() {
       return d;
     });
 
-    if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)) {
+    if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate) && isWithinAppointmentRetention(focusDate)) {
       const exists = list.some((d) => ymd(d) === focusDate);
       if (!exists) {
         list.push(new Date(`${focusDate}T12:00:00`));
@@ -109,7 +109,7 @@ export default function AgendamentosPage() {
     const agendamento = searchParams.get("agendamento");
     if (!data && !barbeiro && !agendamento) return;
 
-    if (data && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    if (data && /^\d{4}-\d{2}-\d{2}$/.test(data) && isWithinAppointmentRetention(data)) {
       setSelectedDate(data);
       setFocusDate(data);
     }
@@ -121,7 +121,11 @@ export default function AgendamentosPage() {
   }, [searchParams, setSearchParams]);
 
   const loadAgendamentos = useCallback(async () => {
-    if (!barbeariaId) return;
+    if (!barbeariaId || !isWithinAppointmentRetention(selectedDate)) {
+      setAgendamentos([]);
+      setLoadingList(false);
+      return;
+    }
     setLoadingList(true);
     const { data, error } = await supabase
       .from("agendamentos")

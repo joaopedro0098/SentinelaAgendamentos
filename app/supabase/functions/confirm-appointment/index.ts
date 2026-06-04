@@ -5,6 +5,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function todayYmdSaoPaulo() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/** Espelha agendamento_dentro_retencao(data) no Postgres. */
+function isWithinRetention(dataYmd: string) {
+  const [y, m, d] = dataYmd.split("-").map(Number);
+  const plusTwoMonths = new Date(y, m - 1, d, 12, 0, 0);
+  plusTwoMonths.setMonth(plusTwoMonths.getMonth() + 2);
+  const cutoff = `${plusTwoMonths.getFullYear()}-${String(plusTwoMonths.getMonth() + 1).padStart(2, "0")}-${String(plusTwoMonths.getDate()).padStart(2, "0")}`;
+  return cutoff >= todayYmdSaoPaulo();
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -33,6 +51,10 @@ Deno.serve(async (req) => {
 
     if (error) return jsonResponse({ error: error.message }, 500);
     if (!appointment) return jsonResponse({ error: "Agendamento não encontrado." }, 404);
+
+    if (!isWithinRetention(String(appointment.data))) {
+      return jsonResponse({ error: "Agendamento não encontrado." }, 404);
+    }
 
     if (appointment.status !== "confirmado") {
       return jsonResponse({

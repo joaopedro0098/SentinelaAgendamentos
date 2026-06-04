@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     );
 
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");
+    const { data: purgedCount } = await supabase.rpc("purge_old_agendamentos");
 
     const today = dateOnlyInSaoPaulo();
     const tomorrow = addDaysYmd(today, 1);
@@ -207,6 +208,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       ok: true,
       canceled: canceledCount ?? 0,
+      purged: purgedCount ?? 0,
       confirmation_sent: confirmationSent,
       reminders_sent: remindersSent,
     });
