@@ -13,6 +13,7 @@ import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip
 import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
+import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
 import {
   checkBarbeariaCanBook,
   getClientBookingBlockMessage,
@@ -584,13 +585,11 @@ const PublicBooking = ({
       }
 
       const result = rpcData as { old_data?: string; new_data?: string } | null;
-      void supabase.functions.invoke("notify-barber-appointment-change", {
-        body: {
-          agendamento_id: reschedule.agendamentoId,
-          event: "rescheduled",
-          old_data: result?.old_data ?? reschedule.data,
-          new_data: result?.new_data ?? selectedDate,
-        },
+      await notifyBarberAppointmentChange({
+        agendamento_id: reschedule.agendamentoId,
+        event: "rescheduled",
+        old_data: result?.old_data ?? reschedule.data,
+        new_data: result?.new_data ?? selectedDate,
       });
       return true;
     } finally {

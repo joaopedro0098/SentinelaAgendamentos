@@ -9,6 +9,7 @@ import { PublicShopHeader } from "@/components/PublicShopHeader";
 import { useBarbeariaResumo } from "@/hooks/useBarbeariaResumo";
 import { maskPhone, unmaskPhone, isValidPhone } from "@/lib/phone";
 import { canClientSelfServiceModifyAppointment } from "@/lib/appointmentDates";
+import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { cn } from "@/lib/utils";
 
@@ -37,18 +38,6 @@ function formatTime(value: string) {
   return value.slice(0, 5);
 }
 
-async function notifyBarberChange(payload: {
-  agendamento_id: string;
-  event: "cancelled" | "rescheduled";
-  old_data?: string;
-  new_data?: string;
-}) {
-  try {
-    await supabase.functions.invoke("notify-barber-appointment-change", { body: payload });
-  } catch {
-    /* push opcional */
-  }
-}
 
 export default function MeusAgendamentosPage() {
   const navigate = useNavigate();
@@ -122,7 +111,7 @@ export default function MeusAgendamentosPage() {
       setCancelTarget(null);
       return;
     }
-    void notifyBarberChange({ agendamento_id: cancelTarget.id, event: "cancelled" });
+    await notifyBarberAppointmentChange({ agendamento_id: cancelTarget.id, event: "cancelled" });
     setCancelTarget(null);
     await loadItems(whatsapp);
   }
