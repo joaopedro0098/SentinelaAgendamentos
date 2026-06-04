@@ -1,46 +1,68 @@
-import { Play, ArrowRight, MessageCircle } from "lucide-react";
+import { ArrowRight, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+type DemoPlayerProps = {
+  src: string;
+  aspectClassName: string;
+  fileHint: string;
+  className?: string;
+};
+
+function DemoPlayer({ src, aspectClassName, fileHint, className }: DemoPlayerProps) {
+  return (
+    <div className={cn("relative group w-full", className)}>
+      <div className="absolute -inset-1 bg-gradient-brand rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+      <div className="relative glass rounded-3xl overflow-hidden glow-border">
+        <div className={cn("w-full relative bg-secondary/40", aspectClassName)}>
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 h-full w-full object-cover"
+          >
+            <source src={src} type="video/mp4" />
+          </video>
+        </div>
+      </div>
+      <p className="sr-only">
+        Vídeo de demonstração. Arquivo esperado: {fileHint}
+      </p>
+    </div>
+  );
+}
 
 const VideoDemo = () => {
   return (
     <section className="relative pt-4 pb-12">
       <div className="container">
         <div className="max-w-5xl mx-auto">
-          <div className="relative group">
-            {/* gradient border wrapper */}
-            <div className="absolute -inset-1 bg-gradient-brand rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="relative glass rounded-3xl overflow-hidden glow-border">
-              <div className="aspect-video w-full relative bg-secondary/40 flex items-center justify-center">
-                <video
-                  controls
-                  className="w-full h-full object-cover"
-                  poster=""
-                >
-                  <source src="/demo.mp4" type="video/mp4" />
-                </video>
+          {/* Mobile: vertical 9:16 */}
+          <DemoPlayer
+            src="/demo-mobile.mp4"
+            aspectClassName="aspect-[9/16]"
+            fileHint="/public/demo-mobile.mp4"
+            className="md:hidden max-w-[min(100%,280px)] mx-auto"
+          />
 
-                {/* Overlay placeholder enquanto não há vídeo */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-gradient-to-br from-[hsl(var(--brand-green)/0.16)] via-transparent to-[hsl(var(--brand-mint)/0.18)]">
-                  <div className="w-20 h-20 rounded-full bg-gradient-brand flex items-center justify-center shadow-glow animate-float">
-                    <Play className="w-8 h-8 text-white ml-1" fill="white" />
-                  </div>
-                  <p className="mt-6 text-sm text-muted-foreground bg-background/60 px-4 py-2 rounded-full backdrop-blur">
-                    📁 Adicione seu vídeo em <code className="text-foreground">/public/demo.mp4</code>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Desktop: horizontal 16:9 (inalterado) */}
+          <DemoPlayer
+            src="/demo.mp4"
+            aspectClassName="aspect-video"
+            fileHint="/public/demo.mp4"
+            className="hidden md:block"
+          />
 
-          {/* CTAs abaixo do vídeo */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
             <Button
               asChild
               size="lg"
               className="bg-gradient-brand hover:opacity-90 text-white border-0 rounded-full px-8 h-14 text-base shadow-glow animate-pulse-glow w-full sm:w-auto"
             >
-              <Link to="/signup">Teste 14 dias grátis <ArrowRight className="w-5 h-5 ml-1" /></Link>
+              <Link to="/signup">
+                Teste 14 dias grátis <ArrowRight className="w-5 h-5 ml-1" />
+              </Link>
             </Button>
             <Button
               asChild

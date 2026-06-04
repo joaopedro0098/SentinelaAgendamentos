@@ -1,7 +1,7 @@
 export const HOME_TITLE = "Sentinela Agendamentos - Teste agora 14 dias grátis!";
 
 export const HOME_DESCRIPTION =
-  "Teste grátis por 14 dias! Sistema de agendamento online para barbearias com link para clientes, colaboradores, serviços e horários.";
+  "Link de agendamento fácil para quem marca horário; painel simples para quem gerencia equipe, serviços e agenda.";
 
 /** Cache-bust de favicons/logo após troca de marca. */
 export const BRAND_ASSET_VERSION = "20260602";

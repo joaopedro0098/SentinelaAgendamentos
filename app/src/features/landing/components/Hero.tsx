@@ -13,8 +13,8 @@ const Hero = () => {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            O <strong className="text-foreground">Sentinela Agendamentos</strong> ajuda sua barbearia a receber
-            reservas pelo link, organizar colaboradores, horários e serviços em um painel simples.
+            Link de agendamento fácil para quem marca horário; painel simples para quem gerencia equipe,
+            serviços e agenda.
           </p>
 
           <div className="pt-2 space-y-3">
