@@ -62,8 +62,6 @@ export default function AppLayout() {
     setMenuOpen(false);
   }
 
-  const hideMobileHeaderAvatar = location.pathname === "/app/agendar";
-
   return (
     <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
@@ -75,16 +73,6 @@ export default function AppLayout() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {!hideMobileHeaderAvatar && (
-          <Link to="/app/settings" className="shrink-0" aria-label={shop?.display_name?.trim() || "Configurações"}>
-            <Avatar className="h-9 w-9">
-              {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={shop.display_name} />}
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                {(shop?.display_name?.trim() || "?").slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
-        )}
         <div className="flex-1 min-w-0" />
       </header>
 

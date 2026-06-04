@@ -78,6 +78,21 @@ function ShopAvatar({ logoUrl, name, className }: { logoUrl: string | null; name
   );
 }
 
+function AvailabilityLegend({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex items-center justify-center gap-4 text-xs text-muted-foreground", className)}>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-sm bg-available" aria-hidden />
+        Disponível
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 rounded-sm bg-unavailable" aria-hidden />
+        Indisponível
+      </span>
+    </div>
+  );
+}
+
 interface Barbearia {
   id: string;
   nome: string;
@@ -1056,7 +1071,13 @@ const PublicBooking = ({
     <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden md:min-h-0">
       <div className="mx-auto w-full sm:max-w-md md:max-w-6xl md:px-6 overflow-x-hidden">
         {/* HEADER */}
-        <header className={cn("bg-card border-b border-border pt-6 pb-4 md:pt-4 md:pb-3", bookingPageX)}>
+        <header
+          className={cn(
+            "bg-card border-b border-border pt-6 pb-4 md:pt-4 md:pb-3",
+            bookingPageX,
+            ownerPanel && "max-md:hidden",
+          )}
+        >
           {backHref && !ownerPanel && (
             <Link
               to={backHref}
@@ -1073,26 +1094,18 @@ const PublicBooking = ({
             )}
           >
             <div className={cn("min-w-0", showDesktopSplit && "md:pr-8")}>
-              <div className="flex items-center justify-center gap-4 py-1 text-xs text-muted-foreground md:hidden">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
-              </div>
               {!ownerPanel && (
                 <div className="hidden md:flex items-center justify-between gap-4 min-w-0 md:pl-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-[3.25rem] w-[3.25rem]" />
                     <h1 className="font-display text-[1.65rem] font-bold leading-tight truncate text-foreground">{barbearia.nome}</h1>
                   </div>
-                  <div className="flex items-center gap-5 text-xs text-muted-foreground shrink-0">
-                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
-                  </div>
+                  <AvailabilityLegend className="shrink-0 gap-5" />
                 </div>
               )}
               {ownerPanel && (
-                <div className="hidden md:flex items-center justify-center gap-5 py-1 text-xs text-muted-foreground w-full">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-available" /> Disponível</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-unavailable" /> Indisponível</span>
+                <div className="hidden md:flex items-center justify-center w-full">
+                  <AvailabilityLegend className="py-1" />
                 </div>
               )}
             </div>
@@ -1101,9 +1114,12 @@ const PublicBooking = ({
         </header>
 
         <form onSubmit={submit} className={cn("py-5 max-md:space-y-6 md:py-4", bookingPageX)}>
-          <div className="flex items-center gap-3 min-w-0 md:hidden">
-            <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-12 w-12" />
-            <h1 className="font-display text-2xl font-bold leading-tight truncate">{barbearia.nome}</h1>
+          <div className="flex flex-col items-center gap-1.5 min-w-0 md:hidden w-full">
+            <div className="flex items-center gap-2.5 min-w-0 w-full">
+              <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-12 w-12" />
+              <h1 className="font-display text-2xl font-bold leading-tight truncate min-w-0">{barbearia.nome}</h1>
+            </div>
+            <AvailabilityLegend className="mt-0.5" />
           </div>
 
           {isReschedule && (
