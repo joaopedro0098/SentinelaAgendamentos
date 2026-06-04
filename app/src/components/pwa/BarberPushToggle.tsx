@@ -1,11 +1,68 @@
 import { useEffect, useState } from "react";
-import { Bell, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { isBarberPushEnabled, registerBarberPush, supportsWebPush } from "@/lib/barberPushNotifications";
 
-export function BarberPushToggle({ className }: { className?: string }) {
+type PermissionToggleRowProps = {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  busy?: boolean;
+  onToggle: () => void;
+  hint?: string;
+};
+
+export function PermissionToggleRow({
+  id,
+  label,
+  description,
+  checked,
+  disabled,
+  busy,
+  onToggle,
+  hint,
+}: PermissionToggleRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <label htmlFor={id} className="text-sm font-medium leading-none">
+          {label}
+        </label>
+        <p className="mt-1 text-[11px] leading-tight text-muted-foreground truncate">{description}</p>
+        {hint && <p className="mt-0.5 text-[11px] leading-tight text-destructive truncate">{hint}</p>}
+      </div>
+      {busy ? (
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+      ) : (
+        <button
+          id={id}
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          disabled={disabled}
+          onClick={onToggle}
+          className={cn(
+            "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+            checked ? "bg-primary" : "bg-muted",
+            disabled && "opacity-60",
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+              checked ? "translate-x-6" : "translate-x-1",
+            )}
+          />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function BarberPushToggle() {
   const [enabled, setEnabled] = useState(() => isBarberPushEnabled());
   const [busy, setBusy] = useState(false);
   const denied = typeof Notification !== "undefined" && Notification.permission === "denied";
@@ -71,42 +128,21 @@ export function BarberPushToggle({ className }: { className?: string }) {
     }
   }
 
+  const hint = unsupported
+    ? "Push não suportado neste navegador."
+    : denied
+      ? "Notificações bloqueadas no navegador."
+      : undefined;
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className={cn(
-        "h-9 w-9 shrink-0 rounded-full transition-colors relative z-10",
-        enabled
-          ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-          : "border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-        (denied || unsupported) && "opacity-80",
-        className,
-      )}
-      aria-pressed={enabled}
-      aria-label={
-        enabled
-          ? "Desativar notificações de novos agendamentos"
-          : "Ativar notificações de novos agendamentos"
-      }
-      title={
-        unsupported
-          ? "Push não suportado neste navegador"
-          : denied
-            ? "Notificações bloqueadas no navegador"
-            : enabled
-              ? "Notificações de agendamento ativas"
-              : "Ativar notificações de novos agendamentos"
-      }
-      disabled={busy}
-      onClick={() => void handleToggle()}
-    >
-      {busy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Bell className={cn("h-4 w-4", enabled && "fill-primary-foreground")} />
-      )}
-    </Button>
+    <PermissionToggleRow
+      id="barber-push-toggle"
+      label="Notificações de agendamentos"
+      description="Push de novos agendamentos, alterações e cancelamentos."
+      checked={enabled}
+      busy={busy}
+      onToggle={() => void handleToggle()}
+      hint={hint}
+    />
   );
 }

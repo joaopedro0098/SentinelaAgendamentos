@@ -35,3 +35,15 @@ export function isPastCalendarDate(dateYmd: string, now = new Date()) {
 export function canManageAppointment(dateYmd: string, now = new Date()) {
   return !isPastCalendarDate(dateYmd, now);
 }
+
+/**
+ * Cliente pode alterar/cancelar até a meia-noite do dia anterior ao agendamento.
+ * Ex.: corte em 06/06 → permitido em 04/06; a partir de 05/06 00:00, bloqueado.
+ */
+export function canClientSelfServiceModifyAppointment(dateYmd: string, now = new Date()) {
+  const today = todayYmdSaoPaulo(now);
+  const [y, m, d] = dateYmd.split("-").map(Number);
+  const dayBeforeAppointment = new Date(y, m - 1, d - 1, 12, 0, 0);
+  const dayBeforeYmd = todayYmd(dayBeforeAppointment);
+  return today < dayBeforeYmd;
+}

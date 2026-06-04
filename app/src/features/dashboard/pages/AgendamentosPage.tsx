@@ -43,6 +43,7 @@ type AgendamentoRow = {
   barbeiro_id: string;
   confirmation_token: string;
   client_confirmed_at: string | null;
+  status: "confirmado" | "cancelado" | "concluido";
   barbeiros: { id: string; nome: string } | null;
 };
 
@@ -130,11 +131,11 @@ export default function AgendamentosPage() {
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, confirmation_token, client_confirmed_at, barbeiros ( id, nome )",
+        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, confirmation_token, client_confirmed_at, status, barbeiros ( id, nome )",
       )
       .eq("barbearia_id", barbeariaId)
       .eq("data", selectedDate)
-      .eq("status", "confirmado")
+      .in("status", ["confirmado", "cancelado"])
       .order("hora", { ascending: true });
 
     if (!error) {
@@ -399,14 +400,15 @@ export default function AgendamentosPage() {
         ) : listaFiltrada.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Nenhum agendamento confirmado para este dia
+              Nenhum agendamento para este dia
               {selectedBarbeiroId ? " com este colaborador" : ""}.
             </CardContent>
           </Card>
         ) : (
           <ul className="space-y-3">
             {listaFiltrada.map((a) => {
-              const confirmationBadge = getClientConfirmationBadgeForPanel(a);
+              const isCancelled = a.status === "cancelado";
+              const confirmationBadge = !isCancelled ? getClientConfirmationBadgeForPanel(a) : null;
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
@@ -418,6 +420,11 @@ export default function AgendamentosPage() {
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
+                        {isCancelled && (
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-destructive/20 text-destructive border-destructive/80">
+                            Cancelado
+                          </span>
+                        )}
                         {confirmationBadge && (
                           <span
                             className={cn(
@@ -469,7 +476,7 @@ export default function AgendamentosPage() {
                         </p>
                       )}
                     </div>
-                    {!isPastDay && (
+                    {!isPastDay && !isCancelled && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <Button

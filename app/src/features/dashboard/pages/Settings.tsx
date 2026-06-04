@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
-import { BarberPushToggle } from "@/components/pwa/BarberPushToggle";
+import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
 
 export default function Settings() {
@@ -27,6 +27,7 @@ export default function Settings() {
   const [slotInterval, setSlotInterval] = useState("30");
   const [slotPause, setSlotPause] = useState("0");
   const [savingSlots, setSavingSlots] = useState(false);
+  const [savingClientSelfService, setSavingClientSelfService] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -95,6 +96,10 @@ export default function Settings() {
       display_name: shop.display_name.trim().slice(0, 80),
       avatar_url: nextAvatarUrl,
     });
+    void supabase
+      .from("barbearias")
+      .update({ nome: shop.display_name.trim().slice(0, 80), logo_url: nextAvatarUrl ?? "" })
+      .eq("slug", shop.slug);
     void refresh({ force: true });
     setPendingAvatarBlob(null);
     setAvatarPreviewUrl((current) => {
@@ -165,6 +170,25 @@ export default function Settings() {
     toast({ title: "Grade de horários salva" });
   }
 
+  async function handleToggleClientSelfService(enabled: boolean) {
+    if (!shop) return;
+    setSavingClientSelfService(true);
+    const { error } = await supabase
+      .from("barbershops")
+      .update({ allow_client_self_service: enabled })
+      .eq("id", shop.id);
+    if (error) {
+      setSavingClientSelfService(false);
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    await supabase.from("barbearias").update({ allow_client_self_service: enabled }).eq("slug", shop.slug);
+    setShop({ ...shop, allow_client_self_service: enabled });
+    patchDashboardShopCache({ allow_client_self_service: enabled });
+    setSavingClientSelfService(false);
+    toast({ title: enabled ? "Cliente pode alterar/cancelar" : "Alteração pelo cliente desativada" });
+  }
+
   function copyBookingLink() {
     if (!shop) return;
     const url = `${window.location.origin}/agendar/${shop.slug}`;
@@ -213,10 +237,29 @@ export default function Settings() {
             </p>
           </div>
           <div className="relative z-10 flex items-center gap-2 shrink-0">
-            <BarberPushToggle />
             <DashboardThemeToggle />
           </div>
         </header>
+
+        <Card className="glass-panel border-border/80">
+          <CardContent className="pt-6 space-y-5">
+            <h2 className="text-base font-semibold tracking-tight">Permissões</h2>
+
+            <BarberPushToggle />
+
+            <div className="border-t border-border/60 pt-5">
+              <PermissionToggleRow
+                id="client-self-service"
+                label="Cliente altera ou cancela pelo link"
+                description="Alterar/cancelar em Meus agendamentos até a véspera."
+                checked={shop.allow_client_self_service ?? true}
+                disabled={savingClientSelfService}
+                busy={savingClientSelfService}
+                onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6">

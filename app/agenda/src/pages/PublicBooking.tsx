@@ -571,6 +571,39 @@ const PublicBooking = ({
       servSel.length > 0
         ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
         : (reschedule.servicos_nomes ?? []);
+
+    if (!ownerPanel && slug) {
+      const { data, error } = await supabase.rpc("reagendar_agendamento_cliente", {
+        p_agendamento_id: reschedule.agendamentoId,
+        p_slug: slug,
+        p_whatsapp: unmaskPhone(whatsapp),
+        p_data: data,
+        p_hora: hora,
+        p_barbeiro_id: barbeiroId,
+        p_duracao_minutos: duracaoTotal,
+        p_observacao: obs,
+        p_servicos_nomes: servicosNomes,
+      });
+      setSubmitting(false);
+      if (error) {
+        if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+        else toast.error(error.message);
+        return;
+      }
+      const result = data as { old_data?: string; new_data?: string } | null;
+      void supabase.functions.invoke("notify-barber-appointment-change", {
+        body: {
+          agendamento_id: reschedule.agendamentoId,
+          event: "rescheduled",
+          old_data: result?.old_data ?? reschedule.data,
+          new_data: result?.new_data ?? data,
+        },
+      });
+      toast.success("Horário alterado!");
+      onRescheduleComplete?.();
+      return;
+    }
+
     const { error } = await supabase.rpc("reagendar_agendamento", {
       p_agendamento_id: reschedule.agendamentoId,
       p_data: data,
