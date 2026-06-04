@@ -538,6 +538,51 @@ const PublicBooking = ({
     showClientBookingBlockedToast(clientBlockMessage());
   };
 
+  async function executeClientReschedule(): Promise<boolean> {
+    if (!reschedule || !barbearia || !slug || !barbeiroId || !data || !hora) return false;
+
+    const selectedDate = data;
+    const obs = observacao.trim() || null;
+    const servicosNomes =
+      servSel.length > 0
+        ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
+        : (reschedule.servicos_nomes ?? []);
+
+    setSubmitting(true);
+    try {
+      const { data: rpcData, error } = await supabase.rpc("reagendar_agendamento_cliente", {
+        p_agendamento_id: reschedule.agendamentoId,
+        p_slug: slug,
+        p_whatsapp: unmaskPhone(whatsapp),
+        p_data: selectedDate,
+        p_hora: hora,
+        p_barbeiro_id: barbeiroId,
+        p_duracao_minutos: duracaoTotal,
+        p_observacao: obs,
+        p_servicos_nomes: servicosNomes,
+      });
+
+      if (error) {
+        if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+        else toast.error(error.message);
+        return false;
+      }
+
+      const result = rpcData as { old_data?: string; new_data?: string } | null;
+      void supabase.functions.invoke("notify-barber-appointment-change", {
+        body: {
+          agendamento_id: reschedule.agendamentoId,
+          event: "rescheduled",
+          old_data: result?.old_data ?? reschedule.data,
+          new_data: result?.new_data ?? selectedDate,
+        },
+      });
+      return true;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barbearia || !barbeiroId || !data || !hora) return toast.error("Selecione dia, barbeiro e horário");
@@ -551,7 +596,7 @@ const PublicBooking = ({
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
     if (rejectSameDayPublicBooking()) return;
 
-    if (!reschedule) {
+    if (!ownerPanel || !reschedule) {
       setBookingConfirmed(false);
       setDone(true);
       return;
@@ -570,11 +615,9 @@ const PublicBooking = ({
         ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
         : (reschedule.servicos_nomes ?? []);
 
-    if (!ownerPanel && slug) {
-      const { data, error } = await supabase.rpc("reagendar_agendamento_cliente", {
+    try {
+      const { error } = await supabase.rpc("reagendar_agendamento", {
         p_agendamento_id: reschedule.agendamentoId,
-        p_slug: slug,
-        p_whatsapp: unmaskPhone(whatsapp),
         p_data: data,
         p_hora: hora,
         p_barbeiro_id: barbeiroId,
@@ -582,50 +625,24 @@ const PublicBooking = ({
         p_observacao: obs,
         p_servicos_nomes: servicosNomes,
       });
-      setSubmitting(false);
+
       if (error) {
         if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-        else toast.error(error.message);
+        else if (isSubscriptionBlockError(error.message)) {
+          notifyBookingBlocked();
+        } else toast.error(error.message);
         return;
       }
-      const result = data as { old_data?: string; new_data?: string } | null;
-      void supabase.functions.invoke("notify-barber-appointment-change", {
-        body: {
-          agendamento_id: reschedule.agendamentoId,
-          event: "rescheduled",
-          old_data: result?.old_data ?? reschedule.data,
-          new_data: result?.new_data ?? data,
-        },
-      });
-      toast.success("Horário alterado!");
-      onRescheduleComplete?.();
-      return;
+      setDone(true);
+    } finally {
+      setSubmitting(false);
     }
-
-    const { error } = await supabase.rpc("reagendar_agendamento", {
-      p_agendamento_id: reschedule.agendamentoId,
-      p_data: data,
-      p_hora: hora,
-      p_barbeiro_id: barbeiroId,
-      p_duracao_minutos: duracaoTotal,
-      p_observacao: obs,
-      p_servicos_nomes: servicosNomes,
-    });
-    setSubmitting(false);
-    if (error) {
-      if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-      else if (isSubscriptionBlockError(error.message)) {
-        notifyBookingBlocked();
-      } else toast.error(error.message);
-      return;
-    }
-    setDone(true);
   };
 
   const confirmBooking = async () => {
     if (!barbearia || !barbeiroId || !data || !hora) return;
     if (rejectSameDayPublicBooking()) return;
-    if (servicosDoBarbeiro.length > 0 && servSel.length === 0) {
+    if (!isReschedule && servicosDoBarbeiro.length > 0 && servSel.length === 0) {
       toast.error("Selecione pelo menos um serviço");
       return;
     }
@@ -633,10 +650,21 @@ const PublicBooking = ({
       toast.error("Esse horário não está mais disponível para os serviços selecionados. Escolha outro.");
       return;
     }
+    if (!nome.trim()) return toast.error("Informe seu nome");
+    if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
       notifyBookingBlocked();
+      return;
+    }
+
+    if (isReschedule && reschedule) {
+      const ok = await executeClientReschedule();
+      if (ok) {
+        toast.success("Horário alterado!");
+        setBookingConfirmed(true);
+      }
       return;
     }
 
@@ -648,48 +676,50 @@ const PublicBooking = ({
         ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
         : [];
 
-    const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
-      _barbearia_id: barbearia.id,
-      _whatsapp: whatsClean,
-      _nome: nome.trim(),
-    });
-    const { data: createdAppointment, error } = await supabase
-      .from("agendamentos")
-      .insert({
-        barbearia_id: barbearia.id,
-        barbeiro_id: barbeiroId,
-        data,
-        hora,
-        cliente_nome: nome.trim(),
-        cliente_whatsapp: whatsClean,
-        cliente_id: cliId ?? null,
-        duracao_minutos: duracaoTotal,
-        servicos_nomes: servicosNomes,
-        status: "confirmado",
-        observacao: obs,
-        origem: ownerPanel ? "painel" : "link_publico",
-      })
-      .select("id")
-      .single();
+    try {
+      const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
+        _barbearia_id: barbearia.id,
+        _whatsapp: whatsClean,
+        _nome: nome.trim(),
+      });
+      const { data: createdAppointment, error } = await supabase
+        .from("agendamentos")
+        .insert({
+          barbearia_id: barbearia.id,
+          barbeiro_id: barbeiroId,
+          data,
+          hora,
+          cliente_nome: nome.trim(),
+          cliente_whatsapp: whatsClean,
+          cliente_id: cliId ?? null,
+          duracao_minutos: duracaoTotal,
+          servicos_nomes: servicosNomes,
+          status: "confirmado",
+          observacao: obs,
+          origem: ownerPanel ? "painel" : "link_publico",
+        })
+        .select("id")
+        .single();
 
-    if (error) {
+      if (error) {
+        if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+        else if (isSubscriptionBlockError(error.message)) {
+          notifyBookingBlocked();
+        } else toast.error(error.message);
+        return;
+      }
+
+      if (!ownerPanel && createdAppointment?.id) {
+        void supabase.functions
+          .invoke("notify-barber-new-booking", { body: { agendamento_id: createdAppointment.id } })
+          .catch(() => undefined);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
+      setBookingConfirmed(true);
+    } finally {
       setSubmitting(false);
-      if (error.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-      else if (isSubscriptionBlockError(error.message)) {
-        notifyBookingBlocked();
-      } else toast.error(error.message);
-      return;
     }
-
-    if (!ownerPanel && createdAppointment?.id) {
-      void supabase.functions
-        .invoke("notify-barber-new-booking", { body: { agendamento_id: createdAppointment.id } })
-        .catch(() => undefined);
-    }
-
-    setSubmitting(false);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
-    setBookingConfirmed(true);
   };
 
   const alterBooking = () => {
@@ -728,7 +758,7 @@ const PublicBooking = ({
   if (done) {
     const barbeiroNome = barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "";
 
-    if (isReschedule) {
+    if (isReschedule && bookingConfirmed) {
       return (
         <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
           <Card className="max-w-sm w-full p-6 text-center">
@@ -828,7 +858,13 @@ const PublicBooking = ({
                 Alterar
               </Button>
               <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar"}
+                {submitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isReschedule ? (
+                  "Confirmar novo horário"
+                ) : (
+                  "Confirmar"
+                )}
               </Button>
             </div>
           )}

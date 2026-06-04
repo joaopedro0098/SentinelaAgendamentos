@@ -421,7 +421,7 @@ export default function AgendamentosPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
                         {isCancelled && (
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-destructive/20 text-destructive border-destructive/80">
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100">
                             Cancelado
                           </span>
                         )}
