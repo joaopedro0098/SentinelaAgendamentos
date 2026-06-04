@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
+import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
 type AppointmentPreview = {
   data: string;
@@ -88,6 +89,8 @@ export default function ConfirmAppointmentPage() {
     window.close();
   }
 
+  const isPastAppointment = appointment ? isPastCalendarDate(appointment.data) : false;
+
   return (
     <AgendaShell>
       <div className="min-h-screen flex items-center justify-center p-5">
@@ -127,11 +130,23 @@ export default function ConfirmAppointmentPage() {
               )}
 
               <h1 className={cn("font-display text-xl font-bold", (confirmed || justConfirmed) && "mt-4")}>
-                {confirmed ? "Tudo certo!" : "Confirme seu agendamento"}
+                {isPastAppointment && !confirmed
+                  ? "Agendamento encerrado"
+                  : confirmed
+                    ? "Tudo certo!"
+                    : "Confirme seu agendamento"}
               </h1>
 
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                {confirmed ? (
+                {isPastAppointment && !confirmed ? (
+                  <>
+                    Este horário em{" "}
+                    <span className="font-medium text-foreground">{appointment.barbearias?.nome ?? "barbearia"}</span>{" "}
+                    já passou ({formatDate(appointment.data)} às{" "}
+                    <span className="font-medium text-foreground">{String(appointment.hora).slice(0, 5)}</span>
+                    ). Não é mais possível confirmar ou alterar por aqui.
+                  </>
+                ) : confirmed ? (
                   <>
                     Obrigado, <span className="font-medium text-foreground">{appointment.cliente_nome}</span>! Seu
                     horário em <span className="font-medium text-foreground">{appointment.barbearias?.nome ?? "barbearia"}</span>{" "}
@@ -162,7 +177,7 @@ export default function ConfirmAppointmentPage() {
                 )}
               </p>
 
-              {!confirmed && (
+              {!confirmed && !isPastAppointment && (
                 <Button
                   className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                   disabled={confirming}

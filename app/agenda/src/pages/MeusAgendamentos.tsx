@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { PublicShopHeader } from "@/components/PublicShopHeader";
 import { useBarbeariaResumo } from "@/hooks/useBarbeariaResumo";
 import { maskPhone, unmaskPhone, isValidPhone } from "@/lib/phone";
+import { isPastCalendarDate } from "@/lib/appointmentDates";
 
 type ClientAppointment = {
   id: string;
@@ -79,7 +80,7 @@ export default function MeusAgendamentosPage() {
         <div>
           <h2 className="font-display text-lg font-semibold">Meus agendamentos</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Informe seu WhatsApp para ver os horários futuros confirmados.
+            Informe seu WhatsApp para ver seus agendamentos confirmados (últimos 7 dias e futuros).
           </p>
         </div>
 
@@ -99,14 +100,23 @@ export default function MeusAgendamentosPage() {
 
         {searched && !loading && items.length === 0 && (
           <Card className="p-4 text-sm text-muted-foreground text-center">
-            Nenhum agendamento futuro encontrado para este WhatsApp.
+            Nenhum agendamento encontrado para este WhatsApp nos últimos 7 dias ou datas futuras.
           </Card>
         )}
 
         <div className="space-y-3">
-          {items.map((item) => (
+          {items.map((item) => {
+            const isPast = isPastCalendarDate(item.data);
+            return (
             <Card key={item.id} className="p-4 space-y-3">
-              <p className="font-semibold">{formatDateBr(item.data)}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold">{formatDateBr(item.data)}</p>
+                {isPast && (
+                  <span className="text-[11px] font-semibold rounded-full px-2.5 py-0.5 bg-muted text-muted-foreground">
+                    Encerrado
+                  </span>
+                )}
+              </div>
               <dl className="grid gap-2 text-sm">
                 <div className="flex gap-2">
                   <dt className="text-muted-foreground shrink-0">Cliente:</dt>
@@ -130,7 +140,8 @@ export default function MeusAgendamentosPage() {
                 </div>
               </dl>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

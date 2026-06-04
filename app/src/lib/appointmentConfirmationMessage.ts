@@ -1,4 +1,5 @@
 import { unmaskPhone } from "@agenda/lib/phone";
+import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
 export type AppointmentMessageInput = {
   cliente_nome: string;
@@ -80,4 +81,21 @@ export function getClientConfirmationBadge(
   if (!isInClientConfirmationWindow(appointment.data, now)) return null;
   if (appointment.client_confirmed_at) return "confirmed";
   return "pending";
+}
+
+/** Badge fixo para dias passados (somente leitura no painel). */
+export function getHistoricalConfirmationBadge(appointment: {
+  client_confirmed_at: string | null;
+}): Exclude<ClientConfirmationBadge, null> {
+  return appointment.client_confirmed_at ? "confirmed" : "pending";
+}
+
+export function getClientConfirmationBadgeForPanel(
+  appointment: { data: string; client_confirmed_at: string | null },
+  now = new Date(),
+): ClientConfirmationBadge {
+  if (isPastCalendarDate(appointment.data, now)) {
+    return getHistoricalConfirmationBadge(appointment);
+  }
+  return getClientConfirmationBadge(appointment, now);
 }

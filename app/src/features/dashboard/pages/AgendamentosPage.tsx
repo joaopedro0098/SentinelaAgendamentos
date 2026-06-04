@@ -22,8 +22,9 @@ import { cn } from "@/lib/utils";
 import {
   buildAppointmentConfirmationMessage,
   buildClientWhatsAppUrl,
-  getClientConfirmationBadge,
+  getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
+import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -206,6 +207,8 @@ export default function AgendamentosPage() {
     const d = new Date(selectedDate + "T12:00:00");
     return d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   }, [selectedDate]);
+
+  const isPastDay = isPastCalendarDate(selectedDate);
 
   function handleDayClick(key: string) {
     if (key === selectedDate) {
@@ -399,7 +402,7 @@ export default function AgendamentosPage() {
         ) : (
           <ul className="space-y-3">
             {listaFiltrada.map((a) => {
-              const confirmationBadge = getClientConfirmationBadge(a);
+              const confirmationBadge = getClientConfirmationBadgeForPanel(a);
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
@@ -462,6 +465,7 @@ export default function AgendamentosPage() {
                         </p>
                       )}
                     </div>
+                    {!isPastDay && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <Button
@@ -512,6 +516,7 @@ export default function AgendamentosPage() {
                       </Button>
                       </div>
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               </li>

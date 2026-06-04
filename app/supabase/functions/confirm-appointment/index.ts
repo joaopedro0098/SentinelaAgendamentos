@@ -41,6 +41,14 @@ Deno.serve(async (req) => {
       }, 409);
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    if (String(appointment.data) < today) {
+      return jsonResponse({
+        error: "Este agendamento já passou e não pode mais ser confirmado.",
+        appointment,
+      }, 409);
+    }
+
     if (action === "confirm") {
       const { data: updated, error: updateError } = await supabase
         .from("agendamentos")
