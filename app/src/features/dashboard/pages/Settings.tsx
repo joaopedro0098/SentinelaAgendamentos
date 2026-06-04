@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
+import { AggregatedAccountsSection } from "@/features/dashboard/components/AggregatedAccountsSection";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
@@ -325,6 +326,8 @@ export default function Settings() {
             </form>
           </CardContent>
         </Card>
+
+        <AggregatedAccountsSection />
 
         <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} />
 

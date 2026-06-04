@@ -15,6 +15,9 @@ export type SubscriptionInfo = {
   label?: string;
   mp_subscription_id?: string | null;
   stripe_subscription_id?: string | null;
+  is_aggregated_account?: boolean;
+  aggregated_by_email?: string | null;
+  can_manage_aggregated_accounts?: boolean;
 };
 
 export function useSubscription() {

@@ -205,7 +205,8 @@ export default function PerfilPage() {
     return "—";
   })();
 
-  const showPay = !info?.is_admin && !loading && info?.subscription_status !== "active";
+  const showPay =
+    !info?.is_admin && !loading && (info?.is_aggregated_account || info?.subscription_status !== "active");
   const hasStripeCard = Boolean(info?.stripe_subscription_id);
   const showCancel =
     !info?.is_admin && info?.subscription_status === "active" && hasStripeCard;
@@ -238,6 +239,12 @@ export default function PerfilPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {info?.is_aggregated_account && info.aggregated_by_email && (
+            <p className="text-sm font-bold">
+              Conta agregada por {info.aggregated_by_email}
+            </p>
+          )}
+
           {showPlanStatus && (
             <div className="text-sm">
               <p className="font-medium">{statusLabel}</p>
