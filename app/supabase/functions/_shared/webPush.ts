@@ -8,7 +8,7 @@ export type PushSubscriptionRow = {
   auth: string;
 };
 
-type SubscriptionTable = "appointment_push_subscriptions" | "barber_push_subscriptions";
+type SubscriptionTable = "barber_push_subscriptions";
 
 export function configureWebPush() {
   const publicKey = Deno.env.get("VAPID_PUBLIC_KEY")?.trim();

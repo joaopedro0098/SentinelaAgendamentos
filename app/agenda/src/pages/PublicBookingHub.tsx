@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Bell, CalendarDays, Download, List, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays, Download, List, Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PublicShopHeader } from "@/components/PublicShopHeader";
@@ -10,12 +10,12 @@ import {
   isStandalonePwa,
   listenForInstallPrompt,
   type BeforeInstallPromptEvent,
-} from "@/lib/pushNotifications";
+} from "@/lib/pwaInstall";
 
 export default function PublicBookingHub() {
   const { slug } = useParams<{ slug: string }>();
   const { loading, barbearia } = useBarbeariaResumo(slug);
-  const [installed, setInstalled] = useState(false);
+  const [installed, setInstalled] = useState(() => isStandalonePwa());
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const isIos = typeof window !== "undefined" && isIosDevice();
@@ -38,6 +38,7 @@ export default function PublicBookingHub() {
       await installPrompt.prompt();
       await installPrompt.userChoice;
       setInstallPrompt(null);
+      setInstalled(isStandalonePwa());
       return;
     }
     setShowInstallHelp(true);
@@ -52,6 +53,7 @@ export default function PublicBookingHub() {
   }
 
   const base = `/agendar/${slug}`;
+  const shopName = barbearia?.nome?.trim() || "sua barbearia";
 
   return (
     <div className="min-h-screen bg-surface px-4 py-8">
@@ -83,8 +85,12 @@ export default function PublicBookingHub() {
           <div className="space-y-3">
             <Card className="border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
               <p className="flex items-start gap-2">
-                <Bell className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                Instale para receber lembrete automático 1 dia antes do seu corte.
+                <Smartphone className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <span>
+                  Instale e faça futuros agendamentos com{" "}
+                  <span className="font-semibold">{shopName}</span> de forma mais fácil e rápida.{" "}
+                  <span className="text-muted-foreground">(opcional)</span>
+                </span>
               </p>
             </Card>
 

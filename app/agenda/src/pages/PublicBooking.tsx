@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Bell, Check, ChevronLeft, ChevronRight, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Scissors, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
 import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
-import { isIosDevice, isStandalonePwa, registerAppointmentPush, supportsWebPush } from "@/lib/pushNotifications";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
 import {
   checkBarbeariaCanBook,
@@ -234,7 +233,6 @@ const PublicBooking = ({
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [wantsReminder, setWantsReminder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -669,7 +667,6 @@ const PublicBooking = ({
         servicos_nomes: servicosNomes,
         status: "confirmado",
         observacao: obs,
-        requires_client_confirmation: !ownerPanel && wantsReminder,
         origem: ownerPanel ? "painel" : "link_publico",
       })
       .select("id")
@@ -682,10 +679,6 @@ const PublicBooking = ({
         notifyBookingBlocked();
       } else toast.error(error.message);
       return;
-    }
-
-    if (!ownerPanel && wantsReminder && createdAppointment?.id) {
-      await registerAppointmentPush(createdAppointment.id).catch(() => undefined);
     }
 
     if (!ownerPanel && createdAppointment?.id) {
@@ -859,9 +852,6 @@ const PublicBooking = ({
     Boolean(barbeiroId) && duracaoTotal > 0 && slotsDoBarbeiroNoDia.all.length > 0 && slotsDoBarbeiroNoDia.livres.length === 0;
   const barbeiroSemDispNoDia = Boolean(barbeiroId && barbeiroSel && !barbeiroTemDispNoDia(barbeiroId));
   const waLink = whatsappHref(barbearia.telefone);
-  const isIos = typeof window !== "undefined" && isIosDevice();
-  const iosNeedsInstall = isIos && !isStandalonePwa();
-  const pushAvailable = typeof window !== "undefined" && supportsWebPush();
 
   const onDayClick = (d: Date, ok: boolean, el: HTMLElement) => {
     if (ok) {
@@ -1268,49 +1258,7 @@ const PublicBooking = ({
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none md:min-h-[4.25rem] md:max-h-[4.25rem]"
                   />
                 </div>
-                {!isReschedule && !ownerPanel && (
-                  <Card className="p-3.5 bg-card border-border md:p-3">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 accent-primary"
-                        checked={wantsReminder}
-                        onChange={(e) => setWantsReminder(e.target.checked)}
-                      />
-                      <span className="text-sm md:text-xs">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <Bell className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                          Receber lembrete pelo navegador
-                        </span>
-                        <span className="mt-1 block text-muted-foreground">
-                          Enviaremos uma confirmação 1 dia antes e um lembrete cerca de 3h antes do horário.
-                        </span>
-                      </span>
-                    </label>
-                    {wantsReminder && (
-                      <div className="mt-3 md:mt-2 rounded-lg bg-muted/60 p-3 md:p-2.5 text-xs text-muted-foreground space-y-1.5">
-                        {iosNeedsInstall ? (
-                          <>
-                            <p className="font-semibold text-foreground">Atenção para iPhone</p>
-                            <p>
-                              Para receber notificações no iPhone, abra este link no Safari, toque em Compartilhar,
-                              escolha "Adicionar à Tela de Início" e depois abra pelo ícone criado.
-                            </p>
-                          </>
-                        ) : isIos ? (
-                          <p>No iPhone, mantenha o app aberto pelo ícone instalado na tela inicial para permitir notificações.</p>
-                        ) : (
-                          <p>No Android, basta aceitar a permissão de notificação quando o navegador solicitar.</p>
-                        )}
-                        {!pushAvailable && (
-                          <p className="text-unavailable">
-                            Este navegador não informou suporte a notificações push. O agendamento continuará normal.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </Card>
-                )}
+
               </section>
 
               <Button
