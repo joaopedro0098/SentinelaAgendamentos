@@ -14,7 +14,7 @@
       ]
     },
     {
-      "source": "/manifest/agendar/(.*)",
+      "source": "/manifest/agendar/:slug.webmanifest",
       "headers": [
         {
           "key": "Content-Type",
@@ -73,6 +73,10 @@
     {
       "source": "/manifest/agendar/:slug.webmanifest",
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/client-pwa-manifest?slug=:slug"
+    },
+    {
+      "source": "/manifest/agendar/:slug/icon-:size.png",
+      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/client-pwa-icon?slug=:slug&size=:size"
     },
     {
       "source": "/((?!api/)(?!.*\\..*).*)",

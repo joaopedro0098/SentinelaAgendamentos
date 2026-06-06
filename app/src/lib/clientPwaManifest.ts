@@ -8,14 +8,12 @@ export function getClientPwaManifestUrl(slug: string) {
   return `/manifest/agendar/${encodeURIComponent(slug)}.webmanifest`;
 }
 
-export function isClientPwaPath(pathname: string) {
-  return /^\/agendar\/[^/]+/.test(pathname);
+export function getClientPwaIconUrl(slug: string, size: 192 | 512 = 192) {
+  return `/manifest/agendar/${encodeURIComponent(slug)}/icon-${size}.png`;
 }
 
-function resolveAppleTouchIcon(logoUrl: string | null | undefined) {
-  const value = logoUrl?.trim();
-  if (value && /^https?:\/\//i.test(value)) return value;
-  return "/apple-touch-icon.png?v=20260602";
+export function isClientPwaPath(pathname: string) {
+  return /^\/agendar\/[^/]+/.test(pathname);
 }
 
 function getOrCreateLink(rel: string) {
@@ -49,7 +47,7 @@ export function applyClientPwaHead(shop: ClientPwaShopWithLogo) {
 
   const appleIcon = getOrCreateLink("apple-touch-icon");
   const previousAppleIconHref = appleIcon.getAttribute("href");
-  appleIcon.href = resolveAppleTouchIcon(shop.logoUrl);
+  appleIcon.href = getClientPwaIconUrl(shop.slug, 192);
 
   return () => {
     manifestLink.href = previousManifestHref ?? "/manifest.webmanifest";

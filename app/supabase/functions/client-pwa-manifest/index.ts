@@ -1,10 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const STATIC_ICONS = [
-  { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-  { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-  { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-];
+import {
+  buildClientPwaManifestIcons,
+  fetchClientPwaShop,
+} from "../_shared/clientPwa.ts";
 
 function truncateShortName(nome: string) {
   const trimmed = nome.trim();
@@ -27,7 +24,7 @@ function buildManifest(slug: string, nome: string) {
     handle_links: "preferred",
     background_color: "#fafafa",
     theme_color: "#2fa66a",
-    icons: STATIC_ICONS,
+    icons: buildClientPwaManifestIcons(slug),
   };
 }
 
@@ -39,9 +36,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const url = new URL(req.url);
-  const slug = (url.searchParams.get("slug") ?? "").trim();
-
+  const slug = (new URL(req.url).searchParams.get("slug") ?? "").trim();
   if (!slug) {
     return new Response(JSON.stringify({ error: "Slug inválido" }), {
       status: 400,
@@ -50,30 +45,14 @@ Deno.serve(async (req) => {
   }
 
   let nome = "Agendar";
-
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const { data } = await supabase
-      .from("barbearias")
-      .select("nome")
-      .eq("slug", slug)
-      .eq("ativa", true)
-      .maybeSingle();
-
-    if (data?.nome?.trim()) {
-      nome = data.nome.trim();
-    }
+    const shop = await fetchClientPwaShop(slug);
+    if (shop?.nome?.trim()) nome = shop.nome.trim();
   } catch {
-    // fallback: manifest genérico ainda é instalável
+    // manifest genérico ainda é instalável
   }
 
-  const manifest = buildManifest(slug, nome);
-
-  return new Response(JSON.stringify(manifest), {
+  return new Response(JSON.stringify(buildManifest(slug, nome)), {
     status: 200,
     headers: {
       "Content-Type": "application/manifest+json; charset=utf-8",
