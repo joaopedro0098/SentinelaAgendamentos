@@ -64,10 +64,10 @@ export default function Settings() {
     let nextAvatarUrl = shop.avatar_url;
 
     if (pendingAvatarBlob) {
-      const path = `${user.id}/avatar.webp`;
+      const path = `${user.id}/avatar.jpg`;
       const { error: upErr } = await supabase.storage.from("barbershop-avatars").upload(path, pendingAvatarBlob, {
         upsert: true,
-        contentType: "image/webp",
+        contentType: "image/jpeg",
         cacheControl: "3600",
       });
       if (upErr) {

@@ -38,8 +38,8 @@ export async function cropImageToSquareBlob(
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Falha ao processar imagem"))),
-      "image/webp",
-      0.9,
+      "image/jpeg",
+      0.92,
     );
   });
 }

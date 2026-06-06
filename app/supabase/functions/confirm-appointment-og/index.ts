@@ -29,6 +29,7 @@ function formatTime(hora: string) {
   return String(hora).slice(0, 5);
 }
 
+/** URL pública estável para og:image (WhatsApp não aceita render/image 403 nem query ?t=). */
 function toWhatsAppOgImageUrl(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim();
   if (!trimmed) return null;
@@ -37,25 +38,17 @@ function toWhatsAppOgImageUrl(raw: string | null | undefined): string | null {
   if (trimmed.startsWith("/")) {
     absolute = `${SITE_ORIGIN}${trimmed}`;
   } else if (!/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+    return null;
   }
 
   try {
     const url = new URL(absolute);
-    const objectMatch = url.pathname.match(/\/storage\/v1\/object\/public\/(.+)/);
-    if (objectMatch) {
-      const render = new URL(`${url.origin}/storage/v1/render/image/public/${objectMatch[1]}`);
-      render.searchParams.set("width", "512");
-      render.searchParams.set("height", "512");
-      render.searchParams.set("format", "jpeg");
-      render.searchParams.set("quality", "85");
-      return render.toString();
-    }
+    url.search = "";
+    url.hash = "";
+    return url.toString();
   } catch {
-    return absolute;
+    return absolute.split("?")[0]?.split("#")[0] ?? null;
   }
-
-  return absolute;
 }
 
 function isLinkPreviewBot(userAgent: string) {
@@ -81,9 +74,6 @@ function buildHtml(token: string, preview: OgPreview, userAgent: string) {
   const imageTags = imageUrl
     ? `<meta property="og:image" content="${escapeHtml(imageUrl)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="512" />
-    <meta property="og:image:height" content="512" />
     <meta property="og:image:alt" content="${escapeHtml(shopName)}" />
     <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />`
     : "";
