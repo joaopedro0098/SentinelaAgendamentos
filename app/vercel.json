@@ -72,7 +72,7 @@
     },
     {
       "source": "/manifest/agendar/:slug.webmanifest",
-      "destination": "/api/manifest/agendar/:slug"
+      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/client-pwa-manifest?slug=:slug"
     },
     {
       "source": "/((?!api/)(?!.*\\..*).*)",

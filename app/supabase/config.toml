@@ -62,6 +62,9 @@ verify_jwt = false
 [functions.confirm-appointment-og]
 verify_jwt = false
 
+[functions.client-pwa-manifest]
+verify_jwt = false
+
 [functions.client-confirmation-push]
 verify_jwt = false
 
