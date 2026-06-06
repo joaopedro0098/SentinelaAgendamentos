@@ -10,7 +10,7 @@ import {
 import { isStandalonePwa } from "@/lib/pwaInstall";
 
 const DESCRIPTION =
-  "Para receber confirmação de agendamento 1 dia antes do agendamento no navegador, instale o app: procure a opção Adicionar à Tela de Início e depois ative as notificações.";
+  "Para receber confirmação de agendamento 1 dia antes, instale o app: Se o botão abaixo não estiver disponível, procure a opção Adicionar à Tela de Início e depois ative as notificações.";
 
 const APP_REQUIRED_MESSAGE = "Função habilitada somente com app instalado";
 
