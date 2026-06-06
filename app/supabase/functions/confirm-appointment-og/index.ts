@@ -29,7 +29,6 @@ function formatTime(hora: string) {
   return String(hora).slice(0, 5);
 }
 
-/** URL pública estável para og:image (WhatsApp não aceita render/image 403 nem query ?t=). */
 function toWhatsAppOgImageUrl(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim();
   if (!trimmed) return null;
@@ -51,13 +50,14 @@ function toWhatsAppOgImageUrl(raw: string | null | undefined): string | null {
   }
 }
 
-function isLinkPreviewBot(userAgent: string) {
-  return /whatsapp|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
+/** Crawlers de preview — não inclui "WhatsApp" (mesmo UA do app ao abrir o link). */
+function isPreviewCrawler(userAgent: string) {
+  return /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
     userAgent,
   );
 }
 
-function buildHtml(token: string, preview: OgPreview, userAgent: string) {
+function buildPreviewHtml(token: string, preview: OgPreview) {
   const confirmUrl = `${SITE_ORIGIN}/confirmar-agendamento/${token}`;
   const shopName = preview.shop_name?.trim() || "Agendamento";
   const time = preview.hora ? formatTime(String(preview.hora)) : "";
@@ -78,13 +78,6 @@ function buildHtml(token: string, preview: OgPreview, userAgent: string) {
     <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />`
     : "";
 
-  const redirectForBrowser = !isLinkPreviewBot(userAgent);
-  const redirectTags = redirectForBrowser
-    ? `<meta http-equiv="refresh" content="0;url=${escapeHtml(confirmUrl)}" />
-    <link rel="canonical" href="${escapeHtml(confirmUrl)}" />
-    <script>location.replace(${JSON.stringify(confirmUrl)});</script>`
-    : "";
-
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -100,9 +93,8 @@ function buildHtml(token: string, preview: OgPreview, userAgent: string) {
   <meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />
   <meta name="twitter:title" content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
-  ${redirectTags}
 </head>
-<body><p><a href="${escapeHtml(confirmUrl)}">Continuar para confirmar agendamento</a></p></body>
+<body></body>
 </html>`;
 }
 
@@ -115,6 +107,19 @@ Deno.serve(async (req) => {
   const token = (url.searchParams.get("token") ?? "").trim();
   if (!token) {
     return new Response("Token inválido", { status: 400 });
+  }
+
+  const userAgent = req.headers.get("user-agent") ?? "";
+  const confirmUrl = `${SITE_ORIGIN}/confirmar-agendamento/${token}`;
+
+  if (!isPreviewCrawler(userAgent)) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: confirmUrl,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   const supabase = createClient(
@@ -130,9 +135,7 @@ Deno.serve(async (req) => {
     return new Response("Agendamento não encontrado", { status: 404 });
   }
 
-  const preview = data as OgPreview;
-  const userAgent = req.headers.get("user-agent") ?? "";
-  const html = buildHtml(token, preview, userAgent);
+  const html = buildPreviewHtml(token, data as OgPreview);
 
   return new Response(req.method === "HEAD" ? null : html, {
     status: 200,

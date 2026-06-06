@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   buildConfirmationOgHtml,
-  isLinkPreviewBot,
   type ConfirmationOgPreview,
 } from "../../lib/confirmationOgHtml";
 
@@ -50,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userAgent = String(req.headers["user-agent"] ?? "");
   const html = buildConfirmationOgHtml(token, preview, {
-    redirectBrowsers: !isLinkPreviewBot(userAgent),
+    redirectBrowsers: false,
   });
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");

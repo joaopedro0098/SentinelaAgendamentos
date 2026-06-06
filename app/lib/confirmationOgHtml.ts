@@ -49,7 +49,7 @@ export function toWhatsAppOgImageUrl(raw: string | null | undefined): string | n
 }
 
 export function isLinkPreviewBot(userAgent: string) {
-  return /whatsapp|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
+  return /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
     userAgent,
   );
 }

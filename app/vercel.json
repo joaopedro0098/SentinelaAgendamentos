@@ -38,20 +38,21 @@
       ],
       "destination": "https://www.sentinelagendamentos.com/:path*",
       "permanent": true
+    },
+    {
+      "source": "/c/:token",
+      "destination": "/confirmar-agendamento/:token",
+      "permanent": false
     }
   ],
   "rewrites": [
-    {
-      "source": "/c/:token",
-      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
-    },
     {
       "source": "/confirmar-agendamento/:token",
       "has": [
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
+          "value": "(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
         }
       ],
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
