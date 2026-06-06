@@ -113,10 +113,20 @@ export default function PublicBookingHub() {
               {showInstallHelp && (
                 <Card className="p-4 text-sm text-muted-foreground space-y-2">
                   <p className="font-semibold text-foreground">Como instalar</p>
+                  <p>
+                    O ícone na tela inicial será de{" "}
+                    <strong className="text-foreground">{shopName}</strong> e abrirá direto o
+                    agendamento desta barbearia, sem login.
+                  </p>
                   {isIos ? (
                     <p>
                       No Safari: toque em <strong>Compartilhar</strong> →{" "}
                       <strong>Adicionar à Tela de Início</strong>. Depois abra pelo ícone criado.
+                    </p>
+                  ) : installPrompt ? (
+                    <p>
+                      Toque em <strong>Instalar o app</strong> acima ou, no menu do navegador,
+                      escolha <strong>Instalar app</strong>.
                     </p>
                   ) : (
                     <p>

@@ -1,12 +1,25 @@
 import { Link, Outlet, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { useBarbeariaResumo } from "@agenda/hooks/useBarbeariaResumo";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
 import { useEnsureAgendaSync } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import { useClientPwaManifest } from "@/hooks/useClientPwaManifest";
 import { Button } from "@/components/ui/button";
 
 export default function PublicAgendaLayout() {
   const { slug } = useParams<{ slug: string }>();
   const { phase, errorMsg } = useEnsureAgendaSync(slug);
+  const { barbearia } = useBarbeariaResumo(slug);
+
+  useClientPwaManifest(
+    slug
+      ? {
+          slug,
+          nome: barbearia?.nome?.trim() || "Agendar",
+          logoUrl: barbearia?.logo_url ?? null,
+        }
+      : null,
+  );
 
   if (phase === "loading") {
     return (
