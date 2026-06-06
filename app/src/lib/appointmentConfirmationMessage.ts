@@ -6,6 +6,7 @@ export type AppointmentMessageInput = {
   data: string;
   hora: string;
   confirmation_token: string;
+  shop_name?: string | null;
 };
 
 const APP_ORIGIN =
@@ -48,8 +49,10 @@ export function buildAppointmentConfirmationMessage(appointment: AppointmentMess
   const link = getConfirmationPageUrl(appointment.confirmation_token);
   const dayPhrase = formatAppointmentDayPhrase(appointment.data);
   const time = formatAppointmentTime(appointment.hora);
+  const shopName = appointment.shop_name?.trim();
+  const shopPrefix = shopName ? `${shopName} — ` : "";
 
-  return `Olá! ${appointment.cliente_nome} você tem um agendamento para ${dayPhrase} às ${time}. Por favor, clique no link para confirmar:
+  return `${shopPrefix}Olá! ${appointment.cliente_nome} você tem um agendamento para ${dayPhrase} às ${time}. Por favor, clique no link para confirmar:
 
 Link: ${link}`;
 }

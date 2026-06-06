@@ -42,6 +42,17 @@
   ],
   "rewrites": [
     {
+      "source": "/confirmar-agendamento/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest).*"
+        }
+      ],
+      "destination": "/api/confirmar-agendamento/:token"
+    },
+    {
       "source": "/((?!.*\\..*).*)",
       "destination": "/index.html"
     }

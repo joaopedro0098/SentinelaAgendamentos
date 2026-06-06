@@ -64,7 +64,7 @@ function formatWhatsApp(w: string) {
 export default function AgendamentosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { slug, barbeariaId, loading: shopLoading, agendaReady } = useDashboardShop();
+  const { slug, barbeariaId, shop, loading: shopLoading, agendaReady } = useDashboardShop();
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
@@ -254,8 +254,15 @@ export default function AgendamentosPage() {
     loadAgendamentos();
   }
 
+  function buildMessage(a: AgendamentoRow) {
+    return buildAppointmentConfirmationMessage({
+      ...a,
+      shop_name: shop?.display_name ?? null,
+    });
+  }
+
   function handleCopyConfirmationMessage(a: AgendamentoRow) {
-    const text = buildAppointmentConfirmationMessage(a);
+    const text = buildMessage(a);
     void navigator.clipboard.writeText(text).then(
       () => toast({ title: "Mensagem copiada" }),
       () => toast({ title: "Não foi possível copiar", variant: "destructive" }),
@@ -263,7 +270,7 @@ export default function AgendamentosPage() {
   }
 
   function handleWhatsApp(a: AgendamentoRow) {
-    const message = buildAppointmentConfirmationMessage(a);
+    const message = buildMessage(a);
     const url = buildClientWhatsAppUrl(a.cliente_whatsapp, message);
     if (!url) {
       toast({ title: "WhatsApp inválido", description: "Verifique o número do cliente.", variant: "destructive" });
