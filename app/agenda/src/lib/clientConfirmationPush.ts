@@ -13,6 +13,48 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
+/** Permissão concedida neste dispositivo (inscrição push é feita ao agendar). */
+export function isClientConfirmationPushEnabled() {
+  return supportsClientConfirmationPush() && Notification.permission === "granted";
+}
+
+/** Ativa push localmente (permissão + inscrição no navegador). */
+export async function registerClientConfirmationPushLocal(options?: { requestPermission?: boolean }) {
+  if (!VAPID_PUBLIC_KEY) {
+    return { ok: false as const, message: "Notificações push ainda não foram configuradas." };
+  }
+
+  if (!supportsClientConfirmationPush()) {
+    return { ok: false as const, message: "Este navegador não suporta notificações push." };
+  }
+
+  let permission = Notification.permission;
+  if (permission === "default" && options?.requestPermission !== false) {
+    permission = await Notification.requestPermission();
+  }
+
+  if (permission !== "granted") {
+    return { ok: false as const, message: "Permissão de notificação não concedida." };
+  }
+
+  const registration = await navigator.serviceWorker.register("/sw.js");
+  const existing = await registration.pushManager.getSubscription();
+  if (!existing) {
+    await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  }
+
+  return { ok: true as const, message: "Você receberá um aviso no dia anterior ao horário." };
+}
+
+export async function unregisterClientConfirmationPushLocal() {
+  if (!supportsClientConfirmationPush()) return;
+  const registration = await navigator.serviceWorker.register("/sw.js");
+  await (await registration.pushManager.getSubscription())?.unsubscribe();
+}
+
 /** Chamar no clique do botão Confirmar, antes de awaits longos (gesto do usuário). */
 export async function requestClientNotificationPermission() {
   if (!supportsClientConfirmationPush()) return Notification.permission;

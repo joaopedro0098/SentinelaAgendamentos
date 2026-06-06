@@ -11,6 +11,7 @@ import {
   listenForInstallPrompt,
   type BeforeInstallPromptEvent,
 } from "@/lib/pwaInstall";
+import { ClientConfirmationPushToggle } from "@/components/ClientConfirmationPushToggle";
 
 export default function PublicBookingHub() {
   const { slug } = useParams<{ slug: string }>();
@@ -81,8 +82,8 @@ export default function PublicBookingHub() {
           </Button>
         </div>
 
-        {!installed && (
-          <div className="space-y-3">
+        <div className="space-y-3">
+          {!installed && (
             <Card className="border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
               <p className="flex items-start gap-2">
                 <Smartphone className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
@@ -93,35 +94,41 @@ export default function PublicBookingHub() {
                 </span>
               </p>
             </Card>
+          )}
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full h-12 rounded-xl text-base font-semibold"
-              onClick={() => void handleInstallClick()}
-            >
-              <Download className="h-5 w-5" />
-              Instalar o app
-            </Button>
+          <ClientConfirmationPushToggle shopName={shopName} />
 
-            {showInstallHelp && (
-              <Card className="p-4 text-sm text-muted-foreground space-y-2">
-                <p className="font-semibold text-foreground">Como instalar</p>
-                {isIos ? (
-                  <p>
-                    No Safari: toque em <strong>Compartilhar</strong> →{" "}
-                    <strong>Adicionar à Tela de Início</strong>. Depois abra pelo ícone criado.
-                  </p>
-                ) : (
-                  <p>
-                    No menu do navegador, escolha <strong>Instalar app</strong> ou{" "}
-                    <strong>Adicionar à tela inicial</strong>.
-                  </p>
-                )}
-              </Card>
-            )}
-          </div>
-        )}
+          {!installed && (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full h-12 rounded-xl text-base font-semibold"
+                onClick={() => void handleInstallClick()}
+              >
+                <Download className="h-5 w-5" />
+                Instalar o app
+              </Button>
+
+              {showInstallHelp && (
+                <Card className="p-4 text-sm text-muted-foreground space-y-2">
+                  <p className="font-semibold text-foreground">Como instalar</p>
+                  {isIos ? (
+                    <p>
+                      No Safari: toque em <strong>Compartilhar</strong> →{" "}
+                      <strong>Adicionar à Tela de Início</strong>. Depois abra pelo ícone criado.
+                    </p>
+                  ) : (
+                    <p>
+                      No menu do navegador, escolha <strong>Instalar app</strong> ou{" "}
+                      <strong>Adicionar à tela inicial</strong>.
+                    </p>
+                  )}
+                </Card>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
