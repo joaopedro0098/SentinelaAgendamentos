@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260602" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
-      (function(){var m=location.pathname.match(/^\/agendar\/([^/]+)/);if(!m)return;var s=m[1],h="/api/manifest/agendar/"+encodeURIComponent(s),l=document.querySelector('link[rel="manifest"]');if(l)l.setAttribute("href",h);var a=document.querySelector('link[rel="apple-touch-icon"]');if(a)a.setAttribute("href","/api/pwa-icon/agendar/"+encodeURIComponent(s)+"/192");})();
+      (function(){var m=location.pathname.match(/^\/agendar\/([^/]+)/);if(!m)return;var s=m[1],h="/manifest/agendar/"+encodeURIComponent(s)+".webmanifest",l=document.querySelector('link[rel="manifest"]');if(l)l.setAttribute("href",h);})();
     </script>
     <meta name="theme-color" content="#2fa66a" />
     <meta name="mobile-web-app-capable" content="yes" />

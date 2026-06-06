@@ -14,7 +14,7 @@
       ]
     },
     {
-      "source": "/api/manifest/agendar/(.*)",
+      "source": "/manifest/agendar/(.*)",
       "headers": [
         {
           "key": "Content-Type",
@@ -71,7 +71,11 @@
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
     },
     {
-      "source": "/((?!.*\\..*).*)",
+      "source": "/manifest/agendar/:slug.webmanifest",
+      "destination": "/api/manifest/agendar/:slug"
+    },
+    {
+      "source": "/((?!api/)(?!.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

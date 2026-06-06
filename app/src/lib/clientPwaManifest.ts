@@ -1,48 +1,21 @@
-export type ClientPwaShop = {
+import {
+  getClientPwaManifestUrl,
+} from "../../api/_lib/clientPwaManifest";
+
+export {
+  buildClientPwaManifest,
+  getClientPwaManifestUrl,
+  getClientPwaScope,
+  getClientPwaStartUrl,
+  type ClientPwaShop,
+  type WebAppManifest,
+} from "../../api/_lib/clientPwaManifest";
+
+export type ClientPwaShopWithLogo = {
   slug: string;
   nome: string;
   logoUrl?: string | null;
 };
-
-export type WebAppManifest = {
-  id: string;
-  name: string;
-  short_name: string;
-  description: string;
-  lang: string;
-  start_url: string;
-  scope: string;
-  display: string;
-  display_override: string[];
-  handle_links: string;
-  background_color: string;
-  theme_color: string;
-  icons: Array<{
-    src: string;
-    sizes: string;
-    type: string;
-    purpose: string;
-  }>;
-};
-
-const DEFAULT_THEME_COLOR = "#2fa66a";
-const DEFAULT_BACKGROUND_COLOR = "#fafafa";
-
-export function getClientPwaScope(slug: string) {
-  return `/agendar/${slug}`;
-}
-
-export function getClientPwaStartUrl(slug: string) {
-  return `${getClientPwaScope(slug)}?source=client-pwa`;
-}
-
-export function getClientPwaManifestUrl(slug: string) {
-  return `/api/manifest/agendar/${encodeURIComponent(slug)}`;
-}
-
-export function getClientPwaIconUrl(slug: string, size: 192 | 512) {
-  return `/api/pwa-icon/agendar/${encodeURIComponent(slug)}/${size}`;
-}
 
 export function isClientPwaPath(pathname: string) {
   return /^\/agendar\/[^/]+/.test(pathname);
@@ -53,42 +26,10 @@ export function getClientPwaSlug(pathname: string): string | null {
   return match?.[1] ?? null;
 }
 
-function truncateShortName(nome: string) {
-  const trimmed = nome.trim();
-  if (trimmed.length <= 12) return trimmed;
-  return `${trimmed.slice(0, 11)}…`;
-}
-
-function buildManifestIcons(slug: string) {
-  const icon192 = getClientPwaIconUrl(slug, 192);
-  const icon512 = getClientPwaIconUrl(slug, 512);
-
-  return [
-    { src: icon192, sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: icon512, sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: icon512, sizes: "512x512", type: "image/png", purpose: "maskable" },
-  ];
-}
-
-export function buildClientPwaManifest(shop: ClientPwaShop, _origin?: string): WebAppManifest {
-  const nome = shop.nome.trim() || "Agendar";
-  const startUrl = getClientPwaStartUrl(shop.slug);
-
-  return {
-    id: startUrl,
-    name: nome,
-    short_name: truncateShortName(nome),
-    description: `Agende horário com ${nome}`,
-    lang: "pt-BR",
-    start_url: startUrl,
-    scope: getClientPwaScope(shop.slug),
-    display: "standalone",
-    display_override: ["standalone", "fullscreen"],
-    handle_links: "preferred",
-    background_color: DEFAULT_BACKGROUND_COLOR,
-    theme_color: DEFAULT_THEME_COLOR,
-    icons: buildManifestIcons(shop.slug),
-  };
+function resolveAppleTouchIcon(logoUrl: string | null | undefined) {
+  const value = logoUrl?.trim();
+  if (value && /^https?:\/\//i.test(value)) return value;
+  return "/apple-touch-icon.png?v=20260602";
 }
 
 function getOrCreateLink(rel: string) {
@@ -111,7 +52,7 @@ function getOrCreateMeta(name: string) {
   return meta;
 }
 
-export function applyClientPwaHead(shop: ClientPwaShop) {
+export function applyClientPwaHead(shop: ClientPwaShopWithLogo) {
   const manifestLink = getOrCreateLink("manifest");
   const previousManifestHref = manifestLink.getAttribute("href");
   manifestLink.href = getClientPwaManifestUrl(shop.slug);
@@ -122,7 +63,7 @@ export function applyClientPwaHead(shop: ClientPwaShop) {
 
   const appleIcon = getOrCreateLink("apple-touch-icon");
   const previousAppleIconHref = appleIcon.getAttribute("href");
-  appleIcon.href = getClientPwaIconUrl(shop.slug, 192);
+  appleIcon.href = resolveAppleTouchIcon(shop.logoUrl);
 
   return () => {
     manifestLink.href = previousManifestHref ?? "/manifest.webmanifest";

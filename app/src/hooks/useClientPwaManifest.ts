@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { applyClientPwaHead, type ClientPwaShop } from "@/lib/clientPwaManifest";
+import { applyClientPwaHead, type ClientPwaShopWithLogo } from "@/lib/clientPwaManifest";
 
-export function useClientPwaManifest(shop: ClientPwaShop | null) {
+export function useClientPwaManifest(shop: ClientPwaShopWithLogo | null) {
   useEffect(() => {
     if (!shop?.slug) return;
     return applyClientPwaHead(shop);
