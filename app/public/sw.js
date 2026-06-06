@@ -6,7 +6,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v5").map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v6").map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open("sentinela-shell-v5").then((cache) => cache.put("/index.html", copy));
+          caches.open("sentinela-shell-v6").then((cache) => cache.put("/index.html", copy));
           return response;
         })
         .catch(() => caches.match("/index.html")),
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset(url)) return;
 
   event.respondWith(
-    caches.open("sentinela-shell-v5").then(async (cache) => {
+    caches.open("sentinela-shell-v6").then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request)
         .then((response) => {
@@ -74,7 +74,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
     icon: "/notification-empty.png",
-    badge: "/notification-badge-s.png",
+    badge: "/notification-badge-s.png?v=2",
     data: {
       url: data.url || "/",
     },
