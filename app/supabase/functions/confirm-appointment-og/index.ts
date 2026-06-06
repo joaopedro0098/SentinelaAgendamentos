@@ -4,7 +4,6 @@ const SITE_ORIGIN = (Deno.env.get("APP_URL") ?? "https://www.sentinelagendamento
 
 type OgPreview = {
   shop_name?: string | null;
-  shop_logo_url?: string | null;
   cliente_nome?: string | null;
   data?: string | null;
   hora?: string | null;
@@ -29,27 +28,6 @@ function formatTime(hora: string) {
   return String(hora).slice(0, 5);
 }
 
-function toWhatsAppOgImageUrl(raw: string | null | undefined): string | null {
-  const trimmed = raw?.trim();
-  if (!trimmed) return null;
-
-  let absolute = trimmed;
-  if (trimmed.startsWith("/")) {
-    absolute = `${SITE_ORIGIN}${trimmed}`;
-  } else if (!/^https?:\/\//i.test(trimmed)) {
-    return null;
-  }
-
-  try {
-    const url = new URL(absolute);
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return absolute.split("?")[0]?.split("#")[0] ?? null;
-  }
-}
-
 /** Crawlers de preview — não inclui "WhatsApp" (mesmo UA do app ao abrir o link). */
 function isPreviewCrawler(userAgent: string) {
   return /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
@@ -57,6 +35,7 @@ function isPreviewCrawler(userAgent: string) {
   );
 }
 
+/** Prévia só texto: sem og:image (WhatsApp não exibe foto/logo no card do link). */
 function buildPreviewHtml(token: string, preview: OgPreview) {
   const confirmUrl = `${SITE_ORIGIN}/confirmar-agendamento/${token}`;
   const shopName = preview.shop_name?.trim() || "Agendamento";
@@ -70,14 +49,6 @@ function buildPreviewHtml(token: string, preview: OgPreview) {
       ? `${clientName}, confirme seu horário em ${shopName} para ${dateLabel} às ${time}.`
       : `Confirme seu agendamento em ${shopName}.`;
 
-  const imageUrl = toWhatsAppOgImageUrl(preview.shop_logo_url);
-  const imageTags = imageUrl
-    ? `<meta property="og:image" content="${escapeHtml(imageUrl)}" />
-    <meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}" />
-    <meta property="og:image:alt" content="${escapeHtml(shopName)}" />
-    <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />`
-    : "";
-
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -88,9 +59,7 @@ function buildPreviewHtml(token: string, preview: OgPreview) {
   <meta property="og:url" content="${escapeHtml(confirmUrl)}" />
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
-  <meta property="og:site_name" content="${escapeHtml(shopName)}" />
-  ${imageTags}
-  <meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />
+  <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
 </head>
