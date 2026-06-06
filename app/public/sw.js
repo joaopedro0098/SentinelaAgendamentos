@@ -74,7 +74,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
     icon: "/notification-empty.png",
-    badge: "/notification-badge-s.png?v=2",
+    badge: "/notification-badge-s.png?v=3",
     data: {
       url: data.url || "/",
     },
