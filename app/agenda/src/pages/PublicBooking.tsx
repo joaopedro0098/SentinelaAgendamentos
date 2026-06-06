@@ -22,6 +22,7 @@ import {
   isSubscriptionBlockError,
 } from "../lib/subscription";
 import { getBookingStaticCache, setBookingStaticCache } from "../lib/bookingStaticCache";
+import { requestClientNotificationPermission, saveClientConfirmationPushSubscription } from "../lib/clientConfirmationPush";
 
 const bookingPageX = "px-3 sm:px-5 md:px-0";
 const bookingScrollBleed = "-mx-3 sm:-mx-5 md:mx-0";
@@ -667,6 +668,10 @@ const PublicBooking = ({
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
+    if (!ownerPanel && !isReschedule) {
+      await requestClientNotificationPermission();
+    }
+
     const canBook = await checkBarbeariaCanBook(barbearia.id);
     if (!canBook) {
       notifyBookingBlocked();
@@ -711,8 +716,9 @@ const PublicBooking = ({
           status: "confirmado",
           observacao: obs,
           origem: ownerPanel ? "painel" : "link_publico",
+          requires_client_confirmation: !ownerPanel,
         })
-        .select("id")
+        .select("id, confirmation_token")
         .single();
 
       if (error) {
@@ -727,6 +733,12 @@ const PublicBooking = ({
         void supabase.functions
           .invoke("notify-barber-new-booking", { body: { agendamento_id: createdAppointment.id } })
           .catch(() => undefined);
+      }
+
+      if (!ownerPanel && createdAppointment?.confirmation_token) {
+        void saveClientConfirmationPushSubscription({
+          confirmationToken: createdAppointment.confirmation_token,
+        }).catch(() => undefined);
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));

@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { configureWebPush } from "../_shared/webPush.ts";
+import { sendDueClientConfirmationPushes } from "../_shared/clientConfirmationPush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,16 +24,30 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Não autorizado." }, 401);
     }
 
+    let force = false;
+    if (req.method === "POST") {
+      try {
+        const body = await req.clone().json();
+        force = Boolean(body?.force);
+      } catch {
+        force = false;
+      }
+    }
+
+    configureWebPush();
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const pushResult = await sendDueClientConfirmationPushes(supabase, { force });
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");
     const { data: purgedCount } = await supabase.rpc("purge_old_agendamentos");
 
     return jsonResponse({
       ok: true,
+      confirmation_pushes: pushResult,
       canceled: canceledCount ?? 0,
       purged: purgedCount ?? 0,
     });
