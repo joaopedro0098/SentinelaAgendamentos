@@ -69,11 +69,12 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "Sentinela Agendamentos";
-  // Ícone transparente evita o círculo com letra (ex.: "W") à direita no Android.
-  // À esquerda permanece o ícone do app/PWA (manifest).
+  // icon: painel expandido (transparente evita ícone duplicado à direita).
+  // badge: ícone pequeno na barra de status (hora, wifi, bateria) — Android.
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
     icon: "/notification-empty.png",
+    badge: "/notification-badge-s.png",
     data: {
       url: data.url || "/",
     },
