@@ -112,26 +112,30 @@ export default function PublicBookingHub() {
 
               {showInstallHelp && (
                 <Card className="p-4 text-sm text-muted-foreground space-y-2">
-                  <p className="font-semibold text-foreground">Como instalar</p>
+                  <p className="font-semibold text-foreground">Como instalar de verdade</p>
                   <p>
-                    O ícone na tela inicial será de{" "}
-                    <strong className="text-foreground">{shopName}</strong> e abrirá direto o
-                    agendamento desta barbearia, sem login.
+                    O app instalado será de{" "}
+                    <strong className="text-foreground">{shopName}</strong>, abrirá sem login e
+                    funcionará como app separado — igual ao app do barbeiro, só que para agendar
+                    nesta barbearia.
                   </p>
-                  {isIos ? (
-                    <p>
-                      No Safari: toque em <strong>Compartilhar</strong> →{" "}
-                      <strong>Adicionar à Tela de Início</strong>. Depois abra pelo ícone criado.
+                  {installPrompt ? (
+                    <p className="text-foreground">
+                      Toque em <strong>Instalar o app</strong> acima. O Chrome mostrará a instalação
+                      nativa (não use <strong>Criar atalho</strong> no menu, pois isso só abre no
+                      navegador).
                     </p>
-                  ) : installPrompt ? (
+                  ) : isIos ? (
                     <p>
-                      Toque em <strong>Instalar o app</strong> acima ou, no menu do navegador,
-                      escolha <strong>Instalar app</strong>.
+                      No <strong>Safari</strong>: Compartilhar →{" "}
+                      <strong>Adicionar à Tela de Início</strong>. No iPhone essa é a forma correta
+                      de instalar.
                     </p>
                   ) : (
                     <p>
-                      No menu do navegador, escolha <strong>Instalar app</strong> ou{" "}
-                      <strong>Adicionar à tela inicial</strong>.
+                      Aguarde o botão <strong>Instalar o app</strong> acima ou o aviso do Chrome na
+                      barra/endereço. Evite <strong>Criar atalho</strong> no menu ⋮ — isso não
+                      instala o app completo.
                     </p>
                   )}
                 </Card>

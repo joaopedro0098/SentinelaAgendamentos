@@ -1,16 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { buildClientPwaManifest } from "../../../src/lib/clientPwaManifest";
-
-function getSupabaseConfig() {
-  const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key =
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.SUPABASE_ANON_KEY ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) return null;
-  return { url, key };
-}
+import { fetchBarbeariaBySlug } from "../../_lib/clientPwaServer";
 
 export default async function handler(request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
@@ -23,21 +12,7 @@ export default async function handler(request: Request): Promise<Response> {
     });
   }
 
-  const config = getSupabaseConfig();
-  if (!config) {
-    return new Response(JSON.stringify({ error: "Supabase não configurado" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const supabase = createClient(config.url, config.key);
-  const { data, error } = await supabase
-    .from("barbearias")
-    .select("nome, logo_url")
-    .eq("slug", slug)
-    .eq("ativa", true)
-    .maybeSingle();
+  const { data, error } = await fetchBarbeariaBySlug(slug);
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -58,7 +33,6 @@ export default async function handler(request: Request): Promise<Response> {
     {
       slug,
       nome: data.nome?.trim() || "Agendar",
-      logoUrl: data.logo_url,
     },
     origin,
   );

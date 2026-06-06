@@ -14,6 +14,7 @@ export type WebAppManifest = {
   scope: string;
   display: string;
   display_override: string[];
+  handle_links: string;
   background_color: string;
   theme_color: string;
   icons: Array<{
@@ -39,6 +40,10 @@ export function getClientPwaManifestUrl(slug: string) {
   return `/api/manifest/agendar/${encodeURIComponent(slug)}`;
 }
 
+export function getClientPwaIconUrl(slug: string, size: 192 | 512) {
+  return `/api/pwa-icon/agendar/${encodeURIComponent(slug)}/${size}`;
+}
+
 export function isClientPwaPath(pathname: string) {
   return /^\/agendar\/[^/]+/.test(pathname);
 }
@@ -54,32 +59,18 @@ function truncateShortName(nome: string) {
   return `${trimmed.slice(0, 11)}…`;
 }
 
-function resolveIconUrl(iconUrl: string | null | undefined, origin?: string) {
-  const value = iconUrl?.trim();
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  if (value.startsWith("/") && origin) return `${origin}${value}`;
-  return value;
-}
-
-function buildManifestIcons(logoUrl: string | null | undefined, origin?: string) {
-  const resolvedLogo = resolveIconUrl(logoUrl, origin);
-  if (resolvedLogo) {
-    return [
-      { src: resolvedLogo, sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: resolvedLogo, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: resolvedLogo, sizes: "512x512", type: "image/png", purpose: "maskable" },
-    ];
-  }
+function buildManifestIcons(slug: string) {
+  const icon192 = getClientPwaIconUrl(slug, 192);
+  const icon512 = getClientPwaIconUrl(slug, 512);
 
   return [
-    { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    { src: icon192, sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: icon512, sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: icon512, sizes: "512x512", type: "image/png", purpose: "maskable" },
   ];
 }
 
-export function buildClientPwaManifest(shop: ClientPwaShop, origin?: string): WebAppManifest {
+export function buildClientPwaManifest(shop: ClientPwaShop, _origin?: string): WebAppManifest {
   const nome = shop.nome.trim() || "Agendar";
   const startUrl = getClientPwaStartUrl(shop.slug);
 
@@ -93,9 +84,10 @@ export function buildClientPwaManifest(shop: ClientPwaShop, origin?: string): We
     scope: getClientPwaScope(shop.slug),
     display: "standalone",
     display_override: ["standalone", "fullscreen"],
+    handle_links: "preferred",
     background_color: DEFAULT_BACKGROUND_COLOR,
     theme_color: DEFAULT_THEME_COLOR,
-    icons: buildManifestIcons(shop.logoUrl, origin),
+    icons: buildManifestIcons(shop.slug),
   };
 }
 
@@ -122,37 +114,23 @@ function getOrCreateMeta(name: string) {
 export function applyClientPwaHead(shop: ClientPwaShop) {
   const manifestLink = getOrCreateLink("manifest");
   const previousManifestHref = manifestLink.getAttribute("href");
-  const useApiManifest = import.meta.env.PROD;
-  let blobUrl: string | null = null;
-
-  if (useApiManifest) {
-    manifestLink.href = getClientPwaManifestUrl(shop.slug);
-  } else {
-    blobUrl = URL.createObjectURL(
-      new Blob([JSON.stringify(buildClientPwaManifest(shop))], {
-        type: "application/manifest+json",
-      }),
-    );
-    manifestLink.href = blobUrl;
-  }
+  manifestLink.href = getClientPwaManifestUrl(shop.slug);
 
   const appleTitle = getOrCreateMeta("apple-mobile-web-app-title");
   const previousAppleTitle = appleTitle.content;
   appleTitle.content = shop.nome.trim() || "Agendar";
 
-  const appleIcon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
-  const previousAppleIconHref = appleIcon?.getAttribute("href") ?? null;
-  const resolvedLogo = resolveIconUrl(shop.logoUrl);
-  if (appleIcon && resolvedLogo) {
-    appleIcon.href = resolvedLogo;
-  }
+  const appleIcon = getOrCreateLink("apple-touch-icon");
+  const previousAppleIconHref = appleIcon.getAttribute("href");
+  appleIcon.href = getClientPwaIconUrl(shop.slug, 192);
 
   return () => {
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
     manifestLink.href = previousManifestHref ?? "/manifest.webmanifest";
     appleTitle.content = previousAppleTitle;
-    if (appleIcon && previousAppleIconHref) {
+    if (previousAppleIconHref) {
       appleIcon.href = previousAppleIconHref;
+    } else {
+      appleIcon.href = "/apple-touch-icon.png?v=20260602";
     }
   };
 }
