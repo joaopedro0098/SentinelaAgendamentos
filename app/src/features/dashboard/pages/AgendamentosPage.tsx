@@ -241,9 +241,10 @@ export default function AgendamentosPage() {
 
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
+    const removedId = deleteTarget.id;
     setDeleting(true);
     const { error } = await supabase.rpc("excluir_agendamento_painel", {
-      p_agendamento_id: deleteTarget.id,
+      p_agendamento_id: removedId,
     });
     setDeleting(false);
     if (error) {
@@ -251,7 +252,9 @@ export default function AgendamentosPage() {
       return;
     }
     setDeleteTarget(null);
-    loadAgendamentos();
+    setAgendamentos((prev) => prev.filter((a) => a.id !== removedId));
+    toast({ title: "Agendamento excluído" });
+    void loadAgendamentos();
   }
 
   function buildMessage(a: AgendamentoRow) {

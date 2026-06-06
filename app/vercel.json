@@ -42,15 +42,19 @@
   ],
   "rewrites": [
     {
+      "source": "/c/:token",
+      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
+    },
+    {
       "source": "/confirmar-agendamento/:token",
       "has": [
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(WhatsApp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest).*"
+          "value": "(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
         }
       ],
-      "destination": "/api/confirmar-agendamento/:token"
+      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
     },
     {
       "source": "/((?!.*\\..*).*)",

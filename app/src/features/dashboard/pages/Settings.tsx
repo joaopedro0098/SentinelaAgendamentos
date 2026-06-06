@@ -97,9 +97,10 @@ export default function Settings() {
       display_name: shop.display_name.trim().slice(0, 80),
       avatar_url: nextAvatarUrl,
     });
+    const profilePhoto = (pendingAvatarBlob ? nextAvatarUrl : shop.avatar_url) ?? "";
     void supabase
       .from("barbearias")
-      .update({ nome: shop.display_name.trim().slice(0, 80), logo_url: nextAvatarUrl ?? "" })
+      .update({ nome: shop.display_name.trim().slice(0, 80), logo_url: profilePhoto })
       .eq("slug", shop.slug);
     void refresh({ force: true });
     setPendingAvatarBlob(null);

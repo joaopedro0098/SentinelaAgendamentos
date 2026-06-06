@@ -59,5 +59,8 @@ verify_jwt = false
 [functions.confirm-appointment]
 verify_jwt = false
 
+[functions.confirm-appointment-og]
+verify_jwt = false
+
 [functions.purge-old-appointments]
 verify_jwt = false
