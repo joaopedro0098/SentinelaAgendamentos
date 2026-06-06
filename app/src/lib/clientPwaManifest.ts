@@ -1,29 +1,15 @@
-import {
-  getClientPwaManifestUrl,
-} from "../../api/_lib/clientPwaManifest";
-
-export {
-  buildClientPwaManifest,
-  getClientPwaManifestUrl,
-  getClientPwaScope,
-  getClientPwaStartUrl,
-  type ClientPwaShop,
-  type WebAppManifest,
-} from "../../api/_lib/clientPwaManifest";
-
 export type ClientPwaShopWithLogo = {
   slug: string;
   nome: string;
   logoUrl?: string | null;
 };
 
-export function isClientPwaPath(pathname: string) {
-  return /^\/agendar\/[^/]+/.test(pathname);
+export function getClientPwaManifestUrl(slug: string) {
+  return `/manifest/agendar/${encodeURIComponent(slug)}.webmanifest`;
 }
 
-export function getClientPwaSlug(pathname: string): string | null {
-  const match = pathname.match(/^\/agendar\/([^/]+)/);
-  return match?.[1] ?? null;
+export function isClientPwaPath(pathname: string) {
+  return /^\/agendar\/[^/]+/.test(pathname);
 }
 
 function resolveAppleTouchIcon(logoUrl: string | null | undefined) {
