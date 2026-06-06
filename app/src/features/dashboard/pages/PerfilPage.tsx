@@ -40,6 +40,10 @@ export default function PerfilPage() {
   }, []);
 
   useEffect(() => {
+    void refresh({ force: true });
+  }, [refresh]);
+
+  useEffect(() => {
     if (user?.email) setNewEmail(user.email);
   }, [user?.email]);
 
@@ -195,9 +199,14 @@ export default function PerfilPage() {
     }
   }
 
+  const isAggregated = Boolean(info?.is_aggregated_account && info.aggregated_by_email);
+
   const statusLabel = (() => {
     if (loading) return "Carregando…";
     if (info?.is_admin) return info.label ?? "Administrador";
+    if (isAggregated) {
+      return info?.can_book ? "Incluso no plano do titular" : "Plano do titular inativo";
+    }
     if (info?.subscription_status === "active") return "Assinatura ativa";
     if (info?.subscription_status === "grace") return "Pagamento pendente — tolerância";
     if (info?.subscription_status === "cancelled") return "Cancelada (acesso até o vencimento)";
@@ -206,18 +215,24 @@ export default function PerfilPage() {
   })();
 
   const showPay =
-    !info?.is_admin && !loading && (info?.is_aggregated_account || info?.subscription_status !== "active");
+    !info?.is_admin &&
+    !loading &&
+    !isAggregated &&
+    info?.subscription_status !== "active";
   const hasStripeCard = Boolean(info?.stripe_subscription_id);
   const showCancel =
-    !info?.is_admin && info?.subscription_status === "active" && hasStripeCard;
+    !info?.is_admin && !isAggregated && info?.subscription_status === "active" && hasStripeCard;
 
-  const showPlanStatus = loading || info?.is_admin || info?.subscription_status !== "trial";
+  const showPlanStatus = loading || info?.is_admin || isAggregated || info?.subscription_status !== "trial";
 
   const showBookingBlockedMessage =
     !info?.is_admin &&
+    !isAggregated &&
     info?.subscription_status !== "trial" &&
     !info?.can_book &&
     info?.subscription_status !== "grace";
+
+  const showSubscriptionNotice = Boolean(info?.subscription_notice && !isAggregated);
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
@@ -226,9 +241,20 @@ export default function PerfilPage() {
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>
       </div>
 
-      {info?.subscription_notice && (
+      {isAggregated && (
+        <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <p className="font-bold">Conta agregada por {info!.aggregated_by_email}</p>
+          <p className="text-muted-foreground mt-1">
+            {info?.can_book
+              ? "Não é necessária assinatura própria — seus agendamentos usam o plano de quem agregou."
+              : "O plano de quem agregou sua conta está inativo. Novos agendamentos estão bloqueados até a renovação ou até você assinar um plano próprio."}
+          </p>
+        </div>
+      )}
+
+      {showSubscriptionNotice && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {info.subscription_notice}
+          {info!.subscription_notice}
         </div>
       )}
 
@@ -239,12 +265,6 @@ export default function PerfilPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {info?.is_aggregated_account && info.aggregated_by_email && (
-            <p className="text-sm font-bold">
-              Conta agregada por {info.aggregated_by_email}
-            </p>
-          )}
-
           {showPlanStatus && (
             <div className="text-sm">
               <p className="font-medium">{statusLabel}</p>
@@ -254,6 +274,29 @@ export default function PerfilPage() {
               {!info?.is_admin && info?.grace_until && (
                 <p className="text-muted-foreground mt-1">Tolerância até: {formatDateBr(info.grace_until)}</p>
               )}
+            </div>
+          )}
+
+          {isAggregated && !info?.can_book && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Você também pode assinar um plano próprio para deixar de depender do titular.
+              </p>
+              <Button
+                className="w-full rounded-full bg-gradient-brand text-white border-0"
+                onClick={() => navigate("/app/perfil/assinar-cartao")}
+                disabled={creatingPix}
+              >
+                Assinar com cartão — {PLAN_PRICE_LABEL}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full rounded-full"
+                onClick={handlePixPayment}
+                disabled={creatingPix}
+              >
+                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
+              </Button>
             </div>
           )}
 

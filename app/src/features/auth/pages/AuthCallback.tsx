@@ -7,6 +7,7 @@ import {
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
 import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
+import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import {
   clearPendingFaceEmbedding,
@@ -37,6 +38,7 @@ export default function AuthCallback() {
         try {
           const registered = await registerUserFacialEmbedding(pending.embedding);
           clearPendingFaceEmbedding();
+          clearSubscriptionCache();
           if (!registered.trialEligible || registered.facialMatch) {
             authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
           }

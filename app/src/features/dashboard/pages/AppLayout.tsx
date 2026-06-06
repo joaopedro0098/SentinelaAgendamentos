@@ -231,7 +231,7 @@ function BillingProgressNotice({
   info: ReturnType<typeof useSubscription>["info"];
   loading: boolean;
 }) {
-  if (loading || !info || info.is_admin) return null;
+  if (loading || !info || info.is_admin || info.is_aggregated_account) return null;
 
   const trialNotice = getTrialNotice(info);
   const renewalNotice = getRenewalNotice(info);

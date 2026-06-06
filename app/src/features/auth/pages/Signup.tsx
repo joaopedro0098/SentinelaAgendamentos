@@ -18,6 +18,7 @@ import {
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { PageReveal } from "@/components/layout/PageReveal";
 import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
+import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import {
   FACIAL_TRIAL_BLOCKED_MESSAGE,
@@ -154,6 +155,7 @@ export default function Signup() {
       await supabase.auth.updateUser({ data: { shop_name: parsed.shop_name } });
       try {
         const registered = await registerUserFacialEmbedding(verification.embedding);
+        clearSubscriptionCache();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }

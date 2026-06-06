@@ -11,7 +11,7 @@ import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
 } from "@/features/auth/face-verification/pendingFaceStorage";
-import { getBarberPostLoginPath } from "@/lib/pwaInstall";
+import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 
 const FaceVerificationFlow = lazy(() =>
   import("@/features/auth/face-verification/FaceVerificationFlow").then((m) => ({
@@ -40,6 +40,7 @@ export default function AuthCompleteVerification() {
       try {
         const registered = await registerUserFacialEmbedding(pending.embedding);
         clearPendingFaceEmbedding();
+        clearSubscriptionCache();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
@@ -62,6 +63,7 @@ export default function AuthCompleteVerification() {
       setPhase("submitting");
       try {
         const registered = await registerUserFacialEmbedding(result.embedding);
+        clearSubscriptionCache();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
