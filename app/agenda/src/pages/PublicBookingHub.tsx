@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { CalendarDays, Download, List, Loader2, Smartphone } from "lucide-react";
+import { CalendarDays, Download, List, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PublicShopHeader } from "@/components/PublicShopHeader";
@@ -83,20 +83,7 @@ export default function PublicBookingHub() {
         </div>
 
         <div className="space-y-3">
-          {!installed && (
-            <Card className="border-primary/30 bg-primary/5 p-3 text-sm text-foreground">
-              <p className="flex items-start gap-2">
-                <Smartphone className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                <span>
-                  Instale e faça futuros agendamentos com{" "}
-                  <span className="font-semibold">{shopName}</span> de forma mais fácil e rápida.{" "}
-                  <span className="text-muted-foreground">(opcional)</span>
-                </span>
-              </p>
-            </Card>
-          )}
-
-          <ClientConfirmationPushToggle shopName={shopName} />
+          <ClientConfirmationPushToggle />
 
           {!installed && (
             <>

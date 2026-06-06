@@ -9,13 +9,12 @@ import {
 } from "@/lib/clientConfirmationPush";
 import { isStandalonePwa } from "@/lib/pwaInstall";
 
-type Props = {
-  shopName?: string;
-};
+const DESCRIPTION =
+  "Para receber confirmação de agendamento 1 dia antes do agendamento no navegador, instale o app: procure a opção Adicionar à Tela de Início e depois ative as notificações.";
 
 const APP_REQUIRED_MESSAGE = "Função habilitada somente com app instalado";
 
-export function ClientConfirmationPushToggle({ shopName }: Props) {
+export function ClientConfirmationPushToggle() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const installed = isStandalonePwa();
@@ -78,21 +77,18 @@ export function ClientConfirmationPushToggle({ shopName }: Props) {
     }
   }
 
-  const label = shopName ? `Avisos de ${shopName}` : "Avisos de confirmação";
-  const hint = !installed
-    ? APP_REQUIRED_MESSAGE
-    : unsupported
-      ? "Push não suportado neste navegador."
-      : denied
-        ? "Notificações bloqueadas no app."
-        : undefined;
+  const hint = unsupported
+    ? "Push não suportado neste navegador."
+    : denied
+      ? "Notificações bloqueadas no app."
+      : undefined;
 
   return (
     <div className="rounded-xl border border-border/80 bg-card px-4 py-3">
       <PermissionToggleRow
         id="client-confirmation-push-toggle"
-        label={label}
-        description="Lembrete no dia anterior para confirmar o horário."
+        label="Permitir Lembrete"
+        description={DESCRIPTION}
         checked={enabled}
         disabled={toggleLocked}
         busy={busy}
