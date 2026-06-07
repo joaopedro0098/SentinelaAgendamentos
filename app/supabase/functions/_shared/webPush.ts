@@ -40,21 +40,25 @@ export async function sendWebPush(params: {
   title: string;
   body: string;
   url: string;
+  icon?: string | null;
 }) {
   let sent = 0;
 
   for (const sub of params.subscriptions) {
     try {
+      const payload: Record<string, string> = {
+        title: params.title,
+        body: params.body,
+        url: params.url,
+      };
+      if (params.icon) payload.icon = params.icon;
+
       await webpush.sendNotification(
         {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
-        JSON.stringify({
-          title: params.title,
-          body: params.body,
-          url: params.url,
-        }),
+        JSON.stringify(payload),
       );
 
       sent += 1;

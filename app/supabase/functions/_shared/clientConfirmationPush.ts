@@ -33,13 +33,22 @@ export function isConfirmationPushWindowSaoPaulo(now = new Date()) {
 type AppointmentForPush = {
   id: string;
   confirmation_token: string;
-  barbearias: { nome: string } | { nome: string }[] | null;
+  barbearias: { nome: string; logo_url: string | null } | { nome: string; logo_url: string | null }[] | null;
 };
 
-function shopNameFromRow(row: AppointmentForPush) {
+function shopFromRow(row: AppointmentForPush) {
   const shop = row.barbearias;
-  if (Array.isArray(shop)) return shop[0]?.nome?.trim() || "sua barbearia";
-  return shop?.nome?.trim() || "sua barbearia";
+  if (Array.isArray(shop)) return shop[0] ?? null;
+  return shop;
+}
+
+function shopNameFromRow(row: AppointmentForPush) {
+  return shopFromRow(row)?.nome?.trim() || "sua barbearia";
+}
+
+function shopIconFromRow(row: AppointmentForPush) {
+  const url = shopFromRow(row)?.logo_url?.trim();
+  return url || null;
 }
 
 export async function sendDueClientConfirmationPushes(
@@ -54,7 +63,7 @@ export async function sendDueClientConfirmationPushes(
 
   const { data: appointments, error } = await supabase
     .from("agendamentos")
-    .select("id, confirmation_token, barbearias(nome)")
+    .select("id, confirmation_token, barbearias(nome, logo_url)")
     .eq("status", "confirmado")
     .eq("origem", "link_publico")
     .eq("requires_client_confirmation", true)
@@ -82,15 +91,17 @@ export async function sendDueClientConfirmationPushes(
     if (subs.length === 0) continue;
 
     const shopName = shopNameFromRow(row);
+    const shopIcon = shopIconFromRow(row);
     const confirmUrl = `${getAppUrl()}/confirmar-agendamento/${row.confirmation_token}`;
 
     const sent = await sendWebPush({
       supabase,
       subscriptions: subs,
       subscriptionTable: "appointment_push_subscriptions",
-      title: shopName,
-      body: `Clique para confirmar seu agendamento com ${shopName}`,
+      title: "Confirmar Agendamento",
+      body: `Clique aqui para confirmar seu agendamento com ${shopName} para amanhã.`,
       url: confirmUrl,
+      icon: shopIcon,
     });
 
     if (sent > 0) {

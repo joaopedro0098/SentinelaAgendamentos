@@ -6,7 +6,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v6").map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v7").map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open("sentinela-shell-v6").then((cache) => cache.put("/index.html", copy));
+          caches.open("sentinela-shell-v7").then((cache) => cache.put("/index.html", copy));
           return response;
         })
         .catch(() => caches.match("/index.html")),
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset(url)) return;
 
   event.respondWith(
-    caches.open("sentinela-shell-v6").then(async (cache) => {
+    caches.open("sentinela-shell-v7").then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request)
         .then((response) => {
@@ -69,11 +69,12 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "Sentinela Agendamentos";
-  // icon: painel expandido (transparente evita ícone duplicado à direita).
-  // badge: ícone pequeno na barra de status (hora, wifi, bateria) — Android.
+  // icon: esquerda do card (foto da barbearia no push do cliente; transparente no barbeiro).
+  // Não usar "image" — evita ícone grande duplicado à direita no Android.
+  // badge: barra de status (S).
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
-    icon: "/notification-empty.png",
+    icon: data.icon || "/notification-empty.png",
     badge: "/notification-badge-s.png?v=5",
     data: {
       url: data.url || "/",
