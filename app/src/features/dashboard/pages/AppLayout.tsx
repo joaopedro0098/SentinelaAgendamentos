@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, CalendarCheck, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
+import { Calendar, CalendarCheck, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
-import { SupportNavItem } from "@/features/dashboard/components/SupportNavItem";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -129,7 +128,12 @@ export default function AppLayout() {
                 onNavigate={closeMenu}
               />
               {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-                <SupportNavItem onNavigate={closeMenu} />
+                <MobileNavItem
+                  to="/app/suporte"
+                  icon={<Headphones className="h-4 w-4" />}
+                  label="Suporte"
+                  onNavigate={closeMenu}
+                />
               )}
               {subscriptionInfo?.is_admin && (
                 <MobileNavItem
@@ -171,7 +175,9 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
             <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
-            {subscriptionInfo != null && !subscriptionInfo.is_admin && <SupportNavItem />}
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
+            )}
             {subscriptionInfo?.is_admin && (
               <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
             )}

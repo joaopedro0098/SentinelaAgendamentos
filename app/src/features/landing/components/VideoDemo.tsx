@@ -33,6 +33,10 @@ function DemoPlayer({ src, aspectClassName, fileHint, className }: DemoPlayerPro
   );
 }
 
+const LANDING_WHATSAPP_URL = `https://wa.me/5511999773308?text=${encodeURIComponent(
+  "Olá, vim pelo site Sentinela Agendamentos e gostaria de saber mais sobre.",
+)}`;
+
 const VideoDemo = () => {
   return (
     <section className="relative pt-4 pb-12">
@@ -70,7 +74,7 @@ const VideoDemo = () => {
               variant="outline"
               className="rounded-full px-8 h-14 text-base bg-transparent border-border hover:bg-secondary w-full sm:w-auto"
             >
-              <a href="https://wa.me/" target="_blank" rel="noopener noreferrer">
+              <a href={LANDING_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="w-5 h-5 mr-1" /> Fale conosco
               </a>
             </Button>

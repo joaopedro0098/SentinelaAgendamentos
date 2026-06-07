@@ -6,6 +6,7 @@ import AgendamentosPage from "@/features/dashboard/pages/AgendamentosPage";
 import SettingsPage from "@/features/dashboard/pages/Settings";
 import PerfilPage from "@/features/dashboard/pages/PerfilPage";
 import AssinarCartaoPage from "@/features/billing/pages/AssinarCartaoPage";
+import SupportPage from "@/features/dashboard/pages/SupportPage";
 import AdminPage from "@/features/dashboard/pages/AdminPage";
 
 const ROUTES = [
@@ -14,6 +15,7 @@ const ROUTES = [
   { path: "/app/settings", Component: SettingsPage },
   { path: "/app/perfil/assinar-cartao", Component: AssinarCartaoPage },
   { path: "/app/perfil", Component: PerfilPage, exact: true },
+  { path: "/app/suporte", Component: SupportPage },
   {
     path: "/app/admin",
     Component: AdminPage,
