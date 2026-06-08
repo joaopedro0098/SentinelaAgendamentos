@@ -529,6 +529,13 @@ export type Database = {
         Args: { p_agendamento_id: string }
         Returns: undefined
       }
+      get_client_confirmation_push_status: {
+        Args: { _slug: string; _whatsapp: string }
+        Returns: {
+          confirmation_token: string
+          needs_resubscribe: boolean
+        }[]
+      }
       listar_agendamentos_cliente: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {

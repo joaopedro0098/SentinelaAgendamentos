@@ -738,6 +738,7 @@ const PublicBooking = ({
       if (!ownerPanel && createdAppointment?.confirmation_token) {
         void saveClientConfirmationPushSubscription({
           confirmationToken: createdAppointment.confirmation_token,
+          ensureValidBrowserSubscription: true,
         }).catch(() => undefined);
       }
 

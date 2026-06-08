@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { PermissionToggleRow } from "@/components/PermissionToggleRow";
 import {
   isClientConfirmationPushEnabled,
+  registerClientConfirmationPushFromHub,
   registerClientConfirmationPushLocal,
   supportsClientConfirmationPush,
   unregisterClientConfirmationPushLocal,
@@ -14,7 +15,11 @@ const DESCRIPTION =
 
 const APP_REQUIRED_MESSAGE = "Função habilitada somente com app instalado";
 
-export function ClientConfirmationPushToggle() {
+type ClientConfirmationPushToggleProps = {
+  slug?: string;
+};
+
+export function ClientConfirmationPushToggle({ slug }: ClientConfirmationPushToggleProps) {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const installed = isStandalonePwa();
@@ -64,7 +69,10 @@ export function ClientConfirmationPushToggle() {
 
     setBusy(true);
     try {
-      const result = await registerClientConfirmationPushLocal({ requestPermission: true });
+      const result = slug
+        ? await registerClientConfirmationPushFromHub({ slug, requestPermission: true })
+        : await registerClientConfirmationPushLocal({ requestPermission: true });
+
       if (result.ok) {
         setEnabled(true);
         toast.success(result.message);

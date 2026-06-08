@@ -10,6 +10,31 @@ export type PushSubscriptionRow = {
 
 type SubscriptionTable = "barber_push_subscriptions" | "appointment_push_subscriptions";
 
+type WebPushSendError = {
+  statusCode?: number;
+  message?: string;
+};
+
+function pushFailureReason(error: unknown): string {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    const statusCode = (error as WebPushSendError).statusCode;
+    if (typeof statusCode === "number") {
+      const detail = error instanceof Error ? error.message.trim() : "";
+      return detail ? `HTTP ${statusCode}: ${detail}` : `HTTP ${statusCode}`;
+    }
+  }
+
+  return error instanceof Error ? error.message : "Falha ao enviar push";
+}
+
+function pushStatusCode(error: unknown): number | null {
+  if (typeof error === "object" && error !== null && "statusCode" in error) {
+    const statusCode = (error as WebPushSendError).statusCode;
+    return typeof statusCode === "number" ? statusCode : null;
+  }
+  return null;
+}
+
 export function configureWebPush() {
   const publicKey = Deno.env.get("VAPID_PUBLIC_KEY")?.trim();
   const privateKey = Deno.env.get("VAPID_PRIVATE_KEY")?.trim();
@@ -67,12 +92,19 @@ export async function sendWebPush(params: {
         .update({ last_success_at: new Date().toISOString(), failed_at: null, failure_reason: null })
         .eq("id", sub.id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao enviar push";
-      await params.supabase
-        .from(params.subscriptionTable)
-        .update({ failed_at: new Date().toISOString(), failure_reason: message })
-        .eq("id", sub.id);
-      console.error("push failed:", message);
+      const statusCode = pushStatusCode(error);
+      const failureReason = pushFailureReason(error);
+
+      if (statusCode === 410) {
+        await params.supabase.from(params.subscriptionTable).delete().eq("id", sub.id);
+        console.error("push subscription gone (410), removed:", sub.id);
+      } else {
+        await params.supabase
+          .from(params.subscriptionTable)
+          .update({ failed_at: new Date().toISOString(), failure_reason: failureReason })
+          .eq("id", sub.id);
+        console.error("push failed:", failureReason);
+      }
     }
   }
 

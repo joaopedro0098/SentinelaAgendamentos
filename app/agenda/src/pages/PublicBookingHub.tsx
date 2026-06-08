@@ -83,7 +83,7 @@ export default function PublicBookingHub() {
         </div>
 
         <div className="space-y-3">
-          <ClientConfirmationPushToggle />
+          <ClientConfirmationPushToggle slug={slug} />
 
           {!installed && (
             <>

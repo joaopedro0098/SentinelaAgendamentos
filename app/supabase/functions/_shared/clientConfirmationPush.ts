@@ -36,6 +36,11 @@ type AppointmentForPush = {
   barbearias: { nome: string; logo_url: string | null } | { nome: string; logo_url: string | null }[] | null;
 };
 
+type PushSubscriptionWithStatus = PushSubscriptionRow & {
+  failed_at: string | null;
+  last_success_at: string | null;
+};
+
 function shopFromRow(row: AppointmentForPush) {
   const shop = row.barbearias;
   if (Array.isArray(shop)) return shop[0] ?? null;
@@ -56,11 +61,12 @@ export async function sendDueClientConfirmationPushes(
   options?: { force?: boolean },
 ) {
   if (!options?.force && !isConfirmationPushWindowSaoPaulo()) {
-    return { skipped: true as const, reason: "outside_push_window" as const, sent: 0, processed: 0 };
+    return { skipped: true as const, reason: "outside_push_window" as const, sent: 0, processed: 0, retried: 0 };
   }
 
   const tomorrow = saoPauloTomorrowYmd();
 
+  // Elegível: push nunca entregue (confirmation_push_sent_at null), incluindo falhas anteriores na subscription.
   const { data: appointments, error } = await supabase
     .from("agendamentos")
     .select("id, confirmation_token, barbearias(nome, logo_url)")
@@ -75,11 +81,12 @@ export async function sendDueClientConfirmationPushes(
 
   const rows = (appointments ?? []) as AppointmentForPush[];
   let sentTotal = 0;
+  let retried = 0;
 
   for (const row of rows) {
     const { data: subscriptions, error: subsError } = await supabase
       .from("appointment_push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
+      .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
       .eq("agendamento_id", row.id);
 
     if (subsError) {
@@ -87,8 +94,11 @@ export async function sendDueClientConfirmationPushes(
       continue;
     }
 
-    const subs = (subscriptions ?? []) as PushSubscriptionRow[];
+    const subs = (subscriptions ?? []) as PushSubscriptionWithStatus[];
     if (subs.length === 0) continue;
+
+    const hasFailedSub = subs.some((sub) => sub.failed_at !== null);
+    if (hasFailedSub) retried += 1;
 
     const shopName = shopNameFromRow(row);
     const shopIcon = shopIconFromRow(row);
@@ -113,5 +123,5 @@ export async function sendDueClientConfirmationPushes(
     }
   }
 
-  return { skipped: false as const, sent: sentTotal, processed: rows.length };
+  return { skipped: false as const, sent: sentTotal, processed: rows.length, retried };
 }
