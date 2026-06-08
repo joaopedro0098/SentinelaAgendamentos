@@ -22,6 +22,8 @@ export function resolveYouTubeVideoId(value: string): string | null {
       return url.pathname.slice(1).split("/")[0] || null;
     }
     if (url.hostname.includes("youtube.com")) {
+      const shortsMatch = url.pathname.match(/\/shorts\/([^/?]+)/);
+      if (shortsMatch?.[1]) return shortsMatch[1];
       return url.searchParams.get("v") || url.pathname.split("/").filter(Boolean).pop() || null;
     }
   } catch {

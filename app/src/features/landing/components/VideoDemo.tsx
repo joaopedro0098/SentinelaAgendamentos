@@ -1,62 +1,51 @@
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { ArrowRight, MessageCircle, PlayCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-type DemoPlayerProps = {
-  src: string;
-  aspectClassName: string;
-  fileHint: string;
-  className?: string;
-};
-
-function DemoPlayer({ src, aspectClassName, fileHint, className }: DemoPlayerProps) {
-  return (
-    <div className={cn("relative group w-full", className)}>
-      <div className="absolute -inset-1 bg-gradient-brand rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-      <div className="relative glass rounded-3xl overflow-hidden glow-border">
-        <div className={cn("w-full relative bg-secondary/40", aspectClassName)}>
-          <video
-            controls
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover"
-          >
-            <source src={src} type="video/mp4" />
-          </video>
-        </div>
-      </div>
-      <p className="sr-only">
-        Vídeo de demonstração. Arquivo esperado: {fileHint}
-      </p>
-    </div>
-  );
-}
+import { LANDING_DEMO_YOUTUBE } from "@/lib/landingDemoVideo";
+import { resolveYouTubeVideoId } from "@/lib/supportVideos";
 
 const LANDING_WHATSAPP_URL = `https://wa.me/5511999773308?text=${encodeURIComponent(
   "Olá, vim pelo site Sentinela Agendamentos e gostaria de saber mais sobre.",
 )}`;
+
+function LandingDemoPlayer({ className }: { className?: string }) {
+  const videoId = resolveYouTubeVideoId(LANDING_DEMO_YOUTUBE);
+
+  return (
+    <div className={cn("relative group w-full", className)}>
+      <div className="absolute -inset-1 bg-gradient-brand rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+      <div className="relative glass rounded-3xl overflow-hidden glow-border">
+        {videoId ? (
+          <div className="aspect-[9/16] w-full bg-black">
+            <iframe
+              title="Demonstração Sentinela Agendamentos"
+              src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+              className="h-full w-full border-0"
+            />
+          </div>
+        ) : (
+          <div className="flex aspect-[9/16] w-full items-center justify-center bg-secondary/40">
+            <div className="flex flex-col items-center gap-2 px-4 text-center text-muted-foreground">
+              <PlayCircle className="h-12 w-12 opacity-60" />
+              <p className="text-sm font-medium">Vídeo demo em breve</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const VideoDemo = () => {
   return (
     <section className="relative pt-4 pb-12">
       <div className="container">
         <div className="max-w-5xl mx-auto">
-          {/* Mobile: vertical 9:16 */}
-          <DemoPlayer
-            src="/demo-mobile.mp4"
-            aspectClassName="aspect-[9/16]"
-            fileHint="/public/demo-mobile.mp4"
-            className="md:hidden max-w-[min(100%,280px)] mx-auto"
-          />
-
-          {/* Desktop: horizontal 16:9 (inalterado) */}
-          <DemoPlayer
-            src="/demo.mp4"
-            aspectClassName="aspect-video"
-            fileHint="/public/demo.mp4"
-            className="hidden md:block"
-          />
+          <LandingDemoPlayer className="max-w-[min(100%,320px)] mx-auto" />
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
             <Button
