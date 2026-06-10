@@ -56,8 +56,20 @@ const Navbar = () => {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50">
-      <div className="container py-4">
-        <nav className="glass rounded-full px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+      {menuMounted && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={closeMenu}
+          className={cn(
+            "md:hidden fixed inset-0 bg-black/20 transition-opacity duration-300 ease-out motion-reduce:transition-none",
+            menuEntered ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        />
+      )}
+
+      <div className="container relative py-4">
+        <nav className="relative z-10 glass rounded-full px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <BrandLogo linkTo="/" showName showFullName size="sm" className="shrink-0" />
 
           <div className="flex items-center gap-2">
@@ -116,7 +128,7 @@ const Navbar = () => {
         {menuMounted && (
           <div
             className={cn(
-              "md:hidden mt-2 ml-auto w-[min(100%,20rem)] glass rounded-2xl p-4 flex flex-col gap-3 text-sm origin-top-right transition-all duration-300 ease-out motion-reduce:transition-none",
+              "md:hidden relative z-10 mt-2 ml-auto w-[min(100%,20rem)] glass rounded-2xl p-4 flex flex-col gap-3 text-sm origin-top-right transition-all duration-300 ease-out motion-reduce:transition-none",
               menuEntered
                 ? "opacity-100 translate-x-0 translate-y-0 scale-100"
                 : "pointer-events-none opacity-0 translate-x-5 -translate-y-4 scale-[0.96]",
