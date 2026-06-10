@@ -99,32 +99,24 @@ export default function PublicBookingHub() {
 
               {showInstallHelp && (
                 <Card className="p-4 text-sm text-muted-foreground space-y-2">
-                  <p className="font-semibold text-foreground">Como instalar de verdade</p>
-                  <p>
-                    O app instalado será de{" "}
-                    <strong className="text-foreground">{shopName}</strong>, abrirá sem login e
-                    funcionará como app separado — igual ao app do barbeiro, só que para agendar
-                    nesta barbearia.
-                  </p>
-                  {installPrompt ? (
-                    <p className="text-foreground">
-                      Toque em <strong>Instalar o app</strong> acima. O Chrome mostrará a instalação
-                      nativa (não use <strong>Criar atalho</strong> no menu, pois isso só abre no
-                      navegador).
-                    </p>
-                  ) : isIos ? (
+                  <p className="font-semibold text-foreground">Adicione o app à sua tela inicial</p>
+                  {isIos ? (
                     <p>
-                      No <strong>Safari</strong>: Compartilhar →{" "}
-                      <strong>Adicionar à Tela de Início</strong>. No iPhone essa é a forma correta
-                      de instalar.
+                      <strong className="text-foreground">iPhone (Safari):</strong> toque no botão{" "}
+                      <strong>Compartilhar</strong> (quadrado com seta para cima) e escolha{" "}
+                      <strong>Adicionar à Tela de Início</strong>.
                     </p>
                   ) : (
                     <p>
-                      Aguarde o botão <strong>Instalar o app</strong> acima ou o aviso do Chrome na
-                      barra/endereço. Evite <strong>Criar atalho</strong> no menu ⋮ — isso não
-                      instala o app completo.
+                      <strong className="text-foreground">Android:</strong> toque nos{" "}
+                      <strong>3 pontinhos</strong> do navegador &gt;{" "}
+                      <strong>Adicionar à tela inicial</strong>.
                     </p>
                   )}
+                  <p>
+                    Não use a opção <strong className="text-foreground">Criar atalho</strong> — ela
+                    não instala o app completo.
+                  </p>
                 </Card>
               )}
             </>
