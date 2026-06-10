@@ -754,6 +754,17 @@ const PublicBooking = ({
     setDone(false);
   };
 
+  const startNewOwnerBooking = () => {
+    setBookingConfirmed(false);
+    setDone(false);
+    setBarbeiroId("");
+    setHora("");
+    setServSel([]);
+    setObservacao("");
+    setNome("");
+    setWhatsapp("");
+  };
+
   const showClientExit = !ownerPanel && !isReschedule;
 
   if (loading) return (
@@ -897,8 +908,12 @@ const PublicBooking = ({
           )}
 
           {bookingConfirmed && ownerPanel && (
-            <Button asChild className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow">
-              <Link to="/app/agendamentos">Sair</Link>
+            <Button
+              type="button"
+              className="mt-6 w-full rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              onClick={startNewOwnerBooking}
+            >
+              Sair
             </Button>
           )}
             </>
