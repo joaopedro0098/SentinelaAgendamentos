@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         signOut: async () => {
-          clearFaceVerificationCache();
+          clearFaceVerificationCache(session?.user?.id);
           clearAgendaSyncCache();
           clearDashboardShopCache();
           clearSubscriptionCache();

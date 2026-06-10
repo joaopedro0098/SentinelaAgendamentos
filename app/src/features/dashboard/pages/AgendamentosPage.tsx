@@ -24,6 +24,7 @@ import {
   buildClientWhatsAppUrl,
   getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
+import { DashboardPageSkeleton } from "@/components/layout/AppBootSkeleton";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -64,7 +65,7 @@ function formatWhatsApp(w: string) {
 export default function AgendamentosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { slug, barbeariaId, shop, loading: shopLoading, agendaReady } = useDashboardShop();
+  const { slug, barbeariaId, shop, loading: shopLoading } = useDashboardShop();
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
@@ -76,6 +77,7 @@ export default function AgendamentosPage() {
   const [deleting, setDeleting] = useState(false);
 
   const booting = shopLoading && !slug;
+  const syncingAgenda = Boolean(slug && !barbeariaId);
 
   const dias = useMemo(() => {
     const today = new Date();
@@ -282,13 +284,8 @@ export default function AgendamentosPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  if (booting || (slug && !agendaReady)) {
-    return (
-      <div className="p-4 md:p-6 flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Carregando agendamentos...</p>
-      </div>
-    );
+  if (booting) {
+    return <DashboardPageSkeleton />;
   }
 
   if (!slug) {
@@ -403,9 +400,12 @@ export default function AgendamentosPage() {
           )}
         </div>
 
-        {loadingList ? (
-          <div className="flex justify-center py-12">
+        {loadingList || syncingAgenda ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            {syncingAgenda && !loadingList ? (
+              <p className="text-xs text-muted-foreground">Preparando agenda…</p>
+            ) : null}
           </div>
         ) : listaFiltrada.length === 0 ? (
           <Card className="border-dashed">

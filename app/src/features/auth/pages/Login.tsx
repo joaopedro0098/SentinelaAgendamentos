@@ -9,8 +9,12 @@ import { Label } from "@/components/ui/label";
 import { GoogleButton } from "@/features/auth/components/GoogleButton";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { checkEmailRegistered } from "@/features/auth/lib/checkEmailRegistered";
-import { AUTH_CONFIG_ERROR_MESSAGE, EMAIL_CONFIRMATION_PENDING_MESSAGE, isEmailNotConfirmedError, isInvalidApiKeyError } from "@/features/auth/lib/authErrors";
+import {
+  AUTH_CONFIG_ERROR_MESSAGE,
+  EMAIL_CONFIRMATION_PENDING_MESSAGE,
+  isEmailNotConfirmedError,
+  isInvalidApiKeyError,
+} from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
@@ -48,6 +52,12 @@ export default function Login() {
     if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 
+  // Pré-baixa o painel enquanto o usuário preenche o formulário.
+  useEffect(() => {
+    void import("@/features/dashboard/pages/AppLayout");
+    void import("@/features/dashboard/pages/DashboardRoutes");
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = schema.safeParse({ email, password });
@@ -62,20 +72,6 @@ export default function Login() {
 
     setLoading(true);
     const emailToCheck = parsed.data.email;
-
-    const emailCheck = await checkEmailRegistered(emailToCheck);
-
-    if (emailCheck.status === "api_key_error") {
-      setLoading(false);
-      showSupabaseConfigError();
-      return;
-    }
-
-    if (emailCheck.status === "not_registered") {
-      setLoading(false);
-      authInfoToast(EMAIL_NOT_REGISTERED_MESSAGE);
-      return;
-    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email: emailToCheck,

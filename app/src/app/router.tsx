@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "@/components/guards/RequireAuth";
 import { AppGuard } from "@/components/guards/AppGuard";
+import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import { MarketingLayout } from "@/features/landing/layout/MarketingLayout";
 import { DashboardShopProvider } from "@/providers/DashboardShopProvider";
 import AppLayout from "@/features/dashboard/pages/AppLayout";
@@ -30,11 +31,7 @@ const VerifyEmailSignupPage = lazy(() => import("@/features/auth/pages/VerifyEma
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
 
 function RouteFallback() {
-  return (
-    <div className="min-h-[40vh] flex items-center justify-center text-muted-foreground text-sm">
-      Carregando…
-    </div>
-  );
+  return <AppBootSkeleton />;
 }
 
 export function AppRouter() {

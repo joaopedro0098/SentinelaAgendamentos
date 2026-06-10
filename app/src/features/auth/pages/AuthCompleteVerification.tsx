@@ -44,7 +44,7 @@ export default function AuthCompleteVerification() {
         const registered = await registerUserFacialEmbedding(pending.embedding);
         clearPendingFaceEmbedding();
         clearSubscriptionCache();
-        markFaceVerificationComplete();
+        markFaceVerificationComplete(data.user?.id);
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
@@ -66,9 +66,10 @@ export default function AuthCompleteVerification() {
     async (result: FacialVerificationResult) => {
       setPhase("submitting");
       try {
+        const { data: userData } = await supabase.auth.getUser();
         const registered = await registerUserFacialEmbedding(result.embedding);
         clearSubscriptionCache();
-        markFaceVerificationComplete();
+        markFaceVerificationComplete(userData.user?.id);
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }

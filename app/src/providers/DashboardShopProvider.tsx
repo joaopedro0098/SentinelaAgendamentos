@@ -120,20 +120,23 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       }
 
       primeAgendaSyncPhase(row.slug, getAgendaSyncPhase(row.slug));
-      const phase = await syncAgenda(row.slug);
-      if (phase === "ready") {
-        const id =
-          cachedBarbeariaId && cachedShop?.slug === row.slug
-            ? cachedBarbeariaId
-            : await resolveBarbeariaId(row.slug);
-        cachedBarbeariaId = id;
-        setBarbeariaId(id);
-      } else {
-        cachedBarbeariaId = null;
-        setBarbeariaId(null);
-      }
-
       setLoading(false);
+
+      // Sincroniza agenda em segundo plano — o layout abre sem esperar.
+      void (async () => {
+        const phase = await syncAgenda(row.slug);
+        if (phase === "ready") {
+          const id =
+            cachedBarbeariaId && cachedShop?.slug === row.slug
+              ? cachedBarbeariaId
+              : await resolveBarbeariaId(row.slug);
+          cachedBarbeariaId = id;
+          setBarbeariaId(id);
+        } else {
+          cachedBarbeariaId = null;
+          setBarbeariaId(null);
+        }
+      })();
     },
     [userId],
   );

@@ -162,7 +162,7 @@ export default function Signup() {
       try {
         const registered = await registerUserFacialEmbedding(verification.embedding);
         clearSubscriptionCache();
-        markFaceVerificationComplete();
+        markFaceVerificationComplete(data.user.id);
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }

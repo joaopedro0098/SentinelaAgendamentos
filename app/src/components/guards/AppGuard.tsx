@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
+import { canSkipFaceVerification, userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 
 type BootState = "checking" | "login" | "face" | "ready";
@@ -20,12 +20,8 @@ function hasStoredAuthSession() {
   }
 }
 
-function canSkipFaceCheck() {
-  try {
-    return sessionStorage.getItem("sentinela:face-ok") === "1";
-  } catch {
-    return false;
-  }
+function canSkipFaceCheck(userId?: string | null) {
+  return canSkipFaceVerification(userId);
 }
 
 function initialBootState(): BootState {
@@ -55,7 +51,7 @@ export function AppGuard({ children }: Props) {
       return;
     }
 
-    if (canSkipFaceCheck()) {
+    if (canSkipFaceCheck(userId)) {
       verifiedUserIdRef.current = userId;
       setBoot("ready");
       return;
@@ -64,7 +60,7 @@ export function AppGuard({ children }: Props) {
     let active = true;
     setBoot("checking");
 
-    void userNeedsFaceVerification()
+    void userNeedsFaceVerification(userId)
       .then((needsFace) => {
         if (!active) return;
         if (needsFace) {

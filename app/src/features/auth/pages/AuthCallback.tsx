@@ -6,7 +6,7 @@ import {
   FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
-import { userNeedsFaceVerification, markFaceVerificationComplete } from "@/features/auth/face-verification/facialVerificationStatus";
+import { userNeedsFaceVerification, markFaceVerificationComplete, canSkipFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
@@ -34,13 +34,28 @@ export default function AuthCallback() {
         return;
       }
 
+      const userId = data.session.user.id;
+
+      // Entrada rápida: quem já verificou o rosto não espera RPC nem embedding pendente.
+      if (canSkipFaceVerification(userId)) {
+        markFaceVerificationComplete(userId);
+        navigate(getBarberPostLoginPath(), { replace: true });
+        const pending = loadPendingFaceEmbedding(data.session.user.email ?? undefined);
+        if (pending) {
+          void registerUserFacialEmbedding(pending.embedding)
+            .then(() => clearPendingFaceEmbedding())
+            .catch(() => clearPendingFaceEmbedding());
+        }
+        return;
+      }
+
       const pending = loadPendingFaceEmbedding(data.session.user.email ?? undefined);
       if (pending) {
         try {
           const registered = await registerUserFacialEmbedding(pending.embedding);
           clearPendingFaceEmbedding();
           clearSubscriptionCache();
-          markFaceVerificationComplete();
+          markFaceVerificationComplete(userId);
           if (!registered.trialEligible || registered.facialMatch) {
             authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
           }
@@ -49,14 +64,14 @@ export default function AuthCallback() {
         }
       }
 
-      const needsFace = await userNeedsFaceVerification();
+      const needsFace = await userNeedsFaceVerification(userId);
       if (!active) return;
       if (needsFace) {
         navigate("/auth/complete-verification", { replace: true });
         return;
       }
 
-      markFaceVerificationComplete();
+      markFaceVerificationComplete(userId);
       navigate(getBarberPostLoginPath(), { replace: true });
     }
 
