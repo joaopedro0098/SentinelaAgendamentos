@@ -1,4 +1,4 @@
-export type LivenessPhase = "positioning" | "blink" | "head_turn" | "done";
+export type LivenessPhase = "positioning" | "blink" | "head_turn" | "recenter" | "done";
 
 export type LivenessStepMessage =
   | "Olhe para a câmera"
@@ -14,6 +14,8 @@ export function messageForPhase(phase: LivenessPhase): LivenessStepMessage {
       return "Pisca os olhos";
     case "head_turn":
       return "Vire levemente a cabeça";
+    case "recenter":
+      return "Olhe para a câmera";
     case "done":
       return "Pronto ✅";
   }
@@ -47,3 +49,7 @@ export function blinkScore(blendshapes: { categoryName: string; score: number }[
 
 export const BLINK_THRESHOLD = 0.42;
 export const HEAD_TURN_DELTA = 0.1;
+/** Quão perto do yaw inicial o rosto precisa voltar antes do snapshot. */
+export const RECENTER_DELTA = 0.05;
+/** Tempo máximo aguardando o rosto re-centralizar antes de capturar mesmo assim. */
+export const RECENTER_TIMEOUT_MS = 1200;

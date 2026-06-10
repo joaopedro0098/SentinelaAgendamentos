@@ -3,6 +3,8 @@ import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from "@med
 import {
   BLINK_THRESHOLD,
   HEAD_TURN_DELTA,
+  RECENTER_DELTA,
+  RECENTER_TIMEOUT_MS,
   blinkScore,
   headYawOffset,
   isFaceCentered,
@@ -28,9 +30,18 @@ async function getFaceLandmarker(): Promise<FaceLandmarker> {
         outputFaceBlendshapes: true,
         outputFacialTransformationMatrixes: false,
       });
-    })();
+    })().catch((error) => {
+      // Não cachear a falha: permite o "Tentar novamente" baixar o modelo de novo.
+      landmarkerPromise = null;
+      throw error;
+    });
   }
   return landmarkerPromise;
+}
+
+/** Baixa o modelo de liveness antecipadamente (ex.: na tela de orientação). */
+export function preloadFaceLandmarker(): Promise<unknown> {
+  return getFaceLandmarker().catch(() => undefined);
 }
 
 type Options = {
@@ -49,6 +60,7 @@ export function useLiveness({ key = 0, video, active, onComplete }: Options) {
   const baselineYawRef = useRef<number | null>(null);
   const blinkSeenRef = useRef(false);
   const stableFramesRef = useRef(0);
+  const recenterDeadlineRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
   const lastTsRef = useRef(-1);
@@ -74,6 +86,7 @@ export function useLiveness({ key = 0, video, active, onComplete }: Options) {
     baselineYawRef.current = null;
     blinkSeenRef.current = false;
     stableFramesRef.current = 0;
+    recenterDeadlineRef.current = null;
     completedRef.current = false;
     lastTsRef.current = -1;
   }, [key, active]);
@@ -84,7 +97,11 @@ export function useLiveness({ key = 0, video, active, onComplete }: Options) {
     let cancelled = false;
 
     (async () => {
-      landmarkerRef.current = await getFaceLandmarker();
+      try {
+        landmarkerRef.current = await getFaceLandmarker();
+      } catch {
+        return;
+      }
       if (cancelled) return;
 
       const tick = () => {
@@ -142,6 +159,15 @@ export function useLiveness({ key = 0, video, active, onComplete }: Options) {
         } else if (phaseRef.current === "head_turn") {
           const base = baselineYawRef.current ?? yaw;
           if (Math.abs(yaw - base) >= HEAD_TURN_DELTA) {
+            // Não capturar com a cabeça virada: aguarda re-centralizar antes do snapshot.
+            recenterDeadlineRef.current = now + RECENTER_TIMEOUT_MS;
+            updatePhase("recenter");
+          }
+        } else if (phaseRef.current === "recenter") {
+          const base = baselineYawRef.current ?? 0;
+          const recentered = centered && Math.abs(yaw - base) <= RECENTER_DELTA;
+          const timedOut = recenterDeadlineRef.current !== null && now >= recenterDeadlineRef.current;
+          if (recentered || timedOut) {
             updatePhase("done");
           }
         }

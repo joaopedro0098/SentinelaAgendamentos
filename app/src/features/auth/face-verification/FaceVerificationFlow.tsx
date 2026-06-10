@@ -25,6 +25,13 @@ export function FaceVerificationFlow({
     if (open) setStep("orient");
   }, [open]);
 
+  // Baixa os modelos (~6 MB) enquanto o usuário lê as instruções, antes da câmera abrir.
+  useEffect(() => {
+    if (!open) return;
+    void import("./faceEmbeddingService").then((m) => m.preloadFaceApiModels()).catch(() => undefined);
+    void import("./useLiveness").then((m) => m.preloadFaceLandmarker()).catch(() => undefined);
+  }, [open]);
+
   if (!open) return null;
 
   if (step === "orient") {
