@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { AdminAggregatedAccountsSection } from "@/features/dashboard/components/admin/AdminAggregatedAccountsSection";
 
 const SUPABASE_FUNCTIONS_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
 const SUPABASE_PUBLISHABLE_KEY = String(
@@ -385,6 +386,8 @@ export default function AdminPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AdminAggregatedAccountsSection defaultOwnerEmail={userInfo?.email ?? email} />
 
       {userInfo && (
         <Card>

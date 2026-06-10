@@ -17,7 +17,6 @@ export type SubscriptionInfo = {
   stripe_subscription_id?: string | null;
   is_aggregated_account?: boolean;
   aggregated_by_email?: string | null;
-  can_manage_aggregated_accounts?: boolean;
 };
 
 export function useSubscription() {

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,132 +35,180 @@ const STATUS_LABEL: Record<AggregatedAccountRow["status"], string> = {
 
 function inviteErrorMessage(code: string | undefined): string {
   switch (code) {
-    case "aggregated_cannot_invite":
-      return "Contas agregadas não podem convidar outras pessoas.";
+    case "forbidden":
+      return "Acesso negado.";
+    case "owner_not_found":
+      return "E-mail do titular não encontrado.";
+    case "owner_is_aggregated":
+      return "O titular informado já é uma conta agregada.";
     case "cannot_invite_self":
-      return "Use outro e-mail, não o seu.";
+      return "Use e-mails diferentes para titular e agregada.";
     case "already_invited":
-      return "Este e-mail já está na sua lista.";
+      return "Este e-mail já está na lista deste titular.";
     case "user_already_aggregated":
       return "Esta pessoa já está vinculada a outra conta titular.";
     case "user_has_own_subscription":
       return "Esta conta já possui assinatura própria.";
     case "invalid_email":
-      return "Informe um e-mail válido.";
+    case "invalid_owner_email":
+      return "Informe e-mails válidos.";
     default:
       return "Não foi possível adicionar. Tente novamente.";
   }
 }
 
-export function AggregatedAccountsSection() {
-  const { info, loading: subLoading } = useSubscription();
+type Props = {
+  defaultOwnerEmail?: string;
+};
+
+export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props) {
+  const [ownerEmail, setOwnerEmail] = useState(defaultOwnerEmail);
+  const [aggregatedEmail, setAggregatedEmail] = useState("");
   const [accounts, setAccounts] = useState<AggregatedAccountRow[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const [email, setEmail] = useState("");
+  const [loadingList, setLoadingList] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AggregatedAccountRow | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  const canManage = !subLoading && info?.can_manage_aggregated_accounts !== false && !info?.is_aggregated_account;
+  useEffect(() => {
+    setOwnerEmail(defaultOwnerEmail);
+  }, [defaultOwnerEmail]);
 
-  const loadAccounts = useCallback(async () => {
-    if (!canManage) {
+  const loadAccounts = useCallback(async (owner: string) => {
+    const trimmed = owner.trim().toLowerCase();
+    if (!trimmed) {
       setAccounts([]);
-      setLoadingList(false);
       return;
     }
+
     setLoadingList(true);
-    const { data, error } = await supabase.rpc("list_my_aggregated_accounts");
+    const { data, error } = await supabase.rpc("admin_list_aggregated_accounts", {
+      p_owner_email: trimmed,
+    });
     setLoadingList(false);
+
     if (error) {
       toast({ title: "Erro ao carregar contas", description: error.message, variant: "destructive" });
       return;
     }
+
     const payload = data as { accounts?: AggregatedAccountRow[]; error?: string } | null;
-    if (payload?.error) return;
+    if (payload?.error === "owner_not_found") {
+      setAccounts([]);
+      return;
+    }
+    if (payload?.error) {
+      toast({ title: "Erro ao carregar contas", description: inviteErrorMessage(payload.error), variant: "destructive" });
+      return;
+    }
+
     setAccounts(Array.isArray(payload?.accounts) ? payload.accounts : []);
-  }, [canManage]);
+  }, []);
 
   useEffect(() => {
-    void loadAccounts();
-  }, [loadAccounts]);
+    void loadAccounts(ownerEmail);
+  }, [ownerEmail, loadAccounts]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
+    const owner = ownerEmail.trim().toLowerCase();
+    const target = aggregatedEmail.trim().toLowerCase();
+    if (!owner || !target) return;
+
     setInviting(true);
-    const { data, error } = await supabase.rpc("invite_aggregated_account", { p_email: trimmed });
+    const { data, error } = await supabase.rpc("admin_invite_aggregated_account", {
+      p_owner_email: owner,
+      p_email: target,
+    });
     setInviting(false);
+
     if (error) {
-      toast({ title: "Erro ao convidar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao agregar", description: error.message, variant: "destructive" });
       return;
     }
+
     const result = data as { ok?: boolean; error?: string; user_exists?: boolean };
     if (!result?.ok) {
-      toast({ title: "Não foi possível adicionar", description: inviteErrorMessage(result?.error), variant: "destructive" });
+      toast({
+        title: "Não foi possível agregar",
+        description: inviteErrorMessage(result?.error),
+        variant: "destructive",
+      });
       return;
     }
-    setEmail("");
+
+    setAggregatedEmail("");
     toast({
-      title: "Conta adicionada",
+      title: "Conta agregada",
       description: result.user_exists
-        ? "O usuário já possui cadastro e será vinculado após a verificação facial, se necessário."
-        : "Quando a pessoa se cadastrar com este e-mail, a conta será vinculada automaticamente.",
+        ? "Usuário existente vinculado (verificação facial se necessário)."
+        : "Quando a pessoa se cadastrar com este e-mail, será vinculada automaticamente.",
     });
-    void loadAccounts();
+    void loadAccounts(owner);
   }
 
   async function confirmRemove() {
     if (!removeTarget) return;
     setRemoving(true);
-    const { data, error } = await supabase.rpc("remove_aggregated_account", {
+    const { data, error } = await supabase.rpc("admin_remove_aggregated_account", {
       p_account_id: removeTarget.id,
     });
     setRemoving(false);
+
     if (error) {
       toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
       return;
     }
+
     const result = data as { ok?: boolean; error?: string };
     if (!result?.ok) {
       toast({ title: "Não foi possível remover", variant: "destructive" });
       return;
     }
+
     toast({ title: "Conta agregada removida" });
     setRemoveTarget(null);
-    void loadAccounts();
+    void loadAccounts(ownerEmail);
   }
-
-  if (!canManage) return null;
 
   return (
     <>
-      <Card className="glass-panel border-border/80">
-        <CardContent className="pt-6 space-y-4">
-          <div>
-            <h2 className="text-base font-semibold tracking-tight">Contas agregadas</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Adicione outras contas pelo e-mail. Cada uma é independente (visual, link, equipe e clientes), mas usa a
-              sua assinatura para liberar agendamentos.
-            </p>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Contas agregadas</CardTitle>
+          <CardDescription>
+            Vincule uma conta a um titular com assinatura. Cada conta agregada continua independente (visual, link,
+            equipe), mas usa o plano do titular.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="admin-agg-owner">E-mail do titular (quem tem o plano)</Label>
+            <Input
+              id="admin-agg-owner"
+              type="email"
+              value={ownerEmail}
+              onChange={(e) => setOwnerEmail(e.target.value)}
+              placeholder="titular@exemplo.com"
+            />
           </div>
 
           <form onSubmit={handleInvite} className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
-              <Label htmlFor="agg-email">E-mail da conta</Label>
+              <Label htmlFor="admin-agg-email">E-mail da conta a agregar</Label>
               <Input
-                id="agg-email"
+                id="admin-agg-email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="pessoa@exemplo.com"
+                value={aggregatedEmail}
+                onChange={(e) => setAggregatedEmail(e.target.value)}
+                placeholder="agregada@exemplo.com"
                 required
+                disabled={!ownerEmail.trim()}
               />
             </div>
-            <Button type="submit" className="shrink-0" disabled={inviting}>
+            <Button type="submit" className="shrink-0 rounded-full" disabled={inviting || !ownerEmail.trim()}>
               {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              <span className="ml-2">Adicionar</span>
+              <span className="ml-2">Agregar</span>
             </Button>
           </form>
 
@@ -169,8 +216,10 @@ export function AggregatedAccountsSection() {
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </p>
+          ) : !ownerEmail.trim() ? (
+            <p className="text-sm text-muted-foreground">Informe o e-mail do titular para ver a lista.</p>
           ) : accounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma conta agregada ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma conta agregada para este titular.</p>
           ) : (
             <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
               {accounts.map((row) => (
@@ -205,7 +254,7 @@ export function AggregatedAccountsSection() {
             <AlertDialogTitle>Remover conta agregada?</AlertDialogTitle>
             <AlertDialogDescription>
               {removeTarget
-                ? `A conta ${removeTarget.email} deixará de usar sua assinatura. Os dados dela permanecem na conta dela.`
+                ? `A conta ${removeTarget.email} deixará de usar a assinatura do titular. Os dados dela permanecem intactos.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -219,7 +268,7 @@ export function AggregatedAccountsSection() {
                 void confirmRemove();
               }}
             >
-              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir"}
+              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remover"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
