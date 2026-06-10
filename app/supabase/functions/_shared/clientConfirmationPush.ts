@@ -66,51 +66,18 @@ function shopIconFromRow(row: AppointmentForPush) {
   return url || null;
 }
 
-function normalizeWhatsappDigits(value: string | null | undefined) {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  return digits.length >= 10 ? digits : null;
-}
-
 /** Copia inscrição push de outro agendamento do mesmo cliente na mesma barbearia (ex.: painel). */
 async function inheritClientPushSubscriptions(
   supabase: SupabaseClient,
-  appointment: Pick<AppointmentForPush, "id" | "barbearia_id" | "cliente_whatsapp">,
+  appointment: Pick<AppointmentForPush, "id">,
 ) {
-  const whatsapp = normalizeWhatsappDigits(appointment.cliente_whatsapp);
-  if (!whatsapp) return;
+  const { error } = await supabase.rpc("inherit_appointment_push_subscription", {
+    _agendamento_id: appointment.id,
+  });
 
-  const { data: siblings, error: siblingsError } = await supabase
-    .from("agendamentos")
-    .select("id")
-    .eq("barbearia_id", appointment.barbearia_id)
-    .eq("cliente_whatsapp", whatsapp)
-    .neq("id", appointment.id);
-
-  if (siblingsError || !siblings?.length) return;
-
-  const siblingIds = siblings.map((row) => row.id);
-  const { data: sourceSubs, error: sourceError } = await supabase
-    .from("appointment_push_subscriptions")
-    .select("endpoint, p256dh, auth")
-    .in("agendamento_id", siblingIds)
-    .is("failed_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (sourceError || !sourceSubs?.length) return;
-
-  const source = sourceSubs[0];
-  await supabase.from("appointment_push_subscriptions").upsert(
-    {
-      agendamento_id: appointment.id,
-      endpoint: source.endpoint,
-      p256dh: source.p256dh,
-      auth: source.auth,
-      failed_at: null,
-      failure_reason: null,
-    },
-    { onConflict: "agendamento_id,endpoint" },
-  );
+  if (error) {
+    console.error("inherit_appointment_push_subscription:", error.message);
+  }
 }
 
 async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
@@ -141,7 +108,15 @@ export async function sendDueClientConfirmationPushes(
   options?: { force?: boolean },
 ) {
   if (!options?.force && !isConfirmationPushWindowSaoPaulo()) {
-    return { skipped: true as const, reason: "outside_push_window" as const, sent: 0, processed: 0, retried: 0 };
+    return {
+      skipped: true as const,
+      reason: "outside_push_window" as const,
+      sent: 0,
+      processed: 0,
+      retried: 0,
+      no_subscription: 0,
+      delivery_failed: 0,
+    };
   }
 
   const tomorrow = saoPauloTomorrowYmd();
@@ -161,6 +136,8 @@ export async function sendDueClientConfirmationPushes(
   const rows = (appointments ?? []) as AppointmentForPush[];
   let sentTotal = 0;
   let retried = 0;
+  let noSubscription = 0;
+  let deliveryFailed = 0;
 
   for (const row of rows) {
     let subs: PushSubscriptionWithStatus[] = [];
@@ -171,7 +148,10 @@ export async function sendDueClientConfirmationPushes(
       continue;
     }
 
-    if (subs.length === 0) continue;
+    if (subs.length === 0) {
+      noSubscription += 1;
+      continue;
+    }
 
     const hasFailedSub = subs.some((sub) => sub.failed_at !== null);
     if (hasFailedSub) retried += 1;
@@ -197,8 +177,17 @@ export async function sendDueClientConfirmationPushes(
         .update({ confirmation_push_sent_at: new Date().toISOString() })
         .eq("id", row.id);
       sentTotal += sent;
+    } else {
+      deliveryFailed += 1;
     }
   }
 
-  return { skipped: false as const, sent: sentTotal, processed: rows.length, retried };
+  return {
+    skipped: false as const,
+    sent: sentTotal,
+    processed: rows.length,
+    retried,
+    no_subscription: noSubscription,
+    delivery_failed: deliveryFailed,
+  };
 }
