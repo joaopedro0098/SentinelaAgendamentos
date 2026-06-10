@@ -6,7 +6,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v8").map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v9").map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open("sentinela-shell-v8").then((cache) => cache.put("/index.html", copy));
+          caches.open("sentinela-shell-v9").then((cache) => cache.put("/index.html", copy));
           return response;
         })
         .catch(() => caches.match("/index.html")),
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset(url)) return;
 
   event.respondWith(
-    caches.open("sentinela-shell-v8").then(async (cache) => {
+    caches.open("sentinela-shell-v9").then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request)
         .then((response) => {
@@ -70,11 +70,9 @@ self.addEventListener("push", (event) => {
 
   const title = data.title || "Sentinela Agendamentos";
   const isClientConfirmation = data.push_kind === "client_confirmation";
-  const isAndroid = /Android/i.test(navigator.userAgent);
 
-  // Confirmação do cliente: no Android, `icon` vira logo grande à direita — omitimos.
-  // À esquerda usa o ícone do PWA instalado (manifest por barbearia em /agendar/{slug}).
-  // Não usar "image" — evita imagem extra à direita.
+  // Confirmação do cliente: no Android, `icon` vira a foto grande à direita.
+  // À esquerda permanece o ícone do app que recebeu o push (Chrome ou PWA instalado).
   const options = {
     body: data.body || "Você tem uma atualização de agendamento.",
     badge: "/notification-badge-s.png?v=6",
@@ -84,7 +82,7 @@ self.addEventListener("push", (event) => {
   };
 
   if (isClientConfirmation) {
-    if (!isAndroid && data.icon) {
+    if (data.icon) {
       options.icon = data.icon;
     }
   } else {
