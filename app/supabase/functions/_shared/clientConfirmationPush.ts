@@ -3,7 +3,7 @@ import { getAppUrl, sendWebPush, type PushSendFailure, type PushSubscriptionRow 
 
 const SAO_PAULO = "America/Sao_Paulo";
 
-export function saoPauloTodayYmd(now = new Date()) {
+function saoPauloTodayYmd(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: SAO_PAULO,
     year: "numeric",
@@ -12,7 +12,7 @@ export function saoPauloTodayYmd(now = new Date()) {
   }).format(now);
 }
 
-export function saoPauloTomorrowYmd(now = new Date()) {
+function saoPauloTomorrowYmd(now = new Date()) {
   const today = saoPauloTodayYmd(now);
   const [y, m, d] = today.split("-").map(Number);
   const next = new Date(y, m - 1, d + 1, 12, 0, 0);
@@ -23,7 +23,7 @@ export function saoPauloTomorrowYmd(now = new Date()) {
 }
 
 /** Janela ~10h (9h–11h) em America/Sao_Paulo para o cron diário. */
-export function isConfirmationPushWindowSaoPaulo(now = new Date()) {
+function isConfirmationPushWindowSaoPaulo(now = new Date()) {
   const hour = Number(
     new Intl.DateTimeFormat("en-US", { timeZone: SAO_PAULO, hour: "numeric", hour12: false }).format(now),
   );
@@ -44,7 +44,6 @@ type AppointmentForPush = {
 
 type PushSubscriptionWithStatus = PushSubscriptionRow & {
   failed_at: string | null;
-  last_success_at: string | null;
 };
 
 export type ConfirmationPushDeliveryFailure = {
@@ -99,7 +98,7 @@ async function inheritClientPushSubscriptions(
 async function loadPushSubscriptions(supabase: SupabaseClient, agendamentoId: string) {
   const { data: subscriptions, error: subsError } = await supabase
     .from("appointment_push_subscriptions")
-    .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
+    .select("id, endpoint, p256dh, auth, failed_at")
     .eq("agendamento_id", agendamentoId);
 
   if (subsError) throw new Error(subsError.message);
@@ -107,21 +106,15 @@ async function loadPushSubscriptions(supabase: SupabaseClient, agendamentoId: st
 }
 
 async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
-  const panelBooking = isPanelAppointment(appointment);
-
-  if (panelBooking) {
+  if (isPanelAppointment(appointment)) {
+    // Painel: sempre re-herda a inscrição mais recente do cliente antes de enviar.
     await inheritClientPushSubscriptions(supabase, appointment, { forceRefresh: true });
+    const subs = await loadPushSubscriptions(supabase, appointment.id);
+    return subs.filter((sub) => sub.failed_at === null);
   }
 
   let subs = await loadPushSubscriptions(supabase, appointment.id);
-
-  if (panelBooking) {
-    const activeSubs = subs.filter((sub) => sub.failed_at === null);
-    if (activeSubs.length === 0) {
-      await inheritClientPushSubscriptions(supabase, appointment, { forceRefresh: true });
-      subs = await loadPushSubscriptions(supabase, appointment.id);
-    }
-  } else if (subs.length === 0) {
+  if (subs.length === 0) {
     await inheritClientPushSubscriptions(supabase, appointment);
     subs = await loadPushSubscriptions(supabase, appointment.id);
   }
@@ -153,7 +146,6 @@ export async function sendDueClientConfirmationPushes(
       reason: "outside_push_window" as const,
       sent: 0,
       processed: 0,
-      retried: 0,
       no_subscription: 0,
       delivery_failed: 0,
       failures: [] as ConfirmationPushDeliveryFailure[],
@@ -175,7 +167,6 @@ export async function sendDueClientConfirmationPushes(
 
   const rows = (appointments ?? []) as AppointmentForPush[];
   let sentTotal = 0;
-  let retried = 0;
   let noSubscription = 0;
   let deliveryFailed = 0;
   const failures: ConfirmationPushDeliveryFailure[] = [];
@@ -257,7 +248,6 @@ export async function sendDueClientConfirmationPushes(
     skipped: false as const,
     sent: sentTotal,
     processed: rows.length,
-    retried,
     no_subscription: noSubscription,
     delivery_failed: deliveryFailed,
     failures,
