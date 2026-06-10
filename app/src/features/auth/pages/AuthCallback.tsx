@@ -6,9 +6,10 @@ import {
   FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
-import { userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
+import { userNeedsFaceVerification, markFaceVerificationComplete } from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
+import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
@@ -39,6 +40,7 @@ export default function AuthCallback() {
           const registered = await registerUserFacialEmbedding(pending.embedding);
           clearPendingFaceEmbedding();
           clearSubscriptionCache();
+          markFaceVerificationComplete();
           if (!registered.trialEligible || registered.facialMatch) {
             authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
           }
@@ -54,6 +56,7 @@ export default function AuthCallback() {
         return;
       }
 
+      markFaceVerificationComplete();
       navigate(getBarberPostLoginPath(), { replace: true });
     }
 
@@ -87,9 +90,5 @@ export default function AuthCallback() {
     };
   }, [navigate]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-      Concluindo login…
-    </div>
-  );
+  return <AppBootSkeleton />;
 }

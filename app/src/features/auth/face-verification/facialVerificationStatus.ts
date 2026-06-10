@@ -10,6 +10,14 @@ export function clearFaceVerificationCache() {
   }
 }
 
+export function markFaceVerificationComplete() {
+  try {
+    sessionStorage.setItem(FACE_OK_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function userNeedsFaceVerification(): Promise<boolean> {
   try {
     if (sessionStorage.getItem(FACE_OK_KEY) === "1") return false;

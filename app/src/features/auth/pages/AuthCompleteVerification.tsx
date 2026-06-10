@@ -11,6 +11,9 @@ import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
 } from "@/features/auth/face-verification/pendingFaceStorage";
+import { markFaceVerificationComplete } from "@/features/auth/face-verification/facialVerificationStatus";
+import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
+import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 
 const FaceVerificationFlow = lazy(() =>
@@ -41,6 +44,7 @@ export default function AuthCompleteVerification() {
         const registered = await registerUserFacialEmbedding(pending.embedding);
         clearPendingFaceEmbedding();
         clearSubscriptionCache();
+        markFaceVerificationComplete();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
@@ -64,6 +68,7 @@ export default function AuthCompleteVerification() {
       try {
         const registered = await registerUserFacialEmbedding(result.embedding);
         clearSubscriptionCache();
+        markFaceVerificationComplete();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
@@ -82,21 +87,11 @@ export default function AuthCompleteVerification() {
   }
 
   if (phase === "checking" || phase === "submitting") {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-        {phase === "checking" ? "Verificando cadastro…" : "Concluindo verificação…"}
-      </div>
-    );
+    return <AppBootSkeleton />;
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-          Carregando verificação…
-        </div>
-      }
-    >
+    <Suspense fallback={<AppBootSkeleton />}>
       <FaceVerificationFlow
         open
         orientationVariant="page"

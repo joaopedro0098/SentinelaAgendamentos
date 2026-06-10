@@ -15,6 +15,7 @@ import { authInfoToast } from "@/features/auth/lib/authToast";
 import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
+import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
@@ -41,6 +42,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   useEffect(() => {
     if (session) navigate(getBarberPostLoginPath(), { replace: true });
@@ -117,13 +119,17 @@ export default function Login() {
         }
       }
 
-      setLoading(false);
-      toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
+    setLoading(false);
+    toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
       return;
     }
 
-    setLoading(false);
+    setEntering(true);
     navigate(getBarberPostLoginPath(), { replace: true });
+  }
+
+  if (entering) {
+    return <AppBootSkeleton />;
   }
 
   return (

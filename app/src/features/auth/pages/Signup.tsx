@@ -25,6 +25,7 @@ import {
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
 import { savePendingFaceEmbedding } from "@/features/auth/face-verification/pendingFaceStorage";
+import { markFaceVerificationComplete } from "@/features/auth/face-verification/facialVerificationStatus";
 import {
   getEmailSignupStatus,
   resendSignupConfirmation,
@@ -69,6 +70,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [submittingAccount, setSubmittingAccount] = useState(false);
   const pendingSignupRef = useRef<z.infer<typeof schema> | null>(null);
 
   useEffect(() => {
@@ -110,8 +112,8 @@ export default function Signup() {
   }
 
   async function completeSignup(parsed: z.infer<typeof schema>, verification: FacialVerificationResult) {
+    setSubmittingAccount(true);
     setLoading(true);
-    setShowFaceVerification(false);
     const { data, error } = await supabase.auth.signUp({
       email: parsed.email,
       password: parsed.password,
@@ -125,6 +127,8 @@ export default function Signup() {
     });
     if (isEmailAlreadyRegistered(error, data)) {
       setLoading(false);
+      setSubmittingAccount(false);
+      setShowFaceVerification(false);
       const status = await getEmailSignupStatus(parsed.email);
       if (status.status === "pending_confirmation") {
         await resendSignupConfirmation(parsed.email);
@@ -137,6 +141,8 @@ export default function Signup() {
 
     if (error) {
       setLoading(false);
+      setSubmittingAccount(false);
+      setShowFaceVerification(false);
       if (isInvalidApiKeyError(error)) {
         toast({ title: "Configuração do servidor", description: AUTH_CONFIG_ERROR_MESSAGE, variant: "destructive" });
         return;
@@ -156,18 +162,22 @@ export default function Signup() {
       try {
         const registered = await registerUserFacialEmbedding(verification.embedding);
         clearSubscriptionCache();
+        markFaceVerificationComplete();
         if (!registered.trialEligible || registered.facialMatch) {
           authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
         }
       } catch {
         authInfoToast("Conta criada. Entre normalmente após confirmar seu e-mail.");
       }
+      setShowFaceVerification(false);
       navigate(getBarberPostLoginPath(), { replace: true });
     } else {
       savePendingFaceEmbedding(verification.embedding, parsed.email);
+      setShowFaceVerification(false);
       navigate("/signup/verify-email", { replace: true });
     }
     setLoading(false);
+    setSubmittingAccount(false);
     pendingSignupRef.current = null;
   }
 
@@ -176,7 +186,10 @@ export default function Signup() {
       <Suspense fallback={null}>
         <FaceVerificationFlow
           open={showFaceVerification}
+          busy={submittingAccount}
+          busyMessage="Criando sua conta…"
           onClose={() => {
+            if (submittingAccount) return;
             setShowFaceVerification(false);
             pendingSignupRef.current = null;
           }}

@@ -33,6 +33,7 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
   const [livenessActive, setLivenessActive] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const finishingRef = useRef(false);
+  const aliveRef = useRef(true);
 
   const finishVerification = useCallback(async () => {
     if (finishingRef.current) return;
@@ -47,16 +48,20 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
       if (!canvas) throw new Error("Não foi possível capturar a imagem. Tente novamente.");
 
       const embedding = await buildEmbeddingFromSnapshot(canvas, setProgress);
+      if (!aliveRef.current) return;
+
       setProgress({ stage: "checking", message: "Validando…" });
       const { trialEligible, facialMatch } = await checkFacialTrialEligibility(embedding);
+      if (!aliveRef.current) return;
 
       stop();
       setProgress({ stage: "done", message: "Pronto ✅" });
       onVerified({ embedding, trialEligible, facialMatch });
     } catch (e) {
+      if (!aliveRef.current) return;
       setFailed(toUserFaceError(e));
     } finally {
-      setProcessing(false);
+      if (aliveRef.current) setProcessing(false);
       finishingRef.current = false;
     }
   }, [captureFrame, stop, onVerified]);
@@ -73,7 +78,9 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
   });
 
   useEffect(() => {
+    aliveRef.current = true;
     if (!open) {
+      aliveRef.current = false;
       setLivenessActive(false);
       setProcessing(false);
       setFailed(null);
@@ -84,8 +91,13 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
     setProgress({ stage: "camera", message: "Olhe para a câmera" });
     setFailed(null);
     finishingRef.current = false;
-    void start().then(() => setLivenessActive(true));
-    return () => stop();
+    void start().then(() => {
+      if (aliveRef.current) setLivenessActive(true);
+    });
+    return () => {
+      aliveRef.current = false;
+      stop();
+    };
   }, [open, start, stop, attempt]);
 
   useEffect(() => {
