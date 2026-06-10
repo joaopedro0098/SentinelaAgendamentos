@@ -108,14 +108,17 @@ async function loadPushSubscriptions(supabase: SupabaseClient, agendamentoId: st
 
 async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
   const panelBooking = isPanelAppointment(appointment);
+
+  if (panelBooking) {
+    await inheritClientPushSubscriptions(supabase, appointment, { forceRefresh: true });
+  }
+
   let subs = await loadPushSubscriptions(supabase, appointment.id);
 
   if (panelBooking) {
     const activeSubs = subs.filter((sub) => sub.failed_at === null);
     if (activeSubs.length === 0) {
-      await inheritClientPushSubscriptions(supabase, appointment, {
-        forceRefresh: subs.length > 0,
-      });
+      await inheritClientPushSubscriptions(supabase, appointment, { forceRefresh: true });
       subs = await loadPushSubscriptions(supabase, appointment.id);
     }
   } else if (subs.length === 0) {

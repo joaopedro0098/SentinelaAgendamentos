@@ -701,6 +701,17 @@ const PublicBooking = ({
         _whatsapp: whatsClean,
         _nome: nome.trim(),
       });
+
+      let whatsStored = whatsClean;
+      if (ownerPanel && cliId) {
+        const { data: cliente } = await supabase
+          .from("clientes")
+          .select("whatsapp")
+          .eq("id", cliId)
+          .maybeSingle();
+        if (cliente?.whatsapp) whatsStored = cliente.whatsapp;
+      }
+
       const { data: createdAppointment, error } = await supabase
         .from("agendamentos")
         .insert({
@@ -709,7 +720,7 @@ const PublicBooking = ({
           data,
           hora,
           cliente_nome: nome.trim(),
-          cliente_whatsapp: whatsClean,
+          cliente_whatsapp: whatsStored,
           cliente_id: cliId ?? null,
           duracao_minutos: duracaoTotal,
           servicos_nomes: servicosNomes,
@@ -727,6 +738,12 @@ const PublicBooking = ({
           notifyBookingBlocked();
         } else toast.error(error.message);
         return;
+      }
+
+      if (ownerPanel && createdAppointment?.id) {
+        void supabase.functions
+          .invoke("sync-panel-push-subscription", { body: { agendamento_id: createdAppointment.id } })
+          .catch(() => undefined);
       }
 
       if (!ownerPanel && createdAppointment?.id) {
