@@ -66,6 +66,7 @@ export async function sendWebPush(params: {
   body: string;
   url: string;
   icon?: string | null;
+  pushKind?: string | null;
 }) {
   let sent = 0;
 
@@ -77,6 +78,7 @@ export async function sendWebPush(params: {
         url: params.url,
       };
       if (params.icon) payload.icon = params.icon;
+      if (params.pushKind) payload.push_kind = params.pushKind;
 
       await webpush.sendNotification(
         {

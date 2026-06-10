@@ -33,7 +33,10 @@ export function isConfirmationPushWindowSaoPaulo(now = new Date()) {
 type AppointmentForPush = {
   id: string;
   confirmation_token: string;
-  barbearias: { nome: string; logo_url: string | null } | { nome: string; logo_url: string | null }[] | null;
+  barbearias:
+    | { nome: string; logo_url: string | null; slug: string | null }
+    | { nome: string; logo_url: string | null; slug: string | null }[]
+    | null;
 };
 
 type PushSubscriptionWithStatus = PushSubscriptionRow & {
@@ -52,7 +55,12 @@ function shopNameFromRow(row: AppointmentForPush) {
 }
 
 function shopIconFromRow(row: AppointmentForPush) {
-  const url = shopFromRow(row)?.logo_url?.trim();
+  const shop = shopFromRow(row);
+  const slug = shop?.slug?.trim();
+  if (slug) {
+    return `${getAppUrl()}/manifest/agendar/${encodeURIComponent(slug)}/icon-192.png`;
+  }
+  const url = shop?.logo_url?.trim();
   return url || null;
 }
 
@@ -69,7 +77,7 @@ export async function sendDueClientConfirmationPushes(
   // Elegível: push nunca entregue (confirmation_push_sent_at null), incluindo falhas anteriores na subscription.
   const { data: appointments, error } = await supabase
     .from("agendamentos")
-    .select("id, confirmation_token, barbearias(nome, logo_url)")
+    .select("id, confirmation_token, barbearias(nome, logo_url, slug)")
     .eq("status", "confirmado")
     .eq("origem", "link_publico")
     .eq("requires_client_confirmation", true)
@@ -108,10 +116,11 @@ export async function sendDueClientConfirmationPushes(
       supabase,
       subscriptions: subs,
       subscriptionTable: "appointment_push_subscriptions",
-      title: "Confirmar Agendamento",
-      body: `Clique aqui para confirmar seu agendamento com ${shopName} para amanhã.`,
+      title: "Clique aqui",
+      body: `Confirme seu agendamento com ${shopName} para amanhã.`,
       url: confirmUrl,
       icon: shopIcon,
+      pushKind: "client_confirmation",
     });
 
     if (sent > 0) {
