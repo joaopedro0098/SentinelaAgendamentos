@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getAppUrl, sendWebPush, type PushSubscriptionRow } from "./webPush.ts";
+import { getAppUrl, sendWebPush, type PushSendFailure, type PushSubscriptionRow } from "./webPush.ts";
 
 const SAO_PAULO = "America/Sao_Paulo";
 
@@ -35,6 +35,7 @@ type AppointmentForPush = {
   barbearia_id: string;
   cliente_whatsapp: string | null;
   confirmation_token: string;
+  origem: string | null;
   barbearias:
     | { nome: string; logo_url: string | null; slug: string | null }
     | { nome: string; logo_url: string | null; slug: string | null }[]
@@ -44,6 +45,15 @@ type AppointmentForPush = {
 type PushSubscriptionWithStatus = PushSubscriptionRow & {
   failed_at: string | null;
   last_success_at: string | null;
+};
+
+export type ConfirmationPushDeliveryFailure = {
+  agendamento_id: string;
+  origem: string | null;
+  subscription_id: string;
+  http_status: number | null;
+  reason: string;
+  panel_inherited: boolean;
 };
 
 function shopFromRow(row: AppointmentForPush) {
@@ -66,13 +76,19 @@ function shopIconFromRow(row: AppointmentForPush) {
   return url || null;
 }
 
+function isPanelAppointment(row: Pick<AppointmentForPush, "origem">) {
+  return row.origem === "painel";
+}
+
 /** Copia inscrição push de outro agendamento do mesmo cliente na mesma barbearia (ex.: painel). */
 async function inheritClientPushSubscriptions(
   supabase: SupabaseClient,
-  appointment: Pick<AppointmentForPush, "id">,
+  appointment: Pick<AppointmentForPush, "id" | "origem">,
+  options?: { forceRefresh?: boolean },
 ) {
   const { error } = await supabase.rpc("inherit_appointment_push_subscription", {
     _agendamento_id: appointment.id,
+    _force_refresh: Boolean(options?.forceRefresh),
   });
 
   if (error) {
@@ -80,27 +96,48 @@ async function inheritClientPushSubscriptions(
   }
 }
 
-async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
+async function loadPushSubscriptions(supabase: SupabaseClient, agendamentoId: string) {
   const { data: subscriptions, error: subsError } = await supabase
     .from("appointment_push_subscriptions")
     .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
-    .eq("agendamento_id", appointment.id);
+    .eq("agendamento_id", agendamentoId);
 
   if (subsError) throw new Error(subsError.message);
+  return (subscriptions ?? []) as PushSubscriptionWithStatus[];
+}
 
-  let subs = (subscriptions ?? []) as PushSubscriptionWithStatus[];
-  if (subs.length === 0) {
+async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
+  const panelBooking = isPanelAppointment(appointment);
+  let subs = await loadPushSubscriptions(supabase, appointment.id);
+
+  if (panelBooking) {
+    const activeSubs = subs.filter((sub) => sub.failed_at === null);
+    if (activeSubs.length === 0) {
+      await inheritClientPushSubscriptions(supabase, appointment, {
+        forceRefresh: subs.length > 0,
+      });
+      subs = await loadPushSubscriptions(supabase, appointment.id);
+    }
+  } else if (subs.length === 0) {
     await inheritClientPushSubscriptions(supabase, appointment);
-    const { data: inherited, error: inheritedError } = await supabase
-      .from("appointment_push_subscriptions")
-      .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
-      .eq("agendamento_id", appointment.id);
-
-    if (inheritedError) throw new Error(inheritedError.message);
-    subs = (inherited ?? []) as PushSubscriptionWithStatus[];
+    subs = await loadPushSubscriptions(supabase, appointment.id);
   }
 
-  return subs;
+  return subs.filter((sub) => sub.failed_at === null);
+}
+
+function buildDeliveryFailures(
+  row: AppointmentForPush,
+  pushFailures: PushSendFailure[],
+): ConfirmationPushDeliveryFailure[] {
+  return pushFailures.map((failure) => ({
+    agendamento_id: row.id,
+    origem: row.origem,
+    subscription_id: failure.subscription_id,
+    http_status: failure.status_code,
+    reason: failure.reason,
+    panel_inherited: isPanelAppointment(row),
+  }));
 }
 
 export async function sendDueClientConfirmationPushes(
@@ -116,15 +153,15 @@ export async function sendDueClientConfirmationPushes(
       retried: 0,
       no_subscription: 0,
       delivery_failed: 0,
+      failures: [] as ConfirmationPushDeliveryFailure[],
     };
   }
 
   const tomorrow = saoPauloTomorrowYmd();
 
-  // Elegível: push nunca entregue (confirmation_push_sent_at null), incluindo falhas anteriores na subscription.
   const { data: appointments, error } = await supabase
     .from("agendamentos")
-    .select("id, barbearia_id, cliente_whatsapp, confirmation_token, barbearias(nome, logo_url, slug)")
+    .select("id, barbearia_id, cliente_whatsapp, confirmation_token, origem, barbearias(nome, logo_url, slug)")
     .eq("status", "confirmado")
     .eq("requires_client_confirmation", true)
     .is("client_confirmed_at", null)
@@ -138,6 +175,7 @@ export async function sendDueClientConfirmationPushes(
   let retried = 0;
   let noSubscription = 0;
   let deliveryFailed = 0;
+  const failures: ConfirmationPushDeliveryFailure[] = [];
 
   for (const row of rows) {
     let subs: PushSubscriptionWithStatus[] = [];
@@ -150,17 +188,24 @@ export async function sendDueClientConfirmationPushes(
 
     if (subs.length === 0) {
       noSubscription += 1;
+      if (isPanelAppointment(row)) {
+        failures.push({
+          agendamento_id: row.id,
+          origem: row.origem,
+          subscription_id: "",
+          http_status: null,
+          reason: "panel_no_client_subscription",
+          panel_inherited: true,
+        });
+      }
       continue;
     }
-
-    const hasFailedSub = subs.some((sub) => sub.failed_at !== null);
-    if (hasFailedSub) retried += 1;
 
     const shopName = shopNameFromRow(row);
     const shopIcon = shopIconFromRow(row);
     const confirmUrl = `${getAppUrl()}/confirmar-agendamento/${row.confirmation_token}`;
 
-    const sent = await sendWebPush({
+    const pushResult = await sendWebPush({
       supabase,
       subscriptions: subs,
       subscriptionTable: "appointment_push_subscriptions",
@@ -171,14 +216,15 @@ export async function sendDueClientConfirmationPushes(
       pushKind: "client_confirmation",
     });
 
-    if (sent > 0) {
+    if (pushResult.sent > 0) {
       await supabase
         .from("agendamentos")
         .update({ confirmation_push_sent_at: new Date().toISOString() })
         .eq("id", row.id);
-      sentTotal += sent;
+      sentTotal += pushResult.sent;
     } else {
       deliveryFailed += 1;
+      failures.push(...buildDeliveryFailures(row, pushResult.failures));
     }
   }
 
@@ -189,5 +235,6 @@ export async function sendDueClientConfirmationPushes(
     retried,
     no_subscription: noSubscription,
     delivery_failed: deliveryFailed,
+    failures,
   };
 }

@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, sent: 0, reason: "no_subscriptions" });
     }
 
-    const sent = await sendWebPush({
+    const { sent } = await sendWebPush({
       supabase,
       subscriptions: subs,
       subscriptionTable: "barber_push_subscriptions",

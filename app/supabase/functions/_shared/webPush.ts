@@ -58,6 +58,17 @@ export function formatDateBr(ymd: string) {
   return `${day}/${month}/${year}`;
 }
 
+export type PushSendFailure = {
+  subscription_id: string;
+  status_code: number | null;
+  reason: string;
+};
+
+export type PushSendResult = {
+  sent: number;
+  failures: PushSendFailure[];
+};
+
 export async function sendWebPush(params: {
   supabase: SupabaseClient;
   subscriptions: PushSubscriptionRow[];
@@ -67,8 +78,9 @@ export async function sendWebPush(params: {
   url: string;
   icon?: string | null;
   pushKind?: string | null;
-}) {
+}): Promise<PushSendResult> {
   let sent = 0;
+  const failures: PushSendFailure[] = [];
 
   for (const sub of params.subscriptions) {
     try {
@@ -96,6 +108,11 @@ export async function sendWebPush(params: {
     } catch (error) {
       const statusCode = pushStatusCode(error);
       const failureReason = pushFailureReason(error);
+      failures.push({
+        subscription_id: sub.id,
+        status_code: statusCode,
+        reason: failureReason,
+      });
 
       if (statusCode === 410) {
         await params.supabase.from(params.subscriptionTable).delete().eq("id", sub.id);
@@ -110,5 +127,5 @@ export async function sendWebPush(params: {
     }
   }
 
-  return sent;
+  return { sent, failures };
 }

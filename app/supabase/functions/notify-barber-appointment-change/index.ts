@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       pushBody = `${cliente} alterou de ${formatDateBr(fromDate)} para ${formatDateBr(toDate)} às ${formatTime(String(appointment.hora))}.`;
     }
 
-    const sent = await sendWebPush({
+    const { sent } = await sendWebPush({
       supabase,
       subscriptions: subs,
       subscriptionTable: "barber_push_subscriptions",
