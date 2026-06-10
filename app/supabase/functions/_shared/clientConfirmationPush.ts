@@ -32,6 +32,8 @@ export function isConfirmationPushWindowSaoPaulo(now = new Date()) {
 
 type AppointmentForPush = {
   id: string;
+  barbearia_id: string;
+  cliente_whatsapp: string | null;
   confirmation_token: string;
   barbearias:
     | { nome: string; logo_url: string | null; slug: string | null }
@@ -64,6 +66,76 @@ function shopIconFromRow(row: AppointmentForPush) {
   return url || null;
 }
 
+function normalizeWhatsappDigits(value: string | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.length >= 10 ? digits : null;
+}
+
+/** Copia inscrição push de outro agendamento do mesmo cliente na mesma barbearia (ex.: painel). */
+async function inheritClientPushSubscriptions(
+  supabase: SupabaseClient,
+  appointment: Pick<AppointmentForPush, "id" | "barbearia_id" | "cliente_whatsapp">,
+) {
+  const whatsapp = normalizeWhatsappDigits(appointment.cliente_whatsapp);
+  if (!whatsapp) return;
+
+  const { data: siblings, error: siblingsError } = await supabase
+    .from("agendamentos")
+    .select("id")
+    .eq("barbearia_id", appointment.barbearia_id)
+    .eq("cliente_whatsapp", whatsapp)
+    .neq("id", appointment.id);
+
+  if (siblingsError || !siblings?.length) return;
+
+  const siblingIds = siblings.map((row) => row.id);
+  const { data: sourceSubs, error: sourceError } = await supabase
+    .from("appointment_push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .in("agendamento_id", siblingIds)
+    .is("failed_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (sourceError || !sourceSubs?.length) return;
+
+  const source = sourceSubs[0];
+  await supabase.from("appointment_push_subscriptions").upsert(
+    {
+      agendamento_id: appointment.id,
+      endpoint: source.endpoint,
+      p256dh: source.p256dh,
+      auth: source.auth,
+      failed_at: null,
+      failure_reason: null,
+    },
+    { onConflict: "agendamento_id,endpoint" },
+  );
+}
+
+async function fetchPushSubscriptions(supabase: SupabaseClient, appointment: AppointmentForPush) {
+  const { data: subscriptions, error: subsError } = await supabase
+    .from("appointment_push_subscriptions")
+    .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
+    .eq("agendamento_id", appointment.id);
+
+  if (subsError) throw new Error(subsError.message);
+
+  let subs = (subscriptions ?? []) as PushSubscriptionWithStatus[];
+  if (subs.length === 0) {
+    await inheritClientPushSubscriptions(supabase, appointment);
+    const { data: inherited, error: inheritedError } = await supabase
+      .from("appointment_push_subscriptions")
+      .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
+      .eq("agendamento_id", appointment.id);
+
+    if (inheritedError) throw new Error(inheritedError.message);
+    subs = (inherited ?? []) as PushSubscriptionWithStatus[];
+  }
+
+  return subs;
+}
+
 export async function sendDueClientConfirmationPushes(
   supabase: SupabaseClient,
   options?: { force?: boolean },
@@ -77,9 +149,8 @@ export async function sendDueClientConfirmationPushes(
   // Elegível: push nunca entregue (confirmation_push_sent_at null), incluindo falhas anteriores na subscription.
   const { data: appointments, error } = await supabase
     .from("agendamentos")
-    .select("id, confirmation_token, barbearias(nome, logo_url, slug)")
+    .select("id, barbearia_id, cliente_whatsapp, confirmation_token, barbearias(nome, logo_url, slug)")
     .eq("status", "confirmado")
-    .eq("origem", "link_publico")
     .eq("requires_client_confirmation", true)
     .is("client_confirmed_at", null)
     .is("confirmation_push_sent_at", null)
@@ -92,17 +163,14 @@ export async function sendDueClientConfirmationPushes(
   let retried = 0;
 
   for (const row of rows) {
-    const { data: subscriptions, error: subsError } = await supabase
-      .from("appointment_push_subscriptions")
-      .select("id, endpoint, p256dh, auth, failed_at, last_success_at")
-      .eq("agendamento_id", row.id);
-
-    if (subsError) {
-      console.error("confirmation push subs:", subsError.message);
+    let subs: PushSubscriptionWithStatus[] = [];
+    try {
+      subs = await fetchPushSubscriptions(supabase, row);
+    } catch (subsError) {
+      console.error("confirmation push subs:", subsError instanceof Error ? subsError.message : subsError);
       continue;
     }
 
-    const subs = (subscriptions ?? []) as PushSubscriptionWithStatus[];
     if (subs.length === 0) continue;
 
     const hasFailedSub = subs.some((sub) => sub.failed_at !== null);

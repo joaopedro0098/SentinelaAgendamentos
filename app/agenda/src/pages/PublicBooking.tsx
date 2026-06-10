@@ -716,7 +716,7 @@ const PublicBooking = ({
           status: "confirmado",
           observacao: obs,
           origem: ownerPanel ? "painel" : "link_publico",
-          requires_client_confirmation: !ownerPanel,
+          requires_client_confirmation: true,
         })
         .select("id, confirmation_token")
         .single();

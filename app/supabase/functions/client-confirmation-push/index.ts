@@ -37,15 +37,15 @@ Deno.serve(async (req) => {
 
     const { data: appointment, error: appointmentError } = await supabase
       .from("agendamentos")
-      .select("id, status, origem, client_confirmed_at")
+      .select("id, status, requires_client_confirmation, client_confirmed_at")
       .eq("confirmation_token", confirmationToken)
       .maybeSingle();
 
     if (appointmentError) return jsonResponse({ error: appointmentError.message }, 500);
     if (!appointment) return jsonResponse({ error: "Agendamento não encontrado." }, 404);
 
-    if (appointment.status !== "confirmado" || appointment.origem !== "link_publico") {
-      return jsonResponse({ ok: true, skipped: true, reason: "not_public_booking" });
+    if (appointment.status !== "confirmado" || !appointment.requires_client_confirmation) {
+      return jsonResponse({ ok: true, skipped: true, reason: "not_eligible" });
     }
 
     if (appointment.client_confirmed_at) {
