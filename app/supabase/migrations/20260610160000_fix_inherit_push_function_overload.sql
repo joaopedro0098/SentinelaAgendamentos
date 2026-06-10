@@ -1,4 +1,5 @@
--- Painel: permite atualizar inscrição herdada e prioriza subscription com entrega bem-sucedida.
+-- Corrige "function inherit_appointment_push_subscription(uuid) is not unique":
+-- havia duas versões (uuid) e (uuid, boolean) após migrations anteriores.
 
 DROP FUNCTION IF EXISTS public.inherit_appointment_push_subscription(uuid);
 
@@ -68,3 +69,26 @@ BEGIN
   RETURN true;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public.trg_inherit_appointment_push_subscription()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.status = 'confirmado'::public.agendamento_status
+     AND NEW.requires_client_confirmation = true
+     AND NEW.cliente_whatsapp IS NOT NULL
+  THEN
+    PERFORM public.inherit_appointment_push_subscription(NEW.id, false);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.inherit_appointment_push_subscription(uuid, boolean) TO service_role;
+
+COMMENT ON FUNCTION public.inherit_appointment_push_subscription(uuid, boolean) IS
+  'Copia inscrição push válida de outro agendamento do mesmo cliente na mesma barbearia.';
