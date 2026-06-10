@@ -205,7 +205,7 @@ export async function sendDueClientConfirmationPushes(
     const shopIcon = shopIconFromRow(row);
     const confirmUrl = `${getAppUrl()}/confirmar-agendamento/${row.confirmation_token}`;
 
-    const pushResult = await sendWebPush({
+    let pushResult = await sendWebPush({
       supabase,
       subscriptions: subs,
       subscriptionTable: "appointment_push_subscriptions",
@@ -215,6 +215,28 @@ export async function sendDueClientConfirmationPushes(
       icon: shopIcon,
       pushKind: "client_confirmation",
     });
+
+    // Painel: após 410, tenta herdar outra subscription do cliente (ex.: link público mais recente).
+    if (
+      isPanelAppointment(row) &&
+      pushResult.sent === 0 &&
+      pushResult.failures.some((failure) => failure.status_code === 410)
+    ) {
+      await inheritClientPushSubscriptions(supabase, row, { forceRefresh: true });
+      const retrySubs = (await loadPushSubscriptions(supabase, row.id)).filter((sub) => sub.failed_at === null);
+      if (retrySubs.length > 0) {
+        pushResult = await sendWebPush({
+          supabase,
+          subscriptions: retrySubs,
+          subscriptionTable: "appointment_push_subscriptions",
+          title: "Clique aqui",
+          body: `Confirme seu agendamento com ${shopName} para amanhã.`,
+          url: confirmUrl,
+          icon: shopIcon,
+          pushKind: "client_confirmation",
+        });
+      }
+    }
 
     if (pushResult.sent > 0) {
       await supabase

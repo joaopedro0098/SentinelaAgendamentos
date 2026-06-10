@@ -115,8 +115,14 @@ export async function sendWebPush(params: {
       });
 
       if (statusCode === 410) {
-        await params.supabase.from(params.subscriptionTable).delete().eq("id", sub.id);
-        console.error("push subscription gone (410), removed:", sub.id);
+        // Endpoint expirado no FCM: remove todas as cópias (evita painel re-herdar a mesma subscription morta).
+        if (params.subscriptionTable === "appointment_push_subscriptions") {
+          await params.supabase.from(params.subscriptionTable).delete().eq("endpoint", sub.endpoint);
+          console.error("push subscription gone (410), removed endpoint:", sub.endpoint.slice(0, 48));
+        } else {
+          await params.supabase.from(params.subscriptionTable).delete().eq("id", sub.id);
+          console.error("push subscription gone (410), removed:", sub.id);
+        }
       } else {
         await params.supabase
           .from(params.subscriptionTable)
