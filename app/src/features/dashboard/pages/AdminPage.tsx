@@ -387,8 +387,6 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      <AdminAggregatedAccountsSection defaultOwnerEmail={userInfo?.email ?? email} />
-
       {userInfo && (
         <Card>
           <CardHeader>
@@ -464,6 +462,8 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AdminAggregatedAccountsSection defaultOwnerEmail={userInfo?.email} />
     </div>
   );
 }

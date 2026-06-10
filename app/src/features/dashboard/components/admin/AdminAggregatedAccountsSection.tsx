@@ -58,26 +58,33 @@ function inviteErrorMessage(code: string | undefined): string {
 }
 
 type Props = {
+  /** Preenche o titular após buscar um usuário — não dispara carregamento automático. */
   defaultOwnerEmail?: string;
 };
 
-export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props) {
-  const [ownerEmail, setOwnerEmail] = useState(defaultOwnerEmail);
+export function AdminAggregatedAccountsSection({ defaultOwnerEmail }: Props) {
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [aggregatedEmail, setAggregatedEmail] = useState("");
   const [accounts, setAccounts] = useState<AggregatedAccountRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AggregatedAccountRow | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [listLoaded, setListLoaded] = useState(false);
 
   useEffect(() => {
-    setOwnerEmail(defaultOwnerEmail);
+    if (defaultOwnerEmail?.trim()) {
+      setOwnerEmail(defaultOwnerEmail.trim().toLowerCase());
+      setListLoaded(false);
+      setAccounts([]);
+    }
   }, [defaultOwnerEmail]);
 
   const loadAccounts = useCallback(async (owner: string) => {
     const trimmed = owner.trim().toLowerCase();
     if (!trimmed) {
       setAccounts([]);
+      setListLoaded(false);
       return;
     }
 
@@ -88,26 +95,35 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props
     setLoadingList(false);
 
     if (error) {
-      toast({ title: "Erro ao carregar contas", description: error.message, variant: "destructive" });
+      const missingFn = error.message.includes("admin_list_aggregated_accounts");
+      toast({
+        title: "Erro ao carregar contas agregadas",
+        description: missingFn
+          ? "Função ainda não disponível no servidor. Rode supabase db push para aplicar a migration."
+          : error.message,
+        variant: "destructive",
+      });
       return;
     }
 
     const payload = data as { accounts?: AggregatedAccountRow[]; error?: string } | null;
     if (payload?.error === "owner_not_found") {
       setAccounts([]);
+      setListLoaded(true);
       return;
     }
     if (payload?.error) {
-      toast({ title: "Erro ao carregar contas", description: inviteErrorMessage(payload.error), variant: "destructive" });
+      toast({
+        title: "Erro ao carregar contas agregadas",
+        description: inviteErrorMessage(payload.error),
+        variant: "destructive",
+      });
       return;
     }
 
     setAccounts(Array.isArray(payload?.accounts) ? payload.accounts : []);
+    setListLoaded(true);
   }, []);
-
-  useEffect(() => {
-    void loadAccounts(ownerEmail);
-  }, [ownerEmail, loadAccounts]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -147,6 +163,10 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props
     void loadAccounts(owner);
   }
 
+  function handleLoadList() {
+    void loadAccounts(ownerEmail);
+  }
+
   async function confirmRemove() {
     if (!removeTarget) return;
     setRemoving(true);
@@ -182,15 +202,29 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-agg-owner">E-mail do titular (quem tem o plano)</Label>
-            <Input
-              id="admin-agg-owner"
-              type="email"
-              value={ownerEmail}
-              onChange={(e) => setOwnerEmail(e.target.value)}
-              placeholder="titular@exemplo.com"
-            />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="admin-agg-owner">E-mail do titular (quem tem o plano)</Label>
+              <Input
+                id="admin-agg-owner"
+                type="email"
+                value={ownerEmail}
+                onChange={(e) => {
+                  setOwnerEmail(e.target.value);
+                  setListLoaded(false);
+                }}
+                placeholder="titular@exemplo.com"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0 rounded-full"
+              disabled={loadingList || !ownerEmail.trim()}
+              onClick={handleLoadList}
+            >
+              {loadingList ? <Loader2 className="h-4 w-4 animate-spin" /> : "Carregar lista"}
+            </Button>
           </div>
 
           <form onSubmit={handleInvite} className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -216,8 +250,10 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail = "" }: Props
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </p>
-          ) : !ownerEmail.trim() ? (
-            <p className="text-sm text-muted-foreground">Informe o e-mail do titular para ver a lista.</p>
+          ) : !listLoaded ? (
+            <p className="text-sm text-muted-foreground">
+              Informe o titular e clique em &quot;Carregar lista&quot; para ver contas vinculadas.
+            </p>
           ) : accounts.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma conta agregada para este titular.</p>
           ) : (
