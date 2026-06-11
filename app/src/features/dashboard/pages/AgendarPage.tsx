@@ -19,7 +19,7 @@ export default function AgendarPage() {
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
   const { slug, loading, agendaReady } = useDashboardShop();
-  const phase = slug ? getAgendaSyncPhase(slug) : "not_found";
+  const syncPhase = slug ? getAgendaSyncPhase(slug) ?? "loading" : undefined;
 
   useEffect(() => {
     document.title = reschedule ? "Alterar horário - Sentinela Agendamentos" : "Agendar - Sentinela Agendamentos";
@@ -28,7 +28,40 @@ export default function AgendarPage() {
   const backHref = reschedule ? "/app/agendamentos" : "/app/settings";
   const booting = loading && !slug;
 
-  if (booting || (slug && !agendaReady && phase === "loading")) {
+  // Aguarda a linha em `barbearias` existir — senão PublicBooking mostra "não encontrada".
+  if (booting || (slug && !agendaReady)) {
+    if (syncPhase === "error") {
+      return (
+        <AgendaShell>
+          <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
+            <BackToPanel to={backHref} />
+            <div>
+              <h1 className="font-display text-xl font-bold">Não foi possível abrir a agenda</h1>
+              <p className="mt-2 text-sm text-muted-foreground max-w-md">
+                A sincronização da agenda falhou. Tente novamente em instantes.
+              </p>
+            </div>
+          </div>
+        </AgendaShell>
+      );
+    }
+
+    if (syncPhase === "not_found") {
+      return (
+        <AgendaShell>
+          <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
+            <BackToPanel to={backHref} />
+            <div>
+              <h1 className="font-display text-xl font-bold">Agenda ainda não disponível</h1>
+              <p className="mt-2 text-sm text-muted-foreground max-w-md">
+                Aguarde alguns segundos e abra esta aba novamente. Se persistir, verifique Configurações.
+              </p>
+            </div>
+          </div>
+        </AgendaShell>
+      );
+    }
+
     return (
       <AgendaShell>
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 p-6">
@@ -54,22 +87,6 @@ export default function AgendarPage() {
           <Button asChild variant="outline">
             <Link to="/app/settings">Ir para Configurações</Link>
           </Button>
-        </div>
-      </AgendaShell>
-    );
-  }
-
-  if (phase === "error") {
-    return (
-      <AgendaShell>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
-          <BackToPanel to={backHref} />
-          <div>
-            <h1 className="font-display text-xl font-bold">Não foi possível abrir a agenda</h1>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md">
-              A sincronização da agenda falhou. Tente novamente em instantes.
-            </p>
-          </div>
         </div>
       </AgendaShell>
     );

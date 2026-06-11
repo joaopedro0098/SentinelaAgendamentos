@@ -69,6 +69,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const [shop, setShop] = useState<DashboardShop | null>(() => (hasWarmCache ? cachedShop : null));
   const [barbeariaId, setBarbeariaId] = useState<string | null>(() => (hasWarmCache ? cachedBarbeariaId : null));
   const [loading, setLoading] = useState(!hasWarmCache);
+  const [syncTick, setSyncTick] = useState(0);
 
   const refresh = useCallback(
     async (options?: RefreshOptions) => {
@@ -119,10 +120,10 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      primeAgendaSyncPhase(row.slug, getAgendaSyncPhase(row.slug));
+  primeAgendaSyncPhase(row.slug, "loading");
       setLoading(false);
 
-      // Sincroniza agenda em segundo plano — o layout abre sem esperar.
+      // Sincroniza agenda em segundo plano — Agendamentos abre cedo; Agendar espera agendaReady.
       void (async () => {
         const phase = await syncAgenda(row.slug);
         if (phase === "ready") {
@@ -136,6 +137,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
           cachedBarbeariaId = null;
           setBarbeariaId(null);
         }
+        setSyncTick((n) => n + 1);
       })();
     },
     [userId],
@@ -154,7 +156,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       loading,
       refresh,
     }),
-    [shop, barbeariaId, loading, refresh],
+    [shop, barbeariaId, loading, refresh, syncTick],
   );
 
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;

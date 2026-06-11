@@ -456,12 +456,9 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <CalendarCheck className="h-4 w-4 text-primary" />
-          Equipe e atendimento
+          Equipe de atendimento
         </CardTitle>
-        <CardDescription>
-          Ao adicionar um colaborador, os horários seg–sex (09:00–18:00) já ficam salvos e prontos para agendamento.
-          Ajuste serviços e horários abaixo se quiser.
-        </CardDescription>
+        <CardDescription>Adicione colaboradores, serviços e horários</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <AddStaffForm newName={newName} setNewName={setNewName} onAdd={addStaff} busy={busy === "add-staff"} />

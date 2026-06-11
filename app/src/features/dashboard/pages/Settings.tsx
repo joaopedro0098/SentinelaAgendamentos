@@ -252,7 +252,6 @@ export default function Settings() {
               <PermissionToggleRow
                 id="client-self-service"
                 label="Cliente altera ou cancela pelo link"
-                description="Alterar/cancelar em Meus agendamentos até a véspera."
                 checked={shop.allow_client_self_service ?? true}
                 disabled={savingClientSelfService}
                 busy={savingClientSelfService}
@@ -312,9 +311,7 @@ export default function Settings() {
 
               <div className="space-y-2 rounded-md border border-border p-3">
                 <Label htmlFor="booking-link">Link para o cliente agendar</Label>
-                <p className="text-xs text-muted-foreground">
-                  Compartilhe para o cliente escolher serviço, horário e confirmar o agendamento.
-                </p>
+                <p className="text-xs text-muted-foreground">Compartilhe este link com seu cliente</p>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input id="booking-link" value={bookingUrl} readOnly className="font-mono text-xs" />
                   <Button type="button" onClick={copyBookingLink} variant="secondary" className="shrink-0">
@@ -343,9 +340,6 @@ export default function Settings() {
                 onChange={(e) => setSlotInterval(e.target.value)}
                 className="max-w-xs"
               />
-              <p className="text-xs text-muted-foreground">
-                Ex.: 45 min → 09:00, 09:45, 10:30… · 30 min → 10:00, 10:30, 11:00…
-              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="slot-pause">Defina uma pausa (ou deixe 0 ou vazio)</Label>
@@ -360,9 +354,6 @@ export default function Settings() {
                 onChange={(e) => setSlotPause(e.target.value)}
                 className="max-w-xs"
               />
-              <p className="text-xs text-muted-foreground">
-                Ex.: intervalo 45 min + pausa 10 min → 09:00, 09:55, 10:50, 11:45…
-              </p>
             </div>
             <Button type="button" className="w-full sm:w-auto" disabled={savingSlots} onClick={handleSaveSlotSettings}>
               {savingSlots ? (

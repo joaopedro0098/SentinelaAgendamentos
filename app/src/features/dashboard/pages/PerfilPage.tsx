@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -386,8 +386,10 @@ export default function PerfilPage() {
 
       <Card className="border-destructive/30">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2 text-destructive">
-            <Trash2 className="h-4 w-4" /> Zona de perigo
+          <CardTitle className="text-base font-semibold text-red-600 dark:text-red-500">
+            <span className="inline-flex items-center gap-2">
+              <Trash2 className="h-4 w-4" /> Zona de perigo
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -399,9 +401,6 @@ export default function PerfilPage() {
             disabled={deleting}
           >
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir minha conta"}
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="w-full rounded-full">
-            <Link to="/app/settings">Voltar às configurações</Link>
           </Button>
         </CardContent>
       </Card>

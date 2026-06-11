@@ -1244,7 +1244,7 @@ const PublicBooking = ({
 
               {/* BARBEIROS */}
               <section>
-                <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o barbeiro</h2>
+                <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o profissional</h2>
                 {barbeiros.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
                 ) : (
