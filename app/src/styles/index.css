@@ -256,7 +256,7 @@
     border: 1px solid hsl(var(--border));
   }
 
-  /* Tela de agendar no painel (/app/agendar): cores fixas do booking, mesmo com painel escuro */
+  /* Link público de agendamento: cores fixas do booking (não segue claro/escuro do painel) */
   .booking-surface {
     color-scheme: light;
     --background: 0 0% 100%;

@@ -32,7 +32,7 @@ export default function AgendarPage() {
   if (booting || (slug && !agendaReady)) {
     if (syncPhase === "error") {
       return (
-        <AgendaShell>
+        <AgendaShell variant="dashboard">
           <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
             <BackToPanel to={backHref} />
             <div>
@@ -48,7 +48,7 @@ export default function AgendarPage() {
 
     if (syncPhase === "not_found") {
       return (
-        <AgendaShell>
+        <AgendaShell variant="dashboard">
           <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
             <BackToPanel to={backHref} />
             <div>
@@ -63,7 +63,7 @@ export default function AgendarPage() {
     }
 
     return (
-      <AgendaShell>
+      <AgendaShell variant="dashboard">
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 p-6">
           <BackToPanel to={backHref} label={reschedule ? "Agendamentos" : "Voltar"} />
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -75,7 +75,7 @@ export default function AgendarPage() {
 
   if (!slug) {
     return (
-      <AgendaShell>
+      <AgendaShell variant="dashboard">
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center gap-4">
           <BackToPanel to="/app/settings" />
           <div>
@@ -98,7 +98,7 @@ export default function AgendarPage() {
       : undefined;
 
   return (
-    <AgendaShell>
+    <AgendaShell variant="dashboard">
       <PublicBooking
         slugOverride={slug}
         backHref={backHref}

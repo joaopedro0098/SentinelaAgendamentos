@@ -233,6 +233,7 @@ const PublicBooking = ({
   ownerPanel = false,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
+  const pageBgClass = ownerPanel ? "bg-transparent" : "bg-surface";
   const minDayOffset = bookableDayOffset(ownerPanel, isReschedule);
   const { slug: slugParam } = useParams();
   const slug = slugOverride ?? slugParam;
@@ -781,13 +782,13 @@ const PublicBooking = ({
   const showClientExit = !ownerPanel && !isReschedule;
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
+    <div className={cn("min-h-screen flex items-center justify-center", pageBgClass)}>
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
   );
 
   if (!barbearia) return (
-    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 text-center bg-surface">
+    <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6 text-center", pageBgClass)}>
       <div>
         <h1 className="font-display text-2xl font-bold">Barbearia não encontrada</h1>
         <p className="mt-2 text-muted-foreground text-sm">Verifique o link e tente novamente.</p>
@@ -796,7 +797,7 @@ const PublicBooking = ({
   );
 
   if (!barbearia.ativa) return (
-    <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 text-center bg-surface">
+    <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6 text-center", pageBgClass)}>
       <div className="max-w-sm">
         <h1 className="font-display text-2xl font-bold">Agenda indisponível</h1>
         <p className="mt-2 text-muted-foreground text-sm">
@@ -811,7 +812,7 @@ const PublicBooking = ({
 
     if (isReschedule && bookingConfirmed) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
+        <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6", pageBgClass)}>
           <Card className="max-w-sm w-full p-6 text-center">
             <div className="mx-auto h-12 w-12 rounded-full bg-available/10 flex items-center justify-center">
               <Check className="h-6 w-6 text-available" />
@@ -830,7 +831,7 @@ const PublicBooking = ({
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-3 sm:p-6 bg-surface">
+      <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6", pageBgClass)}>
         <Card className="relative max-w-sm w-full p-6">
           {bookingConfirmed && showClientExit && !clientExitHint && (
             <button
@@ -1108,7 +1109,7 @@ const PublicBooking = ({
     );
 
   return (
-    <div className="min-h-screen bg-surface w-full max-w-[100vw] overflow-x-hidden md:min-h-0">
+    <div className={cn("min-h-screen w-full max-w-[100vw] overflow-x-hidden md:min-h-0", pageBgClass)}>
       <div className="mx-auto w-full sm:max-w-md md:max-w-6xl md:px-6 overflow-x-hidden">
         {/* HEADER */}
         <header

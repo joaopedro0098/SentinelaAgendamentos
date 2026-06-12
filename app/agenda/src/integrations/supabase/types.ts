@@ -533,6 +533,10 @@ export type Database = {
         Args: { p_agendamento_id: string }
         Returns: string
       }
+      set_allow_client_self_service: {
+        Args: { p_enabled: boolean }
+        Returns: undefined
+      }
       get_client_confirmation_push_status: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {

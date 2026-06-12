@@ -174,19 +174,16 @@ export default function Settings() {
   async function handleToggleClientSelfService(enabled: boolean) {
     if (!shop) return;
     setSavingClientSelfService(true);
-    const { error } = await supabase
-      .from("barbershops")
-      .update({ allow_client_self_service: enabled })
-      .eq("id", shop.id);
+    const { error } = await supabase.rpc("set_allow_client_self_service", {
+      p_enabled: enabled,
+    });
+    setSavingClientSelfService(false);
     if (error) {
-      setSavingClientSelfService(false);
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    await supabase.from("barbearias").update({ allow_client_self_service: enabled }).eq("slug", shop.slug);
     setShop({ ...shop, allow_client_self_service: enabled });
     patchDashboardShopCache({ allow_client_self_service: enabled });
-    setSavingClientSelfService(false);
     toast({ title: enabled ? "Cliente pode alterar/cancelar" : "Alteração pelo cliente desativada" });
   }
 
