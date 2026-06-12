@@ -54,18 +54,36 @@
     },
     {
       "source": "/c/:token",
+      "missing": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i)(facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest)"
+        }
+      ],
       "destination": "/confirmar-agendamento/:token",
       "permanent": false
     }
   ],
   "rewrites": [
     {
+      "source": "/c/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i)(facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest)"
+        }
+      ],
+      "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
+    },
+    {
       "source": "/confirmar-agendamento/:token",
       "has": [
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
+          "value": "(?i)(facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest)"
         }
       ],
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"

@@ -28,9 +28,9 @@ function formatTime(hora: string) {
   return String(hora).slice(0, 5);
 }
 
-/** Crawlers de preview — não inclui "WhatsApp" (mesmo UA do app ao abrir o link). */
+/** Crawlers de preview (inclui WhatsApp/2.x — distinto do app ao abrir o link no celular). */
 function isPreviewCrawler(userAgent: string) {
-  return /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
+  return /facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|pinterest/i.test(
     userAgent,
   );
 }
@@ -60,6 +60,7 @@ function buildPreviewHtml(token: string, preview: OgPreview) {
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta name="twitter:card" content="summary" />
+  <meta name="robots" content="noimageindex" />
   <meta name="twitter:title" content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
 </head>

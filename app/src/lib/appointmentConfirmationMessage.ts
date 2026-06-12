@@ -15,7 +15,7 @@ const APP_ORIGIN =
     : "https://www.sentinelagendamentos.com";
 
 export function getConfirmationPageUrl(token: string) {
-  return `${APP_ORIGIN}/confirmar-agendamento/${token}`;
+  return `${APP_ORIGIN}/c/${token}`;
 }
 
 function ymd(d: Date) {
