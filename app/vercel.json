@@ -51,30 +51,11 @@
       ],
       "destination": "https://www.sentinelagendamentos.com/:path*",
       "permanent": true
-    },
-    {
-      "source": "/c/:token",
-      "missing": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(facebookexternalhit|Facebot|WhatsApp|whatsapp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
-        }
-      ],
-      "destination": "/confirmar-agendamento/:token",
-      "permanent": false
     }
   ],
   "rewrites": [
     {
       "source": "/c/:token",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(facebookexternalhit|Facebot|WhatsApp|whatsapp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
-        }
-      ],
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"
     },
     {
@@ -83,7 +64,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(facebookexternalhit|Facebot|WhatsApp|whatsapp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest)"
+          "value": ".*(facebookexternalhit|Facebot|WhatsApp|whatsapp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest).*"
         }
       ],
       "destination": "https://zdmecbyyfubpmwrzzbqf.supabase.co/functions/v1/confirm-appointment-og?token=:token"

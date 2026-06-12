@@ -37,7 +37,7 @@ function isPreviewCrawler(userAgent: string) {
 
 /** Prévia só texto: sem og:image (WhatsApp não exibe foto/logo no card do link). */
 function buildPreviewHtml(token: string, preview: OgPreview) {
-  const confirmUrl = `${SITE_ORIGIN}/confirmar-agendamento/${token}`;
+  const linkUrl = `${SITE_ORIGIN}/c/${token}`;
   const shopName = preview.shop_name?.trim() || "Agendamento";
   const time = preview.hora ? formatTime(String(preview.hora)) : "";
   const dateLabel = preview.data ? formatDateBr(String(preview.data)) : "";
@@ -56,7 +56,7 @@ function buildPreviewHtml(token: string, preview: OgPreview) {
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="${escapeHtml(confirmUrl)}" />
+  <meta property="og:url" content="${escapeHtml(linkUrl)}" />
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta name="twitter:card" content="summary" />
