@@ -132,7 +132,6 @@ type AgendamentoOcupado = {
 };
 
 const STORAGE_KEY = "agendabarber:cliente";
-const DAYS_AHEAD = 14;
 const BOOKING_MONTHS = 2;
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -404,10 +403,7 @@ const PublicBooking = ({
 
   const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
 
-  const dias = useMemo(
-    () => bookableRange.days.slice(0, DAYS_AHEAD),
-    [bookableRange],
-  );
+  const dias = useMemo(() => bookableRange.days, [bookableRange]);
 
   const allowedMonths = useMemo(() => {
     const first = monthStart(bookableRange.first);
