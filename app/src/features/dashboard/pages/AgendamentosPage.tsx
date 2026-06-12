@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
+import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -75,6 +75,7 @@ export default function AgendamentosPage() {
   const [focusDate, setFocusDate] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
 
   const booting = shopLoading && !slug;
   const syncingAgenda = Boolean(slug && !barbeariaId);
@@ -284,6 +285,23 @@ export default function AgendamentosPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  async function handleConfirmPresence(a: AgendamentoRow) {
+    if (confirmingPresenceId) return;
+    setConfirmingPresenceId(a.id);
+    const { data, error } = await supabase.rpc("confirmar_presenca_agendamento_painel", {
+      p_agendamento_id: a.id,
+    });
+    setConfirmingPresenceId(null);
+    if (error) {
+      toast({ title: "Não foi possível confirmar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const confirmedAt = typeof data === "string" ? data : new Date().toISOString();
+    setAgendamentos((prev) =>
+      prev.map((row) => (row.id === a.id ? { ...row, client_confirmed_at: confirmedAt } : row)),
+    );
+  }
+
   if (booting) {
     return <DashboardPageSkeleton />;
   }
@@ -436,17 +454,47 @@ export default function AgendamentosPage() {
                           </span>
                         )}
                         {confirmationBadge && (
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
-                              confirmationBadge === "pending" &&
-                                "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
-                              confirmationBadge === "confirmed" &&
-                                "bg-available/25 text-available border-available/90",
-                            )}
-                          >
-                            {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
-                          </span>
+                          confirmationBadge === "pending" && !isPastDay ? (
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
+                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
+                                )}
+                              >
+                                Aguardando confirmação
+                              </span>
+                              <button
+                                type="button"
+                                aria-label="Confirmar presença"
+                                disabled={confirmingPresenceId === a.id}
+                                onClick={() => void handleConfirmPresence(a)}
+                                className={cn(
+                                  "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                                  "border-available/90 text-available hover:bg-available/15 active:bg-available/25",
+                                  "disabled:opacity-50 disabled:pointer-events-none",
+                                )}
+                              >
+                                {confirmingPresenceId === a.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
+                                confirmationBadge === "pending" &&
+                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
+                                confirmationBadge === "confirmed" &&
+                                  "bg-available/25 text-available border-available/90",
+                              )}
+                            >
+                              {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
+                            </span>
+                          )
                         )}
                         <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
                           <Clock className="h-4 w-4 shrink-0" />

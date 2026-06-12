@@ -529,6 +529,10 @@ export type Database = {
         Args: { p_agendamento_id: string }
         Returns: undefined
       }
+      confirmar_presenca_agendamento_painel: {
+        Args: { p_agendamento_id: string }
+        Returns: string
+      }
       get_client_confirmation_push_status: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {
