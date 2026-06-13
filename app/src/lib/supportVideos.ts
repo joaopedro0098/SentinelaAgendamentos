@@ -1,34 +1,39 @@
 export type SupportVideo = {
   title: string;
-  /** ID do YouTube (ex.: dQw4w9WgXcQ) ou URL completa (youtube.com / youtu.be) */
-  youtubeIdOrUrl: string;
+  url: string;
 };
 
-/** Troque os valores vazios pelo ID ou link do YouTube quando os vídeos estiverem prontos. */
 export const SUPPORT_VIDEOS: SupportVideo[] = [
-  { title: "Primeiros passos no Sentinela", youtubeIdOrUrl: "" },
-  { title: "Agenda e agendamentos", youtubeIdOrUrl: "" },
-  { title: "Configurações e link para clientes", youtubeIdOrUrl: "" },
+  {
+    title: "Configurações parte 1",
+    url: "https://youtube.com/shorts/a5hMMNAlDKI?feature=share",
+  },
+  {
+    title: "Configurações parte 2",
+    url: "https://youtube.com/shorts/nZ_O1qmUPAw?feature=share",
+  },
+  {
+    title: "Como agendar",
+    url: "https://youtube.com/shorts/lwSBJL-EkJI?feature=share",
+  },
+  {
+    title: "Aba Agendamentos",
+    url: "https://youtube.com/shorts/y-UBDSapjIk?feature=share",
+  },
+  {
+    title: "Aba Conta",
+    url: "https://youtube.com/shorts/O-h4SGzpcDI?feature=share",
+  },
+  {
+    title: "App do cliente",
+    url: "https://youtube.com/shorts/ZUEBFXuMxws?feature=share",
+  },
+  {
+    title: "Notificações de confirmação automática (App Cliente)",
+    url: "https://youtube.com/shorts/dQRmNW42-68?feature=share",
+  },
+  {
+    title: "Notificações de novos agendamentos",
+    url: "https://youtube.com/shorts/ObY396heO4w?feature=share",
+  },
 ];
-
-export function resolveYouTubeVideoId(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (/^[\w-]{11}$/.test(trimmed)) return trimmed;
-
-  try {
-    const url = new URL(trimmed);
-    if (url.hostname.includes("youtu.be")) {
-      return url.pathname.slice(1).split("/")[0] || null;
-    }
-    if (url.hostname.includes("youtube.com")) {
-      const shortsMatch = url.pathname.match(/\/shorts\/([^/?]+)/);
-      if (shortsMatch?.[1]) return shortsMatch[1];
-      return url.searchParams.get("v") || url.pathname.split("/").filter(Boolean).pop() || null;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}

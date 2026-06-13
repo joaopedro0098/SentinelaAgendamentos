@@ -1,37 +1,9 @@
 import { useEffect } from "react";
-import { Headphones, MessageCircle, PlayCircle } from "lucide-react";
+import { ExternalLink, Headphones, MessageCircle, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { openAppSupportWhatsApp } from "@/lib/supportWhatsApp";
-import { SUPPORT_VIDEOS, resolveYouTubeVideoId } from "@/lib/supportVideos";
-
-function SupportVideoEmbed({ title, youtubeIdOrUrl }: { title: string; youtubeIdOrUrl: string }) {
-  const videoId = resolveYouTubeVideoId(youtubeIdOrUrl);
-
-  if (!videoId) {
-    return (
-      <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30">
-        <div className="flex flex-col items-center gap-2 px-4 text-center text-muted-foreground">
-          <PlayCircle className="h-10 w-10 opacity-60" />
-          <p className="text-sm font-medium">Vídeo em breve</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="aspect-video w-full overflow-hidden rounded-xl border border-border/80 bg-black">
-      <iframe
-        title={title}
-        src={`https://www.youtube.com/embed/${videoId}`}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        referrerPolicy="strict-origin-when-cross-origin"
-        allowFullScreen
-        className="h-full w-full border-0"
-      />
-    </div>
-  );
-}
+import { SUPPORT_VIDEOS } from "@/lib/supportVideos";
 
 export default function SupportPage() {
   useEffect(() => {
@@ -46,22 +18,37 @@ export default function SupportPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Suporte</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Aprenda a usar o Sentinela com os tutoriais abaixo. Se ainda precisar de ajuda, fale conosco no WhatsApp.
+          Aprenda a usar o Sentinela com os tutoriais abaixo. Os vídeos abrem no YouTube. Se ainda precisar de ajuda,
+          fale conosco no WhatsApp.
         </p>
       </header>
 
-      <div className="space-y-4">
-        {SUPPORT_VIDEOS.map((video) => (
-          <Card key={video.title} className="glass-panel border-border/80">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{video.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SupportVideoEmbed title={video.title} youtubeIdOrUrl={video.youtubeIdOrUrl} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card className="glass-panel border-border/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Tutoriais em vídeo</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ol className="divide-y divide-border/60">
+            {SUPPORT_VIDEOS.map((video, index) => (
+              <li key={video.url}>
+                <a
+                  href={video.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-6 py-3.5 transition-colors hover:bg-secondary/40 active:bg-secondary/60"
+                >
+                  <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                    {index + 1}.
+                  </span>
+                  <PlayCircle className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{video.title}</span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </a>
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
 
       <Card className="glass-panel border-border/80">
         <CardContent className="space-y-4 pt-6">
