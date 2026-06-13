@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
@@ -24,6 +25,7 @@ export default function Settings() {
   const [cropOpen, setCropOpen] = useState(false);
   const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [contactPhone, setContactPhone] = useState("");
   const [slotInterval, setSlotInterval] = useState("30");
   const [slotPause, setSlotPause] = useState("0");
   const [savingSlots, setSavingSlots] = useState(false);
@@ -40,6 +42,7 @@ export default function Settings() {
     setShop(contextShop);
     setSlotInterval(String(contextShop.slot_interval_minutes ?? 30));
     setSlotPause(contextShop.slot_pause_minutes ? String(contextShop.slot_pause_minutes) : "0");
+    setContactPhone(contextShop.contact_phone ? maskPhone(contextShop.contact_phone) : "");
   }, [contextShop]);
 
   useEffect(() => {
@@ -79,10 +82,14 @@ export default function Settings() {
       nextAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     }
 
+    const contactDigits = unmaskPhone(contactPhone);
+    const nextContactPhone = contactDigits ? contactDigits : null;
+
     const { error } = await supabase
       .from("barbershops")
       .update({
         display_name: shop.display_name.trim().slice(0, 80),
+        contact_phone: nextContactPhone,
         ...(pendingAvatarBlob ? { avatar_url: nextAvatarUrl } : {}),
       })
       .eq("id", shop.id);
@@ -92,10 +99,16 @@ export default function Settings() {
       return;
     }
 
-    setShop({ ...shop, display_name: shop.display_name.trim().slice(0, 80), avatar_url: nextAvatarUrl });
+    setShop({
+      ...shop,
+      display_name: shop.display_name.trim().slice(0, 80),
+      avatar_url: nextAvatarUrl,
+      contact_phone: nextContactPhone,
+    });
     patchDashboardShopCache({
       display_name: shop.display_name.trim().slice(0, 80),
       avatar_url: nextAvatarUrl,
+      contact_phone: nextContactPhone,
     });
     const profilePhoto = (pendingAvatarBlob ? nextAvatarUrl : shop.avatar_url) ?? "";
     void supabase
@@ -315,6 +328,18 @@ export default function Settings() {
                       placeholder="Defina o nome do perfil"
                       required
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-phone">Contato</Label>
+                    <Input
+                      id="contact-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(maskPhone(e.target.value))}
+                      placeholder="(11) 99999-9999"
+                    />
+                    <p className="text-xs text-muted-foreground">Importante para prestarmos suporte.</p>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
                 </div>

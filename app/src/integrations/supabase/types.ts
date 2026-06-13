@@ -17,6 +17,7 @@ export type Database = {
       barbershops: {
         Row: {
           avatar_url: string | null
+          contact_phone: string | null
           created_at: string
           current_period_end: string | null
           display_name: string
@@ -42,6 +43,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          contact_phone?: string | null
           created_at?: string
           display_name?: string
           id?: string
@@ -58,6 +60,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          contact_phone?: string | null
           created_at?: string
           display_name?: string
           id?: string

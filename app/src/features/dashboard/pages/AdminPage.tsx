@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Search, Shield, Trash2, Headphones } from "lucide-react";
+import {
+  CreditCard,
+  FlaskConical,
+  Headphones,
+  Loader2,
+  QrCode,
+  Search,
+  Shield,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  UserPlus,
+  Users,
+  UserX,
+} from "lucide-react";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { buildSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +58,11 @@ type AdminStats = {
   subscribers_card: number;
   subscribers_pix: number;
   trial_users: number;
+  total_signups: number;
+  ever_paid: number;
+  churn_count: number;
+  churn_rate: number;
+  conversion_rate: number;
 };
 
 function parseAdminStats(data: unknown): AdminStats | null {
@@ -54,7 +73,36 @@ function parseAdminStats(data: unknown): AdminStats | null {
     subscribers_card: Number(row.subscribers_card ?? 0),
     subscribers_pix: Number(row.subscribers_pix ?? 0),
     trial_users: Number(row.trial_users ?? 0),
+    total_signups: Number(row.total_signups ?? 0),
+    ever_paid: Number(row.ever_paid ?? 0),
+    churn_count: Number(row.churn_count ?? 0),
+    churn_rate: Number(row.churn_rate ?? 0),
+    conversion_rate: Number(row.conversion_rate ?? 0),
   };
+}
+
+type MonthMetrics = { new_signups: number; not_subscribed: number };
+
+function parseMonthMetrics(data: unknown): MonthMetrics {
+  if (!data || typeof data !== "object" || "error" in data) {
+    return { new_signups: 0, not_subscribed: 0 };
+  }
+  const row = data as Record<string, unknown>;
+  return {
+    new_signups: Number(row.new_signups ?? 0),
+    not_subscribed: Number(row.not_subscribed ?? 0),
+  };
+}
+
+type NotSubscribedRow = { display_name: string; contact_phone: string | null };
+
+function currentMonthValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthValueToDate(value: string) {
+  return `${value}-01`;
 }
 
 function yesNo(value: boolean) {
@@ -106,6 +154,12 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [monthValue, setMonthValue] = useState(currentMonthValue);
+  const [monthMetrics, setMonthMetrics] = useState<MonthMetrics | null>(null);
+  const [monthLoading, setMonthLoading] = useState(true);
+  const [listOpen, setListOpen] = useState(false);
+  const [notSubList, setNotSubList] = useState<NotSubscribedRow[] | null>(null);
+  const [listLoading, setListLoading] = useState(false);
   const [supportPhone, setSupportPhone] = useState("");
   const [supportLoading, setSupportLoading] = useState(true);
   const [supportSaving, setSupportSaving] = useState(false);
@@ -148,10 +202,57 @@ export default function AdminPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      setMonthLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("admin_month_metrics", {
+          p_month: monthValueToDate(monthValue),
+        });
+        if (error) throw error;
+        setMonthMetrics(parseMonthMetrics(data));
+      } catch {
+        setMonthMetrics(null);
+      } finally {
+        setMonthLoading(false);
+      }
+    })();
+  }, [monthValue]);
+
+  useEffect(() => {
+    if (!listOpen) return;
+    void (async () => {
+      setListLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("admin_not_subscribed_list", {
+          p_month: monthValueToDate(monthValue),
+        });
+        if (error) throw error;
+        const rows = (Array.isArray(data) ? data : []) as Array<{
+          display_name: string | null;
+          contact_phone: string | null;
+        }>;
+        setNotSubList(
+          rows.map((r) => ({ display_name: r.display_name ?? "—", contact_phone: r.contact_phone ?? null })),
+        );
+      } catch {
+        setNotSubList([]);
+      } finally {
+        setListLoading(false);
+      }
+    })();
+  }, [listOpen, monthValue]);
+
   async function refreshStats() {
     const { data } = await supabase.rpc("admin_subscription_stats");
     setStats(parseAdminStats(data));
+    const { data: monthData } = await supabase.rpc("admin_month_metrics", {
+      p_month: monthValueToDate(monthValue),
+    });
+    setMonthMetrics(parseMonthMetrics(monthData));
   }
+
+  const isCurrentMonth = monthValue === currentMonthValue();
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -287,24 +388,126 @@ export default function AdminPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : stats ? (
-            <dl className="grid gap-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Total de assinantes</dt>
-                <dd className="font-semibold tabular-nums">{stats.total_subscribers}</dd>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="admin-month" className="text-xs text-muted-foreground">
+                    Mês
+                  </Label>
+                  <Input
+                    id="admin-month"
+                    type="month"
+                    value={monthValue}
+                    onChange={(e) => setMonthValue(e.target.value || currentMonthValue())}
+                    className="h-9 w-[10rem]"
+                  />
+                </div>
+                {isCurrentMonth && <span className="pb-2 text-xs text-muted-foreground">(mês atual)</span>}
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Cartão</dt>
-                <dd className="font-medium tabular-nums">{stats.subscribers_card}</dd>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" /> Total
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.total_subscribers}</p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <UserPlus className="h-3.5 w-3.5" /> Novos cadastros
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-500">
+                    {monthLoading ? "…" : `+${monthMetrics?.new_signups ?? 0}`}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <TrendingDown className="h-3.5 w-3.5" /> Churn
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">
+                    {stats.churn_count}
+                    <span className="ml-1 text-xs font-medium text-destructive">{stats.churn_rate}%</span>
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <CreditCard className="h-3.5 w-3.5" /> Cartão
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.subscribers_card}</p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <QrCode className="h-3.5 w-3.5" /> Pix
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.subscribers_pix}</p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <FlaskConical className="h-3.5 w-3.5" /> Em teste
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.trial_users}</p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <TrendingUp className="h-3.5 w-3.5" /> Conversão
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-500">
+                    {stats.conversion_rate}%
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setListOpen((open) => !open)}
+                  aria-expanded={listOpen}
+                  className="rounded-xl border border-border/60 bg-card/40 p-3 text-left transition-colors hover:bg-secondary/40"
+                >
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <UserX className="h-3.5 w-3.5" /> Não assinaram
+                  </div>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">
+                    {monthLoading ? "…" : (monthMetrics?.not_subscribed ?? 0)}
+                  </p>
+                </button>
               </div>
-              <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
-                <dt className="text-muted-foreground">Pix</dt>
-                <dd className="font-medium tabular-nums">{stats.subscribers_pix}</dd>
-              </div>
-              <div className="flex justify-between gap-4 pt-1">
-                <dt className="text-muted-foreground">Teste grátis</dt>
-                <dd className="font-medium tabular-nums">{stats.trial_users}</dd>
-              </div>
-            </dl>
+
+              {listOpen && (
+                <div className="rounded-xl border border-border/60">
+                  <div className="border-b border-border/60 px-3 py-2">
+                    <p className="text-sm font-medium">
+                      Não assinaram — contatos {isCurrentMonth ? "(mês atual)" : ""}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Quem fez o teste grátis e ainda não assinou. Use para remarketing.
+                    </p>
+                  </div>
+                  {listLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !notSubList || notSubList.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground">Ninguém neste mês.</p>
+                  ) : (
+                    <ul className="divide-y divide-border/60">
+                      {notSubList.map((row, index) => (
+                        <li key={index} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                          <span className="truncate text-sm font-medium">{row.display_name}</span>
+                          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                            {row.contact_phone ? maskPhone(row.contact_phone) : "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">Não foi possível carregar os números.</p>
           )}

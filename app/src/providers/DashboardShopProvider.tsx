@@ -14,6 +14,7 @@ export type DashboardShop = {
   slot_pause_minutes: number;
   allow_client_self_service: boolean;
   allow_client_public_booking: boolean;
+  contact_phone: string | null;
 };
 
 type RefreshOptions = {
@@ -102,7 +103,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase
         .from("barbershops")
         .select(
-          "id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes, allow_client_self_service, allow_client_public_booking",
+          "id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes, allow_client_self_service, allow_client_public_booking, contact_phone",
         )
         .eq("owner_id", userId)
         .maybeSingle();
@@ -113,6 +114,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
             ...row,
             allow_client_self_service: row.allow_client_self_service ?? true,
             allow_client_public_booking: row.allow_client_public_booking ?? true,
+            contact_phone: row.contact_phone ?? null,
           }
         : null;
       cachedUserId = userId;
