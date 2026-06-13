@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CreditCard,
@@ -14,6 +14,7 @@ import {
   UserPlus,
   Users,
   UserX,
+  CalendarDays,
 } from "lucide-react";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { buildSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
@@ -53,19 +54,19 @@ type AdminUserInfo = {
   email_confirmed?: boolean;
 };
 
-type AdminStats = {
+type PanelMetrics = {
   total_subscribers: number;
   subscribers_card: number;
   subscribers_pix: number;
   trial_users: number;
-  total_signups: number;
-  ever_paid: number;
+  new_signups: number;
+  not_subscribed: number;
   churn_count: number;
   churn_rate: number;
   conversion_rate: number;
 };
 
-function parseAdminStats(data: unknown): AdminStats | null {
+function parsePanelMetrics(data: unknown): PanelMetrics | null {
   if (!data || typeof data !== "object" || "error" in data) return null;
   const row = data as Record<string, unknown>;
   return {
@@ -73,36 +74,29 @@ function parseAdminStats(data: unknown): AdminStats | null {
     subscribers_card: Number(row.subscribers_card ?? 0),
     subscribers_pix: Number(row.subscribers_pix ?? 0),
     trial_users: Number(row.trial_users ?? 0),
-    total_signups: Number(row.total_signups ?? 0),
-    ever_paid: Number(row.ever_paid ?? 0),
+    new_signups: Number(row.new_signups ?? 0),
+    not_subscribed: Number(row.not_subscribed ?? 0),
     churn_count: Number(row.churn_count ?? 0),
     churn_rate: Number(row.churn_rate ?? 0),
     conversion_rate: Number(row.conversion_rate ?? 0),
   };
 }
 
-type MonthMetrics = { new_signups: number; not_subscribed: number };
-
-function parseMonthMetrics(data: unknown): MonthMetrics {
-  if (!data || typeof data !== "object" || "error" in data) {
-    return { new_signups: 0, not_subscribed: 0 };
-  }
-  const row = data as Record<string, unknown>;
-  return {
-    new_signups: Number(row.new_signups ?? 0),
-    not_subscribed: Number(row.not_subscribed ?? 0),
-  };
-}
-
 type NotSubscribedRow = { display_name: string; contact_phone: string | null };
 
-function currentMonthValue() {
+function todayYmd() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function monthValueToDate(value: string) {
-  return `${value}-01`;
+function monthStartYmd() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function normalizeDateRange(start: string, end: string) {
+  if (!start || !end) return { start: monthStartYmd(), end: todayYmd() };
+  return start <= end ? { start, end } : { start: end, end: start };
 }
 
 function yesNo(value: boolean) {
@@ -114,6 +108,11 @@ function formatDateBr(iso: string | null | undefined) {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
+}
+
+function formatPeriodLabel(start: string, end: string) {
+  if (start === end) return formatDateBr(start);
+  return `${formatDateBr(start)} — ${formatDateBr(end)}`;
 }
 
 async function invokeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
@@ -152,11 +151,10 @@ export default function AdminPage() {
   const [userInfo, setUserInfo] = useState<AdminUserInfo | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [monthValue, setMonthValue] = useState(currentMonthValue);
-  const [monthMetrics, setMonthMetrics] = useState<MonthMetrics | null>(null);
-  const [monthLoading, setMonthLoading] = useState(true);
+  const [panelMetrics, setPanelMetrics] = useState<PanelMetrics | null>(null);
+  const [panelLoading, setPanelLoading] = useState(true);
+  const [dateStart, setDateStart] = useState(monthStartYmd);
+  const [dateEnd, setDateEnd] = useState(todayYmd);
   const [listOpen, setListOpen] = useState(false);
   const [notSubList, setNotSubList] = useState<NotSubscribedRow[] | null>(null);
   const [listLoading, setListLoading] = useState(false);
@@ -187,45 +185,36 @@ export default function AdminPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    void (async () => {
-      setStatsLoading(true);
-      try {
-        const { data, error } = await supabase.rpc("admin_subscription_stats");
-        if (error) throw error;
-        setStats(parseAdminStats(data));
-      } catch {
-        setStats(null);
-      } finally {
-        setStatsLoading(false);
-      }
-    })();
+  const loadPanelMetrics = useCallback(async (start: string, end: string) => {
+    const range = normalizeDateRange(start, end);
+    setPanelLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_panel_metrics", {
+        p_start: range.start,
+        p_end: range.end,
+      });
+      if (error) throw error;
+      setPanelMetrics(parsePanelMetrics(data));
+    } catch {
+      setPanelMetrics(null);
+    } finally {
+      setPanelLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      setMonthLoading(true);
-      try {
-        const { data, error } = await supabase.rpc("admin_month_metrics", {
-          p_month: monthValueToDate(monthValue),
-        });
-        if (error) throw error;
-        setMonthMetrics(parseMonthMetrics(data));
-      } catch {
-        setMonthMetrics(null);
-      } finally {
-        setMonthLoading(false);
-      }
-    })();
-  }, [monthValue]);
+    void loadPanelMetrics(dateStart, dateEnd);
+  }, [dateStart, dateEnd, loadPanelMetrics]);
 
   useEffect(() => {
     if (!listOpen) return;
+    const range = normalizeDateRange(dateStart, dateEnd);
     void (async () => {
       setListLoading(true);
       try {
         const { data, error } = await supabase.rpc("admin_not_subscribed_list", {
-          p_month: monthValueToDate(monthValue),
+          p_start: range.start,
+          p_end: range.end,
         });
         if (error) throw error;
         const rows = (Array.isArray(data) ? data : []) as Array<{
@@ -241,18 +230,18 @@ export default function AdminPage() {
         setListLoading(false);
       }
     })();
-  }, [listOpen, monthValue]);
+  }, [listOpen, dateStart, dateEnd]);
 
   async function refreshStats() {
-    const { data } = await supabase.rpc("admin_subscription_stats");
-    setStats(parseAdminStats(data));
-    const { data: monthData } = await supabase.rpc("admin_month_metrics", {
-      p_month: monthValueToDate(monthValue),
-    });
-    setMonthMetrics(parseMonthMetrics(monthData));
+    await loadPanelMetrics(dateStart, dateEnd);
   }
 
-  const isCurrentMonth = monthValue === currentMonthValue();
+  const periodLabel = formatPeriodLabel(
+    normalizeDateRange(dateStart, dateEnd).start,
+    normalizeDateRange(dateStart, dateEnd).end,
+  );
+  const isTodayOnly = dateStart === dateEnd && dateStart === todayYmd();
+  const isCurrentMonthRange = dateStart === monthStartYmd() && dateEnd === todayYmd();
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -383,26 +372,77 @@ export default function AdminPage() {
           <CardTitle className="text-lg">Painel</CardTitle>
         </CardHeader>
         <CardContent>
-          {statsLoading ? (
+          {panelLoading ? (
             <div className="flex justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : stats ? (
+          ) : panelMetrics ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="admin-month" className="text-xs text-muted-foreground">
-                    Mês
-                  </Label>
-                  <Input
-                    id="admin-month"
-                    type="month"
-                    value={monthValue}
-                    onChange={(e) => setMonthValue(e.target.value || currentMonthValue())}
-                    className="h-9 w-[10rem]"
-                  />
+              <div className="space-y-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                  <span>Período: {periodLabel}</span>
+                  {isTodayOnly && <span>(hoje)</span>}
+                  {!isTodayOnly && isCurrentMonthRange && <span>(mês atual)</span>}
                 </div>
-                {isCurrentMonth && <span className="pb-2 text-xs text-muted-foreground">(mês atual)</span>}
+
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="admin-date-start" className="text-xs text-muted-foreground">
+                      Data de início
+                    </Label>
+                    <Input
+                      id="admin-date-start"
+                      type="date"
+                      value={dateStart}
+                      max={dateEnd || todayYmd()}
+                      onChange={(e) => setDateStart(e.target.value)}
+                      className="h-9 w-[10.5rem]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="admin-date-end" className="text-xs text-muted-foreground">
+                      Data de término
+                    </Label>
+                    <Input
+                      id="admin-date-end"
+                      type="date"
+                      value={dateEnd}
+                      min={dateStart}
+                      max={todayYmd()}
+                      onChange={(e) => setDateEnd(e.target.value)}
+                      className="h-9 w-[10.5rem]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() => {
+                      const t = todayYmd();
+                      setDateStart(t);
+                      setDateEnd(t);
+                    }}
+                  >
+                    Hoje
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() => {
+                      setDateStart(monthStartYmd());
+                      setDateEnd(todayYmd());
+                    }}
+                  >
+                    Mês atual
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -410,7 +450,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Users className="h-3.5 w-3.5" /> Total
                   </div>
-                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.total_subscribers}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.total_subscribers}</p>
                 </div>
 
                 <div className="rounded-xl border border-border/60 bg-card/40 p-3">
@@ -418,7 +458,7 @@ export default function AdminPage() {
                     <UserPlus className="h-3.5 w-3.5" /> Novos cadastros
                   </div>
                   <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-500">
-                    {monthLoading ? "…" : `+${monthMetrics?.new_signups ?? 0}`}
+                    +{panelMetrics.new_signups}
                   </p>
                 </div>
 
@@ -427,8 +467,8 @@ export default function AdminPage() {
                     <TrendingDown className="h-3.5 w-3.5" /> Churn
                   </div>
                   <p className="mt-1 text-xl font-semibold tabular-nums">
-                    {stats.churn_count}
-                    <span className="ml-1 text-xs font-medium text-destructive">{stats.churn_rate}%</span>
+                    {panelMetrics.churn_count}
+                    <span className="ml-1 text-xs font-medium text-destructive">{panelMetrics.churn_rate}%</span>
                   </p>
                 </div>
 
@@ -436,21 +476,21 @@ export default function AdminPage() {
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <CreditCard className="h-3.5 w-3.5" /> Cartão
                   </div>
-                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.subscribers_card}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.subscribers_card}</p>
                 </div>
 
                 <div className="rounded-xl border border-border/60 bg-card/40 p-3">
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <QrCode className="h-3.5 w-3.5" /> Pix
                   </div>
-                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.subscribers_pix}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.subscribers_pix}</p>
                 </div>
 
                 <div className="rounded-xl border border-border/60 bg-card/40 p-3">
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <FlaskConical className="h-3.5 w-3.5" /> Em teste
                   </div>
-                  <p className="mt-1 text-xl font-semibold tabular-nums">{stats.trial_users}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.trial_users}</p>
                 </div>
 
                 <div className="rounded-xl border border-border/60 bg-card/40 p-3">
@@ -458,7 +498,7 @@ export default function AdminPage() {
                     <TrendingUp className="h-3.5 w-3.5" /> Conversão
                   </div>
                   <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-500">
-                    {stats.conversion_rate}%
+                    {panelMetrics.conversion_rate}%
                   </p>
                 </div>
 
@@ -471,20 +511,16 @@ export default function AdminPage() {
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <UserX className="h-3.5 w-3.5" /> Não assinaram
                   </div>
-                  <p className="mt-1 text-xl font-semibold tabular-nums">
-                    {monthLoading ? "…" : (monthMetrics?.not_subscribed ?? 0)}
-                  </p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.not_subscribed}</p>
                 </button>
               </div>
 
               {listOpen && (
                 <div className="rounded-xl border border-border/60">
                   <div className="border-b border-border/60 px-3 py-2">
-                    <p className="text-sm font-medium">
-                      Não assinaram — contatos {isCurrentMonth ? "(mês atual)" : ""}
-                    </p>
+                    <p className="text-sm font-medium">Não assinaram — contatos ({periodLabel})</p>
                     <p className="text-xs text-muted-foreground">
-                      Quem fez o teste grátis e ainda não assinou. Use para remarketing.
+                      Quem se cadastrou no período e ainda não assinou. Use para remarketing.
                     </p>
                   </div>
                   {listLoading ? (
@@ -492,7 +528,7 @@ export default function AdminPage() {
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : !notSubList || notSubList.length === 0 ? (
-                    <p className="px-3 py-4 text-sm text-muted-foreground">Ninguém neste mês.</p>
+                    <p className="px-3 py-4 text-sm text-muted-foreground">Ninguém neste período.</p>
                   ) : (
                     <ul className="divide-y divide-border/60">
                       {notSubList.map((row, index) => (
