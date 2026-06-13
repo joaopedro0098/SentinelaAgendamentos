@@ -26,6 +26,7 @@ type ClientAppointment = {
   servicos_nomes: string[] | null;
   observacao: string | null;
   allow_client_self_service: boolean;
+  allow_client_public_booking: boolean;
 };
 
 function formatDateBr(iso: string) {
@@ -165,6 +166,7 @@ export default function MeusAgendamentosPage() {
             const isCancelled = item.status === "cancelado";
             const canShowActions =
               !isCancelled &&
+              item.allow_client_public_booking &&
               item.allow_client_self_service &&
               canClientSelfServiceModifyAppointment(item.data);
 

@@ -28,6 +28,7 @@ export default function Settings() {
   const [slotPause, setSlotPause] = useState("0");
   const [savingSlots, setSavingSlots] = useState(false);
   const [savingClientSelfService, setSavingClientSelfService] = useState(false);
+  const [savingClientPublicBooking, setSavingClientPublicBooking] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -171,6 +172,22 @@ export default function Settings() {
     toast({ title: "Grade de horários salva" });
   }
 
+  async function handleToggleClientPublicBooking(enabled: boolean) {
+    if (!shop) return;
+    setSavingClientPublicBooking(true);
+    const { error } = await supabase.rpc("set_allow_client_public_booking", {
+      p_enabled: enabled,
+    });
+    setSavingClientPublicBooking(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setShop({ ...shop, allow_client_public_booking: enabled });
+    patchDashboardShopCache({ allow_client_public_booking: enabled });
+    toast({ title: enabled ? "Cliente pode agendar pelo link" : "Agendamento pelo link desativado" });
+  }
+
   async function handleToggleClientSelfService(enabled: boolean) {
     if (!shop) return;
     setSavingClientSelfService(true);
@@ -245,16 +262,23 @@ export default function Settings() {
 
             <BarberPushToggle />
 
-            <div className="border-t border-border/60 pt-5">
-              <PermissionToggleRow
-                id="client-self-service"
-                label="Cliente altera ou cancela pelo link"
-                checked={shop.allow_client_self_service ?? true}
-                disabled={savingClientSelfService}
-                busy={savingClientSelfService}
-                onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
-              />
-            </div>
+            <PermissionToggleRow
+              id="client-public-booking"
+              label="Cliente agenda pelo link"
+              checked={shop.allow_client_public_booking ?? true}
+              disabled={savingClientPublicBooking}
+              busy={savingClientPublicBooking}
+              onToggle={() => void handleToggleClientPublicBooking(!(shop.allow_client_public_booking ?? true))}
+            />
+
+            <PermissionToggleRow
+              id="client-self-service"
+              label="Cliente altera ou cancela pelo link"
+              checked={shop.allow_client_self_service ?? true}
+              disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
+              busy={savingClientSelfService}
+              onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
+            />
           </CardContent>
         </Card>
 

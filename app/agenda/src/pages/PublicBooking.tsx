@@ -101,6 +101,7 @@ interface Barbearia {
   logo_url: string | null;
   ativa: boolean;
   telefone: string | null;
+  allow_client_public_booking: boolean;
 }
 interface Barbeiro {
   id: string;
@@ -295,7 +296,10 @@ const PublicBooking = ({
 
       const cached = getBookingStaticCache(slug, fromYmd, toYmd);
       if (cached) {
-        setBarbearia(cached.barbearia);
+        setBarbearia({
+          ...cached.barbearia,
+          allow_client_public_booking: cached.barbearia.allow_client_public_booking ?? true,
+        });
         setBarbeiros(cached.barbeiros as Barbeiro[]);
         setSlotInterval(cached.slotInterval);
         setSlotPause(cached.slotPause);
@@ -308,7 +312,7 @@ const PublicBooking = ({
         supabase
           .from("barbearias")
           .select(`
-            id, nome, logo_url, ativa,
+            id, nome, logo_url, ativa, allow_client_public_booking,
             barbeiros ( id, nome, foto_url, ativo, slot_minutos,
               disponibilidades ( dia_semana, hora_inicio, hora_fim ),
               bloqueios ( data, hora_inicio, hora_fim ),
@@ -346,6 +350,7 @@ const PublicBooking = ({
         logo_url: b.logo_url,
         ativa: b.ativa,
         telefone: contato,
+        allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
       });
 
       const bbs = ((b as { barbeiros?: RawBarbeiro[] }).barbeiros ?? [])
@@ -371,6 +376,7 @@ const PublicBooking = ({
           logo_url: b.logo_url,
           ativa: b.ativa,
           telefone: contato,
+          allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
         },
         barbeiros: bbs,
         slotInterval: shopRow?.slot_interval_minutes ?? 30,
@@ -815,6 +821,28 @@ const PublicBooking = ({
       </div>
     </div>
   );
+
+  if (!ownerPanel && !barbearia.allow_client_public_booking) {
+    return (
+      <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6 text-center", pageBgClass)}>
+        <div className="max-w-sm space-y-4">
+          {backHref && (
+            <Link
+              to={backHref}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Link>
+          )}
+          <div>
+            <h1 className="font-display text-2xl font-bold">Funcionalidade bloqueada</h1>
+            <p className="mt-2 text-muted-foreground text-sm">Fale com o profissional.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     const barbeiroNome = barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "";

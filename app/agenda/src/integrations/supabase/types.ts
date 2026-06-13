@@ -537,6 +537,10 @@ export type Database = {
         Args: { p_enabled: boolean }
         Returns: undefined
       }
+      set_allow_client_public_booking: {
+        Args: { p_enabled: boolean }
+        Returns: undefined
+      }
       get_client_confirmation_push_status: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {
@@ -547,6 +551,8 @@ export type Database = {
       listar_agendamentos_cliente: {
         Args: { _slug: string; _whatsapp: string }
         Returns: {
+          allow_client_public_booking: boolean
+          allow_client_self_service: boolean
           barbearia_nome: string
           barbeiro_id: string
           barbeiro_nome: string
@@ -555,6 +561,8 @@ export type Database = {
           duracao_minutos: number
           hora: string
           id: string
+          observacao: string | null
+          servicos_nomes: string[]
           status: Database["public"]["Enums"]["agendamento_status"]
         }[]
       }

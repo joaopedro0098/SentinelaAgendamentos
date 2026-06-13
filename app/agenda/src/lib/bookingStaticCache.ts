@@ -8,6 +8,7 @@ type BookingStaticCache = {
     logo_url: string | null;
     ativa: boolean;
     telefone: string | null;
+    allow_client_public_booking: boolean;
   };
   barbeiros: unknown[];
   slotInterval: number;
