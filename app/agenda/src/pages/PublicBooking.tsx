@@ -432,8 +432,17 @@ const PublicBooking = ({
   const canGoNextDesktopMonth = desktopViewMonth.getTime() < allowedMonths.second.getTime();
   const showDesktopSplit = servSel.length > 0;
 
+  const singleProfessional = barbeiros.length === 1;
+  const showProfessionalPicker = barbeiros.length > 1;
+
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
   const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
+
+  useEffect(() => {
+    if (barbeiros.length !== 1) return;
+    const onlyId = barbeiros[0].id;
+    if (barbeiroId !== onlyId) setBarbeiroId(onlyId);
+  }, [barbeiros, barbeiroId]);
 
   const duracaoTotal = useMemo(() => {
     if (isReschedule && reschedule) return reschedule.duracao_minutos;
@@ -771,7 +780,7 @@ const PublicBooking = ({
   const startNewOwnerBooking = () => {
     setBookingConfirmed(false);
     setDone(false);
-    setBarbeiroId("");
+    setBarbeiroId(singleProfessional ? barbeiros[0]?.id ?? "" : "");
     setHora("");
     setServSel([]);
     setObservacao("");
@@ -885,10 +894,12 @@ const PublicBooking = ({
               <span className="text-muted-foreground">Horário</span>
               <span className="font-medium">{hora}</span>
             </li>
-            <li className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Profissional</span>
-              <span className="font-medium text-right">{barbeiroNome}</span>
-            </li>
+            {!isReschedule && (
+              <li className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Profissional</span>
+                <span className="font-medium text-right">{barbeiroNome}</span>
+              </li>
+            )}
             <li className="flex justify-between gap-2">
               <span className="text-muted-foreground">Nome</span>
               <span className="font-medium text-right">{nome}</span>
@@ -948,7 +959,7 @@ const PublicBooking = ({
   const onDayClick = (d: Date, ok: boolean, el: HTMLElement) => {
     if (ok) {
       setData(ymd(d));
-      setBarbeiroId("");
+      if (!singleProfessional) setBarbeiroId("");
       setHora("");
       setServSel([]);
     } else {
@@ -1058,43 +1069,80 @@ const PublicBooking = ({
     );
   };
 
+  const singleProNoSlotsMessage = (
+    <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2 md:p-3">
+      <p>
+        <b>Sem horários disponíveis.</b> Entre em contato diretamente com o profissional para um possível encaixe ou
+        altere a data.
+      </p>
+      {waLink ? (
+        <p className="text-muted-foreground">
+          Ou{" "}
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground font-semibold underline underline-offset-2"
+          >
+            fale conosco no WhatsApp
+          </a>
+          .
+        </p>
+      ) : null}
+    </Card>
+  );
+
   const horariosContent =
     !barbeiroId ? (
-      <p className="text-sm text-muted-foreground">Escolha um profissional acima para ver os horários.</p>
-    ) : barbeiroSemDispNoDia ? null : precisaEscolherServico ? (
+      showProfessionalPicker ? (
+        <p className="text-sm text-muted-foreground">Escolha um profissional acima para ver os horários.</p>
+      ) : barbeiros.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+      ) : null
+    ) : barbeiroSemDispNoDia ? (
+      singleProfessional ? singleProNoSlotsMessage : null
+    ) : precisaEscolherServico ? (
       <Card className="p-3.5 bg-muted/40 border-border text-sm text-foreground md:p-3">
         Selecione um ou mais serviços acima. Os horários aparecem conforme o tempo total dos serviços.
       </Card>
     ) : semHorariosNoDia ? (
-      <Card className="p-3.5 bg-unavailable-soft border-unavailable/20 text-sm text-foreground md:p-3">
-        Sem horários para essa data com <b>{barbeiroSel?.nome}</b>. Escolha outra data ou outro barbeiro.
-      </Card>
+      singleProfessional ? (
+        singleProNoSlotsMessage
+      ) : (
+        <Card className="p-3.5 bg-unavailable-soft border-unavailable/20 text-sm text-foreground md:p-3">
+          Sem horários para essa data com <b>{barbeiroSel?.nome}</b>. Escolha outra data ou outro barbeiro.
+        </Card>
+      )
     ) : semBlocoParaServicos ? (
-      <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2 md:p-3">
-        <p>
-          <b>Não há disponibilidade</b> para os serviços selecionados ({duracaoTotal} min) nesta data com{" "}
-          <b>{barbeiroSel?.nome}</b>.
-        </p>
-        <p className="text-muted-foreground">
-          Escolha outra data ou outro barbeiro
-          {waLink ? (
-            <>
-              , ou{" "}
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground font-semibold underline underline-offset-2"
-              >
-                fale conosco no WhatsApp
-              </a>{" "}
-              para ver se conseguimos encaixá-lo.
-            </>
-          ) : (
-            "."
-          )}
-        </p>
-      </Card>
+      singleProfessional ? (
+        singleProNoSlotsMessage
+      ) : (
+        <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-2 md:p-3">
+          <p>
+            <b>Não há disponibilidade</b> para os serviços selecionados ({duracaoTotal} min) nesta data com{" "}
+            <b>{barbeiroSel?.nome}</b>.
+          </p>
+          <p className="text-muted-foreground">
+            Escolha outra data ou outro barbeiro
+            {waLink ? (
+              <>
+                , ou{" "}
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground font-semibold underline underline-offset-2"
+                >
+                  fale conosco no WhatsApp
+                </a>{" "}
+                para ver se conseguimos encaixá-lo.
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </Card>
+      )
     ) : (
       <>
         <div className={cn("md:hidden", bookingScrollBleed)}>
@@ -1239,47 +1287,53 @@ const PublicBooking = ({
                 </div>
               </section>
 
-              {/* BARBEIROS */}
-              <section>
-                <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o profissional</h2>
-                {barbeiros.length === 0 ? (
+              {/* BARBEIROS — oculto quando há apenas 1 colaborador (seleção automática) */}
+              {showProfessionalPicker ? (
+                <section>
+                  <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o profissional</h2>
+                  {barbeiros.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+                  ) : (
+                    <ResponsivePagedStrip
+                      bleedClassName={bookingScrollBleed}
+                      mobileClassName={bookingScrollPad}
+                      centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
+                    >
+                      {barbeiros.map(renderBarbeiroButton)}
+                    </ResponsivePagedStrip>
+                  )}
+                  {barbeiroSemDispNoDia && (
+                    <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:mt-2 md:p-3">
+                      <p>
+                        <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
+                      </p>
+                      <p className="text-muted-foreground">
+                        Escolha outro dia ou outro barbeiro
+                        {waLink ? (
+                          <>
+                            , ou{" "}
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-foreground font-semibold underline underline-offset-2"
+                            >
+                              entre em contato conosco
+                            </a>{" "}
+                            para ver se conseguimos um encaixe.
+                          </>
+                        ) : (
+                          "."
+                        )}
+                      </p>
+                    </Card>
+                  )}
+                </section>
+              ) : barbeiros.length === 0 ? (
+                <section>
                   <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
-                ) : (
-                  <ResponsivePagedStrip
-                    bleedClassName={bookingScrollBleed}
-                    mobileClassName={bookingScrollPad}
-                    centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
-                  >
-                    {barbeiros.map(renderBarbeiroButton)}
-                  </ResponsivePagedStrip>
-                )}
-                {barbeiroSemDispNoDia && (
-                  <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:mt-2 md:p-3">
-                    <p>
-                      <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
-                    </p>
-                    <p className="text-muted-foreground">
-                      Escolha outro dia ou outro barbeiro
-                      {waLink ? (
-                        <>
-                          , ou{" "}
-                          <a
-                            href={waLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-foreground font-semibold underline underline-offset-2"
-                          >
-                            entre em contato conosco
-                          </a>{" "}
-                          para ver se conseguimos um encaixe.
-                        </>
-                      ) : (
-                        "."
-                      )}
-                    </p>
-                  </Card>
-                )}
-              </section>
+                </section>
+              ) : null}
 
               {/* SERVIÇOS */}
               {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
