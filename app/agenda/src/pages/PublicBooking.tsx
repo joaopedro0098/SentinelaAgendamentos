@@ -1060,7 +1060,7 @@ const PublicBooking = ({
 
   const horariosContent =
     !barbeiroId ? (
-      <p className="text-sm text-muted-foreground">Escolha um barbeiro acima para ver os horários.</p>
+      <p className="text-sm text-muted-foreground">Escolha um profissional acima para ver os horários.</p>
     ) : barbeiroSemDispNoDia ? null : precisaEscolherServico ? (
       <Card className="p-3.5 bg-muted/40 border-border text-sm text-foreground md:p-3">
         Selecione um ou mais serviços acima. Os horários aparecem conforme o tempo total dos serviços.
@@ -1313,12 +1313,12 @@ const PublicBooking = ({
                 <div className="md:grid md:grid-cols-2 md:gap-3 md:space-y-0 space-y-3">
                   <div>
                     <label className="block text-sm font-semibold mb-1.5 md:mb-1 md:text-xs">
-                      {isReschedule ? "Cliente" : "Seu nome"}
+                      {isReschedule ? "Cliente" : ownerPanel ? "Nome" : "Seu nome"}
                     </label>
                     <Input
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
-                      placeholder="Como devemos te chamar"
+                      placeholder={ownerPanel && !isReschedule ? "nome do cliente" : "Como devemos te chamar"}
                       required
                       maxLength={80}
                       readOnly={isReschedule}
