@@ -19,7 +19,7 @@ const Hero = () => {
 
           <div className="pt-2 space-y-3">
             <h2 className="text-3xl md:text-4xl font-bold font-display">
-              Veja a Sentinela em <span className="text-gradient">ação</span>
+              Veja o Sentinela em <span className="text-gradient">ação</span>
             </h2>
           </div>
         </div>
