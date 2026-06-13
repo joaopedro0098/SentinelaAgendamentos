@@ -39,6 +39,7 @@ export type Database = {
           trial_started_at: string
           updated_at: string
           welcome_message: string
+          welcome_support_pending: boolean
           whatsapp_number: string | null
         }
         Insert: {
@@ -56,6 +57,7 @@ export type Database = {
           status_text?: string
           updated_at?: string
           welcome_message?: string
+          welcome_support_pending?: boolean
           whatsapp_number?: string | null
         }
         Update: {
@@ -73,6 +75,7 @@ export type Database = {
           status_text?: string
           updated_at?: string
           welcome_message?: string
+          welcome_support_pending?: boolean
           whatsapp_number?: string | null
         }
         Relationships: []

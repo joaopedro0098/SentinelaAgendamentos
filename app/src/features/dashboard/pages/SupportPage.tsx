@@ -4,11 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { openAppSupportWhatsApp } from "@/lib/supportWhatsApp";
 import { SUPPORT_VIDEOS } from "@/lib/supportVideos";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
+import { markWelcomeSupportSeen } from "@/lib/welcomeSupport";
 
 export default function SupportPage() {
+  const { shop, patchShop } = useDashboardShop();
+
   useEffect(() => {
     document.title = "Suporte — Sentinela Agendamentos";
   }, []);
+
+  useEffect(() => {
+    if (!shop?.welcome_support_pending) return;
+
+    void markWelcomeSupportSeen(shop.id).then((ok) => {
+      if (ok) {
+        patchShop({ welcome_support_pending: false });
+      }
+    });
+  }, [shop?.id, shop?.welcome_support_pending, patchShop]);
 
   return (
     <div className="w-full max-w-3xl space-y-6 overflow-x-hidden p-4 md:p-6 mx-auto">

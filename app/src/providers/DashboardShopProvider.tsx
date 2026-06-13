@@ -15,6 +15,7 @@ export type DashboardShop = {
   allow_client_self_service: boolean;
   allow_client_public_booking: boolean;
   contact_phone: string | null;
+  welcome_support_pending: boolean;
 };
 
 type RefreshOptions = {
@@ -28,6 +29,7 @@ type DashboardShopContextValue = {
   agendaReady: boolean;
   loading: boolean;
   refresh: (options?: RefreshOptions) => Promise<void>;
+  patchShop: (next: Partial<DashboardShop>) => void;
 };
 
 const DashboardShopContext = createContext<DashboardShopContextValue | null>(null);
@@ -103,7 +105,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase
         .from("barbershops")
         .select(
-          "id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes, allow_client_self_service, allow_client_public_booking, contact_phone",
+          "id, slug, display_name, avatar_url, slot_interval_minutes, slot_pause_minutes, allow_client_self_service, allow_client_public_booking, contact_phone, welcome_support_pending",
         )
         .eq("owner_id", userId)
         .maybeSingle();
@@ -115,6 +117,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
             allow_client_self_service: row.allow_client_self_service ?? true,
             allow_client_public_booking: row.allow_client_public_booking ?? true,
             contact_phone: row.contact_phone ?? null,
+            welcome_support_pending: row.welcome_support_pending ?? false,
           }
         : null;
       cachedUserId = userId;
@@ -152,6 +155,14 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
+  const patchShop = useCallback((next: Partial<DashboardShop>) => {
+    if (!cachedShop) return;
+    const merged = { ...cachedShop, ...next };
+    cachedShop = merged;
+    cachedFetchedAt = Date.now();
+    setShop(merged);
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -164,8 +175,9 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       agendaReady: Boolean(shop?.slug && getAgendaSyncPhase(shop.slug) === "ready"),
       loading,
       refresh,
+      patchShop,
     }),
-    [shop, barbeariaId, loading, refresh, syncTick],
+    [shop, barbeariaId, loading, refresh, patchShop, syncTick],
   );
 
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;
