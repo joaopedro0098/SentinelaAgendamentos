@@ -18,6 +18,12 @@ export type DashboardShop = {
   welcome_support_pending: boolean;
 };
 
+export type CaBarbearia = {
+  barbeariaId: string;
+  slug: string;
+  shopName: string;
+};
+
 type RefreshOptions = {
   force?: boolean;
 };
@@ -26,6 +32,8 @@ type DashboardShopContextValue = {
   shop: DashboardShop | null;
   slug: string | null;
   barbeariaId: string | null;
+  /** Barbearias das CAs ativas do CT/AA. Vazio para CA ou usuário sem CAs. */
+  caBarbearias: CaBarbearia[];
   agendaReady: boolean;
   loading: boolean;
   refresh: (options?: RefreshOptions) => Promise<void>;
@@ -37,6 +45,7 @@ const DashboardShopContext = createContext<DashboardShopContextValue | null>(nul
 let cachedUserId: string | null = null;
 let cachedShop: DashboardShop | null = null;
 let cachedBarbeariaId: string | null = null;
+let cachedCaBarbearias: CaBarbearia[] = [];
 let cachedFetchedAt: number | null = null;
 
 async function syncAgenda(slug: string) {
@@ -65,6 +74,16 @@ async function resolveBarbeariaId(slug: string) {
   return data?.id ?? null;
 }
 
+async function fetchCaBarbearias(): Promise<CaBarbearia[]> {
+  const { data, error } = await supabase.rpc("ct_list_ca_info");
+  if (error || !Array.isArray(data)) return [];
+  return data.map((r) => ({
+    barbeariaId: r.barbearia_id as string,
+    slug: r.slug as string,
+    shopName: r.shop_display_name as string,
+  }));
+}
+
 export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -72,6 +91,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
 
   const [shop, setShop] = useState<DashboardShop | null>(() => (hasWarmCache ? cachedShop : null));
   const [barbeariaId, setBarbeariaId] = useState<string | null>(() => (hasWarmCache ? cachedBarbeariaId : null));
+  const [caBarbearias, setCaBarbearias] = useState<CaBarbearia[]>(() => (hasWarmCache ? cachedCaBarbearias : []));
   const [loading, setLoading] = useState(!hasWarmCache);
   const [syncTick, setSyncTick] = useState(0);
 
@@ -81,9 +101,11 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
         cachedUserId = null;
         cachedShop = null;
         cachedBarbeariaId = null;
+        cachedCaBarbearias = [];
         cachedFetchedAt = null;
         setShop(null);
         setBarbeariaId(null);
+        setCaBarbearias([]);
         setLoading(false);
         return;
       }
@@ -94,6 +116,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       if (fresh) {
         setShop(cachedShop);
         setBarbeariaId(cachedBarbeariaId);
+        setCaBarbearias(cachedCaBarbearias);
         setLoading(false);
         return;
       }
@@ -127,17 +150,26 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
 
       if (!row?.slug) {
         cachedBarbeariaId = null;
+        cachedCaBarbearias = [];
         setBarbeariaId(null);
+        setCaBarbearias([]);
         setLoading(false);
         return;
       }
 
-  primeAgendaSyncPhase(row.slug, "loading");
+      primeAgendaSyncPhase(row.slug, "loading");
       setLoading(false);
 
-      // Sincroniza agenda em segundo plano — Agendamentos abre cedo; Agendar espera agendaReady.
+      // Sincroniza agenda e CAs em segundo plano
       void (async () => {
-        const phase = await syncAgenda(row.slug);
+        const [phase, caBarbeariasList] = await Promise.all([
+          syncAgenda(row.slug),
+          fetchCaBarbearias(),
+        ]);
+
+        cachedCaBarbearias = caBarbeariasList;
+        setCaBarbearias(caBarbeariasList);
+
         if (phase === "ready") {
           const id =
             cachedBarbeariaId && cachedShop?.slug === row.slug
@@ -172,12 +204,13 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       shop,
       slug: shop?.slug ?? null,
       barbeariaId,
+      caBarbearias,
       agendaReady: Boolean(shop?.slug && getAgendaSyncPhase(shop.slug) === "ready"),
       loading,
       refresh,
       patchShop,
     }),
-    [shop, barbeariaId, loading, refresh, patchShop, syncTick],
+    [shop, barbeariaId, caBarbearias, loading, refresh, patchShop, syncTick],
   );
 
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;
@@ -195,6 +228,7 @@ export function clearDashboardShopCache() {
   cachedUserId = null;
   cachedShop = null;
   cachedBarbeariaId = null;
+  cachedCaBarbearias = [];
   cachedFetchedAt = null;
 }
 

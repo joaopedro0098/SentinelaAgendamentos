@@ -702,7 +702,7 @@ export default function AdminPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AdminAggregatedAccountsSection defaultOwnerEmail={userInfo?.email} />
+      <AdminAggregatedAccountsSection selectedUserEmail={userInfo?.email} selectedUserShopName={userInfo?.shop_name} />
     </div>
   );
 }

@@ -16,13 +16,17 @@ export type Database = {
     Tables: {
       barbershops: {
         Row: {
+          allow_client_public_booking: boolean
+          allow_client_self_service: boolean
           avatar_url: string | null
           contact_phone: string | null
           created_at: string
           current_period_end: string | null
           display_name: string
+          face_verification_pending: boolean | null
           grace_until: string | null
           id: string
+          is_admin_aggregated: boolean
           last_payment_method: string | null
           mp_subscription_id: string | null
           stripe_customer_id: string | null
@@ -43,11 +47,15 @@ export type Database = {
           whatsapp_number: string | null
         }
         Insert: {
+          allow_client_public_booking?: boolean
+          allow_client_self_service?: boolean
           avatar_url?: string | null
           contact_phone?: string | null
           created_at?: string
           display_name?: string
+          face_verification_pending?: boolean | null
           id?: string
+          is_admin_aggregated?: boolean
           n8n_webhook_url?: string | null
           owner_id?: string | null
           sheet_url?: string | null
@@ -61,11 +69,15 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Update: {
+          allow_client_public_booking?: boolean
+          allow_client_self_service?: boolean
           avatar_url?: string | null
           contact_phone?: string | null
           created_at?: string
           display_name?: string
+          face_verification_pending?: boolean | null
           id?: string
+          is_admin_aggregated?: boolean
           n8n_webhook_url?: string | null
           owner_id?: string | null
           sheet_url?: string | null

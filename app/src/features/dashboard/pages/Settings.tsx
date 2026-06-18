@@ -10,14 +10,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
+import { CtAggregatedAccountsSection } from "@/features/dashboard/components/CtAggregatedAccountsSection";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export default function Settings() {
   const { user } = useAuth();
   const { shop: contextShop, loading, refresh } = useDashboardShop();
+  const { info: subscriptionInfo } = useSubscription();
+  const isCA = subscriptionInfo?.account_type === "ca";
+  const canManageAggregated = subscriptionInfo?.can_manage_aggregated_accounts ?? false;
   const [shop, setShop] = useState<DashboardShop | null>(contextShop);
   const [saving, setSaving] = useState(false);
   const [copiedBooking, setCopiedBooking] = useState(false);
@@ -275,23 +280,31 @@ export default function Settings() {
 
             <BarberPushToggle />
 
-            <PermissionToggleRow
-              id="client-public-booking"
-              label="Cliente agenda pelo link"
-              checked={shop.allow_client_public_booking ?? true}
-              disabled={savingClientPublicBooking}
-              busy={savingClientPublicBooking}
-              onToggle={() => void handleToggleClientPublicBooking(!(shop.allow_client_public_booking ?? true))}
-            />
+            {isCA ? (
+              <p className="text-sm text-muted-foreground">
+                Link de agendamento controlado pelo titular — toggles desabilitados enquanto a conta estiver agregada.
+              </p>
+            ) : (
+              <>
+                <PermissionToggleRow
+                  id="client-public-booking"
+                  label="Cliente agenda pelo link"
+                  checked={shop.allow_client_public_booking ?? true}
+                  disabled={savingClientPublicBooking}
+                  busy={savingClientPublicBooking}
+                  onToggle={() => void handleToggleClientPublicBooking(!(shop.allow_client_public_booking ?? true))}
+                />
 
-            <PermissionToggleRow
-              id="client-self-service"
-              label="Cliente altera ou cancela pelo link"
-              checked={shop.allow_client_self_service ?? true}
-              disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
-              busy={savingClientSelfService}
-              onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
-            />
+                <PermissionToggleRow
+                  id="client-self-service"
+                  label="Cliente altera ou cancela pelo link"
+                  checked={shop.allow_client_self_service ?? true}
+                  disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
+                  busy={savingClientSelfService}
+                  onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -355,22 +368,34 @@ export default function Settings() {
                 )}
               </Button>
 
-              <div className="space-y-2 rounded-md border border-border p-3">
-                <Label htmlFor="booking-link">Link para o cliente agendar</Label>
-                <p className="text-xs text-muted-foreground">Compartilhe este link com seu cliente</p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input id="booking-link" value={bookingUrl} readOnly className="font-mono text-xs" />
-                  <Button type="button" onClick={copyBookingLink} variant="secondary" className="shrink-0">
-                    {copiedBooking ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copiedBooking ? "Copiado" : "Copiar link"}
-                  </Button>
+              {isCA ? (
+                <div className="rounded-md border border-border/50 bg-secondary/30 p-3 space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Link de agendamento</p>
+                  <p className="text-sm text-muted-foreground">
+                    Sua conta está agregada a um titular. Seu link de agendamento individual está desativado enquanto
+                    o vínculo estiver ativo.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-2 rounded-md border border-border p-3">
+                  <Label htmlFor="booking-link">Link para o cliente agendar</Label>
+                  <p className="text-xs text-muted-foreground">Compartilhe este link com seu cliente</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input id="booking-link" value={bookingUrl} readOnly className="font-mono text-xs" />
+                    <Button type="button" onClick={copyBookingLink} variant="secondary" className="shrink-0">
+                      {copiedBooking ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedBooking ? "Copiado" : "Copiar link"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
 
         <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} />
+
+        {canManageAggregated && <CtAggregatedAccountsSection />}
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6 space-y-4">

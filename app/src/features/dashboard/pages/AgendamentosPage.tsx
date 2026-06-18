@@ -42,6 +42,7 @@ type AgendamentoRow = {
   servicos_nomes: string[];
   observacao: string | null;
   barbeiro_id: string;
+  barbearia_id: string;
   confirmation_token: string;
   client_confirmed_at: string | null;
   status: "confirmado" | "cancelado" | "concluido";
@@ -65,7 +66,17 @@ function formatWhatsApp(w: string) {
 export default function AgendamentosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { slug, barbeariaId, shop, loading: shopLoading } = useDashboardShop();
+  const { slug, barbeariaId, caBarbearias, shop, loading: shopLoading } = useDashboardShop();
+
+  // Todos os IDs de barbearia que o usuário pode ver (própria + CAs ativas)
+  const allBarbeariaIds = useMemo(() => {
+    const ids: string[] = [];
+    if (barbeariaId) ids.push(barbeariaId);
+    for (const ca of caBarbearias) {
+      if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
+    }
+    return ids;
+  }, [barbeariaId, caBarbearias]);
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
@@ -125,7 +136,7 @@ export default function AgendamentosPage() {
   }, [searchParams, setSearchParams]);
 
   const loadAgendamentos = useCallback(async () => {
-    if (!barbeariaId || !isWithinAppointmentRetention(selectedDate)) {
+    if (!allBarbeariaIds.length || !isWithinAppointmentRetention(selectedDate)) {
       setAgendamentos([]);
       setLoadingList(false);
       return;
@@ -134,9 +145,9 @@ export default function AgendamentosPage() {
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, confirmation_token, client_confirmed_at, status, barbeiros ( id, nome )",
+        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, barbearia_id, confirmation_token, client_confirmed_at, status, barbeiros ( id, nome )",
       )
-      .eq("barbearia_id", barbeariaId)
+      .in("barbearia_id", allBarbeariaIds)
       .eq("data", selectedDate)
       .in("status", ["confirmado", "cancelado"])
       .order("hora", { ascending: true });
@@ -150,33 +161,29 @@ export default function AgendamentosPage() {
       );
     }
     setLoadingList(false);
-  }, [barbeariaId, selectedDate]);
+  }, [allBarbeariaIds, selectedDate]);
 
   useEffect(() => {
     loadAgendamentos();
   }, [loadAgendamentos]);
 
   useEffect(() => {
-    if (!barbeariaId) return;
-    const channel = supabase
-      .channel(`painel-agendamentos:${barbeariaId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "agendamentos",
-          filter: `barbearia_id=eq.${barbeariaId}`,
-        },
-        () => {
-          loadAgendamentos();
-        },
-      )
-      .subscribe();
+    if (!allBarbeariaIds.length) return;
+    // Um canal por barbearia (própria + CAs)
+    const channels = allBarbeariaIds.map((bid) =>
+      supabase
+        .channel(`painel-agendamentos:${bid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
+          () => { loadAgendamentos(); },
+        )
+        .subscribe(),
+    );
     return () => {
-      supabase.removeChannel(channel);
+      channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [barbeariaId, loadAgendamentos]);
+  }, [allBarbeariaIds, loadAgendamentos]);
 
   const barbeirosNoDia = useMemo(() => {
     const map = new Map<string, string>();
@@ -501,11 +508,18 @@ export default function AgendamentosPage() {
                           <span className="text-lg">{formatHora(a.hora)}</span>
                         </div>
                       </div>
-                      {!selectedBarbeiroId && a.barbeiros?.nome && (
-                        <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary shrink-0">
-                          {a.barbeiros.nome}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {!selectedBarbeiroId && a.barbeiros?.nome && (
+                          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                            {a.barbeiros.nome}
+                          </span>
+                        )}
+                        {caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
+                          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
+                            {caBarbearias.find((ca) => ca.barbeariaId === a.barbearia_id)?.shopName ?? "CA"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1.5 text-sm">
                       <p className="flex items-center gap-2 font-medium">

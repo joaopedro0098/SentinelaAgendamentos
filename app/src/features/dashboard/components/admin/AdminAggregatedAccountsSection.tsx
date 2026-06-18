@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Trash2, UserPlus } from "lucide-react";
+import { List, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -17,262 +15,201 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 
-type AggregatedAccountRow = {
-  id: string;
+/** AA = Agregado do Admin. Conta isenta de assinatura que pode agregar CAs. */
+type AaRow = {
+  user_id: string;
   email: string;
-  status: "pending" | "awaiting_face" | "active" | "removed";
-  invited_at: string;
-  activated_at: string | null;
-  aggregated_display_name: string | null;
+  shop_name: string;
+  subscription_status: string;
+  profile_name: string | null;
+  set_at: string;
 };
-
-const STATUS_LABEL: Record<AggregatedAccountRow["status"], string> = {
-  pending: "Aguardando cadastro",
-  awaiting_face: "Aguardando reconhecimento facial",
-  active: "Ativa",
-  removed: "Removida",
-};
-
-function inviteErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case "forbidden":
-      return "Acesso negado.";
-    case "owner_not_found":
-      return "E-mail do titular não encontrado.";
-    case "owner_is_aggregated":
-      return "O titular informado já é uma conta agregada.";
-    case "cannot_invite_self":
-      return "Use e-mails diferentes para titular e agregada.";
-    case "already_invited":
-      return "Este e-mail já está na lista deste titular.";
-    case "user_already_aggregated":
-      return "Esta pessoa já está vinculada a outra conta titular.";
-    case "user_has_own_subscription":
-      return "Esta conta já possui assinatura própria.";
-    case "invalid_email":
-    case "invalid_owner_email":
-      return "Informe e-mails válidos.";
-    default:
-      return "Não foi possível adicionar. Tente novamente.";
-  }
-}
 
 type Props = {
-  /** Preenche o titular após buscar um usuário — não dispara carregamento automático. */
-  defaultOwnerEmail?: string;
+  /** Usuário atualmente selecionado na busca acima, para poder torná-lo AA. */
+  selectedUserEmail?: string | null;
+  selectedUserShopName?: string | null;
 };
 
-export function AdminAggregatedAccountsSection({ defaultOwnerEmail }: Props) {
-  const [ownerEmail, setOwnerEmail] = useState("");
-  const [aggregatedEmail, setAggregatedEmail] = useState("");
-  const [accounts, setAccounts] = useState<AggregatedAccountRow[]>([]);
+export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUserShopName }: Props) {
+  const [accounts, setAccounts] = useState<AaRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [inviting, setInviting] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<AggregatedAccountRow | null>(null);
+  const [settingAa, setSettingAa] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<AaRow | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [listLoaded, setListLoaded] = useState(false);
 
-  useEffect(() => {
-    if (defaultOwnerEmail?.trim()) {
-      setOwnerEmail(defaultOwnerEmail.trim().toLowerCase());
-      setListLoaded(false);
-      setAccounts([]);
-    }
-  }, [defaultOwnerEmail]);
+  const selectedEmail = selectedUserEmail?.trim().toLowerCase() ?? "";
+  const alreadyAa = selectedEmail ? accounts.some((a) => a.email === selectedEmail) : false;
 
-  const loadAccounts = useCallback(async (owner: string) => {
-    const trimmed = owner.trim().toLowerCase();
-    if (!trimmed) {
-      setAccounts([]);
-      setListLoaded(false);
-      return;
-    }
-
+  const loadAccounts = useCallback(async () => {
     setLoadingList(true);
-    const { data, error } = await supabase.rpc("admin_list_aggregated_accounts", {
-      p_owner_email: trimmed,
-    });
+    const { data, error } = await supabase.rpc("admin_list_admin_aggregated_accounts");
     setLoadingList(false);
 
     if (error) {
-      const missingFn = error.message.includes("admin_list_aggregated_accounts");
+      const isMissing = error.message.includes("admin_list_admin_aggregated_accounts");
       toast({
-        title: "Erro ao carregar contas agregadas",
-        description: missingFn
-          ? "Função ainda não disponível no servidor. Rode supabase db push para aplicar a migration."
+        title: "Erro ao listar AAs",
+        description: isMissing
+          ? "Função não encontrada. Execute supabase db push para aplicar a migration."
           : error.message,
         variant: "destructive",
       });
       return;
     }
 
-    const payload = data as { accounts?: AggregatedAccountRow[]; error?: string } | null;
-    if (payload?.error === "owner_not_found") {
-      setAccounts([]);
-      setListLoaded(true);
-      return;
-    }
+    const payload = data as { accounts?: AaRow[]; error?: string } | null;
     if (payload?.error) {
-      toast({
-        title: "Erro ao carregar contas agregadas",
-        description: inviteErrorMessage(payload.error),
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: payload.error, variant: "destructive" });
       return;
     }
 
     setAccounts(Array.isArray(payload?.accounts) ? payload.accounts : []);
-    setListLoaded(true);
   }, []);
 
-  async function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
-    const owner = ownerEmail.trim().toLowerCase();
-    const target = aggregatedEmail.trim().toLowerCase();
-    if (!owner || !target) return;
+  useEffect(() => {
+    void loadAccounts();
+  }, [loadAccounts]);
 
-    setInviting(true);
-    const { data, error } = await supabase.rpc("admin_invite_aggregated_account", {
-      p_owner_email: owner,
-      p_email: target,
-    });
-    setInviting(false);
+  async function handleSetAa() {
+    if (!selectedEmail) return;
+    setSettingAa(true);
+    const { data, error } = await supabase.rpc("admin_set_admin_aggregated", { p_email: selectedEmail });
+    setSettingAa(false);
 
     if (error) {
-      toast({ title: "Erro ao agregar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao tornar AA", description: error.message, variant: "destructive" });
       return;
     }
 
-    const result = data as { ok?: boolean; error?: string; user_exists?: boolean };
+    const result = data as { ok?: boolean; error?: string } | null;
     if (!result?.ok) {
+      const msg: Record<string, string> = {
+        forbidden: "Acesso negado.",
+        user_not_found: "Usuário não encontrado. Busque o usuário acima.",
+        cannot_set_admin_as_aa: "Não é possível tornar um admin em AA.",
+        target_is_ca: "Este usuário já é uma conta agregada (CA) de outro titular.",
+        shop_not_found: "Nenhuma barbearia encontrada para este usuário.",
+        invalid_email: "E-mail inválido.",
+      };
       toast({
-        title: "Não foi possível agregar",
-        description: inviteErrorMessage(result?.error),
+        title: "Não foi possível definir como AA",
+        description: msg[result?.error ?? ""] ?? "Tente novamente.",
         variant: "destructive",
       });
       return;
     }
 
-    setAggregatedEmail("");
     toast({
-      title: "Conta agregada",
-      description: result.user_exists
-        ? "Usuário existente vinculado (verificação facial se necessário)."
-        : "Quando a pessoa se cadastrar com este e-mail, será vinculada automaticamente.",
+      title: "Conta definida como AA",
+      description: `${selectedEmail} agora é uma conta especial (Agregado do Admin). Está isenta de assinatura e pode agregar CAs.`,
     });
-    void loadAccounts(owner);
-  }
-
-  function handleLoadList() {
-    void loadAccounts(ownerEmail);
+    void loadAccounts();
   }
 
   async function confirmRemove() {
     if (!removeTarget) return;
     setRemoving(true);
-    const { data, error } = await supabase.rpc("admin_remove_aggregated_account", {
-      p_account_id: removeTarget.id,
+    const { data, error } = await supabase.rpc("admin_remove_admin_aggregated", {
+      p_user_id: removeTarget.user_id,
     });
     setRemoving(false);
 
     if (error) {
-      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao remover AA", description: error.message, variant: "destructive" });
       return;
     }
 
-    const result = data as { ok?: boolean; error?: string };
+    const result = data as { ok?: boolean; error?: string } | null;
     if (!result?.ok) {
       toast({ title: "Não foi possível remover", variant: "destructive" });
       return;
     }
 
-    toast({ title: "Conta agregada removida" });
+    toast({
+      title: "AA removido",
+      description: `${removeTarget.email} perdeu a isenção de assinatura e o teste gratuito.`,
+    });
     setRemoveTarget(null);
-    void loadAccounts(ownerEmail);
+    void loadAccounts();
   }
 
   return (
     <>
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Contas agregadas</CardTitle>
+          <CardTitle className="text-lg">Contas Especiais (AA)</CardTitle>
           <CardDescription>
-            Vincule uma conta a um titular com assinatura. Cada conta agregada continua independente (visual, link,
-            equipe), mas usa o plano do titular.
+            Contas Agregadas pelo Admin ficam isentas de assinatura e podem agregar outras contas como um titular
+            normal. Ao remover, perdem a isenção e o teste gratuito permanentemente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="admin-agg-owner">E-mail do titular (quem tem o plano)</Label>
-              <Input
-                id="admin-agg-owner"
-                type="email"
-                value={ownerEmail}
-                onChange={(e) => {
-                  setOwnerEmail(e.target.value);
-                  setListLoaded(false);
-                }}
-                placeholder="titular@exemplo.com"
-              />
+          {selectedEmail && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-secondary/30 px-3 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{selectedEmail}</p>
+                {selectedUserShopName && (
+                  <p className="text-xs text-muted-foreground truncate">{selectedUserShopName}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0 rounded-full"
+                disabled={settingAa || alreadyAa}
+                onClick={() => void handleSetAa()}
+              >
+                {settingAa ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                <span className="ml-2">{alreadyAa ? "Já é AA" : "Tornar AA"}</span>
+              </Button>
             </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-sm font-medium">Contas AA ativas</p>
             <Button
               type="button"
               variant="secondary"
-              className="shrink-0 rounded-full"
-              disabled={loadingList || !ownerEmail.trim()}
-              onClick={handleLoadList}
+              size="sm"
+              className="rounded-full shrink-0"
+              disabled={loadingList}
+              onClick={() => void loadAccounts()}
             >
-              {loadingList ? <Loader2 className="h-4 w-4 animate-spin" /> : "Carregar lista"}
+              {loadingList ? <Loader2 className="h-4 w-4 animate-spin" /> : <List className="h-4 w-4" />}
+              <span className="ml-2">Atualizar</span>
             </Button>
           </div>
 
-          <form onSubmit={handleInvite} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="admin-agg-email">E-mail da conta a agregar</Label>
-              <Input
-                id="admin-agg-email"
-                type="email"
-                value={aggregatedEmail}
-                onChange={(e) => setAggregatedEmail(e.target.value)}
-                placeholder="agregada@exemplo.com"
-                required
-                disabled={!ownerEmail.trim()}
-              />
-            </div>
-            <Button type="submit" className="shrink-0 rounded-full" disabled={inviting || !ownerEmail.trim()}>
-              {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              <span className="ml-2">Agregar</span>
-            </Button>
-          </form>
-
-          {loadingList ? (
+          {loadingList && accounts.length === 0 ? (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </p>
-          ) : !listLoaded ? (
-            <p className="text-sm text-muted-foreground">
-              Informe o titular e clique em &quot;Carregar lista&quot; para ver contas vinculadas.
-            </p>
           ) : accounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma conta agregada para este titular.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma conta AA no momento.</p>
           ) : (
             <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
               {accounts.map((row) => (
-                <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-3">
+                <li key={row.user_id} className="flex items-center justify-between gap-3 px-3 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{row.email}</p>
-                    {row.aggregated_display_name && (
-                      <p className="text-xs text-muted-foreground truncate">{row.aggregated_display_name}</p>
+                    {row.shop_name && row.shop_name !== "—" && (
+                      <p className="text-xs text-muted-foreground truncate">{row.shop_name}</p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-0.5">{STATUS_LABEL[row.status] ?? row.status}</p>
+                    {row.profile_name && (
+                      <p className="text-xs text-muted-foreground truncate">{row.profile_name}</p>
+                    )}
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="shrink-0 text-destructive hover:text-destructive"
-                    aria-label={`Remover ${row.email}`}
+                    aria-label={`Remover AA ${row.email}`}
                     onClick={() => setRemoveTarget(row)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -287,11 +224,14 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail }: Props) {
       <AlertDialog open={Boolean(removeTarget)} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover conta agregada?</AlertDialogTitle>
+            <AlertDialogTitle>Remover conta AA?</AlertDialogTitle>
             <AlertDialogDescription>
-              {removeTarget
-                ? `A conta ${removeTarget.email} deixará de usar a assinatura do titular. Os dados dela permanecem intactos.`
-                : ""}
+              {removeTarget ? (
+                <>
+                  <strong>{removeTarget.email}</strong> perderá a isenção de assinatura e o direito ao teste gratuito
+                  permanentemente. As contas que ela agregou continuarão vinculadas ao seu titular.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -304,7 +244,7 @@ export function AdminAggregatedAccountsSection({ defaultOwnerEmail }: Props) {
                 void confirmRemove();
               }}
             >
-              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remover"}
+              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remover AA"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

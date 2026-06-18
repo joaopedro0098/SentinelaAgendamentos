@@ -1,5 +1,7 @@
 import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
 
+export type AccountType = "admin" | "ct" | "ca" | "aa";
+
 export type SubscriptionInfo = {
   is_admin: boolean;
   can_book: boolean;
@@ -17,6 +19,10 @@ export type SubscriptionInfo = {
   stripe_subscription_id?: string | null;
   is_aggregated_account?: boolean;
   aggregated_by_email?: string | null;
+  /** Tipo da conta: 'admin' | 'ct' | 'ca' | 'aa' */
+  account_type?: AccountType;
+  /** CT e AA podem gerenciar suas CAs; CA e admin (via aba admin) não usam este fluxo. */
+  can_manage_aggregated_accounts?: boolean;
 };
 
 export function useSubscription() {
