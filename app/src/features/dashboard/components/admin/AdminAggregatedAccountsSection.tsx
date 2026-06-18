@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { List, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { List, Loader2, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -25,21 +27,33 @@ type AaRow = {
   set_at: string;
 };
 
-type Props = {
-  /** Usuário atualmente selecionado na busca acima, para poder torná-lo AA. */
-  selectedUserEmail?: string | null;
-  selectedUserShopName?: string | null;
-};
+function setAaErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "forbidden":
+      return "Acesso negado.";
+    case "user_not_found":
+      return "Nenhuma conta encontrada com este e-mail. O usuário precisa estar cadastrado.";
+    case "cannot_set_admin_as_aa":
+      return "Não é possível tornar uma conta de administrador em AA.";
+    case "target_is_ca":
+      return "Esta conta já é agregada (CA) de outro titular.";
+    case "shop_not_found":
+      return "Nenhuma barbearia encontrada para este usuário.";
+    case "invalid_email":
+      return "Informe um e-mail válido.";
+    default:
+      return "Não foi possível agregar. Tente novamente.";
+  }
+}
 
-export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUserShopName }: Props) {
+export function AdminAggregatedAccountsSection() {
+  const [email, setEmail] = useState("");
   const [accounts, setAccounts] = useState<AaRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [listLoaded, setListLoaded] = useState(false);
   const [settingAa, setSettingAa] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<AaRow | null>(null);
   const [removing, setRemoving] = useState(false);
-
-  const selectedEmail = selectedUserEmail?.trim().toLowerCase() ?? "";
-  const alreadyAa = selectedEmail ? accounts.some((a) => a.email === selectedEmail) : false;
 
   const loadAccounts = useCallback(async () => {
     setLoadingList(true);
@@ -49,7 +63,7 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
     if (error) {
       const isMissing = error.message.includes("admin_list_admin_aggregated_accounts");
       toast({
-        title: "Erro ao listar AAs",
+        title: "Erro ao listar contas AA",
         description: isMissing
           ? "Função não encontrada. Execute supabase db push para aplicar a migration."
           : error.message,
@@ -65,44 +79,41 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
     }
 
     setAccounts(Array.isArray(payload?.accounts) ? payload.accounts : []);
+    setListLoaded(true);
   }, []);
 
   useEffect(() => {
     void loadAccounts();
   }, [loadAccounts]);
 
-  async function handleSetAa() {
-    if (!selectedEmail) return;
+  async function handleSetAa(e: React.FormEvent) {
+    e.preventDefault();
+    const target = email.trim().toLowerCase();
+    if (!target) return;
+
     setSettingAa(true);
-    const { data, error } = await supabase.rpc("admin_set_admin_aggregated", { p_email: selectedEmail });
+    const { data, error } = await supabase.rpc("admin_set_admin_aggregated", { p_email: target });
     setSettingAa(false);
 
     if (error) {
-      toast({ title: "Erro ao tornar AA", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao agregar", description: error.message, variant: "destructive" });
       return;
     }
 
     const result = data as { ok?: boolean; error?: string } | null;
     if (!result?.ok) {
-      const msg: Record<string, string> = {
-        forbidden: "Acesso negado.",
-        user_not_found: "Usuário não encontrado. Busque o usuário acima.",
-        cannot_set_admin_as_aa: "Não é possível tornar um admin em AA.",
-        target_is_ca: "Este usuário já é uma conta agregada (CA) de outro titular.",
-        shop_not_found: "Nenhuma barbearia encontrada para este usuário.",
-        invalid_email: "E-mail inválido.",
-      };
       toast({
-        title: "Não foi possível definir como AA",
-        description: msg[result?.error ?? ""] ?? "Tente novamente.",
+        title: "Não foi possível agregar",
+        description: setAaErrorMessage(result?.error),
         variant: "destructive",
       });
       return;
     }
 
+    setEmail("");
     toast({
-      title: "Conta definida como AA",
-      description: `${selectedEmail} agora é uma conta especial (Agregado do Admin). Está isenta de assinatura e pode agregar CAs.`,
+      title: "Conta agregada como AA",
+      description: `${target} está isenta de assinatura e pode agregar outras contas em Configurações.`,
     });
     void loadAccounts();
   }
@@ -116,7 +127,7 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
     setRemoving(false);
 
     if (error) {
-      toast({ title: "Erro ao remover AA", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
       return;
     }
 
@@ -140,35 +151,30 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Contas Especiais (AA)</CardTitle>
           <CardDescription>
-            Contas Agregadas pelo Admin ficam isentas de assinatura e podem agregar outras contas como um titular
-            normal. Ao remover, perdem a isenção e o teste gratuito permanentemente.
+            Agregue contas pelo e-mail para torná-las AA: isentas de assinatura e com permissão de agregar CAs em
+            Configurações. Ao remover, perdem a isenção e o teste gratuito permanentemente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {selectedEmail && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-secondary/30 px-3 py-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{selectedEmail}</p>
-                {selectedUserShopName && (
-                  <p className="text-xs text-muted-foreground truncate">{selectedUserShopName}</p>
-                )}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                className="shrink-0 rounded-full"
-                disabled={settingAa || alreadyAa}
-                onClick={() => void handleSetAa()}
-              >
-                {settingAa ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ShieldCheck className="h-4 w-4" />
-                )}
-                <span className="ml-2">{alreadyAa ? "Já é AA" : "Tornar AA"}</span>
-              </Button>
+          <form onSubmit={handleSetAa} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="admin-aa-email">E-mail da conta a agregar</Label>
+              <Input
+                id="admin-aa-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="conta@exemplo.com"
+                required
+                disabled={settingAa}
+              />
+              <p className="text-xs text-muted-foreground">A conta precisa já estar cadastrada no sistema.</p>
             </div>
-          )}
+            <Button type="submit" className="shrink-0 rounded-full" disabled={settingAa}>
+              {settingAa ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              <span className="ml-2">Agregar</span>
+            </Button>
+          </form>
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-sm font-medium">Contas AA ativas</p>
@@ -181,11 +187,11 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
               onClick={() => void loadAccounts()}
             >
               {loadingList ? <Loader2 className="h-4 w-4 animate-spin" /> : <List className="h-4 w-4" />}
-              <span className="ml-2">Atualizar</span>
+              <span className="ml-2">Listar</span>
             </Button>
           </div>
 
-          {loadingList && accounts.length === 0 ? (
+          {loadingList && !listLoaded ? (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </p>
@@ -229,7 +235,7 @@ export function AdminAggregatedAccountsSection({ selectedUserEmail, selectedUser
               {removeTarget ? (
                 <>
                   <strong>{removeTarget.email}</strong> perderá a isenção de assinatura e o direito ao teste gratuito
-                  permanentemente. As contas que ela agregou continuarão vinculadas ao seu titular.
+                  permanentemente. As contas que ela agregou continuarão vinculadas ao titular.
                 </>
               ) : null}
             </AlertDialogDescription>
