@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, CalendarCheck, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -129,11 +129,11 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
-              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              {subscriptionInfo?.is_admin && (
                 <MobileNavItem
-                  to="/app/suporte"
-                  icon={<Headphones className="h-4 w-4" />}
-                  label="Suporte"
+                  to="/app/relatorios"
+                  icon={<BarChart2 className="h-4 w-4" />}
+                  label="Relatórios"
                   onNavigate={closeMenu}
                 />
               )}
@@ -142,6 +142,22 @@ export default function AppLayout() {
                   to="/app/admin"
                   icon={<Shield className="h-4 w-4" />}
                   label="Admin"
+                  onNavigate={closeMenu}
+                />
+              )}
+              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+                <MobileNavItem
+                  to="/app/relatorios"
+                  icon={<BarChart2 className="h-4 w-4" />}
+                  label="Relatórios"
+                  onNavigate={closeMenu}
+                />
+              )}
+              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+                <MobileNavItem
+                  to="/app/suporte"
+                  icon={<Headphones className="h-4 w-4" />}
+                  label="Suporte"
                   onNavigate={closeMenu}
                 />
               )}
@@ -177,11 +193,17 @@ export default function AppLayout() {
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
             <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
-            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-              <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
+            {subscriptionInfo?.is_admin && (
+              <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
             )}
             {subscriptionInfo?.is_admin && (
               <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
+            )}
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
+            )}
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
             )}
           </nav>
 
