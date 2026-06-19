@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BarChart2, Calendar, CalendarCheck, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,6 +62,17 @@ export default function AppLayout() {
     setMenuOpen(false);
   }
 
+  const panelBrandShop = useMemo(() => {
+    if (!shop) return null;
+    if (subscriptionInfo?.account_type !== "ca") {
+      return { display_name: shop.display_name, avatar_url: shop.avatar_url };
+    }
+    return {
+      display_name: subscriptionInfo.owner_display_name ?? shop.display_name,
+      avatar_url: subscriptionInfo.owner_avatar_url ?? shop.avatar_url,
+    };
+  }, [shop, subscriptionInfo]);
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
       <WelcomeSupportRedirect />
@@ -95,10 +106,7 @@ export default function AppLayout() {
             )}
           >
             <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border">
-              <ShopPanelBrand
-                shop={shop ? { display_name: shop.display_name, avatar_url: shop.avatar_url } : null}
-                avatarClassName="h-9 w-9"
-              />
+              <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-9 w-9" />
               <button
                 type="button"
                 onClick={closeMenu}
@@ -182,10 +190,7 @@ export default function AppLayout() {
       <aside className="hidden md:flex md:w-64 border-r border-border shrink-0 self-start md:sticky md:top-0">
         <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-full">
           <div className="px-4 py-4 border-b border-border/60">
-            <ShopPanelBrand
-              shop={shop ? { display_name: shop.display_name, avatar_url: shop.avatar_url } : null}
-              avatarClassName="h-12 w-12"
-            />
+            <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
           </div>
 
           <nav className="flex flex-col gap-1 p-2">
