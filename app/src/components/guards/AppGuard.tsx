@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { canSkipFaceVerification, userNeedsFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
+import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 
-type BootState = "checking" | "login" | "face" | "ready";
+type BootState = "checking" | "login" | "email" | "face" | "ready";
 
 type Props = {
   children: React.ReactNode;
@@ -20,13 +21,8 @@ function hasStoredAuthSession() {
   }
 }
 
-function canSkipFaceCheck(userId?: string | null) {
-  return canSkipFaceVerification(userId);
-}
-
 function initialBootState(): BootState {
   if (!hasStoredAuthSession()) return "login";
-  if (canSkipFaceCheck()) return "ready";
   return "checking";
 }
 
@@ -46,12 +42,19 @@ export function AppGuard({ children }: Props) {
     }
 
     const userId = session.user.id;
+
+    if (!isEmailVerified(session.user)) {
+      verifiedUserIdRef.current = null;
+      setBoot("email");
+      return;
+    }
+
     if (verifiedUserIdRef.current === userId) {
       setBoot("ready");
       return;
     }
 
-    if (canSkipFaceCheck(userId)) {
+    if (canSkipFaceVerification(userId)) {
       verifiedUserIdRef.current = userId;
       setBoot("ready");
       return;
@@ -80,7 +83,7 @@ export function AppGuard({ children }: Props) {
     return () => {
       active = false;
     };
-  }, [authLoading, session?.user?.id]);
+  }, [authLoading, session?.user?.id, session?.user?.email_confirmed_at]);
 
   if (authLoading || boot === "checking") {
     return <AppBootSkeleton />;
@@ -88,6 +91,10 @@ export function AppGuard({ children }: Props) {
 
   if (boot === "login") {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (boot === "email") {
+    return <Navigate to="/signup/verify-email" replace />;
   }
 
   if (boot === "face") {

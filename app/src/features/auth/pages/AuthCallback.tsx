@@ -10,6 +10,7 @@ import { userNeedsFaceVerification, markFaceVerificationComplete, canSkipFaceVer
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
+import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
@@ -35,6 +36,11 @@ export default function AuthCallback() {
       }
 
       const userId = data.session.user.id;
+
+      if (!isEmailVerified(data.session.user)) {
+        navigate("/signup/verify-email", { replace: true });
+        return;
+      }
 
       // Entrada rápida: quem já verificou o rosto não espera RPC nem embedding pendente.
       if (canSkipFaceVerification(userId)) {

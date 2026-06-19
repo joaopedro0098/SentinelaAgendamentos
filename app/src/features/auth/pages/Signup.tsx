@@ -31,6 +31,7 @@ import {
   resendSignupConfirmation,
   signupConfirmationRedirectUrl,
 } from "@/features/auth/lib/emailSignupStatus";
+import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 
 const FaceVerificationFlow = lazy(() =>
@@ -158,19 +159,25 @@ export default function Signup() {
     }
 
     if (data.session && data.user) {
-      await supabase.auth.updateUser({ data: { shop_name: parsed.shop_name } });
-      try {
-        const registered = await registerUserFacialEmbedding(verification.embedding);
-        clearSubscriptionCache();
-        markFaceVerificationComplete(data.user.id);
-        if (!registered.trialEligible || registered.facialMatch) {
-          authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+      if (!isEmailVerified(data.user)) {
+        savePendingFaceEmbedding(verification.embedding, parsed.email);
+        setShowFaceVerification(false);
+        navigate("/signup/verify-email", { replace: true });
+      } else {
+        await supabase.auth.updateUser({ data: { shop_name: parsed.shop_name } });
+        try {
+          const registered = await registerUserFacialEmbedding(verification.embedding);
+          clearSubscriptionCache();
+          markFaceVerificationComplete(data.user.id);
+          if (!registered.trialEligible || registered.facialMatch) {
+            authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+          }
+        } catch {
+          authInfoToast("Conta criada. Entre normalmente após confirmar seu e-mail.");
         }
-      } catch {
-        authInfoToast("Conta criada. Entre normalmente após confirmar seu e-mail.");
+        setShowFaceVerification(false);
+        navigate(getBarberPostLoginPath(), { replace: true });
       }
-      setShowFaceVerification(false);
-      navigate(getBarberPostLoginPath(), { replace: true });
     } else {
       savePendingFaceEmbedding(verification.embedding, parsed.email);
       setShowFaceVerification(false);
