@@ -105,6 +105,7 @@ interface Barbearia {
 }
 interface Barbeiro {
   id: string;
+  barbearia_id: string;
   nome: string;
   foto_url: string | null;
   slot_minutos: number;
@@ -113,15 +114,15 @@ interface Barbeiro {
   servicos: { id: string; nome: string; duracao_minutos: number }[];
 }
 
-type RawBarbeiro = {
-  id: string;
+type BookingProfessionalRpc = {
+  barbeiro_id: string;
+  barbearia_id: string;
   nome: string;
   foto_url: string | null;
-  ativo?: boolean;
-  slot_minutos: number | null;
+  slot_minutos: number;
   disponibilidades?: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
   bloqueios?: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
-  barbeiro_services?: { id: string; nome: string; duracao_minutos: number; ativo?: boolean }[];
+  servicos?: { id: string; nome: string; duracao_minutos: number }[];
 };
 
 type AgendamentoOcupado = {
@@ -308,25 +309,27 @@ const PublicBooking = ({
         setLoading(true);
       }
 
-      const [{ data: b, error: barbErr }, shopRes] = await Promise.all([
+      const [{ data: b, error: barbErr }, shopRes, prosRes] = await Promise.all([
         supabase
           .from("barbearias")
-          .select(`
-            id, nome, logo_url, ativa, allow_client_public_booking,
-            barbeiros ( id, nome, foto_url, ativo, slot_minutos,
-              disponibilidades ( dia_semana, hora_inicio, hora_fim ),
-              bloqueios ( data, hora_inicio, hora_fim ),
-              barbeiro_services ( id, nome, duracao_minutos, ativo )
-            )
-          `)
+          .select("id, nome, logo_url, ativa, allow_client_public_booking")
           .eq("slug", slug)
           .maybeSingle(),
         supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, slot_pause_minutes").eq("slug", slug).maybeSingle(),
+        supabase.rpc("get_booking_professionals", { p_slug: slug, p_from: fromYmd, p_to: toYmd }),
       ]);
 
       if (barbErr) {
         console.error("[PublicBooking] barbearias:", barbErr.message);
         toast.error("Não foi possível carregar a agenda. Tente novamente.");
+        setBarbearia(null);
+        setLoading(false);
+        return;
+      }
+
+      if (prosRes.error) {
+        console.error("[PublicBooking] get_booking_professionals:", prosRes.error.message);
+        toast.error("Não foi possível carregar os profissionais. Tente novamente.");
         setBarbearia(null);
         setLoading(false);
         return;
@@ -353,23 +356,20 @@ const PublicBooking = ({
         allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
       });
 
-      const bbs = ((b as { barbeiros?: RawBarbeiro[] }).barbeiros ?? [])
-        .filter((bb) => bb.ativo !== false)
-        .map((bb) => ({
-        id: bb.id,
+      const rawPros = (Array.isArray(prosRes.data) ? prosRes.data : []) as BookingProfessionalRpc[];
+      const bbs = rawPros.map((bb) => ({
+        id: bb.barbeiro_id,
+        barbearia_id: bb.barbearia_id,
         nome: bb.nome,
         foto_url: bb.foto_url,
         slot_minutos: bb.slot_minutos ?? 30,
         disponibilidades: bb.disponibilidades ?? [],
-        bloqueios: (bb.bloqueios ?? []).filter((bl) => bl.data >= fromYmd && bl.data <= toYmd),
-        servicos: (bb.barbeiro_services ?? [])
-          .filter((s) => s.ativo)
-          .map((s) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
+        bloqueios: bb.bloqueios ?? [],
+        servicos: bb.servicos ?? [],
       })) as Barbeiro[];
       setBarbeiros(bbs);
 
       setBookingStaticCache(slug, {
-        barbeariaId: b.id,
         barbearia: {
           id: b.id,
           nome: b.nome,
@@ -390,7 +390,7 @@ const PublicBooking = ({
         const { data: ag } = await supabase
           .from("agendamentos")
           .select("id, barbeiro_id, data, hora, duracao_minutos")
-          .eq("barbearia_id", b.id)
+          .in("barbeiro_id", bbIds)
           .eq("status", "confirmado")
           .gte("data", fromYmd)
           .lte("data", toYmd);
@@ -707,9 +707,11 @@ const PublicBooking = ({
         ? servicosDoBarbeiro.filter((s) => servSel.includes(s.id)).map((s) => s.nome)
         : [];
 
+    const targetBarbeariaId = barbeiroSel?.barbearia_id ?? barbearia.id;
+
     try {
       const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
-        _barbearia_id: barbearia.id,
+        _barbearia_id: targetBarbeariaId,
         _whatsapp: whatsClean,
         _nome: nome.trim(),
       });
@@ -727,7 +729,7 @@ const PublicBooking = ({
       const { data: createdAppointment, error } = await supabase
         .from("agendamentos")
         .insert({
-          barbearia_id: barbearia.id,
+          barbearia_id: targetBarbeariaId,
           barbeiro_id: barbeiroId,
           data,
           hora,

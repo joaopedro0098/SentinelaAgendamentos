@@ -222,13 +222,16 @@ export default function Settings() {
     toast({ title: enabled ? "Cliente pode alterar/cancelar" : "Alteração pelo cliente desativada" });
   }
 
-  function copyBookingLink() {
-    if (!shop) return;
-    const url = `${window.location.origin}/agendar/${shop.slug}`;
+  function copyBookingLink(url: string) {
     navigator.clipboard.writeText(url);
     setCopiedBooking(true);
     window.setTimeout(() => setCopiedBooking(false), 1800);
     toast({ title: "Link de agendamento copiado!", description: url });
+  }
+
+  function copyOwnerBookingLink() {
+    if (!ownerBookingUrl) return;
+    copyBookingLink(ownerBookingUrl);
   }
 
   if (loading) {
@@ -248,6 +251,19 @@ export default function Settings() {
 
   const bookingUrl = `${window.location.origin}/agendar/${shop.slug}`;
   const displayedAvatarUrl = avatarPreviewUrl ?? shop.avatar_url;
+  const ownerSlug = subscriptionInfo?.owner_slug;
+  const ownerBookingUrl = ownerSlug ? `${window.location.origin}/agendar/${ownerSlug}` : null;
+  const ownerPublicBookingEnabled = subscriptionInfo?.owner_public_booking_enabled ?? false;
+  const profileDisplayName = isCA
+    ? (subscriptionInfo?.owner_display_name ?? shop.display_name)
+    : shop.display_name;
+  const profileAvatarUrl = isCA
+    ? (subscriptionInfo?.owner_avatar_url ?? shop.avatar_url)
+    : (displayedAvatarUrl ?? shop.avatar_url);
+  const profileContactPhone = isCA
+    ? (subscriptionInfo?.owner_contact_phone ? maskPhone(subscriptionInfo.owner_contact_phone) : "")
+    : contactPhone;
+  const displayedAvatarUrlResolved = isCA ? profileAvatarUrl : displayedAvatarUrl ?? shop.avatar_url;
 
   return (
     <>
@@ -310,36 +326,57 @@ export default function Settings() {
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6">
-            <form onSubmit={handleSave} className="space-y-5">
+            <form onSubmit={isCA ? (e) => e.preventDefault() : handleSave} className="space-y-5">
+              {isCA && (
+                <p className="text-sm text-muted-foreground">
+                  Nome, logo e contato exibidos ao cliente vêm do titular ({subscriptionInfo?.aggregated_by_email ?? "conta principal"}).
+                  Seu link individual permanece desativado enquanto a agregação estiver ativa.
+                </p>
+              )}
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={saving}
-                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full disabled:opacity-60"
-                  aria-label="Alterar foto"
-                >
-                  <Avatar className="h-24 w-24">
-                    {displayedAvatarUrl && <AvatarImage src={displayedAvatarUrl} alt={shop.display_name} />}
+                {isCA ? (
+                  <Avatar className="h-24 w-24 shrink-0">
+                    {displayedAvatarUrlResolved && (
+                      <AvatarImage src={displayedAvatarUrlResolved} alt={profileDisplayName} />
+                    )}
                     <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      {(shop.display_name.trim() || "?").slice(0, 2).toUpperCase()}
+                      {(profileDisplayName.trim() || "?").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/25 pb-[3px] pt-[2px]">
-                    <Camera className="h-3.5 w-3.5 text-white" strokeWidth={2.25} />
-                  </span>
-                </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={saving}
+                    className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full disabled:opacity-60"
+                    aria-label="Alterar foto"
+                  >
+                    <Avatar className="h-24 w-24">
+                      {displayedAvatarUrlResolved && (
+                        <AvatarImage src={displayedAvatarUrlResolved} alt={shop.display_name} />
+                      )}
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        {(shop.display_name.trim() || "?").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/25 pb-[3px] pt-[2px]">
+                      <Camera className="h-3.5 w-3.5 text-white" strokeWidth={2.25} />
+                    </span>
+                  </button>
+                )}
 
                 <div className="flex-1 space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="display-name">Nome do Perfil</Label>
                     <Input
                       id="display-name"
-                      value={shop.display_name}
+                      value={isCA ? profileDisplayName : shop.display_name}
                       onChange={(e) => setShop({ ...shop, display_name: e.target.value })}
                       maxLength={80}
                       placeholder="Defina o nome do perfil"
-                      required
+                      required={!isCA}
+                      readOnly={isCA}
+                      disabled={isCA}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -348,33 +385,58 @@ export default function Settings() {
                       id="contact-phone"
                       type="tel"
                       inputMode="numeric"
-                      value={contactPhone}
+                      value={profileContactPhone}
                       onChange={(e) => setContactPhone(maskPhone(e.target.value))}
                       placeholder="(11) 99999-9999"
+                      readOnly={isCA}
+                      disabled={isCA}
                     />
-                    <p className="text-xs text-muted-foreground">Importante para prestarmos suporte.</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isCA ? "Contato do titular, usado para suporte ao cliente." : "Importante para prestarmos suporte."}
+                    </p>
                   </div>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
+                  {!isCA && (
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
+                  )}
                 </div>
               </div>
 
-              <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
-                  </>
-                ) : (
-                  "Salvar"
-                )}
-              </Button>
+              {!isCA && (
+                <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
+                    </>
+                  ) : (
+                    "Salvar"
+                  )}
+                </Button>
+              )}
 
               {isCA ? (
-                <div className="rounded-md border border-border/50 bg-secondary/30 p-3 space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Link de agendamento</p>
-                  <p className="text-sm text-muted-foreground">
-                    Sua conta está agregada a um titular. Seu link de agendamento individual está desativado enquanto
-                    o vínculo estiver ativo.
+                <div className="space-y-2 rounded-md border border-border p-3">
+                  <Label htmlFor="owner-booking-link">Link de agendamento do titular</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Seus clientes agendam pelo link abaixo. Seu link individual fica desativado enquanto a conta estiver agregada.
                   </p>
+                  {ownerBookingUrl && ownerPublicBookingEnabled ? (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="owner-booking-link"
+                        value={ownerBookingUrl}
+                        readOnly
+                        className="font-mono text-xs"
+                      />
+                      <Button type="button" onClick={copyOwnerBookingLink} variant="secondary" className="shrink-0">
+                        {copiedBooking ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copiedBooking ? "Copiado" : "Copiar link"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      O titular ainda não ativou o link público de agendamento.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2 rounded-md border border-border p-3">
@@ -382,7 +444,12 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">Compartilhe este link com seu cliente</p>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Input id="booking-link" value={bookingUrl} readOnly className="font-mono text-xs" />
-                    <Button type="button" onClick={copyBookingLink} variant="secondary" className="shrink-0">
+                    <Button
+                      type="button"
+                      onClick={() => copyBookingLink(bookingUrl)}
+                      variant="secondary"
+                      className="shrink-0"
+                    >
                       {copiedBooking ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       {copiedBooking ? "Copiado" : "Copiar link"}
                     </Button>
@@ -393,7 +460,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} />
+        <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} maxActiveStaff={isCA ? 1 : undefined} />
 
         {canManageAggregated && <CtAggregatedAccountsSection />}
 

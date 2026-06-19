@@ -12,6 +12,8 @@ import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
 type Props = {
   barbershopId: string;
   barbershopSlug?: string;
+  /** CA agregada: no máximo 1 colaborador ativo (reforço visual da trava no banco). */
+  maxActiveStaff?: number;
 };
 
 type StaffRow = { id: string; name: string; sort_order: number };
@@ -168,7 +170,7 @@ function showQuickSavedToast(title: string) {
   toast({ title, duration: 2000 });
 }
 
-export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) {
+export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActiveStaff }: Props) {
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
@@ -233,7 +235,14 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
       .single();
     if (error) {
       setBusy(null);
-      toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
+      const isCaLimit = error.message?.includes("ca_staff_limit");
+      toast({
+        title: isCaLimit ? "Limite de colaboradores" : "Erro ao adicionar",
+        description: isCaLimit
+          ? "Contas agregadas (CA) podem ter no máximo 1 colaborador ativo."
+          : error.message,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -451,6 +460,8 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
     await load({ silent: true });
   }
 
+  const staffAtLimit = maxActiveStaff !== undefined && staff.length >= maxActiveStaff;
+
   return (
     <Card className="glass-panel border-border/80">
       <CardHeader>
@@ -458,10 +469,20 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug }: Props) 
           <CalendarCheck className="h-4 w-4 text-primary" />
           Equipe de atendimento
         </CardTitle>
-        <CardDescription>Adicione colaboradores, serviços e horários</CardDescription>
+        <CardDescription>
+          {maxActiveStaff === 1
+            ? "Conta agregada: apenas 1 colaborador ativo"
+            : "Adicione colaboradores, serviços e horários"}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <AddStaffForm newName={newName} setNewName={setNewName} onAdd={addStaff} busy={busy === "add-staff"} />
+        {staffAtLimit ? (
+          <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border p-4">
+            Você já atingiu o limite de {maxActiveStaff} colaborador ativo enquanto a conta estiver agregada.
+          </p>
+        ) : (
+          <AddStaffForm newName={newName} setNewName={setNewName} onAdd={addStaff} busy={busy === "add-staff"} />
+        )}
 
         {loading ? (
           <p className="text-sm text-muted-foreground flex items-center gap-2">

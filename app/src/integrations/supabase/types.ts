@@ -372,6 +372,10 @@ export type Database = {
         Returns: boolean
       }
       get_my_subscription: { Args: Record<string, never>; Returns: Json }
+      get_booking_professionals: {
+        Args: { p_slug: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
       check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }
     }
     Enums: {

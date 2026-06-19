@@ -23,6 +23,12 @@ export type SubscriptionInfo = {
   account_type?: AccountType;
   /** CT e AA podem gerenciar suas CAs; CA e admin (via aba admin) não usam este fluxo. */
   can_manage_aggregated_accounts?: boolean;
+  /** CA agregada: perfil e link herdados do titular (CT/AA). */
+  owner_slug?: string | null;
+  owner_display_name?: string | null;
+  owner_avatar_url?: string | null;
+  owner_contact_phone?: string | null;
+  owner_public_booking_enabled?: boolean;
 };
 
 export function useSubscription() {

@@ -12,6 +12,7 @@ import { canClientSelfServiceModifyAppointment } from "@/lib/appointmentDates";
 import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ClientAppointment = {
   id: string;
@@ -109,6 +110,7 @@ export default function MeusAgendamentosPage() {
     });
     setCancelling(false);
     if (error) {
+      toast.error(error.message || "Não foi possível cancelar. Tente novamente ou fale com o profissional.");
       setCancelTarget(null);
       return;
     }
