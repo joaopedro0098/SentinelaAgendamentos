@@ -1,4 +1,4 @@
--- CA: ao ser agregada, remove todos os colaboradores existentes (máx. 1 novo depois).
+-- CA: ao ser agregada, remove colaboradores só se houver 2 ou mais (1 permanece).
 
 CREATE OR REPLACE FUNCTION public.purge_ca_staff_for_user(p_user_id uuid)
 RETURNS void
@@ -9,6 +9,7 @@ AS $$
 DECLARE
   _shop_id uuid;
   _slug    text;
+  _staff_count int;
 BEGIN
   IF p_user_id IS NULL THEN
     RETURN;
@@ -24,6 +25,14 @@ BEGIN
     RETURN;
   END IF;
 
+  SELECT count(*)::int INTO _staff_count
+  FROM public.staff s
+  WHERE s.barbershop_id = _shop_id;
+
+  IF _staff_count < 2 THEN
+    RETURN;
+  END IF;
+
   DELETE FROM public.staff
   WHERE barbershop_id = _shop_id;
 
@@ -34,7 +43,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.purge_ca_staff_for_user(uuid) IS
-  'Remove todos os colaboradores da barbearia ao virar CA; sincroniza agenda vazia.';
+  'Ao virar CA: apaga todos os colaboradores somente se houver 2+; com 1, mantém intacto.';
 
 GRANT EXECUTE ON FUNCTION public.purge_ca_staff_for_user(uuid) TO authenticated;
 
