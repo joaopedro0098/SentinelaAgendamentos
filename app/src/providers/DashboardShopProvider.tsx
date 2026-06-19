@@ -205,7 +205,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       slug: shop?.slug ?? null,
       barbeariaId,
       caBarbearias,
-      agendaReady: Boolean(shop?.slug && getAgendaSyncPhase(shop.slug) === "ready"),
+      agendaReady: Boolean(shop?.slug && barbeariaId && getAgendaSyncPhase(shop.slug) === "ready"),
       loading,
       refresh,
       patchShop,

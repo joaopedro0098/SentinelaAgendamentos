@@ -125,6 +125,91 @@ type BookingProfessionalRpc = {
   servicos?: { id: string; nome: string; duracao_minutos: number }[];
 };
 
+type RawBarbeiro = {
+  id: string;
+  nome: string;
+  foto_url: string | null;
+  ativo?: boolean;
+  slot_minutos: number | null;
+  disponibilidades?: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
+  bloqueios?: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
+  barbeiro_services?: { id: string; nome: string; duracao_minutos: number; ativo?: boolean }[];
+};
+
+function mapRpcProfessionals(raw: BookingProfessionalRpc[]): Barbeiro[] {
+  return raw.map((bb) => ({
+    id: bb.barbeiro_id,
+    barbearia_id: bb.barbearia_id,
+    nome: bb.nome,
+    foto_url: bb.foto_url,
+    slot_minutos: bb.slot_minutos ?? 30,
+    disponibilidades: bb.disponibilidades ?? [],
+    bloqueios: bb.bloqueios ?? [],
+    servicos: bb.servicos ?? [],
+  }));
+}
+
+function mapLegacyBarbeiros(rows: RawBarbeiro[], barbeariaId: string, fromYmd: string, toYmd: string): Barbeiro[] {
+  return rows
+    .filter((bb) => bb.ativo !== false)
+    .map((bb) => ({
+      id: bb.id,
+      barbearia_id: barbeariaId,
+      nome: bb.nome,
+      foto_url: bb.foto_url,
+      slot_minutos: bb.slot_minutos ?? 30,
+      disponibilidades: bb.disponibilidades ?? [],
+      bloqueios: (bb.bloqueios ?? []).filter((bl) => bl.data >= fromYmd && bl.data <= toYmd),
+      servicos: (bb.barbeiro_services ?? [])
+        .filter((s) => s.ativo)
+        .map((s) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
+    }));
+}
+
+async function loadProfessionalsForSlug(
+  slug: string,
+  barbeariaId: string,
+  fromYmd: string,
+  toYmd: string,
+) {
+  const prosRes = await supabase.rpc("get_booking_professionals", {
+    p_slug: slug,
+    p_from: fromYmd,
+    p_to: toYmd,
+  });
+
+  if (!prosRes.error) {
+    const raw = (Array.isArray(prosRes.data) ? prosRes.data : []) as BookingProfessionalRpc[];
+    return { barbeiros: mapRpcProfessionals(raw), rpcFailed: false as const };
+  }
+
+  console.error("[PublicBooking] get_booking_professionals:", prosRes.error.message);
+
+  const { data, error } = await supabase
+    .from("barbearias")
+    .select(`
+      id,
+      barbeiros ( id, nome, foto_url, ativo, slot_minutos,
+        disponibilidades ( dia_semana, hora_inicio, hora_fim ),
+        bloqueios ( data, hora_inicio, hora_fim ),
+        barbeiro_services ( id, nome, duracao_minutos, ativo )
+      )
+    `)
+    .eq("id", barbeariaId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { barbeiros: [] as Barbeiro[], rpcFailed: true as const, error: prosRes.error.message };
+  }
+
+  const legacy = ((data as { barbeiros?: RawBarbeiro[] }).barbeiros ?? []);
+  return {
+    barbeiros: mapLegacyBarbeiros(legacy, barbeariaId, fromYmd, toYmd),
+    rpcFailed: true as const,
+    error: prosRes.error.message,
+  };
+}
+
 type AgendamentoOcupado = {
   id: string;
   barbeiro_id: string;
@@ -309,14 +394,13 @@ const PublicBooking = ({
         setLoading(true);
       }
 
-      const [{ data: b, error: barbErr }, shopRes, prosRes] = await Promise.all([
+      const [{ data: b, error: barbErr }, shopRes] = await Promise.all([
         supabase
           .from("barbearias")
           .select("id, nome, logo_url, ativa, allow_client_public_booking")
           .eq("slug", slug)
           .maybeSingle(),
         supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, slot_pause_minutes").eq("slug", slug).maybeSingle(),
-        supabase.rpc("get_booking_professionals", { p_slug: slug, p_from: fromYmd, p_to: toYmd }),
       ]);
 
       if (barbErr) {
@@ -327,15 +411,16 @@ const PublicBooking = ({
         return;
       }
 
-      if (prosRes.error) {
-        console.error("[PublicBooking] get_booking_professionals:", prosRes.error.message);
-        toast.error("Não foi possível carregar os profissionais. Tente novamente.");
+      if (!b) {
         setBarbearia(null);
         setLoading(false);
         return;
       }
 
-      if (!b) { setBarbearia(null); setLoading(false); return; }
+      const prosLoad = await loadProfessionalsForSlug(slug, b.id, fromYmd, toYmd);
+      if (prosLoad.rpcFailed && prosLoad.barbeiros.length === 0) {
+        toast.error("Não foi possível carregar os profissionais. Tente novamente.");
+      }
 
       const shopRow = shopRes.data as {
         whatsapp_number?: string | null;
@@ -356,17 +441,8 @@ const PublicBooking = ({
         allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
       });
 
-      const rawPros = (Array.isArray(prosRes.data) ? prosRes.data : []) as BookingProfessionalRpc[];
-      const bbs = rawPros.map((bb) => ({
-        id: bb.barbeiro_id,
-        barbearia_id: bb.barbearia_id,
-        nome: bb.nome,
-        foto_url: bb.foto_url,
-        slot_minutos: bb.slot_minutos ?? 30,
-        disponibilidades: bb.disponibilidades ?? [],
-        bloqueios: bb.bloqueios ?? [],
-        servicos: bb.servicos ?? [],
-      })) as Barbeiro[];
+      const rawPros = prosLoad.barbeiros;
+      const bbs = rawPros;
       setBarbeiros(bbs);
 
       setBookingStaticCache(slug, {
@@ -807,8 +883,14 @@ const PublicBooking = ({
   if (!barbearia) return (
     <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6 text-center", pageBgClass)}>
       <div>
-        <h1 className="font-display text-2xl font-bold">Barbearia não encontrada</h1>
-        <p className="mt-2 text-muted-foreground text-sm">Verifique o link e tente novamente.</p>
+        <h1 className="font-display text-2xl font-bold">
+          {ownerPanel ? "Agenda não disponível" : "Barbearia não encontrada"}
+        </h1>
+        <p className="mt-2 text-muted-foreground text-sm">
+          {ownerPanel
+            ? "A sincronização da agenda ainda não concluiu. Aguarde alguns segundos e abra esta aba novamente."
+            : "Verifique o link e tente novamente."}
+        </p>
       </div>
     </div>
   );
