@@ -77,11 +77,21 @@ async function resolveBarbeariaId(slug: string) {
 async function fetchCaBarbearias(): Promise<CaBarbearia[]> {
   const { data, error } = await supabase.rpc("ct_list_ca_info");
   if (error || !Array.isArray(data)) return [];
-  return data.map((r) => ({
-    barbeariaId: r.barbearia_id as string,
-    slug: r.slug as string,
-    shopName: r.shop_display_name as string,
-  }));
+
+  const rows = data as { barbearia_id: string | null; slug: string; shop_display_name: string }[];
+  const resolved = await Promise.all(
+    rows.map(async (r) => {
+      const barbeariaId = r.barbearia_id ?? (r.slug ? await resolveBarbeariaId(r.slug) : null);
+      if (!barbeariaId || !r.slug) return null;
+      return {
+        barbeariaId,
+        slug: r.slug,
+        shopName: r.shop_display_name,
+      };
+    }),
+  );
+
+  return resolved.filter((r): r is CaBarbearia => r !== null);
 }
 
 export function DashboardShopProvider({ children }: { children: ReactNode }) {
@@ -160,16 +170,20 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       primeAgendaSyncPhase(row.slug, "loading");
       setLoading(false);
 
-      // Sincroniza agenda e CAs em segundo plano
+      // Sincroniza agenda do titular e das CAs ativas em segundo plano
       void (async () => {
-        const [phase, caBarbeariasList] = await Promise.all([
-          syncAgenda(row.slug),
-          fetchCaBarbearias(),
-        ]);
+        const caRows = await supabase.rpc("ct_list_ca_info");
+        const caSlugs = Array.isArray(caRows.data)
+          ? (caRows.data as { slug: string }[]).map((r) => r.slug).filter(Boolean)
+          : [];
 
+        await Promise.all([syncAgenda(row.slug), ...caSlugs.map((caSlug) => syncAgenda(caSlug))]);
+
+        const caBarbeariasList = await fetchCaBarbearias();
         cachedCaBarbearias = caBarbeariasList;
         setCaBarbearias(caBarbeariasList);
 
+        const phase = getAgendaSyncPhase(row.slug);
         if (phase === "ready") {
           const id =
             cachedBarbeariaId && cachedShop?.slug === row.slug

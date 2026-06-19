@@ -18,7 +18,7 @@ export default function AgendarPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
-  const { slug, loading, agendaReady } = useDashboardShop();
+  const { slug, loading, agendaReady, caBarbearias } = useDashboardShop();
   const syncPhase = slug ? getAgendaSyncPhase(slug) ?? "loading" : undefined;
 
   useEffect(() => {
@@ -107,6 +107,7 @@ export default function AgendarPage() {
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}
         ownerBookingBlockMessage={ownerBookingBlockMessage}
         onOwnerBookingBlocked={showOwnerBookingBlockedToast}
+        extraBarbeariaIds={caBarbearias.map((ca) => ca.barbeariaId)}
       />
     </AgendaShell>
   );
