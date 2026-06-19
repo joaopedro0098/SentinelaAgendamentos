@@ -39,7 +39,8 @@ function inviteErrorMessage(code: string | undefined): string {
     case "aggregated_cannot_invite":
       return "Sua conta é uma conta agregada e não pode convidar outras.";
     case "cannot_invite_self":
-      return "Você não pode agregar sua própria conta.";
+    case "cannot_aggregate_titular":
+      return "Impossível de agregar esta conta";
     case "already_invited":
       return "Este e-mail já está na sua lista.";
     case "user_not_found":
@@ -105,9 +106,16 @@ export function CtAggregatedAccountsSection() {
 
     const result = data as { ok?: boolean; error?: string; status?: string } | null;
     if (!result?.ok) {
+      const description = inviteErrorMessage(result?.error);
       toast({
-        title: "Não foi possível agregar",
-        description: inviteErrorMessage(result?.error),
+        title:
+          result?.error === "cannot_aggregate_titular" || result?.error === "cannot_invite_self"
+            ? "Impossível de agregar esta conta"
+            : "Não foi possível agregar",
+        description:
+          result?.error === "cannot_aggregate_titular" || result?.error === "cannot_invite_self"
+            ? undefined
+            : description,
         variant: "destructive",
       });
       return;
