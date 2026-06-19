@@ -84,6 +84,13 @@ function parsePanelMetrics(data: unknown): PanelMetrics | null {
 
 type NotSubscribedRow = { display_name: string; contact_phone: string | null };
 
+type NewSignupRow = {
+  email: string;
+  display_name: string;
+  contact_phone: string | null;
+  created_at: string;
+};
+
 function todayYmd() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -113,6 +120,20 @@ function formatDateBr(iso: string | null | undefined) {
 function formatPeriodLabel(start: string, end: string) {
   if (start === end) return formatDateBr(start);
   return `${formatDateBr(start)} — ${formatDateBr(end)}`;
+}
+
+function formatDateTimeBr(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 async function invokeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
@@ -158,6 +179,9 @@ export default function AdminPage() {
   const [listOpen, setListOpen] = useState(false);
   const [notSubList, setNotSubList] = useState<NotSubscribedRow[] | null>(null);
   const [listLoading, setListLoading] = useState(false);
+  const [signupsListOpen, setSignupsListOpen] = useState(false);
+  const [signupsList, setSignupsList] = useState<NewSignupRow[] | null>(null);
+  const [signupsListLoading, setSignupsListLoading] = useState(false);
   const [supportPhone, setSupportPhone] = useState("");
   const [supportLoading, setSupportLoading] = useState(true);
   const [supportSaving, setSupportSaving] = useState(false);
@@ -231,6 +255,39 @@ export default function AdminPage() {
       }
     })();
   }, [listOpen, dateStart, dateEnd]);
+
+  useEffect(() => {
+    if (!signupsListOpen) return;
+    const range = normalizeDateRange(dateStart, dateEnd);
+    void (async () => {
+      setSignupsListLoading(true);
+      try {
+        const { data, error } = await supabase.rpc("admin_new_signups_list", {
+          p_start: range.start,
+          p_end: range.end,
+        });
+        if (error) throw error;
+        const rows = (Array.isArray(data) ? data : []) as Array<{
+          email: string | null;
+          display_name: string | null;
+          contact_phone: string | null;
+          created_at: string | null;
+        }>;
+        setSignupsList(
+          rows.map((r) => ({
+            email: r.email ?? "—",
+            display_name: r.display_name ?? "—",
+            contact_phone: r.contact_phone ?? null,
+            created_at: r.created_at ?? "",
+          })),
+        );
+      } catch {
+        setSignupsList([]);
+      } finally {
+        setSignupsListLoading(false);
+      }
+    })();
+  }, [signupsListOpen, dateStart, dateEnd]);
 
   async function refreshStats() {
     await loadPanelMetrics(dateStart, dateEnd);
@@ -453,14 +510,19 @@ export default function AdminPage() {
                   <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.total_subscribers}</p>
                 </div>
 
-                <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                <button
+                  type="button"
+                  onClick={() => setSignupsListOpen((open) => !open)}
+                  aria-expanded={signupsListOpen}
+                  className="rounded-xl border border-border/60 bg-card/40 p-3 text-left transition-colors hover:bg-secondary/40"
+                >
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <UserPlus className="h-3.5 w-3.5" /> Novos cadastros
                   </div>
                   <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-500">
                     +{panelMetrics.new_signups}
                   </p>
-                </div>
+                </button>
 
                 <div className="rounded-xl border border-border/60 bg-card/40 p-3">
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -514,6 +576,47 @@ export default function AdminPage() {
                   <p className="mt-1 text-xl font-semibold tabular-nums">{panelMetrics.not_subscribed}</p>
                 </button>
               </div>
+
+              {signupsListOpen && (
+                <div className="rounded-xl border border-border/60">
+                  <div className="border-b border-border/60 px-3 py-2">
+                    <p className="text-sm font-medium">Novos cadastros ({periodLabel})</p>
+                    <p className="text-xs text-muted-foreground">
+                      Contas criadas no período selecionado.
+                    </p>
+                  </div>
+                  {signupsListLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !signupsList || signupsList.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground">Ninguém neste período.</p>
+                  ) : (
+                    <ul className="divide-y divide-border/60">
+                      {signupsList.map((row) => (
+                        <li key={row.email + row.created_at} className="px-3 py-3 space-y-1">
+                          <p className="text-sm font-medium truncate">{row.display_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{row.email}</p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>
+                              Contato:{" "}
+                              <span className="text-foreground tabular-nums">
+                                {row.contact_phone ? maskPhone(row.contact_phone) : "—"}
+                              </span>
+                            </span>
+                            <span>
+                              Cadastro:{" "}
+                              <span className="text-foreground tabular-nums">
+                                {formatDateTimeBr(row.created_at)}
+                              </span>
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               {listOpen && (
                 <div className="rounded-xl border border-border/60">
