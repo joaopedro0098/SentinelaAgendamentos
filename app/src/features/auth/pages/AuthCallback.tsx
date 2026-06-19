@@ -10,43 +10,52 @@ import { userNeedsFaceVerification, markFaceVerificationComplete, canSkipFaceVer
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
-import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,
 } from "@/features/auth/face-verification/pendingFaceStorage";
+import {
+  consumeAuthCallbackUrl,
+  urlHasPendingAuthCallback,
+  waitForAuthSession,
+} from "@/features/auth/lib/authCallbackHandler";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const finishedRef = useRef(false);
+  const navigatedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
 
-    async function finishAuth() {
-      if (!active || finishedRef.current) return;
-      finishedRef.current = true;
+    function go(path: string) {
+      if (!active || navigatedRef.current) return;
+      navigatedRef.current = true;
+      navigate(path, { replace: true });
+    }
 
-      const { data } = await supabase.auth.getSession();
+    async function finishAuth() {
+      const hadCallbackParams = urlHasPendingAuthCallback();
+      if (hadCallbackParams) {
+        await consumeAuthCallbackUrl();
+      }
+
+      const session =
+        (await supabase.auth.getSession()).data.session ??
+        (hadCallbackParams ? await waitForAuthSession() : null);
+
       if (!active) return;
 
-      if (!data.session) {
-        navigate("/login", { replace: true });
+      if (!session) {
+        go("/login");
         return;
       }
 
-      const userId = data.session.user.id;
+      const userId = session.user.id;
 
-      if (!isEmailVerified(data.session.user)) {
-        navigate("/signup/verify-email", { replace: true });
-        return;
-      }
-
-      // Entrada rápida: quem já verificou o rosto não espera RPC nem embedding pendente.
       if (canSkipFaceVerification(userId)) {
         markFaceVerificationComplete(userId);
-        navigate(getBarberPostLoginPath(), { replace: true });
-        const pending = loadPendingFaceEmbedding(data.session.user.email ?? undefined);
+        go(getBarberPostLoginPath());
+        const pending = loadPendingFaceEmbedding(session.user.email ?? undefined);
         if (pending) {
           void registerUserFacialEmbedding(pending.embedding)
             .then(() => clearPendingFaceEmbedding())
@@ -55,7 +64,7 @@ export default function AuthCallback() {
         return;
       }
 
-      const pending = loadPendingFaceEmbedding(data.session.user.email ?? undefined);
+      const pending = loadPendingFaceEmbedding(session.user.email ?? undefined);
       if (pending) {
         try {
           const registered = await registerUserFacialEmbedding(pending.embedding);
@@ -72,42 +81,20 @@ export default function AuthCallback() {
 
       const needsFace = await userNeedsFaceVerification(userId);
       if (!active) return;
+
       if (needsFace) {
-        navigate("/auth/complete-verification", { replace: true });
+        go("/auth/complete-verification");
         return;
       }
 
       markFaceVerificationComplete(userId);
-      navigate(getBarberPostLoginPath(), { replace: true });
+      go(getBarberPostLoginPath());
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) return;
-      if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
-        void finishAuth();
-      }
-    });
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) void finishAuth();
-    });
-
-    const timeout = window.setTimeout(() => {
-      if (!active || finishedRef.current) return;
-      void supabase.auth.getSession().then(({ data }) => {
-        if (finishedRef.current) return;
-        if (data.session) {
-          void finishAuth();
-          return;
-        }
-        navigate("/login", { replace: true });
-      });
-    }, 10000);
+    void finishAuth();
 
     return () => {
       active = false;
-      window.clearTimeout(timeout);
-      sub.subscription.unsubscribe();
     };
   }, [navigate]);
 

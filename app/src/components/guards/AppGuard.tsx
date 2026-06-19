@@ -94,7 +94,13 @@ export function AppGuard({ children }: Props) {
   }
 
   if (boot === "email") {
-    return <Navigate to="/signup/verify-email" replace />;
+    return (
+      <Navigate
+        to="/signup/confirmar-codigo"
+        replace
+        state={{ email: session?.user?.email ?? "" }}
+      />
+    );
   }
 
   if (boot === "face") {

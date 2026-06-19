@@ -26,7 +26,7 @@ const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPassword
 const ResetPasswordSuccessPage = lazy(() => import("@/features/auth/pages/ResetPasswordSuccess"));
 const AuthCallbackPage = lazy(() => import("@/features/auth/pages/AuthCallback"));
 const AuthCompleteVerificationPage = lazy(() => import("@/features/auth/pages/AuthCompleteVerification"));
-const VerifyEmailSignupPage = lazy(() => import("@/features/auth/pages/VerifyEmailSignup"));
+const SignupConfirmEmailPage = lazy(() => import("@/features/auth/pages/SignupConfirmEmailPage"));
 
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
 
@@ -45,7 +45,7 @@ export function AppRouter() {
           <Route path="/termos-de-servico" element={<TermosServicoPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/signup/verify-email" element={<VerifyEmailSignupPage />} />
+          <Route path="/signup/confirmar-codigo" element={<SignupConfirmEmailPage />} />
           <Route path="/recover" element={<RecoverPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/reset-password/success" element={<ResetPasswordSuccessPage />} />

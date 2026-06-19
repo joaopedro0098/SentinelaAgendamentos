@@ -7,7 +7,7 @@ const LANDING_PATHS = new Set([
   "/planos",
   "/login",
   "/signup",
-  "/signup/verify-email",
+  "/signup/confirmar-codigo",
   "/recover",
   "/reset-password",
   "/reset-password/success",

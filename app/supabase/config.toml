@@ -20,7 +20,7 @@ enable_confirmations = true
 # Só o e-mail novo precisa confirmar a troca (padrão Supabase exige os dois).
 double_confirm_changes = false
 max_frequency = "1m0s"
-otp_length = 8
+otp_length = 6
 
 [auth.mfa.totp]
 enroll_enabled = true

@@ -44,7 +44,7 @@ export const AUTH_CONFIG_ERROR_MESSAGE =
   "Não foi possível conectar ao Supabase. Confira VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (chave anon public) no ambiente de build e faça um novo deploy.";
 
 export const EMAIL_CONFIRMATION_PENDING_MESSAGE =
-  "Enviamos um e-mail para você. Abra-o e clique em confirmar para finalizar seu cadastro.";
+  "Seu cadastro ainda não foi confirmado. Digite o código de 6 dígitos enviado ao seu e-mail.";
 
 export function isEmailNotConfirmedError(error: SupabaseLikeError): boolean {
   if (!error) return false;

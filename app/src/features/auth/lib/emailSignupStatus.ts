@@ -27,17 +27,3 @@ export async function getEmailSignupStatus(email: string): Promise<EmailSignupSt
 
   return { status: "unknown_error" };
 }
-
-export function signupConfirmationRedirectUrl() {
-  return `${window.location.origin}/auth/callback`;
-}
-
-export async function resendSignupConfirmation(email: string) {
-  return supabase.auth.resend({
-    type: "signup",
-    email: email.trim(),
-    options: {
-      emailRedirectTo: signupConfirmationRedirectUrl(),
-    },
-  });
-}

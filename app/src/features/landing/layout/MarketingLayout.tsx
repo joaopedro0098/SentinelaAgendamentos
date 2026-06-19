@@ -11,7 +11,7 @@ import {
 const AUTH_PATHS = new Set([
   "/login",
   "/signup",
-  "/signup/verify-email",
+  "/signup/confirmar-codigo",
   "/recover",
   "/reset-password",
   "/reset-password/success",

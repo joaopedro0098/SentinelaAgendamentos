@@ -16,7 +16,8 @@ import {
   isInvalidApiKeyError,
 } from "@/features/auth/lib/authErrors";
 import { authInfoToast } from "@/features/auth/lib/authToast";
-import { getEmailSignupStatus, resendSignupConfirmation } from "@/features/auth/lib/emailSignupStatus";
+import { getEmailSignupStatus } from "@/features/auth/lib/emailSignupStatus";
+import { resendSignupEmailOtp } from "@/features/auth/lib/signupEmailOtp";
 import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
@@ -52,11 +53,17 @@ export default function Login() {
     if (session) navigate(getBarberPostLoginPath(), { replace: true });
   }, [session, navigate]);
 
-  // Pré-baixa o painel enquanto o usuário preenche o formulário.
   useEffect(() => {
     void import("@/features/dashboard/pages/AppLayout");
     void import("@/features/dashboard/pages/DashboardRoutes");
   }, []);
+
+  function goToConfirmCode(emailToConfirm: string) {
+    navigate("/signup/confirmar-codigo", {
+      replace: true,
+      state: { email: emailToConfirm },
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,8 +94,9 @@ export default function Login() {
 
       if (isEmailNotConfirmedError(error)) {
         setLoading(false);
-        await resendSignupConfirmation(emailToCheck);
+        await resendSignupEmailOtp(emailToCheck);
         authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
+        goToConfirmCode(emailToCheck);
         return;
       }
 
@@ -105,8 +113,9 @@ export default function Login() {
           return;
         }
         if (recheck.status === "pending_confirmation") {
-          await resendSignupConfirmation(emailToCheck);
+          await resendSignupEmailOtp(emailToCheck);
           authInfoToast(EMAIL_CONFIRMATION_PENDING_MESSAGE);
+          goToConfirmCode(emailToCheck);
           return;
         }
         if (recheck.status === "registered") {
@@ -115,8 +124,8 @@ export default function Login() {
         }
       }
 
-    setLoading(false);
-    toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
+      setLoading(false);
+      toast({ title: "Falha ao entrar", description: error.message, variant: "destructive" });
       return;
     }
 

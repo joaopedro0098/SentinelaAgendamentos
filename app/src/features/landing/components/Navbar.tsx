@@ -15,12 +15,12 @@ const Navbar = () => {
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/signup" ||
-    pathname === "/signup/verify-email" ||
+    pathname === "/signup/confirmar-codigo" ||
     pathname === "/recover" ||
     pathname === "/reset-password" ||
     pathname === "/reset-password/success";
   const isPlanosPage = pathname === "/planos";
-  const isSignupPage = pathname === "/signup" || pathname === "/signup/verify-email";
+  const isSignupPage = pathname === "/signup" || pathname === "/signup/confirmar-codigo";
   const isLoginPage = pathname === "/login";
   const showProdutoLink = isAuthPage || isPlanosPage;
   const showMobileLoginLink = !isAuthPage || isSignupPage;

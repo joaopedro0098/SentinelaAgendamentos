@@ -59,7 +59,7 @@ const BARBER_PWA_MARKETING_PATHS = new Set([
   "/termos-de-servico",
   "/login",
   "/signup",
-  "/signup/verify-email",
+  "/signup/confirmar-codigo",
   "/recover",
 ]);
 

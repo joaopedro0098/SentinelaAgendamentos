@@ -11,7 +11,7 @@ export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/planos": "Planos — Sentinela Agendamentos",
   "/login": "Entrar — Sentinela Agendamentos",
   "/signup": "Teste grátis 14 dias — Sentinela Agendamentos",
-  "/signup/verify-email": "Verifique seu email e spam — Sentinela Agendamentos",
+  "/signup/confirmar-codigo": "Confirme seu e-mail — Sentinela Agendamentos",
   "/recover": "Recuperar senha — Sentinela Agendamentos",
   "/reset-password": "Recuperação de senha — Sentinela Agendamentos",
   "/reset-password/success": "Senha alterada — Sentinela Agendamentos",
