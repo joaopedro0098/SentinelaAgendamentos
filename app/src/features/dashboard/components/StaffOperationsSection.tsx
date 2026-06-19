@@ -239,7 +239,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
       toast({
         title: isCaLimit ? "Limite de colaboradores" : "Erro ao adicionar",
         description: isCaLimit
-          ? "Contas agregadas (CA) podem ter no máximo 1 colaborador ativo."
+          ? "Contas agregadas (CA) podem ter no máximo 1 colaborador."
           : error.message,
         variant: "destructive",
       });
@@ -471,14 +471,14 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
         </CardTitle>
         <CardDescription>
           {maxActiveStaff === 1
-            ? "Conta agregada: apenas 1 colaborador ativo"
+            ? "Conta agregada: apenas 1 colaborador"
             : "Adicione colaboradores, serviços e horários"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {staffAtLimit ? (
           <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border p-4">
-            Você já atingiu o limite de {maxActiveStaff} colaborador ativo enquanto a conta estiver agregada.
+            Você já atingiu o limite de {maxActiveStaff} colaborador enquanto a conta estiver agregada.
           </p>
         ) : (
           <AddStaffForm newName={newName} setNewName={setNewName} onAdd={addStaff} busy={busy === "add-staff"} />
