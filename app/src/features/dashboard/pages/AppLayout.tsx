@@ -109,7 +109,7 @@ export default function AppLayout() {
               </button>
             </div>
 
-            <nav className="flex flex-col gap-1 p-3 flex-1">
+            <nav className="flex flex-col gap-1 p-3">
               <MobileNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end onNavigate={closeMenu} />
               <MobileNavItem
                 to="/app/agendamentos"
@@ -163,7 +163,7 @@ export default function AppLayout() {
               )}
             </nav>
 
-            <div className="p-3 border-t border-border space-y-2">
+            <div className="mt-2 p-3 border-t border-border space-y-2">
               <PwaInstallButton
                 label="Instalar"
                 helpPresentation="dialog"
@@ -179,8 +179,8 @@ export default function AppLayout() {
         </div>
       )}
 
-      <aside className="hidden md:flex md:w-64 border-r border-border shrink-0">
-        <div className="glass-panel m-3 rounded-2xl flex flex-col flex-1 overflow-hidden w-full">
+      <aside className="hidden md:flex md:w-64 border-r border-border shrink-0 self-start md:sticky md:top-0">
+        <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-full">
           <div className="px-4 py-4 border-b border-border/60">
             <ShopPanelBrand
               shop={shop ? { display_name: shop.display_name, avatar_url: shop.avatar_url } : null}
@@ -188,7 +188,7 @@ export default function AppLayout() {
             />
           </div>
 
-          <nav className="flex flex-col gap-1 p-2 flex-1">
+          <nav className="flex flex-col gap-1 p-2">
             <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
             <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
             <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
@@ -207,7 +207,7 @@ export default function AppLayout() {
             )}
           </nav>
 
-          <div className="flex flex-col gap-2 p-3 border-t border-border/60">
+          <div className="mt-2 flex flex-col gap-2 p-3 border-t border-border/60">
             <PwaInstallButton
               label="Instalar"
               helpPresentation="dialog"
