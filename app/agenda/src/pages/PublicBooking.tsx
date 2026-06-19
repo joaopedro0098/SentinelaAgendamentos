@@ -341,6 +341,17 @@ export type RescheduleContext = {
   servicos_nomes?: string[];
 };
 
+type RescheduleSummary = {
+  data: string;
+  hora: string;
+  barbeiroNome: string;
+  servicos: string[];
+};
+
+function formatDisplayTime(value: string) {
+  return value.slice(0, 5);
+}
+
 export type PublicBookingProps = {
   slugOverride?: string;
   backHref?: string;
@@ -385,6 +396,7 @@ const PublicBooking = ({
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [rescheduleSummary, setRescheduleSummary] = useState<RescheduleSummary | null>(null);
   const [clientExitHint, setClientExitHint] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
   const [slotPause, setSlotPause] = useState(0);
@@ -647,8 +659,9 @@ const PublicBooking = ({
   }, [barbeiroId, data, slotsRaw, duracaoTotal, slotPause]);
 
   useEffect(() => {
+    if (bookingConfirmed) return;
     if (hora && !slotsDoBarbeiroNoDia.livres.includes(hora)) setHora("");
-  }, [hora, slotsDoBarbeiroNoDia.livres]);
+  }, [hora, slotsDoBarbeiroNoDia.livres, bookingConfirmed]);
 
   useEffect(() => {
     setDesktopViewMonth(monthStart(parseYmd(data)));
@@ -719,6 +732,12 @@ const PublicBooking = ({
       }
 
       const result = rpcData as { old_data?: string; new_data?: string } | null;
+      setRescheduleSummary({
+        data: selectedDate,
+        hora: formatDisplayTime(hora),
+        barbeiroNome: barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "",
+        servicos: servicosNomes,
+      });
       await notifyBarberAppointmentChange({
         agendamento_id: reschedule.agendamentoId,
         event: "rescheduled",
@@ -750,7 +769,8 @@ const PublicBooking = ({
       return;
     }
 
-    const canBook = await checkBarbeariaCanBook(barbearia.id);
+    const targetBarbeariaId = barbeiroSel?.barbearia_id ?? barbearia.id;
+    const canBook = await checkBarbeariaCanBook(targetBarbeariaId);
     if (!canBook) {
       notifyBookingBlocked();
       return;
@@ -805,7 +825,8 @@ const PublicBooking = ({
       await requestClientNotificationPermission();
     }
 
-    const canBook = await checkBarbeariaCanBook(barbearia.id);
+    const targetBarbeariaIdForBook = barbeiroSel?.barbearia_id ?? barbearia.id;
+    const canBook = await checkBarbeariaCanBook(targetBarbeariaIdForBook);
     if (!canBook) {
       notifyBookingBlocked();
       return;
@@ -814,7 +835,7 @@ const PublicBooking = ({
     if (isReschedule && reschedule) {
       const ok = await executeClientReschedule();
       if (ok) {
-        toast.success("Horário alterado!");
+        toast.success("Alteração concluída");
         setBookingConfirmed(true);
       }
       return;
@@ -904,6 +925,7 @@ const PublicBooking = ({
   const alterBooking = () => {
     setBookingConfirmed(false);
     setDone(false);
+    setRescheduleSummary(null);
   };
 
   const startNewOwnerBooking = () => {
@@ -976,18 +998,38 @@ const PublicBooking = ({
   if (done) {
     const barbeiroNome = barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "";
 
-    if (isReschedule && bookingConfirmed) {
+    if (isReschedule && bookingConfirmed && rescheduleSummary) {
       return (
         <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6", pageBgClass)}>
           <Card className="max-w-sm w-full p-6 text-center">
             <div className="mx-auto h-12 w-12 rounded-full bg-available/10 flex items-center justify-center">
               <Check className="h-6 w-6 text-available" />
             </div>
-            <h1 className="mt-4 font-display text-xl font-bold">Horário alterado!</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Novo horário: <b className="text-foreground">{new Date(data + "T00:00:00").toLocaleDateString("pt-BR")}</b> às{" "}
-              <b className="text-foreground">{hora}</b>.
-            </p>
+            <h1 className="mt-4 font-display text-xl font-bold">Alteração concluída</h1>
+            <ul className="mt-4 space-y-2 text-sm text-left border-t border-border pt-4">
+              <li className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Data</span>
+                <span className="font-medium">
+                  {new Date(rescheduleSummary.data + "T00:00:00").toLocaleDateString("pt-BR")}
+                </span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Horário</span>
+                <span className="font-medium">{rescheduleSummary.hora}</span>
+              </li>
+              {rescheduleSummary.barbeiroNome && (
+                <li className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Profissional</span>
+                  <span className="font-medium text-right">{rescheduleSummary.barbeiroNome}</span>
+                </li>
+              )}
+              {rescheduleSummary.servicos.length > 0 && (
+                <li className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Serviço</span>
+                  <span className="font-medium text-right">{rescheduleSummary.servicos.join(" · ")}</span>
+                </li>
+              )}
+            </ul>
             <Button className="mt-6 w-full" onClick={() => onRescheduleComplete?.()}>
               Voltar aos agendamentos
             </Button>
@@ -1556,7 +1598,6 @@ const PublicBooking = ({
                   <textarea
                     value={observacao}
                     onChange={(e) => setObservacao(e.target.value)}
-                    placeholder="Ex.: preferência de corte, alergia, pedido especial..."
                     maxLength={500}
                     rows={3}
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none md:min-h-[4.25rem] md:max-h-[4.25rem]"

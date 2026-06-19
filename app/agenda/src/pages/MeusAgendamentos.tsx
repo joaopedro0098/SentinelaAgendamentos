@@ -101,22 +101,38 @@ export default function MeusAgendamentosPage() {
   }
 
   async function handleConfirmCancel() {
-    if (!slug || !cancelTarget || !isValidPhone(whatsapp)) return;
+    if (!slug || !cancelTarget || !isValidPhone(whatsapp) || cancelling) return;
+
+    const targetId = cancelTarget.id;
     setCancelling(true);
-    const { error } = await supabase.rpc("cancelar_agendamento_cliente", {
-      _agendamento_id: cancelTarget.id,
-      _slug: slug,
-      _whatsapp: unmaskPhone(whatsapp),
-    });
-    setCancelling(false);
-    if (error) {
-      toast.error(error.message || "Não foi possível cancelar. Tente novamente ou fale com o profissional.");
+    try {
+      const { error } = await supabase.rpc("cancelar_agendamento_cliente", {
+        _agendamento_id: targetId,
+        _slug: slug,
+        _whatsapp: unmaskPhone(whatsapp),
+      });
+
+      if (error) {
+        toast.error(error.message || "Não foi possível cancelar. Tente novamente ou fale com o profissional.");
+        return;
+      }
+
       setCancelTarget(null);
-      return;
+      setItems((prev) =>
+        prev.map((a) => (a.id === targetId ? { ...a, status: "cancelado" as const } : a)),
+      );
+      toast.success("Agendamento cancelado");
+
+      void notifyBarberAppointmentChange({ agendamento_id: targetId, event: "cancelled" });
+
+      try {
+        await loadItems(whatsapp);
+      } catch {
+        // Lista já atualizada localmente; recarregar é best-effort.
+      }
+    } finally {
+      setCancelling(false);
     }
-    await notifyBarberAppointmentChange({ agendamento_id: cancelTarget.id, event: "cancelled" });
-    setCancelTarget(null);
-    await loadItems(whatsapp);
   }
 
   return (
