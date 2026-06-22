@@ -3,24 +3,36 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  getSocialInAppSourceLabel,
   getSuggestedExternalBrowserLabel,
   isSocialInAppBrowser,
 } from "@/lib/pwaInstall";
 import { cn } from "@/lib/utils";
 
 export type PwaInstallHelpVariant = "landing" | "app";
+export type PwaInstallHelpMode = "install" | "auto-social";
 
 type Props = {
   open: boolean;
   variant: PwaInstallHelpVariant;
+  mode: PwaInstallHelpMode;
   isIos: boolean;
   onClose: () => void;
 };
 
-function PwaInstallStepsContent({ isIos, variant }: { isIos: boolean; variant: PwaInstallHelpVariant }) {
-  const fromSocial = isSocialInAppBrowser();
+function PwaInstallHelpBody({
+  isIos,
+  variant,
+  mode,
+}: {
+  isIos: boolean;
+  variant: PwaInstallHelpVariant;
+  mode: PwaInstallHelpMode;
+}) {
   const isApp = variant === "app";
   const browserLabel = getSuggestedExternalBrowserLabel();
+  const socialSource = getSocialInAppSourceLabel();
+  const actionVerb = isIos ? "toque" : "clique";
 
   const socialNoteClass = isApp
     ? "rounded-2xl border border-border/60 bg-secondary/40 px-3 py-2.5 text-foreground/90"
@@ -39,11 +51,19 @@ function PwaInstallStepsContent({ isIos, variant }: { isIos: boolean; variant: P
     );
   }
 
-  if (fromSocial) {
-    const actionVerb = isIos ? "Toque" : "Clique";
+  if (mode === "auto-social") {
+    return (
+      <p className={cn("text-foreground/90", !isApp && "px-0.5")}>
+        Detectamos que você veio do {socialSource}. Por favor, para ter uma melhor experiência, {actionVerb} nos{" "}
+        <strong>três pontinhos</strong> do navegador e depois em <strong>Abrir no {browserLabel}</strong>.
+      </p>
+    );
+  }
+
+  if (isSocialInAppBrowser()) {
     return (
       <p className={socialNoteClass}>
-        Veio pelo Instagram ou TikTok? Para instalar o app, {actionVerb.toLowerCase()} primeiro nos{" "}
+        Veio pelo Instagram ou TikTok? Para instalar o app, {actionVerb} primeiro nos{" "}
         <strong>três pontinhos</strong> do navegador e depois em <strong>Abrir no {browserLabel}</strong>.
       </p>
     );
@@ -94,7 +114,9 @@ function getActionClassName(variant: PwaInstallHelpVariant) {
   return "w-full rounded-full";
 }
 
-export function PwaInstallHelpDialog({ open, variant, isIos, onClose }: Props) {
+export function PwaInstallHelpDialog({ open, variant, mode, isIos, onClose }: Props) {
+  const showTitle = mode === "install";
+
   useEffect(() => {
     if (!open) return;
 
@@ -126,7 +148,8 @@ export function PwaInstallHelpDialog({ open, variant, isIos, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="pwa-install-help-title"
+        aria-labelledby={showTitle ? "pwa-install-help-title" : undefined}
+        aria-label={showTitle ? undefined : "Abrir no navegador"}
         className={cn(
           "relative z-[101] w-full max-w-sm p-6 animate-in fade-in-0 zoom-in-95",
           getPanelClassName(variant),
@@ -142,12 +165,14 @@ export function PwaInstallHelpDialog({ open, variant, isIos, onClose }: Props) {
           <X className="h-4 w-4" />
         </button>
 
-        <div className="space-y-4 pr-6">
-          <h2 id="pwa-install-help-title" className="text-base font-semibold leading-none">
-            Como instalar
-          </h2>
+        <div className={cn("pr-6", showTitle ? "space-y-4" : "pt-1")}>
+          {showTitle && (
+            <h2 id="pwa-install-help-title" className="text-base font-semibold leading-none">
+              Como instalar
+            </h2>
+          )}
           <div className="text-sm leading-relaxed text-muted-foreground">
-            <PwaInstallStepsContent isIos={isIos} variant={variant} />
+            <PwaInstallHelpBody isIos={isIos} variant={variant} mode={mode} />
           </div>
         </div>
 

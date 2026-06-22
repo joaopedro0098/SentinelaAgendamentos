@@ -43,6 +43,18 @@ export function isSocialInAppBrowser() {
   );
 }
 
+export function getSocialInAppSourceLabel() {
+  const ua = window.navigator.userAgent.toLowerCase();
+  const fromInstagram = ua.includes("instagram");
+  const fromTiktok =
+    ua.includes("tiktok") || ua.includes("musical_ly") || ua.includes("bytedancewebview");
+
+  if (fromInstagram && fromTiktok) return "Instagram ou TikTok";
+  if (fromInstagram) return "Instagram";
+  if (fromTiktok) return "TikTok";
+  return "Instagram ou TikTok";
+}
+
 /** Nome do navegador externo mais provável (menu "Abrir no…" do Instagram/TikTok). */
 export function getSuggestedExternalBrowserLabel() {
   const ua = window.navigator.userAgent;

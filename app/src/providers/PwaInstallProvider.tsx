@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PwaInstallHelpDialog, type PwaInstallHelpVariant } from "@/components/pwa/PwaInstallHelpDialog";
+import { PwaInstallHelpDialog, type PwaInstallHelpMode, type PwaInstallHelpVariant } from "@/components/pwa/PwaInstallHelpDialog";
 import {
   clearCachedInstallPrompt,
   getCachedInstallPrompt,
@@ -23,13 +23,18 @@ function resolveHelpVariant(pathname: string): PwaInstallHelpVariant {
   return pathname.startsWith("/app") ? "app" : "landing";
 }
 
+type OpenInstallHelpOptions = {
+  onAfterClose?: () => void;
+  mode?: PwaInstallHelpMode;
+};
+
 type PwaInstallContextValue = {
   installed: boolean;
   showInstall: boolean;
   isIos: boolean;
   hasNativePrompt: boolean;
   tryNativeInstall: () => Promise<boolean>;
-  openInstallHelp: (variant: PwaInstallHelpVariant, onAfterClose?: () => void) => void;
+  openInstallHelp: (variant: PwaInstallHelpVariant, options?: OpenInstallHelpOptions) => void;
   closeInstallHelp: () => void;
 };
 
@@ -44,6 +49,7 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
   );
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpVariant, setHelpVariant] = useState<PwaInstallHelpVariant>("app");
+  const [helpMode, setHelpMode] = useState<PwaInstallHelpMode>("install");
   const afterHelpCloseRef = useRef<(() => void) | undefined>(undefined);
   const isIos = typeof window !== "undefined" && isIosDevice();
 
@@ -88,9 +94,10 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     onAfterClose?.();
   }, []);
 
-  const openInstallHelp = useCallback((variant: PwaInstallHelpVariant, onAfterClose?: () => void) => {
-    afterHelpCloseRef.current = onAfterClose;
+  const openInstallHelp = useCallback((variant: PwaInstallHelpVariant, options?: OpenInstallHelpOptions) => {
+    afterHelpCloseRef.current = options?.onAfterClose;
     setHelpVariant(variant);
+    setHelpMode(options?.mode ?? "install");
     window.setTimeout(() => setHelpOpen(true), 0);
   }, []);
 
@@ -99,7 +106,7 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     if (!isSocialInAppBrowser()) return;
 
     const variant = resolveHelpVariant(window.location.pathname);
-    const timer = window.setTimeout(() => openInstallHelp(variant), 0);
+    const timer = window.setTimeout(() => openInstallHelp(variant, { mode: "auto-social" }), 0);
     return () => window.clearTimeout(timer);
   }, [installed, openInstallHelp]);
 
@@ -122,6 +129,7 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
       <PwaInstallHelpDialog
         open={helpOpen}
         variant={helpVariant}
+        mode={helpMode}
         isIos={isIos}
         onClose={closeInstallHelp}
       />

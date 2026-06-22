@@ -31,7 +31,7 @@ export function PwaInstallButton({
       onNavigate?.();
       return;
     }
-    openInstallHelp(helpVariant, onNavigate);
+    openInstallHelp(helpVariant, { onAfterClose: onNavigate, mode: "install" });
   }
 
   return (
