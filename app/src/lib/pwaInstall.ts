@@ -43,6 +43,27 @@ export function isSocialInAppBrowser() {
   );
 }
 
+/** Nome do navegador externo mais provável (menu "Abrir no…" do Instagram/TikTok). */
+export function getSuggestedExternalBrowserLabel() {
+  const ua = window.navigator.userAgent;
+
+  if (/iphone|ipad|ipod/i.test(ua)) {
+    if (/crios/i.test(ua)) return "Chrome";
+    if (/fxios/i.test(ua)) return "Firefox";
+    if (/edgios/i.test(ua)) return "Edge";
+    return "Safari";
+  }
+
+  if (/android/i.test(ua)) {
+    if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
+    if (/EdgA/i.test(ua)) return "Edge";
+    if (/Firefox/i.test(ua)) return "Firefox";
+    return "Chrome";
+  }
+
+  return "navegador";
+}
+
 export function isStandalonePwa() {
   return (
     window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches ||
