@@ -54,8 +54,8 @@ function PwaInstallHelpBody({
   if (mode === "auto-social") {
     return (
       <p className={cn("text-foreground/90", !isApp && "px-0.5")}>
-        Detectamos que você veio do {socialSource}. Por favor, para ter uma melhor experiência, {actionVerb} nos{" "}
-        <strong>três pontinhos</strong> do navegador e depois em <strong>Abrir no {browserLabel}</strong>.
+        Detectamos que você veio do {socialSource}. Por favor, {actionVerb} nos <strong>três pontinhos</strong> do
+        navegador e depois em <strong>Abrir no {browserLabel}</strong>.
       </p>
     );
   }
