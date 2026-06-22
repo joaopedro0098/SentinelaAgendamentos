@@ -13,10 +13,15 @@ import {
   clearCachedInstallPrompt,
   getCachedInstallPrompt,
   isIosDevice,
+  isSocialInAppBrowser,
   isStandalonePwa,
   subscribeInstallPrompt,
   type BeforeInstallPromptEvent,
 } from "@/lib/pwaInstall";
+
+function resolveHelpVariant(pathname: string): PwaInstallHelpVariant {
+  return pathname.startsWith("/app") ? "app" : "landing";
+}
 
 type PwaInstallContextValue = {
   installed: boolean;
@@ -88,6 +93,15 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     setHelpVariant(variant);
     window.setTimeout(() => setHelpOpen(true), 0);
   }, []);
+
+  useEffect(() => {
+    if (installed) return;
+    if (!isSocialInAppBrowser()) return;
+
+    const variant = resolveHelpVariant(window.location.pathname);
+    const timer = window.setTimeout(() => openInstallHelp(variant), 0);
+    return () => window.clearTimeout(timer);
+  }, [installed, openInstallHelp]);
 
   const value = useMemo(
     () => ({
