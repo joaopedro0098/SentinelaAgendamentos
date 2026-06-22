@@ -32,7 +32,6 @@ export default function Settings() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [contactPhone, setContactPhone] = useState("");
   const [slotInterval, setSlotInterval] = useState("30");
-  const [slotPause, setSlotPause] = useState("0");
   const [savingSlots, setSavingSlots] = useState(false);
   const [savingClientSelfService, setSavingClientSelfService] = useState(false);
   const [savingClientPublicBooking, setSavingClientPublicBooking] = useState(false);
@@ -46,7 +45,6 @@ export default function Settings() {
     if (!contextShop) return;
     setShop(contextShop);
     setSlotInterval(String(contextShop.slot_interval_minutes ?? 30));
-    setSlotPause(contextShop.slot_pause_minutes ? String(contextShop.slot_pause_minutes) : "0");
     setContactPhone(contextShop.contact_phone ? maskPhone(contextShop.contact_phone) : "");
   }, [contextShop]);
 
@@ -153,7 +151,6 @@ export default function Settings() {
     if (!shop) return;
 
     const interval = parseInt(slotInterval, 10);
-    const pause = slotPause.trim() === "" ? 0 : parseInt(slotPause, 10);
 
     if (!Number.isFinite(interval) || interval < 5 || interval > 120) {
       toast({
@@ -163,19 +160,11 @@ export default function Settings() {
       });
       return;
     }
-    if (!Number.isFinite(pause) || pause < 0 || pause > 60) {
-      toast({
-        title: "Pausa inválida",
-        description: "Use um valor entre 0 e 60 minutos, ou deixe vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setSavingSlots(true);
     const { error } = await supabase
       .from("barbershops")
-      .update({ slot_interval_minutes: interval, slot_pause_minutes: pause })
+      .update({ slot_interval_minutes: interval })
       .eq("id", shop.id);
     setSavingSlots(false);
 
@@ -184,9 +173,8 @@ export default function Settings() {
       return;
     }
 
-    setShop({ ...shop, slot_interval_minutes: interval, slot_pause_minutes: pause });
+    setShop({ ...shop, slot_interval_minutes: interval });
     setSlotInterval(String(interval));
-    setSlotPause(pause ? String(pause) : "0");
     toast({ title: "Grade de horários salva" });
   }
 
@@ -467,7 +455,7 @@ export default function Settings() {
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="slot-interval">Intervalo de tempo na grade de horários</Label>
+              <Label htmlFor="slot-interval">Intervalo de tempo na grade (em minutos)</Label>
               <Input
                 id="slot-interval"
                 type="number"
@@ -476,20 +464,6 @@ export default function Settings() {
                 step={5}
                 value={slotInterval}
                 onChange={(e) => setSlotInterval(e.target.value)}
-                className="max-w-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="slot-pause">Defina uma pausa (ou deixe 0 ou vazio)</Label>
-              <Input
-                id="slot-pause"
-                type="number"
-                min={0}
-                max={60}
-                step={5}
-                placeholder="0"
-                value={slotPause}
-                onChange={(e) => setSlotPause(e.target.value)}
                 className="max-w-xs"
               />
             </div>

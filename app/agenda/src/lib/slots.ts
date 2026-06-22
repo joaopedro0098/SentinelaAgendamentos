@@ -20,15 +20,13 @@ const toMin = (hhmm: string) => {
 const toHHMM = (mins: number) =>
   `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-/** Gera grade base de horários: cada próximo início = anterior + intervalo + pausa. */
-export const buildSlots = (windows: Window[], slotMin: number, pauseMin = 0): string[] => {
+/** Gera grade base de horários: cada próximo início avança pelo intervalo configurado. */
+export const buildSlots = (windows: Window[], slotMin: number): string[] => {
   const out: string[] = [];
-  const pause = Math.max(0, pauseMin);
-  const step = slotMin + pause;
   for (const w of windows) {
     const start = toMin(w.hora_inicio.slice(0, 5));
     const end = toMin(w.hora_fim.slice(0, 5));
-    for (let t = start; t + slotMin <= end; t += step) {
+    for (let t = start; t + slotMin <= end; t += slotMin) {
       out.push(toHHMM(t));
     }
   }
@@ -54,18 +52,14 @@ export const filtrarSlotsLivres = (
   ocupados: Map<string, number>,
   dayBloqs: Bloq[],
   duracaoTotal: number,
-  pauseMin = 0,
 ): string[] => {
-  const pause = Math.max(0, pauseMin);
-  // Constrói lista de intervalos ocupados (em minutos)
   const ocupIntervals: [number, number][] = [];
   for (const [hora, dur] of ocupados.entries()) {
     const s = toMin(hora);
-    ocupIntervals.push([s, s + dur + pause]);
+    ocupIntervals.push([s, s + dur]);
   }
   for (const b of dayBloqs) {
     if (!b.hora_inicio || !b.hora_fim) {
-      // dia inteiro
       ocupIntervals.push([0, 24 * 60]);
     } else {
       ocupIntervals.push([toMin(b.hora_inicio.slice(0, 5)), toMin(b.hora_fim.slice(0, 5))]);
@@ -75,12 +69,10 @@ export const filtrarSlotsLivres = (
   return all.filter((slot) => {
     const start = toMin(slot);
     const end = start + duracaoTotal;
-    // Precisa caber dentro de alguma janela de trabalho
     const dentroJanela = windows.some(
       (w) => start >= toMin(w.hora_inicio.slice(0, 5)) && end <= toMin(w.hora_fim.slice(0, 5)),
     );
     if (!dentroJanela) return false;
-    // Não pode colidir com nenhum intervalo ocupado
     for (const [os, oe] of ocupIntervals) {
       if (start < oe && end > os) return false;
     }
@@ -93,11 +85,10 @@ export function occupiedSlotStarts(
   hora: string,
   duracaoMinutos: number,
   slotInterval: number,
-  slotPause = 0,
 ): string[] {
   const start = toMin(hora.slice(0, 5));
   const end = start + Math.max(1, duracaoMinutos);
-  const step = Math.max(1, slotInterval + Math.max(0, slotPause));
+  const step = Math.max(1, slotInterval);
   const out: string[] = [];
   for (let t = start; t < end; t += step) {
     out.push(toHHMM(t));

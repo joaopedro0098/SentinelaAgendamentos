@@ -11,7 +11,6 @@ type BookingStaticCache = {
   };
   barbeiros: unknown[];
   slotInterval: number;
-  slotPause: number;
   fromYmd: string;
   toYmd: string;
   fetchedAt: number;

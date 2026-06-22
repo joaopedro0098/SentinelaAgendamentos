@@ -399,7 +399,6 @@ const PublicBooking = ({
   const [rescheduleSummary, setRescheduleSummary] = useState<RescheduleSummary | null>(null);
   const [clientExitHint, setClientExitHint] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
-  const [slotPause, setSlotPause] = useState(0);
   const [desktopViewMonth, setDesktopViewMonth] = useState(() =>
     monthStart(parseYmd(initialBookingDate(ownerPanel, isReschedule))),
   );
@@ -445,7 +444,6 @@ const PublicBooking = ({
         });
         setBarbeiros(cached.barbeiros as Barbeiro[]);
         setSlotInterval(cached.slotInterval);
-        setSlotPause(cached.slotPause);
         setLoading(false);
       } else {
         setLoading(true);
@@ -457,7 +455,7 @@ const PublicBooking = ({
           .select("id, nome, logo_url, ativa, allow_client_public_booking")
           .eq("slug", slug)
           .maybeSingle(),
-        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, slot_pause_minutes").eq("slug", slug).maybeSingle(),
+        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes").eq("slug", slug).maybeSingle(),
       ]);
 
       if (barbErr) {
@@ -482,12 +480,10 @@ const PublicBooking = ({
       const shopRow = shopRes.data as {
         whatsapp_number?: string | null;
         slot_interval_minutes?: number | null;
-        slot_pause_minutes?: number | null;
       } | null;
 
       const contato = shopRow?.whatsapp_number ?? null;
       setSlotInterval(shopRow?.slot_interval_minutes ?? 30);
-      setSlotPause(shopRow?.slot_pause_minutes ?? 0);
 
       setBarbearia({
         id: b.id,
@@ -513,7 +509,6 @@ const PublicBooking = ({
         },
         barbeiros: bbs,
         slotInterval: shopRow?.slot_interval_minutes ?? 30,
-        slotPause: shopRow?.slot_pause_minutes ?? 0,
         fromYmd,
         toYmd,
       });
@@ -608,7 +603,7 @@ const PublicBooking = ({
         const dow = d.getDay();
         const windows = bb.disponibilidades.filter((x) => x.dia_semana === dow);
         m.set(`${bb.id}|${key}`, {
-          all: buildSlots(windows, slotInterval, slotPause),
+          all: buildSlots(windows, slotInterval),
           windows,
           ocup: agOcupados.get(`${bb.id}|${key}`) ?? new Map(),
           dayBloqs: bb.bloqueios.filter((b) => b.data === key),
@@ -616,13 +611,13 @@ const PublicBooking = ({
       }
     }
     return m;
-  }, [barbeiros, bookableRange.days, agOcupados, slotInterval, slotPause]);
+  }, [barbeiros, bookableRange.days, agOcupados, slotInterval]);
 
   const livresComDuracao = (bbId: string, dayKey: string, dur: number) => {
     if (dur <= 0) return [];
     const raw = slotsRaw.get(`${bbId}|${dayKey}`);
     if (!raw) return [];
-    return filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, dur, slotPause);
+    return filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, dur);
   };
 
   /** Para cor do nome: precisa caber o maior serviço do barbeiro (não só barba/encaixe curto). */
@@ -654,9 +649,9 @@ const PublicBooking = ({
     if (!barbeiroId) return { all: [] as string[], livres: [] as string[] };
     const raw = slotsRaw.get(`${barbeiroId}|${data}`);
     if (!raw) return { all: [], livres: [] };
-    const livres = duracaoTotal > 0 ? filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, duracaoTotal, slotPause) : [];
+    const livres = duracaoTotal > 0 ? filtrarSlotsLivres(raw.all, raw.windows, raw.ocup, raw.dayBloqs, duracaoTotal) : [];
     return { all: raw.all, livres };
-  }, [barbeiroId, data, slotsRaw, duracaoTotal, slotPause]);
+  }, [barbeiroId, data, slotsRaw, duracaoTotal]);
 
   useEffect(() => {
     if (bookingConfirmed) return;

@@ -35,7 +35,6 @@ export type Database = {
           owner_id: string | null
           sheet_url: string | null
           slot_interval_minutes: number
-          slot_pause_minutes: number
           slug: string
           status_text: string
           subscription_notice: string | null
@@ -60,7 +59,6 @@ export type Database = {
           owner_id?: string | null
           sheet_url?: string | null
           slot_interval_minutes?: number
-          slot_pause_minutes?: number
           slug: string
           status_text?: string
           updated_at?: string
@@ -82,7 +80,6 @@ export type Database = {
           owner_id?: string | null
           sheet_url?: string | null
           slot_interval_minutes?: number
-          slot_pause_minutes?: number
           slug?: string
           status_text?: string
           updated_at?: string
