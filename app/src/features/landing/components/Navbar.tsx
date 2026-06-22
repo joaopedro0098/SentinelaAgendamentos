@@ -81,7 +81,6 @@ const Navbar = () => {
 
             <PwaInstallButton
               label="Baixar"
-              helpPresentation="dialog"
               helpVariant="landing"
               className="hidden sm:block"
               buttonClassName="border-border bg-transparent hover:bg-secondary"
@@ -145,7 +144,6 @@ const Navbar = () => {
 
             <PwaInstallButton
               label="Baixar"
-              helpPresentation="dialog"
               helpVariant="landing"
               buttonClassName="w-full border-border bg-transparent hover:bg-secondary/40"
               onNavigate={closeMenu}

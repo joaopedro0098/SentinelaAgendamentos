@@ -4,9 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { PwaInstallHelpDialog, type PwaInstallHelpVariant } from "@/components/pwa/PwaInstallHelpDialog";
 import {
   clearCachedInstallPrompt,
   getCachedInstallPrompt,
@@ -22,6 +24,8 @@ type PwaInstallContextValue = {
   isIos: boolean;
   hasNativePrompt: boolean;
   tryNativeInstall: () => Promise<boolean>;
+  openInstallHelp: (variant: PwaInstallHelpVariant, onAfterClose?: () => void) => void;
+  closeInstallHelp: () => void;
 };
 
 const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
@@ -33,6 +37,9 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
   const [hasNativePrompt, setHasNativePrompt] = useState(
     () => typeof window !== "undefined" && getCachedInstallPrompt() !== null,
   );
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpVariant, setHelpVariant] = useState<PwaInstallHelpVariant>("app");
+  const afterHelpCloseRef = useRef<(() => void) | undefined>(undefined);
   const isIos = typeof window !== "undefined" && isIosDevice();
 
   useEffect(() => {
@@ -69,6 +76,19 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
+  const closeInstallHelp = useCallback(() => {
+    setHelpOpen(false);
+    const onAfterClose = afterHelpCloseRef.current;
+    afterHelpCloseRef.current = undefined;
+    onAfterClose?.();
+  }, []);
+
+  const openInstallHelp = useCallback((variant: PwaInstallHelpVariant, onAfterClose?: () => void) => {
+    afterHelpCloseRef.current = onAfterClose;
+    setHelpVariant(variant);
+    window.setTimeout(() => setHelpOpen(true), 0);
+  }, []);
+
   const value = useMemo(
     () => ({
       installed,
@@ -76,11 +96,23 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
       isIos,
       hasNativePrompt,
       tryNativeInstall,
+      openInstallHelp,
+      closeInstallHelp,
     }),
-    [hasNativePrompt, installed, isIos, tryNativeInstall],
+    [closeInstallHelp, hasNativePrompt, installed, isIos, openInstallHelp, tryNativeInstall],
   );
 
-  return <PwaInstallContext.Provider value={value}>{children}</PwaInstallContext.Provider>;
+  return (
+    <PwaInstallContext.Provider value={value}>
+      {children}
+      <PwaInstallHelpDialog
+        open={helpOpen}
+        variant={helpVariant}
+        isIos={isIos}
+        onClose={closeInstallHelp}
+      />
+    </PwaInstallContext.Provider>
+  );
 }
 
 export function usePwaInstallContext() {
