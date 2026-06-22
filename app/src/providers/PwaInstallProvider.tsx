@@ -59,11 +59,14 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     }
 
     await prompt.prompt();
-    await prompt.userChoice;
+    const choice = await prompt.userChoice;
     clearCachedInstallPrompt();
     setHasNativePrompt(false);
-    setInstalled(isStandalonePwa());
-    return true;
+    if (choice.outcome === "accepted") {
+      setInstalled(isStandalonePwa());
+      return true;
+    }
+    return false;
   }, []);
 
   const value = useMemo(

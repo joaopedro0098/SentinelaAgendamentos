@@ -175,6 +175,7 @@ export default function AppLayout() {
               <PwaInstallButton
                 label="Instalar"
                 helpPresentation="dialog"
+                helpVariant="app"
                 buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                 variant="default"
               />
@@ -216,6 +217,7 @@ export default function AppLayout() {
             <PwaInstallButton
               label="Instalar"
               helpPresentation="dialog"
+              helpVariant="app"
               buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
               variant="default"
             />

@@ -33,6 +33,16 @@ export function isIosDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+export function isSocialInAppBrowser() {
+  const ua = window.navigator.userAgent.toLowerCase();
+  return (
+    ua.includes("instagram") ||
+    ua.includes("tiktok") ||
+    ua.includes("musical_ly") ||
+    ua.includes("bytedancewebview")
+  );
+}
+
 export function isStandalonePwa() {
   return (
     window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches ||
