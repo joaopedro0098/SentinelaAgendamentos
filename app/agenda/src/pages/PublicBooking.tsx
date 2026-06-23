@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -366,6 +366,8 @@ export type PublicBookingProps = {
   onOwnerBookingBlocked?: (message: string) => void;
   /** Painel do barbeiro (`/app/agendar`) — altera botões da tela de confirmação. */
   ownerPanel?: boolean;
+  /** Rota `/app/agendar` visível (KeepAlive esconde a aba sem desmontar). */
+  ownerPanelActive?: boolean;
   /** Barbearias das CAs ativas (painel CT/AA) — fallback se a RPC falhar. */
   extraBarbeariaIds?: string[];
 };
@@ -378,6 +380,7 @@ const PublicBooking = ({
   ownerBookingBlockMessage,
   onOwnerBookingBlocked,
   ownerPanel = false,
+  ownerPanelActive = true,
   extraBarbeariaIds = [],
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
@@ -933,7 +936,7 @@ const PublicBooking = ({
     setRescheduleSummary(null);
   };
 
-  const startNewOwnerBooking = () => {
+  const startNewOwnerBooking = useCallback(() => {
     setBookingConfirmed(false);
     setDone(false);
     setBarbeiroId(singleProfessional ? barbeiros[0]?.id ?? "" : "");
@@ -942,7 +945,14 @@ const PublicBooking = ({
     setObservacao("");
     setNome("");
     setWhatsapp("");
-  };
+  }, [barbeiros, singleProfessional]);
+
+  useEffect(() => {
+    if (!ownerPanel || ownerPanelActive) return;
+    if (done && bookingConfirmed) {
+      startNewOwnerBooking();
+    }
+  }, [bookingConfirmed, done, ownerPanel, ownerPanelActive, startNewOwnerBooking]);
 
   const showClientExit = !ownerPanel && !isReschedule;
 

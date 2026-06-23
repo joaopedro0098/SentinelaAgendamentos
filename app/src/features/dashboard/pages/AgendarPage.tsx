@@ -103,6 +103,7 @@ export default function AgendarPage() {
         slugOverride={slug}
         backHref={backHref}
         ownerPanel
+        ownerPanelActive={location.pathname === "/app/agendar"}
         reschedule={reschedule}
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}
         ownerBookingBlockMessage={ownerBookingBlockMessage}

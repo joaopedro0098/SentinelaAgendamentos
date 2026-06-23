@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { formatTotalServiceMinutes } from "@/lib/formatDuration";
 import { formatServicePrice } from "@/lib/servicePrice";
 import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 
@@ -55,7 +56,7 @@ export const ServicosCarousel = ({
       </ResponsivePagedStrip>
       {total > 0 && (
         <p className="mt-1.5 text-[11px] text-muted-foreground text-center md:text-left">
-          Tempo total: <b className="text-foreground">{total} min</b>
+          Tempo total: <b className="text-foreground">{formatTotalServiceMinutes(total)}</b>
         </p>
       )}
     </div>
