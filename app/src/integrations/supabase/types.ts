@@ -379,6 +379,14 @@ export type Database = {
         Args: { p_slug: string; p_from?: string; p_to?: string }
         Returns: Json
       }
+      get_relatorio_agendamentos: {
+        Args: { p_data_inicio: string; p_data_fim: string }
+        Returns: Json
+      }
+      get_relatorio_detalhes_colaborador: {
+        Args: { p_data_inicio: string; p_data_fim: string; p_barbeiro_id: string }
+        Returns: Json
+      }
       check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }
     }
     Enums: {
