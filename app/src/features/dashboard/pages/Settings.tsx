@@ -35,6 +35,7 @@ export default function Settings() {
   const [savingSlots, setSavingSlots] = useState(false);
   const [savingClientSelfService, setSavingClientSelfService] = useState(false);
   const [savingClientPublicBooking, setSavingClientPublicBooking] = useState(false);
+  const [savingShowServicePrices, setSavingShowServicePrices] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -178,6 +179,22 @@ export default function Settings() {
     toast({ title: "Grade de horários salva" });
   }
 
+  async function handleToggleShowServicePrices(enabled: boolean) {
+    if (!shop) return;
+    setSavingShowServicePrices(true);
+    const { error } = await supabase.rpc("set_show_service_prices", {
+      p_enabled: enabled,
+    });
+    setSavingShowServicePrices(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setShop({ ...shop, show_service_prices: enabled });
+    patchDashboardShopCache({ show_service_prices: enabled });
+    toast({ title: enabled ? "Preços visíveis na agenda" : "Preços ocultos na agenda" });
+  }
+
   async function handleToggleClientPublicBooking(enabled: boolean) {
     if (!shop) return;
     setSavingClientPublicBooking(true);
@@ -306,6 +323,15 @@ export default function Settings() {
                   disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
                   busy={savingClientSelfService}
                   onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
+                />
+
+                <PermissionToggleRow
+                  id="show-service-prices"
+                  label="Mostrar preço do serviço"
+                  checked={shop.show_service_prices ?? false}
+                  disabled={savingShowServicePrices}
+                  busy={savingShowServicePrices}
+                  onToggle={() => void handleToggleShowServicePrices(!(shop.show_service_prices ?? false))}
                 />
               </>
             )}

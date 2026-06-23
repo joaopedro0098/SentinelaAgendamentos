@@ -13,6 +13,7 @@ export type DashboardShop = {
   slot_interval_minutes: number;
   allow_client_self_service: boolean;
   allow_client_public_booking: boolean;
+  show_service_prices: boolean;
   contact_phone: string | null;
   welcome_support_pending: boolean;
 };
@@ -137,7 +138,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase
         .from("barbershops")
         .select(
-          "id, slug, display_name, avatar_url, slot_interval_minutes, allow_client_self_service, allow_client_public_booking, contact_phone, welcome_support_pending",
+          "id, slug, display_name, avatar_url, slot_interval_minutes, allow_client_self_service, allow_client_public_booking, show_service_prices, contact_phone, welcome_support_pending",
         )
         .eq("owner_id", userId)
         .maybeSingle();

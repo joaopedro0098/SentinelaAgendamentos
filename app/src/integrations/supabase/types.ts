@@ -34,6 +34,7 @@ export type Database = {
           n8n_webhook_url: string | null
           owner_id: string | null
           sheet_url: string | null
+          show_service_prices: boolean
           slot_interval_minutes: number
           slug: string
           status_text: string
@@ -58,6 +59,7 @@ export type Database = {
           n8n_webhook_url?: string | null
           owner_id?: string | null
           sheet_url?: string | null
+          show_service_prices?: boolean
           slot_interval_minutes?: number
           slug: string
           status_text?: string
@@ -79,6 +81,7 @@ export type Database = {
           n8n_webhook_url?: string | null
           owner_id?: string | null
           sheet_url?: string | null
+          show_service_prices?: boolean
           slot_interval_minutes?: number
           slug?: string
           status_text?: string
@@ -251,6 +254,7 @@ export type Database = {
           duration_minutes: number
           id: string
           name: string
+          price_cents: number
           sort_order: number
           staff_id: string
           updated_at: string
@@ -260,6 +264,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           name: string
+          price_cents?: number
           sort_order?: number
           staff_id: string
           updated_at?: string
@@ -269,6 +274,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           name?: string
+          price_cents?: number
           sort_order?: number
           staff_id?: string
           updated_at?: string

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
+import { formatPriceInput, parsePriceInput } from "@agenda/lib/servicePrice";
 
 type Props = {
   barbershopId: string;
@@ -17,9 +18,9 @@ type Props = {
 };
 
 type StaffRow = { id: string; name: string; sort_order: number };
-type ServiceRow = { id: string; staff_id: string; name: string; duration_minutes: number };
+type ServiceRow = { id: string; staff_id: string; name: string; duration_minutes: number; price_cents: number };
 type ScheduleRow = { id: string; staff_id: string; day_of_week: number; start_time: string; end_time: string };
-type ServiceDraft = { id: string; name: string; duration_minutes: number };
+type ServiceDraft = { id: string; name: string; duration_minutes: number; price_cents: number };
 
 function isNewServiceDraft(id: string) {
   return id.startsWith("new-");
@@ -207,7 +208,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
       const [{ data: svc }, { data: sch }] = await Promise.all([
         supabase
           .from("staff_services")
-          .select("id, staff_id, name, duration_minutes")
+          .select("id, staff_id, name, duration_minutes, price_cents")
           .in("staff_id", ids)
           .order("sort_order")
           .order("name"),
@@ -357,13 +358,17 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
       const orig = original.find((o) => o.id === d.id);
       if (!orig) return false;
       const name = normalizeServiceName(d.name);
-      return orig.name !== name || orig.duration_minutes !== d.duration_minutes;
+      return orig.name !== name || orig.duration_minutes !== d.duration_minutes || orig.price_cents !== d.price_cents;
     });
 
     for (const item of updates) {
       const { error } = await supabase
         .from("staff_services")
-        .update({ name: normalizeServiceName(item.name), duration_minutes: item.duration_minutes })
+        .update({
+          name: normalizeServiceName(item.name),
+          duration_minutes: item.duration_minutes,
+          price_cents: item.price_cents,
+        })
         .eq("id", item.id);
       if (error) {
         setBusy(null);
@@ -383,6 +388,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
         staff_id: staffId,
         name: normalizeServiceName(item.name),
         duration_minutes: item.duration_minutes,
+        price_cents: item.price_cents,
       });
       if (error) {
         setBusy(null);
@@ -637,7 +643,7 @@ function StaffExpanded(props: {
 }) {
   const { member, services, busy, onSaveAllServices, onRemoveService, scheduleDraft, setScheduleDraft, onSaveSchedules } = props;
 
-  const [serviceDrafts, setServiceDrafts] = useState<Array<{ id: string; name: string; duration: string }>>([]);
+  const [serviceDrafts, setServiceDrafts] = useState<Array<{ id: string; name: string; duration: string; price: string }>>([]);
 
   useEffect(() => {
     setServiceDrafts((prev) => {
@@ -645,6 +651,7 @@ function StaffExpanded(props: {
         id: s.id,
         name: s.name,
         duration: String(s.duration_minutes),
+        price: formatPriceInput(s.price_cents ?? 0),
       }));
       const dbNames = new Set(fromDb.map((s) => s.name.trim().toLocaleLowerCase("pt-BR")));
       const pendingNew = prev.filter(
@@ -655,7 +662,7 @@ function StaffExpanded(props: {
   }, [services]);
 
   function handleCreateService() {
-    setServiceDrafts((prev) => [{ id: `new-${Date.now()}`, name: "", duration: "30" }, ...prev]);
+    setServiceDrafts((prev) => [{ id: `new-${Date.now()}`, name: "", duration: "30", price: "" }, ...prev]);
   }
 
   function handleRemoveService(id: string) {
@@ -671,6 +678,7 @@ function StaffExpanded(props: {
       id: d.id,
       name: d.name.trim(),
       duration_minutes: parseInt(d.duration, 10) || 30,
+      price_cents: parsePriceInput(d.price),
     }));
     await onSaveAllServices(drafts);
   }
@@ -688,6 +696,7 @@ function StaffExpanded(props: {
                 key={draft.id}
                 name={draft.name}
                 duration={draft.duration}
+                price={draft.price}
                 isNew={isNewServiceDraft(draft.id)}
                 onNameChange={(name) => {
                   const next = [...serviceDrafts];
@@ -697,6 +706,11 @@ function StaffExpanded(props: {
                 onDurationChange={(duration) => {
                   const next = [...serviceDrafts];
                   next[idx] = { ...draft, duration };
+                  setServiceDrafts(next);
+                }}
+                onPriceChange={(price) => {
+                  const next = [...serviceDrafts];
+                  next[idx] = { ...draft, price };
                   setServiceDrafts(next);
                 }}
                 onRemove={() => handleRemoveService(draft.id)}
@@ -774,16 +788,20 @@ function StaffExpanded(props: {
 function ServiceRowEditor({
   name,
   duration,
+  price,
   isNew,
   onNameChange,
   onDurationChange,
+  onPriceChange,
   onRemove,
 }: {
   name: string;
   duration: string;
+  price: string;
   isNew?: boolean;
   onNameChange: (value: string) => void;
   onDurationChange: (value: string) => void;
+  onPriceChange: (value: string) => void;
   onRemove: () => void;
 }) {
   return (
@@ -806,6 +824,13 @@ function ServiceRowEditor({
         onChange={(e) => onDurationChange(e.target.value)}
       />
       <span className="text-xs text-muted-foreground">min</span>
+      <Input
+        className="h-8 w-24"
+        inputMode="decimal"
+        placeholder="Preço"
+        value={price}
+        onChange={(e) => onPriceChange(e.target.value)}
+      />
       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onRemove}>
         <Trash2 className="h-4 w-4" />
       </Button>

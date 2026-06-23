@@ -183,6 +183,7 @@ export type Database = {
           duracao_minutos: number
           id: string
           nome: string
+          preco_centavos: number
         }
         Insert: {
           ativo?: boolean
@@ -191,6 +192,7 @@ export type Database = {
           duracao_minutos: number
           id?: string
           nome: string
+          preco_centavos?: number
         }
         Update: {
           ativo?: boolean
@@ -199,6 +201,7 @@ export type Database = {
           duracao_minutos?: number
           id?: string
           nome?: string
+          preco_centavos?: number
         }
         Relationships: [
           {

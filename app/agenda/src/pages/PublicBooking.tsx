@@ -111,7 +111,7 @@ interface Barbeiro {
   slot_minutos: number;
   disponibilidades: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
   bloqueios: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
-  servicos: { id: string; nome: string; duracao_minutos: number }[];
+  servicos: { id: string; nome: string; duracao_minutos: number; preco_centavos?: number }[];
 }
 
 type BookingProfessionalRpc = {
@@ -122,7 +122,7 @@ type BookingProfessionalRpc = {
   slot_minutos: number;
   disponibilidades?: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
   bloqueios?: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
-  servicos?: { id: string; nome: string; duracao_minutos: number }[];
+  servicos?: { id: string; nome: string; duracao_minutos: number; preco_centavos?: number }[];
 };
 
 type RawBarbeiro = {
@@ -133,7 +133,7 @@ type RawBarbeiro = {
   slot_minutos: number | null;
   disponibilidades?: { dia_semana: number; hora_inicio: string; hora_fim: string }[];
   bloqueios?: { data: string; hora_inicio: string | null; hora_fim: string | null }[];
-  barbeiro_services?: { id: string; nome: string; duracao_minutos: number; ativo?: boolean }[];
+  barbeiro_services?: { id: string; nome: string; duracao_minutos: number; preco_centavos?: number; ativo?: boolean }[];
 };
 
 function parseBookingProfessionalsPayload(data: unknown): BookingProfessionalRpc[] {
@@ -167,7 +167,7 @@ const LEGACY_BARBEIROS_SELECT = `
   barbeiros ( id, nome, foto_url, ativo, slot_minutos,
     disponibilidades ( dia_semana, hora_inicio, hora_fim ),
     bloqueios ( data, hora_inicio, hora_fim ),
-    barbeiro_services ( id, nome, duracao_minutos, ativo )
+    barbeiro_services ( id, nome, duracao_minutos, preco_centavos, ativo )
   )
 `;
 
@@ -208,7 +208,12 @@ function mapLegacyBarbeiros(rows: RawBarbeiro[], barbeariaId: string, fromYmd: s
       bloqueios: (bb.bloqueios ?? []).filter((bl) => bl.data >= fromYmd && bl.data <= toYmd),
       servicos: (bb.barbeiro_services ?? [])
         .filter((s) => s.ativo)
-        .map((s) => ({ id: s.id, nome: s.nome, duracao_minutos: s.duracao_minutos })),
+        .map((s) => ({
+          id: s.id,
+          nome: s.nome,
+          duracao_minutos: s.duracao_minutos,
+          preco_centavos: s.preco_centavos ?? 0,
+        })),
     }));
 }
 
@@ -399,6 +404,7 @@ const PublicBooking = ({
   const [rescheduleSummary, setRescheduleSummary] = useState<RescheduleSummary | null>(null);
   const [clientExitHint, setClientExitHint] = useState(false);
   const [slotInterval, setSlotInterval] = useState(30);
+  const [showServicePrices, setShowServicePrices] = useState(false);
   const [desktopViewMonth, setDesktopViewMonth] = useState(() =>
     monthStart(parseYmd(initialBookingDate(ownerPanel, isReschedule))),
   );
@@ -444,6 +450,7 @@ const PublicBooking = ({
         });
         setBarbeiros(cached.barbeiros as Barbeiro[]);
         setSlotInterval(cached.slotInterval);
+        setShowServicePrices(cached.showServicePrices);
         setLoading(false);
       } else {
         setLoading(true);
@@ -455,7 +462,7 @@ const PublicBooking = ({
           .select("id, nome, logo_url, ativa, allow_client_public_booking")
           .eq("slug", slug)
           .maybeSingle(),
-        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes").eq("slug", slug).maybeSingle(),
+        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, show_service_prices").eq("slug", slug).maybeSingle(),
       ]);
 
       if (barbErr) {
@@ -480,10 +487,12 @@ const PublicBooking = ({
       const shopRow = shopRes.data as {
         whatsapp_number?: string | null;
         slot_interval_minutes?: number | null;
+        show_service_prices?: boolean | null;
       } | null;
 
       const contato = shopRow?.whatsapp_number ?? null;
       setSlotInterval(shopRow?.slot_interval_minutes ?? 30);
+      setShowServicePrices(shopRow?.show_service_prices ?? false);
 
       setBarbearia({
         id: b.id,
@@ -509,6 +518,7 @@ const PublicBooking = ({
         },
         barbeiros: bbs,
         slotInterval: shopRow?.slot_interval_minutes ?? 30,
+        showServicePrices: shopRow?.show_service_prices ?? false,
         fromYmd,
         toYmd,
       });
@@ -1537,6 +1547,7 @@ const PublicBooking = ({
                     servicos={servicosDoBarbeiro}
                     selecionados={servSel}
                     onToggle={toggleServico}
+                    showPrices={showServicePrices}
                     stripClassName={bookingScrollPad}
                     bleedClassName={bookingScrollBleed}
                   />
