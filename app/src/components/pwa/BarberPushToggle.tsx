@@ -110,14 +110,12 @@ export function BarberPushToggle() {
         const registration = await navigator.serviceWorker.register("/sw.js");
         await (await registration.pushManager.getSubscription())?.unsubscribe();
         setEnabled(false);
-        toast({ title: "Notificações desativadas neste dispositivo" });
         return;
       }
 
       const result = await registerBarberPush({ requestPermission: true });
       if (result.ok) {
         setEnabled(true);
-        toast({ title: "Notificações ativadas", description: result.message });
       } else {
         toast({
           title: "Não foi possível ativar",

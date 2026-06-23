@@ -192,7 +192,6 @@ export default function Settings() {
     }
     setShop({ ...shop, show_service_prices: enabled });
     patchDashboardShopCache({ show_service_prices: enabled });
-    toast({ title: enabled ? "Preços visíveis na agenda" : "Preços ocultos na agenda" });
   }
 
   async function handleToggleClientPublicBooking(enabled: boolean) {
@@ -208,7 +207,6 @@ export default function Settings() {
     }
     setShop({ ...shop, allow_client_public_booking: enabled });
     patchDashboardShopCache({ allow_client_public_booking: enabled });
-    toast({ title: enabled ? "Cliente pode agendar pelo link" : "Agendamento pelo link desativado" });
   }
 
   async function handleToggleClientSelfService(enabled: boolean) {
@@ -224,7 +222,6 @@ export default function Settings() {
     }
     setShop({ ...shop, allow_client_self_service: enabled });
     patchDashboardShopCache({ allow_client_self_service: enabled });
-    toast({ title: enabled ? "Cliente pode alterar/cancelar" : "Alteração pelo cliente desativada" });
   }
 
   function copyBookingLink(url: string) {
