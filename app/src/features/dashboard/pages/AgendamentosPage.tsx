@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
+import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User, X } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -45,7 +45,7 @@ type AgendamentoRow = {
   barbearia_id: string;
   confirmation_token: string;
   client_confirmed_at: string | null;
-  status: "confirmado" | "cancelado" | "concluido";
+  status: "confirmado" | "cancelado" | "concluido" | "nao_veio";
   barbeiros: { id: string; nome: string } | null;
 };
 
@@ -87,6 +87,7 @@ export default function AgendamentosPage() {
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
+  const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
 
   const booting = shopLoading && !slug;
   const syncingAgenda = Boolean(slug && !barbeariaId);
@@ -149,7 +150,7 @@ export default function AgendamentosPage() {
       )
       .in("barbearia_id", allBarbeariaIds)
       .eq("data", selectedDate)
-      .in("status", ["confirmado", "cancelado"])
+      .in("status", ["confirmado", "cancelado", "nao_veio"])
       .order("hora", { ascending: true });
 
     if (!error) {
@@ -309,6 +310,38 @@ export default function AgendamentosPage() {
     );
   }
 
+  async function handleMarkNoShow(a: AgendamentoRow) {
+    if (markingNoShowId) return;
+    setMarkingNoShowId(a.id);
+    const { error } = await supabase.rpc("marcar_falta_agendamento_painel", {
+      p_agendamento_id: a.id,
+    });
+    setMarkingNoShowId(null);
+    if (error) {
+      toast({ title: "Não foi possível marcar falta", description: error.message, variant: "destructive" });
+      return;
+    }
+    setAgendamentos((prev) =>
+      prev.map((row) => (row.id === a.id ? { ...row, status: "nao_veio" } : row)),
+    );
+  }
+
+  async function handleRevertNoShow(a: AgendamentoRow) {
+    if (markingNoShowId) return;
+    setMarkingNoShowId(a.id);
+    const { error } = await supabase.rpc("reverter_falta_agendamento_painel", {
+      p_agendamento_id: a.id,
+    });
+    setMarkingNoShowId(null);
+    if (error) {
+      toast({ title: "Não foi possível reverter", description: error.message, variant: "destructive" });
+      return;
+    }
+    setAgendamentos((prev) =>
+      prev.map((row) => (row.id === a.id ? { ...row, status: "confirmado" } : row)),
+    );
+  }
+
   if (booting) {
     return <DashboardPageSkeleton />;
   }
@@ -443,7 +476,8 @@ export default function AgendamentosPage() {
           <ul className="space-y-3">
             {listaFiltrada.map((a) => {
               const isCancelled = a.status === "cancelado";
-              const confirmationBadge = !isCancelled ? getClientConfirmationBadgeForPanel(a) : null;
+              const isNoShow = a.status === "nao_veio";
+              const confirmationBadge = !isCancelled && !isNoShow ? getClientConfirmationBadgeForPanel(a) : null;
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
@@ -460,8 +494,64 @@ export default function AgendamentosPage() {
                             Cancelado
                           </span>
                         )}
-                        {confirmationBadge && (
-                          confirmationBadge === "pending" && !isPastDay ? (
+                        {isNoShow && isPastDay && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100">
+                              Faltou
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Reverter para confirmado"
+                              disabled={markingNoShowId === a.id}
+                              onClick={() => void handleRevertNoShow(a)}
+                              className={cn(
+                                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                                "border-available/90 text-available hover:bg-available/15 active:bg-available/25",
+                                "disabled:opacity-50 disabled:pointer-events-none",
+                              )}
+                            >
+                              {markingNoShowId === a.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                        {!isNoShow && isPastDay && a.status === "confirmado" && confirmationBadge && (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
+                                confirmationBadge === "pending" &&
+                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
+                                confirmationBadge === "confirmed" &&
+                                  "bg-available/25 text-available border-available/90",
+                              )}
+                            >
+                              {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Marcar como faltou"
+                              disabled={markingNoShowId === a.id}
+                              onClick={() => void handleMarkNoShow(a)}
+                              className={cn(
+                                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                                "border-unavailable/90 text-unavailable hover:bg-unavailable/15 active:bg-unavailable/25",
+                                "disabled:opacity-50 disabled:pointer-events-none",
+                              )}
+                            >
+                              {markingNoShowId === a.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <X className="h-3.5 w-3.5 stroke-[2.5]" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                        {confirmationBadge && !isPastDay && (
+                          confirmationBadge === "pending" ? (
                             <div className="flex items-center gap-1.5">
                               <span
                                 className={cn(

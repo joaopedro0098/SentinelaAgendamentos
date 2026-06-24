@@ -6,15 +6,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { formatServicePrice } from "@agenda/lib/servicePrice";
 import { formatTotalServiceMinutes } from "@agenda/lib/formatDuration";
 import { maskPhone } from "@agenda/lib/phone";
 
+type ReportViewMode = "confirmados" | "faltas";
+
 type BarbeiroTotal = {
   barbeiro_id: string;
   barbeiro_nome: string;
   total: number;
+  faltas: number;
 };
 
 type ReportServiceDetail = {
@@ -32,6 +36,8 @@ type ReportAppointmentDetail = {
   servicos: ReportServiceDetail[];
 };
 
+type ReportAbsenceDetail = Omit<ReportAppointmentDetail, "duracao_minutos">;
+
 type CollaboratorReportSummary = {
   faturamento_total_centavos: number;
   horas_trabalhadas_minutos: number;
@@ -39,6 +45,7 @@ type CollaboratorReportSummary = {
 
 type ReportResult = {
   total: number;
+  total_faltas: number;
   por_barbeiro: BarbeiroTotal[];
 };
 
@@ -58,6 +65,11 @@ function today() {
 function formatDateBr(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function formatServicesNames(servicos: ReportServiceDetail[]) {
+  if (!servicos.length) return "—";
+  return servicos.map((s) => s.nome).join(" · ");
 }
 
 function formatServicesLine(servicos: ReportServiceDetail[]) {
@@ -85,32 +97,91 @@ function buildCollaboratorSummary(
   };
 }
 
+function ReportViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: ReportViewMode;
+  onChange: (mode: ReportViewMode) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-muted/30 p-0.5">
+      {(["confirmados", "faltas"] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => onChange(mode)}
+          className={cn(
+            "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+            value === mode
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {mode === "confirmados" ? "Confirmados" : "Faltas"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AbsenceListItem({ item }: { item: ReportAbsenceDetail }) {
+  return (
+    <li className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1">
+      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+        <span>{formatDateBr(item.data)}</span>
+        <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
+        <span className="tabular-nums">{item.hora.slice(0, 5)}</span>
+      </div>
+      <p>
+        <span className="text-muted-foreground">Cliente: </span>
+        <span className="text-foreground">{item.cliente_nome}</span>
+      </p>
+      <p>
+        <span className="text-muted-foreground">Contato: </span>
+        <span className="text-foreground">{maskPhone(item.cliente_whatsapp)}</span>
+      </p>
+      <p>
+        <span className="text-muted-foreground">Serviço: </span>
+        <span className="text-foreground">{formatServicesNames(item.servicos ?? [])}</span>
+      </p>
+    </li>
+  );
+}
+
 function CollaboratorReportRow({
   barbeiro,
   dateStart,
   dateEnd,
   expanded,
+  refreshKey,
+  viewMode,
   onToggle,
 }: {
   barbeiro: BarbeiroTotal;
   dateStart: string;
   dateEnd: string;
   expanded: boolean;
+  refreshKey: number;
+  viewMode: ReportViewMode;
   onToggle: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ReportAppointmentDetail[] | null>(null);
+  const [faltas, setFaltas] = useState<ReportAbsenceDetail[] | null>(null);
   const [summary, setSummary] = useState<CollaboratorReportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const normalizedStart = dateStart <= dateEnd ? dateStart : dateEnd;
   const normalizedEnd = dateStart <= dateEnd ? dateEnd : dateStart;
+  const rowTotal = viewMode === "faltas" ? barbeiro.faltas : barbeiro.total;
 
   useEffect(() => {
     setItems(null);
+    setFaltas(null);
     setSummary(null);
     setError(null);
-  }, [normalizedStart, normalizedEnd, barbeiro.barbeiro_id]);
+  }, [normalizedStart, normalizedEnd, barbeiro.barbeiro_id, refreshKey]);
 
   useEffect(() => {
     if (!expanded || items !== null) return;
@@ -136,6 +207,7 @@ function CollaboratorReportRow({
 
         const payload = data as {
           items?: ReportAppointmentDetail[];
+          faltas?: ReportAbsenceDetail[];
           faturamento_total_centavos?: number;
           horas_trabalhadas_minutos?: number;
           error?: string;
@@ -146,6 +218,7 @@ function CollaboratorReportRow({
         }
 
         setItems(Array.isArray(payload?.items) ? payload.items : []);
+        setFaltas(Array.isArray(payload?.faltas) ? payload.faltas : []);
         setSummary({
           faturamento_total_centavos: payload?.faturamento_total_centavos ?? 0,
           horas_trabalhadas_minutos: payload?.horas_trabalhadas_minutos ?? 0,
@@ -158,14 +231,21 @@ function CollaboratorReportRow({
   }, [barbeiro.barbeiro_id, expanded, items, normalizedEnd, normalizedStart]);
 
   const displaySummary =
-    items !== null ? buildCollaboratorSummary(items, summary) : null;
+    viewMode === "confirmados" && items !== null ? buildCollaboratorSummary(items, summary) : null;
 
   return (
     <li className="rounded-xl border border-border/60 bg-background/40">
       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
         <span className="text-sm font-medium truncate">{barbeiro.barbeiro_nome}</span>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm tabular-nums font-semibold text-primary">{barbeiro.total}</span>
+          <span
+            className={cn(
+              "text-sm tabular-nums font-semibold",
+              viewMode === "faltas" ? "text-unavailable" : "text-primary",
+            )}
+          >
+            {rowTotal}
+          </span>
           <button
             type="button"
             aria-expanded={expanded}
@@ -187,27 +267,41 @@ function CollaboratorReportRow({
             </div>
           ) : error ? (
             <p className="px-3 py-3 text-xs text-destructive">{error}</p>
+          ) : viewMode === "faltas" ? (
+            <div className="px-3 py-2 max-h-64 overflow-y-auto">
+              {!faltas?.length ? (
+                <p className="py-3 text-xs text-muted-foreground">Nenhuma falta no período.</p>
+              ) : (
+                <ul className="space-y-3 py-1">
+                  {faltas.map((item) => (
+                    <AbsenceListItem key={item.id} item={item} />
+                  ))}
+                </ul>
+              )}
+            </div>
           ) : (
             <>
               {displaySummary && (
-                <div className="grid grid-cols-2 gap-2 px-3 py-2.5 border-b border-border/40">
-                  <div className="rounded-xl border border-border/60 bg-card/40 p-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-                      <Wallet className="h-3.5 w-3.5 shrink-0" />
-                      Faturamento total
+                <div className="px-3 py-2.5 border-b border-border/40">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                        <Wallet className="h-3.5 w-3.5 shrink-0" />
+                        Faturamento total
+                      </div>
+                      <p className="mt-1.5 text-lg font-semibold tabular-nums text-primary leading-tight">
+                        {formatServicePrice(displaySummary.faturamento_total_centavos) || "R$ 0,00"}
+                      </p>
                     </div>
-                    <p className="mt-1.5 text-lg font-semibold tabular-nums text-primary leading-tight">
-                      {formatServicePrice(displaySummary.faturamento_total_centavos) || "R$ 0,00"}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-card/40 p-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-                      <Clock className="h-3.5 w-3.5 shrink-0" />
-                      Horas trabalhadas
+                    <div className="rounded-xl border border-border/60 bg-card/40 p-3">
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                        Horas trabalhadas
+                      </div>
+                      <p className="mt-1.5 text-lg font-semibold tabular-nums leading-tight">
+                        {formatTotalServiceMinutes(displaySummary.horas_trabalhadas_minutos)}
+                      </p>
                     </div>
-                    <p className="mt-1.5 text-lg font-semibold tabular-nums leading-tight">
-                      {formatTotalServiceMinutes(displaySummary.horas_trabalhadas_minutos)}
-                    </p>
                   </div>
                 </div>
               )}
@@ -218,7 +312,10 @@ function CollaboratorReportRow({
                 ) : (
                   <ul className="space-y-3 py-1">
                     {items.map((item) => (
-                      <li key={item.id} className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1">
+                      <li
+                        key={item.id}
+                        className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1"
+                      >
                         <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                           <span>{formatDateBr(item.data)}</span>
                           <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
@@ -250,41 +347,60 @@ function CollaboratorReportRow({
 }
 
 export default function RelatoriosPage() {
+  const { barbeariaId, caBarbearias } = useDashboardShop();
   const [dateStart, setDateStart] = useState(firstDayOfMonth);
   const [dateEnd, setDateEnd] = useState(today);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReportResult | null>(null);
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
+  const [reportViewMode, setReportViewMode] = useState<ReportViewMode>("confirmados");
   const [expandedBarbeiroId, setExpandedBarbeiroId] = useState<string | null>(null);
+  const [reportRefreshKey, setReportRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const allBarbeariaIds = useMemo(() => {
+    const ids: string[] = [];
+    if (barbeariaId) ids.push(barbeariaId);
+    for (const ca of caBarbearias) {
+      if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
+    }
+    return ids;
+  }, [barbeariaId, caBarbearias]);
 
   useEffect(() => {
     document.title = "Relatórios — Sentinela Agendamentos";
   }, []);
 
-  const fetchReport = useCallback(async (start: string, end: string) => {
+  const fetchReport = useCallback(async (start: string, end: string, options?: { preserveUi?: boolean }) => {
     if (!start || !end) return;
-    const normalizedStart = start <= end ? start : end;
-    const normalizedEnd = start <= end ? end : start;
 
-    setLoading(true);
+    if (!options?.preserveUi) {
+      setLoading(true);
+      setSelectedBarbeiroId(null);
+      setExpandedBarbeiroId(null);
+    }
     setError(null);
-    setSelectedBarbeiroId(null);
-    setExpandedBarbeiroId(null);
 
     const { data, error: rpcError } = await supabase.rpc("get_relatorio_agendamentos", {
-      p_data_inicio: normalizedStart,
-      p_data_fim: normalizedEnd,
+      p_data_inicio: start <= end ? start : end,
+      p_data_fim: start <= end ? end : start,
     });
 
-    setLoading(false);
+    if (!options?.preserveUi) {
+      setLoading(false);
+    }
 
     if (rpcError) {
       setError(rpcError.message);
       return;
     }
 
-    const payload = data as { total?: number; por_barbeiro?: BarbeiroTotal[]; error?: string } | null;
+    const payload = data as {
+      total?: number;
+      total_faltas?: number;
+      por_barbeiro?: Array<BarbeiroTotal & { faltas?: number }>;
+      error?: string;
+    } | null;
     if (payload?.error) {
       setError(payload.error);
       return;
@@ -292,19 +408,61 @@ export default function RelatoriosPage() {
 
     setResult({
       total: payload?.total ?? 0,
-      por_barbeiro: Array.isArray(payload?.por_barbeiro) ? payload.por_barbeiro : [],
+      total_faltas: payload?.total_faltas ?? 0,
+      por_barbeiro: (Array.isArray(payload?.por_barbeiro) ? payload.por_barbeiro : []).map((b) => ({
+        barbeiro_id: b.barbeiro_id,
+        barbeiro_nome: b.barbeiro_nome,
+        total: b.total ?? 0,
+        faltas: b.faltas ?? 0,
+      })),
     });
+
+    if (options?.preserveUi) {
+      setReportRefreshKey((key) => key + 1);
+    }
   }, []);
+
+  const refreshReport = useCallback(() => {
+    void fetchReport(dateStart, dateEnd, { preserveUi: true });
+  }, [dateStart, dateEnd, fetchReport]);
 
   useEffect(() => {
     void fetchReport(dateStart, dateEnd);
   }, [fetchReport, dateStart, dateEnd]);
 
-  const filteredTotal = useMemo(() => {
-    if (!result) return null;
-    if (!selectedBarbeiroId) return result.total;
-    return result.por_barbeiro.find((b) => b.barbeiro_id === selectedBarbeiroId)?.total ?? 0;
-  }, [result, selectedBarbeiroId]);
+  useEffect(() => {
+    if (!allBarbeariaIds.length) return;
+
+    const channels = allBarbeariaIds.map((bid) =>
+      supabase
+        .channel(`painel-relatorios:${bid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
+          () => {
+            refreshReport();
+          },
+        )
+        .subscribe(),
+    );
+
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [allBarbeariaIds, refreshReport]);
+
+  const visibleBarbeiros = useMemo(() => {
+    if (!result) return [];
+
+    let list = result.por_barbeiro;
+    if (selectedBarbeiroId) {
+      list = list.filter((b) => b.barbeiro_id === selectedBarbeiroId);
+    } else if (reportViewMode === "faltas") {
+      list = list.filter((b) => b.faltas > 0);
+    }
+
+    return list;
+  }, [result, selectedBarbeiroId, reportViewMode]);
 
   const periodLabel = useMemo(() => {
     if (!dateStart || !dateEnd) return "";
@@ -314,6 +472,15 @@ export default function RelatoriosPage() {
     return `${formatDateBr(s)} — ${formatDateBr(e)}`;
   }, [dateStart, dateEnd]);
 
+  const showCollaboratorFilter = (result?.por_barbeiro.length ?? 0) > 1;
+
+  const collaboratorListTitle = useMemo(() => {
+    if (selectedBarbeiroId) {
+      return reportViewMode === "faltas" ? "Faltas de:" : "Agendamentos de:";
+    }
+    return "Por colaborador";
+  }, [selectedBarbeiroId, reportViewMode]);
+
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
       <header>
@@ -322,7 +489,7 @@ export default function RelatoriosPage() {
           Relatórios
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Agendamentos confirmados por período e colaborador.
+          Agendamentos confirmados e faltas por período e colaborador.
         </p>
       </header>
 
@@ -353,42 +520,63 @@ export default function RelatoriosPage() {
         </CardContent>
       </Card>
 
-      {result && result.por_barbeiro.length > 1 && (
-        <section>
-          <h2 className="text-sm font-semibold mb-2.5">Colaborador</h2>
-          <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
-            <button
-              type="button"
-              onClick={() => setSelectedBarbeiroId(null)}
-              className={cn(
-                "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
-                selectedBarbeiroId === null
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-              )}
-            >
-              Todos
-            </button>
-            {result.por_barbeiro.map((b) => {
-              const sel = b.barbeiro_id === selectedBarbeiroId;
-              return (
+      {result && (
+        <section className="space-y-3">
+          {showCollaboratorFilter && (
+            <div>
+              <h2 className="text-sm font-semibold mb-2.5">Colaborador</h2>
+              <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
                 <button
-                  key={b.barbeiro_id}
                   type="button"
-                  data-barbeiro={b.barbeiro_id}
-                  onClick={() => setSelectedBarbeiroId(sel ? null : b.barbeiro_id)}
+                  onClick={() => {
+                    setSelectedBarbeiroId(null);
+                    setExpandedBarbeiroId(null);
+                  }}
                   className={cn(
-                    "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
-                    sel
+                    "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
+                    selectedBarbeiroId === null
                       ? "bg-primary text-primary-foreground shadow-glow"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                   )}
                 >
-                  {b.barbeiro_nome}
+                  Todos
                 </button>
-              );
-            })}
-          </HorizontalScrollStrip>
+                {result.por_barbeiro.map((b) => {
+                  const sel = b.barbeiro_id === selectedBarbeiroId;
+                  return (
+                    <button
+                      key={b.barbeiro_id}
+                      type="button"
+                      data-barbeiro={b.barbeiro_id}
+                      onClick={() => {
+                        const next = sel ? null : b.barbeiro_id;
+                        setSelectedBarbeiroId(next);
+                        setExpandedBarbeiroId(null);
+                      }}
+                      className={cn(
+                        "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
+                        sel
+                          ? "bg-primary text-primary-foreground shadow-glow"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                      )}
+                    >
+                      {b.barbeiro_nome}
+                    </button>
+                  );
+                })}
+              </HorizontalScrollStrip>
+            </div>
+          )}
+
+          <div className="flex justify-start">
+            <ReportViewModeToggle
+              value={reportViewMode}
+              onChange={(mode) => {
+                setReportViewMode(mode);
+                setExpandedBarbeiroId(null);
+              }}
+            />
+          </div>
         </section>
       )}
 
@@ -405,36 +593,49 @@ export default function RelatoriosPage() {
         </Card>
       ) : result ? (
         <div className="space-y-4">
-          <Card className="glass-panel border-border/80">
-            <CardContent className="pt-6 pb-5">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
-                {selectedBarbeiroId
-                  ? result.por_barbeiro.find((b) => b.barbeiro_id === selectedBarbeiroId)?.barbeiro_nome
-                  : "Total geral"}
-              </p>
-              <p className="text-5xl font-bold tabular-nums text-primary leading-none">
-                {filteredTotal ?? 0}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                agendamento{(filteredTotal ?? 0) !== 1 ? "s" : ""} confirmado{(filteredTotal ?? 0) !== 1 ? "s" : ""}
-                {periodLabel ? ` · ${periodLabel}` : ""}
-              </p>
-            </CardContent>
-          </Card>
+          {!selectedBarbeiroId && reportViewMode === "confirmados" && (
+            <Card className="glass-panel border-border/80">
+              <CardContent className="pt-6 pb-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                  Total geral
+                </p>
+                <p className="text-5xl font-bold tabular-nums text-primary leading-none">{result.total}</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  agendamento{result.total !== 1 ? "s" : ""} confirmado{result.total !== 1 ? "s" : ""}
+                  {periodLabel ? ` · ${periodLabel}` : ""}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
-          {!selectedBarbeiroId && result.por_barbeiro.length > 0 && (
+          {!selectedBarbeiroId && reportViewMode === "faltas" && (
+            <Card className="glass-panel border-border/80">
+              <CardContent className="pt-6 pb-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                  Total de faltas
+                </p>
+                <p className="text-5xl font-bold tabular-nums text-unavailable leading-none">{result.total_faltas}</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  falta{result.total_faltas !== 1 ? "s" : ""} no período
+                  {periodLabel ? ` · ${periodLabel}` : ""}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {visibleBarbeiros.length > 0 ? (
             <Card className="glass-panel border-border/80">
               <CardContent className="pt-5 pb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-3">
-                  Por colaborador
-                </p>
+                <p className="text-xs text-muted-foreground font-medium mb-3">{collaboratorListTitle}</p>
                 <ul className="space-y-2">
-                  {result.por_barbeiro.map((b) => (
+                  {visibleBarbeiros.map((b) => (
                     <CollaboratorReportRow
                       key={b.barbeiro_id}
                       barbeiro={b}
                       dateStart={dateStart}
                       dateEnd={dateEnd}
+                      refreshKey={reportRefreshKey}
+                      viewMode={reportViewMode}
                       expanded={expandedBarbeiroId === b.barbeiro_id}
                       onToggle={() =>
                         setExpandedBarbeiroId((current) => (current === b.barbeiro_id ? null : b.barbeiro_id))
@@ -442,6 +643,14 @@ export default function RelatoriosPage() {
                     />
                   ))}
                 </ul>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                {reportViewMode === "faltas"
+                  ? "Nenhuma falta no período selecionado."
+                  : "Nenhum agendamento confirmado no período selecionado."}
               </CardContent>
             </Card>
           )}

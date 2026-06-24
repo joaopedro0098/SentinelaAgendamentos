@@ -387,6 +387,8 @@ export type Database = {
         Args: { p_data_inicio: string; p_data_fim: string; p_barbeiro_id: string }
         Returns: Json
       }
+      marcar_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
+      reverter_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
       check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }
     }
     Enums: {
