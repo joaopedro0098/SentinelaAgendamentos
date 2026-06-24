@@ -110,7 +110,7 @@ export async function applyStripeSubscriptionToShop(
       .from("barbershops")
       .update({
         subscription_status: "expired",
-        subscription_notice: "Assinatura inativa. Assine novamente em Conta para liberar agendamentos.",
+        subscription_notice: "Assine novamente em Conta para liberar agendamentos.",
       })
       .eq("id", shopId);
     return "expired";

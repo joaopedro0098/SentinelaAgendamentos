@@ -114,7 +114,9 @@ function ReportViewModeToggle({
           className={cn(
             "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
             value === mode
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? mode === "faltas"
+                ? "bg-unavailable text-unavailable-foreground shadow-sm"
+                : "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -520,55 +522,55 @@ export default function RelatoriosPage() {
         </CardContent>
       </Card>
 
-      {result && (
-        <section className="space-y-3">
-          {showCollaboratorFilter && (
-            <div>
-              <h2 className="text-sm font-semibold mb-2.5">Colaborador</h2>
-              <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBarbeiroId(null);
-                    setExpandedBarbeiroId(null);
-                  }}
-                  className={cn(
-                    "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
-                    selectedBarbeiroId === null
-                      ? "bg-primary text-primary-foreground shadow-glow"
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                  )}
-                >
-                  Todos
-                </button>
-                {result.por_barbeiro.map((b) => {
-                  const sel = b.barbeiro_id === selectedBarbeiroId;
-                  return (
-                    <button
-                      key={b.barbeiro_id}
-                      type="button"
-                      data-barbeiro={b.barbeiro_id}
-                      onClick={() => {
-                        const next = sel ? null : b.barbeiro_id;
-                        setSelectedBarbeiroId(next);
-                        setExpandedBarbeiroId(null);
-                      }}
-                      className={cn(
-                        "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
-                        sel
-                          ? "bg-primary text-primary-foreground shadow-glow"
-                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                      )}
-                    >
-                      {b.barbeiro_nome}
-                    </button>
-                  );
-                })}
-              </HorizontalScrollStrip>
-            </div>
-          )}
+      <section className="space-y-3">
+        {result && showCollaboratorFilter && (
+          <div>
+            <h2 className="text-sm font-semibold mb-2.5">Colaborador</h2>
+            <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBarbeiroId(null);
+                  setExpandedBarbeiroId(null);
+                }}
+                className={cn(
+                  "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
+                  selectedBarbeiroId === null
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                )}
+              >
+                Todos
+              </button>
+              {result.por_barbeiro.map((b) => {
+                const sel = b.barbeiro_id === selectedBarbeiroId;
+                return (
+                  <button
+                    key={b.barbeiro_id}
+                    type="button"
+                    data-barbeiro={b.barbeiro_id}
+                    onClick={() => {
+                      const next = sel ? null : b.barbeiro_id;
+                      setSelectedBarbeiroId(next);
+                      setExpandedBarbeiroId(null);
+                    }}
+                    className={cn(
+                      "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
+                      sel
+                        ? "bg-primary text-primary-foreground shadow-glow"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                    )}
+                  >
+                    {b.barbeiro_nome}
+                  </button>
+                );
+              })}
+            </HorizontalScrollStrip>
+          </div>
+        )}
 
-          <div className="flex justify-start">
+        <div className="flex items-center justify-between gap-3">
+          {result ? (
             <ReportViewModeToggle
               value={reportViewMode}
               onChange={(mode) => {
@@ -576,9 +578,22 @@ export default function RelatoriosPage() {
                 setExpandedBarbeiroId(null);
               }}
             />
-          </div>
-        </section>
-      )}
+          ) : (
+            <span aria-hidden className="shrink-0" />
+          )}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="rounded-full shrink-0"
+            disabled={loading}
+            onClick={() => void fetchReport(dateStart, dateEnd)}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Atualizar
+          </Button>
+        </div>
+      </section>
 
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
@@ -656,20 +671,6 @@ export default function RelatoriosPage() {
           )}
         </div>
       ) : null}
-
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="rounded-full"
-          disabled={loading}
-          onClick={() => void fetchReport(dateStart, dateEnd)}
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Atualizar
-        </Button>
-      </div>
     </div>
   );
 }

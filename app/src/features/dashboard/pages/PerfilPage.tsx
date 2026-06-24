@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
+import { formatSubscriptionNotice } from "@/lib/subscriptionMessages";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -232,7 +233,8 @@ export default function PerfilPage() {
     !info?.can_book &&
     info?.subscription_status !== "grace";
 
-  const showSubscriptionNotice = Boolean(info?.subscription_notice && !isAggregated);
+  const subscriptionNotice = formatSubscriptionNotice(info?.subscription_notice);
+  const showSubscriptionNotice = Boolean(subscriptionNotice && !isAggregated);
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
@@ -254,7 +256,7 @@ export default function PerfilPage() {
 
       {showSubscriptionNotice && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {info!.subscription_notice}
+          {subscriptionNotice}
         </div>
       )}
 

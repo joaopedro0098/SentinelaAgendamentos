@@ -6,10 +6,27 @@ export const FACIAL_TRIAL_BLOCKED_MESSAGE =
 
 export const SUBSCRIPTION_BLOCK_OWNER = "Renove a assinatura para agendar.";
 
+export const OWNER_BOOKING_BLOCK_SIGNUP = "Assine para liberar novos agendamentos.";
+
+export const SUBSCRIPTION_NOTICE_EXPIRED =
+  "Assine novamente em Conta para liberar agendamentos.";
+
+const LEGACY_SUBSCRIPTION_NOTICE_EXPIRED =
+  "Assinatura inativa. Assine novamente em Conta para liberar agendamentos.";
+
+export function formatSubscriptionNotice(notice: string | null | undefined): string | null {
+  if (!notice) return null;
+  if (notice === LEGACY_SUBSCRIPTION_NOTICE_EXPIRED) return SUBSCRIPTION_NOTICE_EXPIRED;
+  if (notice.startsWith("Assinatura inativa. ")) {
+    return notice.slice("Assinatura inativa. ".length);
+  }
+  return notice;
+}
+
 export function getOwnerBookingBlockMessage(info: SubscriptionInfo): string {
   if (info.facial_trial_used) return FACIAL_TRIAL_BLOCKED_MESSAGE;
   if (info.trial_already_used) {
-    return "Este e-mail já utilizou o teste grátis. Assine para liberar novos agendamentos.";
+    return OWNER_BOOKING_BLOCK_SIGNUP;
   }
   if (info.subscription_status === "grace") {
     return "Pagamento pendente. Regularize em até a data de tolerância para continuar agendando.";
