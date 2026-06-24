@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { isBarberPushEnabled, registerBarberPush, supportsWebPush } from "@/lib/barberPushNotifications";
+import { getBlockedNotificationGuidance } from "@/lib/pwaInstall";
 
 type PermissionToggleRowProps = {
   id: string;
@@ -34,7 +35,9 @@ export function PermissionToggleRow({
         {description ? (
           <p className="mt-1 text-[11px] leading-tight text-muted-foreground truncate">{description}</p>
         ) : null}
-        {hint && <p className="mt-0.5 text-[11px] leading-tight text-destructive truncate">{hint}</p>}
+        {hint ? (
+          <p className="mt-0.5 text-[11px] leading-snug text-destructive line-clamp-3">{hint}</p>
+        ) : null}
       </div>
       {busy ? (
         <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
@@ -75,6 +78,8 @@ export function BarberPushToggle() {
     setEnabled(isBarberPushEnabled());
   }, []);
 
+  const blockedGuidance = denied ? getBlockedNotificationGuidance() : null;
+
   async function handleToggle() {
     if (unsupported) {
       toast({
@@ -85,11 +90,10 @@ export function BarberPushToggle() {
       return;
     }
 
-    if (denied) {
+    if (denied && blockedGuidance) {
       toast({
-        title: "Notificações bloqueadas",
-        description:
-          "No Chrome/Edge: clique no cadeado ao lado da URL → Configurações do site → Notificações → Permitir. Depois recarregue a página.",
+        title: blockedGuidance.title,
+        description: blockedGuidance.description,
         variant: "destructive",
       });
       return;
@@ -130,9 +134,7 @@ export function BarberPushToggle() {
 
   const hint = unsupported
     ? "Push não suportado neste navegador."
-    : denied
-      ? "Notificações bloqueadas no navegador."
-      : undefined;
+    : blockedGuidance?.hint;
 
   return (
     <PermissionToggleRow

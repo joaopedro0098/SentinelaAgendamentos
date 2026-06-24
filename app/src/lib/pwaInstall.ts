@@ -33,6 +33,69 @@ export function isIosDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+export function isAndroidDevice() {
+  return /android/i.test(window.navigator.userAgent);
+}
+
+export type BlockedNotificationGuidance = {
+  title: string;
+  description: string;
+  hint: string;
+};
+
+/** Orientação quando Notification.permission === "denied" (SO ou navegador). */
+export function getBlockedNotificationGuidance(): BlockedNotificationGuidance {
+  if (isStandalonePwa()) {
+    if (isIosDevice()) {
+      return {
+        title: "Notificações desativadas",
+        description:
+          "As permissões estão desabilitadas. Vá em Ajustes → Sentinela → Notificações, ative e volte ao app.",
+        hint: "Ative em Ajustes → Sentinela → Notificações.",
+      };
+    }
+    if (isAndroidDevice()) {
+      return {
+        title: "Notificações desativadas",
+        description:
+          "As permissões estão desabilitadas. Vá em Configurações → Aplicativos → Sentinela → Notificações, ative e volte ao app.",
+        hint: "Ative em Configurações → Aplicativos → Sentinela.",
+      };
+    }
+    return {
+      title: "Notificações desativadas",
+      description:
+        "As permissões estão desabilitadas. Ative as notificações do Sentinela nas configurações do aparelho e volte ao app.",
+      hint: "Notificações desativadas nas configurações do aparelho.",
+    };
+  }
+
+  if (isIosDevice()) {
+    return {
+      title: "Notificações bloqueadas",
+      description:
+        "No Safari: Ajustes → Safari → Avançado → Dados dos sites → Sentinela → Notificações → Permitir. Depois recarregue a página.",
+      hint: "Notificações bloqueadas no Safari.",
+    };
+  }
+
+  if (isAndroidDevice()) {
+    const browser = getSuggestedExternalBrowserLabel();
+    return {
+      title: "Notificações bloqueadas",
+      description: `No ${browser}: toque no ícone ao lado da URL → Configurações do site → Notificações → Permitir. Depois recarregue a página.`,
+      hint: "Notificações bloqueadas neste navegador.",
+    };
+  }
+
+  const browser = getSuggestedExternalBrowserLabel();
+  return {
+    title: "Notificações bloqueadas",
+    description: `No ${browser}: clique no cadeado ao lado da URL → Configurações do site → Notificações → Permitir. Depois recarregue a página.`,
+    hint: "Notificações bloqueadas neste navegador.",
+  };
+}
+
 export function isSocialInAppBrowser() {
   const ua = window.navigator.userAgent.toLowerCase();
   return (
