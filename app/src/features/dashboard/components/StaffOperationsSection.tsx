@@ -315,10 +315,11 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
     await load();
   }
 
-  async function saveAllServices(
+  async function saveStaffMember(
     staffId: string,
     drafts: ServiceDraft[],
     original: ServiceRow[],
+    rows: ScheduleDraft[],
     staffName?: string,
   ) {
     if (staffName !== undefined) {
@@ -352,7 +353,19 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
       return;
     }
 
-    setBusy(`svc-save-${staffId}`);
+    const enabledRows = rows.filter((r) => r.enabled);
+    const invalidRow = enabledRows.find((r) => !isValidTime(r.start_time) || !isValidTime(r.end_time));
+    if (invalidRow) {
+      const day = DAYS.find((d) => d.value === invalidRow.day_of_week)?.label ?? "dia";
+      toast({
+        title: "Horário inválido",
+        description: `Use o formato HH:MM (ex.: 09:00) em ${day}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBusy(`save-${staffId}`);
 
     const updates = existingDrafts.filter((d) => {
       const orig = original.find((o) => o.id === d.id);
@@ -375,7 +388,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
         toast({
           title: isDuplicateServiceError(error) ? "Nome duplicado" : "Erro ao salvar serviços",
           description: isDuplicateServiceError(error)
-            ? `Já existe um serviço com esse nome para este colaborador.`
+            ? "Já existe um serviço com esse nome para este colaborador."
             : error.message,
           variant: "destructive",
         });
@@ -395,10 +408,32 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
         toast({
           title: isDuplicateServiceError(error) ? "Nome duplicado" : "Erro ao adicionar serviço",
           description: isDuplicateServiceError(error)
-            ? `Já existe um serviço com esse nome para este colaborador.`
+            ? "Já existe um serviço com esse nome para este colaborador."
             : error.message,
           variant: "destructive",
         });
+        return;
+      }
+    }
+
+    const { error: delErr } = await supabase.from("staff_schedules").delete().eq("staff_id", staffId);
+    if (delErr) {
+      setBusy(null);
+      toast({ title: "Erro ao salvar horários", description: delErr.message, variant: "destructive" });
+      return;
+    }
+
+    const toInsert = enabledRows.map((r) => ({
+      staff_id: staffId,
+      day_of_week: r.day_of_week,
+      start_time: `${r.start_time}:00`,
+      end_time: `${r.end_time}:00`,
+    }));
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from("staff_schedules").insert(toInsert);
+      if (error) {
+        setBusy(null);
+        toast({ title: "Erro ao salvar horários", description: error.message, variant: "destructive" });
         return;
       }
     }
@@ -417,52 +452,6 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
       toast({ title: "Erro ao excluir serviço", description: error.message, variant: "destructive" });
       return;
     }
-    await load({ silent: true });
-  }
-
-  async function saveSchedules(staffId: string, rows: ScheduleDraft[], staffName?: string) {
-    if (staffName !== undefined) {
-      const nameSaved = await updateStaffNameIfNeeded(staffId, staffName);
-      if (!nameSaved) return;
-    }
-
-    setBusy(`sch-${staffId}`);
-    const { error: delErr } = await supabase.from("staff_schedules").delete().eq("staff_id", staffId);
-    if (delErr) {
-      setBusy(null);
-      toast({ title: "Erro ao salvar horários", description: delErr.message, variant: "destructive" });
-      return;
-    }
-    const enabledRows = rows.filter((r) => r.enabled);
-    const invalidRow = enabledRows.find((r) => !isValidTime(r.start_time) || !isValidTime(r.end_time));
-    if (invalidRow) {
-      setBusy(null);
-      const day = DAYS.find((d) => d.value === invalidRow.day_of_week)?.label ?? "dia";
-      toast({
-        title: "Horário inválido",
-        description: `Use o formato HH:MM (ex.: 09:00) em ${day}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const toInsert = enabledRows.map((r) => ({
-      staff_id: staffId,
-      day_of_week: r.day_of_week,
-      start_time: `${r.start_time}:00`,
-      end_time: `${r.end_time}:00`,
-    }));
-    if (toInsert.length > 0) {
-      const { error } = await supabase.from("staff_schedules").insert(toInsert);
-      if (error) {
-        setBusy(null);
-        toast({ title: "Erro ao salvar horários", description: error.message, variant: "destructive" });
-        return;
-      }
-    }
-    setBusy(null);
-    showQuickSavedToast("Alterações salvas");
-    await syncAgendaQuiet(barbershopSlug);
     await load({ silent: true });
   }
 
@@ -510,11 +499,16 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
                 onToggle={() => setExpandedId((id) => (id === member.id ? null : member.id))}
                 busy={busy}
                 onRemove={() => removeStaff(member.id)}
-                onSaveAllServices={(drafts, staffName) =>
-                  saveAllServices(member.id, drafts, services.filter((s) => s.staff_id === member.id), staffName)
-                }
                 onRemoveService={removeService}
-                onSaveSchedules={(rows, staffName) => saveSchedules(member.id, rows, staffName)}
+                onSaveStaffMember={(drafts, rows, staffName) =>
+                  saveStaffMember(
+                    member.id,
+                    drafts,
+                    services.filter((s) => s.staff_id === member.id),
+                    rows,
+                    staffName,
+                  )
+                }
               />
             ))}
           </ul>
@@ -564,9 +558,8 @@ function StaffCard({
   onToggle,
   busy,
   onRemove,
-  onSaveAllServices,
+  onSaveStaffMember,
   onRemoveService,
-  onSaveSchedules,
 }: {
   member: StaffRow;
   services: ServiceRow[];
@@ -575,9 +568,8 @@ function StaffCard({
   onToggle: () => void;
   busy: string | null;
   onRemove: () => void;
-  onSaveAllServices: (drafts: ServiceDraft[], staffName: string) => Promise<void>;
+  onSaveStaffMember: (drafts: ServiceDraft[], rows: ScheduleDraft[], staffName: string) => Promise<void>;
   onRemoveService: (id: string) => void;
-  onSaveSchedules: (rows: ScheduleDraft[], staffName: string) => void;
 }) {
   const [editName, setEditName] = useState(member.name);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>(() => buildScheduleDraft(schedules));
@@ -620,11 +612,10 @@ function StaffCard({
           member={member}
           services={services}
           busy={busy}
-          onSaveAllServices={(drafts) => onSaveAllServices(drafts, editName)}
+          onSaveStaffMember={(drafts, rows) => onSaveStaffMember(drafts, rows, editName)}
           onRemoveService={onRemoveService}
           scheduleDraft={scheduleDraft}
           setScheduleDraft={setScheduleDraft}
-          onSaveSchedules={(rows) => onSaveSchedules(rows, editName)}
         />
       )}
     </li>
@@ -635,13 +626,12 @@ function StaffExpanded(props: {
   member: StaffRow;
   services: ServiceRow[];
   busy: string | null;
-  onSaveAllServices: (drafts: ServiceDraft[]) => Promise<void>;
+  onSaveStaffMember: (drafts: ServiceDraft[], rows: ScheduleDraft[]) => Promise<void>;
   onRemoveService: (id: string) => void;
   scheduleDraft: ScheduleDraft[];
   setScheduleDraft: React.Dispatch<React.SetStateAction<ScheduleDraft[]>>;
-  onSaveSchedules: (rows: ScheduleDraft[]) => void;
 }) {
-  const { member, services, busy, onSaveAllServices, onRemoveService, scheduleDraft, setScheduleDraft, onSaveSchedules } = props;
+  const { member, services, busy, onSaveStaffMember, onRemoveService, scheduleDraft, setScheduleDraft } = props;
 
   const [serviceDrafts, setServiceDrafts] = useState<Array<{ id: string; name: string; duration: string; price: string }>>([]);
 
@@ -673,14 +663,14 @@ function StaffExpanded(props: {
     onRemoveService(id);
   }
 
-  async function handleSaveServices() {
+  async function handleSaveAll() {
     const drafts: ServiceDraft[] = serviceDrafts.map((d) => ({
       id: d.id,
       name: d.name.trim(),
       duration_minutes: parseInt(d.duration, 10) || 30,
       price_cents: parsePriceInput(d.price),
     }));
-    await onSaveAllServices(drafts);
+    await onSaveStaffMember(drafts, scheduleDraft);
   }
 
   return (
@@ -718,10 +708,6 @@ function StaffExpanded(props: {
             ))}
           </ul>
         )}
-        <Button type="button" size="sm" disabled={busy === `svc-save-${member.id}`} onClick={handleSaveServices}>
-          {busy === `svc-save-${member.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Salvar
-        </Button>
       </section>
 
       <section className="space-y-3 pt-3">
@@ -776,8 +762,8 @@ function StaffExpanded(props: {
             );
           })}
         </ul>
-        <Button type="button" size="sm" disabled={busy === `sch-${member.id}`} onClick={() => onSaveSchedules(scheduleDraft)}>
-          {busy === `sch-${member.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        <Button type="button" size="sm" disabled={busy === `save-${member.id}`} onClick={() => void handleSaveAll()}>
+          {busy === `save-${member.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Salvar horários
         </Button>
       </section>

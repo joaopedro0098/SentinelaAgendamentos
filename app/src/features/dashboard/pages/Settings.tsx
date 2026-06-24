@@ -11,15 +11,18 @@ import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { CtAggregatedAccountsSection } from "@/features/dashboard/components/CtAggregatedAccountsSection";
+import { BloqueiosSection } from "@/features/dashboard/components/BloqueiosSection";
 import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
+import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
+import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { useSubscription } from "@/hooks/useSubscription";
 
 export default function Settings() {
   const { user } = useAuth();
-  const { shop: contextShop, loading, refresh } = useDashboardShop();
+  const { shop: contextShop, loading, refresh, patchShop, bumpSlotGridRevision } = useDashboardShop();
   const { info: subscriptionInfo } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
   const canManageAggregated = subscriptionInfo?.can_manage_aggregated_accounts ?? false;
@@ -167,15 +170,26 @@ export default function Settings() {
       .from("barbershops")
       .update({ slot_interval_minutes: interval })
       .eq("id", shop.id);
-    setSavingSlots(false);
 
     if (error) {
+      setSavingSlots(false);
       toast({ title: "Erro ao salvar grade", description: error.message, variant: "destructive" });
       return;
     }
 
+    const { error: syncErr } = await syncAgendaFromSlug(shop.slug);
+    if (syncErr) {
+      console.warn("[settings] falha ao sincronizar agenda após intervalo:", syncErr.message);
+    }
+
+    clearBookingStaticCache(shop.slug);
+    patchDashboardShopCache({ slot_interval_minutes: interval });
+    patchShop({ slot_interval_minutes: interval });
+    bumpSlotGridRevision();
+
     setShop({ ...shop, slot_interval_minutes: interval });
     setSlotInterval(String(interval));
+    setSavingSlots(false);
     toast({ title: "Grade de horários salva" });
   }
 
@@ -472,6 +486,8 @@ export default function Settings() {
         </Card>
 
         <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} maxActiveStaff={isCA ? 1 : undefined} />
+
+        <BloqueiosSection barbershopId={shop.id} barbershopSlug={shop.slug} />
 
         {canManageAggregated && <CtAggregatedAccountsSection />}
 

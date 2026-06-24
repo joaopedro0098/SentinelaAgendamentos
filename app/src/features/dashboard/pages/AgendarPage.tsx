@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import PublicBooking, { type RescheduleContext } from "@agenda/pages/PublicBooking";
@@ -18,7 +18,7 @@ export default function AgendarPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
-  const { slug, loading, agendaReady, caBarbearias } = useDashboardShop();
+  const { slug, loading, agendaReady, caBarbearias, slotGridRevision } = useDashboardShop();
   const syncPhase = slug ? getAgendaSyncPhase(slug) ?? "loading" : undefined;
 
   useEffect(() => {
@@ -109,6 +109,7 @@ export default function AgendarPage() {
         ownerBookingBlockMessage={ownerBookingBlockMessage}
         onOwnerBookingBlocked={showOwnerBookingBlockedToast}
         extraBarbeariaIds={caBarbearias.map((ca) => ca.barbeariaId)}
+        slotGridRevision={slotGridRevision}
       />
     </AgendaShell>
   );

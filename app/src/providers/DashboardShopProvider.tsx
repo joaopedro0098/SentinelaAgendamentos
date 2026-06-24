@@ -36,8 +36,11 @@ type DashboardShopContextValue = {
   caBarbearias: CaBarbearia[];
   agendaReady: boolean;
   loading: boolean;
+  /** Incrementado ao salvar intervalo da grade — força recarga de Agendar e Bloqueios. */
+  slotGridRevision: number;
   refresh: (options?: RefreshOptions) => Promise<void>;
   patchShop: (next: Partial<DashboardShop>) => void;
+  bumpSlotGridRevision: () => void;
 };
 
 const DashboardShopContext = createContext<DashboardShopContextValue | null>(null);
@@ -104,6 +107,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const [caBarbearias, setCaBarbearias] = useState<CaBarbearia[]>(() => (hasWarmCache ? cachedCaBarbearias : []));
   const [loading, setLoading] = useState(!hasWarmCache);
   const [syncTick, setSyncTick] = useState(0);
+  const [slotGridRevision, setSlotGridRevision] = useState(0);
 
   const refresh = useCallback(
     async (options?: RefreshOptions) => {
@@ -209,6 +213,10 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
     setShop(merged);
   }, []);
 
+  const bumpSlotGridRevision = useCallback(() => {
+    setSlotGridRevision((n) => n + 1);
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -221,10 +229,12 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       caBarbearias,
       agendaReady: Boolean(shop?.slug && barbeariaId && getAgendaSyncPhase(shop.slug) === "ready"),
       loading,
+      slotGridRevision,
       refresh,
       patchShop,
+      bumpSlotGridRevision,
     }),
-    [shop, barbeariaId, caBarbearias, loading, refresh, patchShop, syncTick],
+    [shop, barbeariaId, caBarbearias, loading, slotGridRevision, refresh, patchShop, bumpSlotGridRevision, syncTick],
   );
 
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;

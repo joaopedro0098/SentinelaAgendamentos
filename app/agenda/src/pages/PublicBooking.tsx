@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -370,6 +370,8 @@ export type PublicBookingProps = {
   ownerPanelActive?: boolean;
   /** Barbearias das CAs ativas (painel CT/AA) — fallback se a RPC falhar. */
   extraBarbeariaIds?: string[];
+  /** Alterado ao salvar intervalo da grade — força recarga (KeepAlive). */
+  slotGridRevision?: number;
 };
 
 const PublicBooking = ({
@@ -382,6 +384,7 @@ const PublicBooking = ({
   ownerPanel = false,
   ownerPanelActive = true,
   extraBarbeariaIds = [],
+  slotGridRevision = 0,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
   const pageBgClass = ownerPanel ? "bg-transparent" : "bg-surface";
@@ -547,7 +550,7 @@ const PublicBooking = ({
       setLoading(false);
     };
     load();
-  }, [slug, reschedule?.agendamentoId, minDayOffset, extraBarbeariaIds.join("|")]);
+  }, [slug, reschedule?.agendamentoId, minDayOffset, extraBarbeariaIds.join("|"), slotGridRevision]);
 
   const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
 
