@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getAgendaSyncPhase, primeAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { isCacheFresh } from "@/lib/providerCache";
+import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 
 export type DashboardShop = {
   id: string;
@@ -108,6 +109,8 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!hasWarmCache);
   const [syncTick, setSyncTick] = useState(0);
   const [slotGridRevision, setSlotGridRevision] = useState(0);
+  const [ownerSlug, setOwnerSlug] = useState<string | null>(null);
+  const [isCaAccount, setIsCaAccount] = useState(false);
 
   const refresh = useCallback(
     async (options?: RefreshOptions) => {
@@ -161,6 +164,11 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       cachedShop = normalized;
       cachedFetchedAt = Date.now();
       setShop(normalized);
+
+      const { data: subData } = await supabase.rpc("get_my_subscription");
+      const sub = subData as { account_type?: string; owner_slug?: string | null } | null;
+      setIsCaAccount(sub?.account_type === "ca");
+      setOwnerSlug(sub?.owner_slug ?? null);
 
       if (!row?.slug) {
         cachedBarbeariaId = null;
@@ -217,9 +225,79 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
     setSlotGridRevision((n) => n + 1);
   }, []);
 
+  const applyRemoteSlotGridChange = useCallback(async () => {
+    const slug = cachedShop?.slug;
+    if (slug) {
+      await syncAgenda(slug);
+      clearBookingStaticCache(slug);
+    }
+    for (const ca of cachedCaBarbearias) {
+      clearBookingStaticCache(ca.slug);
+    }
+    bumpSlotGridRevision();
+  }, [bumpSlotGridRevision]);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!shop?.slug) return;
+
+    const channels: ReturnType<typeof supabase.channel>[] = [];
+
+    const barbeariaIds = [
+      ...(barbeariaId ? [barbeariaId] : []),
+      ...caBarbearias.map((ca) => ca.barbeariaId),
+    ].filter((id, i, arr) => arr.indexOf(id) === i);
+
+    for (const bid of barbeariaIds) {
+      channels.push(
+        supabase
+          .channel(`slot-grid:barbeiro:${bid}`)
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "barbeiros", filter: `barbearia_id=eq.${bid}` },
+            (payload) => {
+              const oldRow = payload.old as { slot_minutos?: number | null } | undefined;
+              const newRow = payload.new as { slot_minutos?: number | null };
+              if (oldRow?.slot_minutos === newRow.slot_minutos) return;
+              void applyRemoteSlotGridChange();
+            },
+          )
+          .subscribe(),
+      );
+    }
+
+    if (isCaAccount && ownerSlug) {
+      channels.push(
+        supabase
+          .channel(`slot-grid:titular:${ownerSlug}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "barbershops",
+              filter: `slug=eq.${ownerSlug}`,
+            },
+            (payload) => {
+              const oldRow = payload.old as { slot_interval_minutes?: number | null } | undefined;
+              const newRow = payload.new as { slot_interval_minutes?: number | null };
+              if (oldRow?.slot_interval_minutes === newRow.slot_interval_minutes) return;
+              void applyRemoteSlotGridChange();
+            },
+          )
+          .subscribe(),
+      );
+    }
+
+    return () => {
+      channels.forEach((ch) => {
+        void supabase.removeChannel(ch);
+      });
+    };
+  }, [shop?.slug, barbeariaId, caBarbearias, isCaAccount, ownerSlug, applyRemoteSlotGridChange]);
 
   const value = useMemo(
     () => ({

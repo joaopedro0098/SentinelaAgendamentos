@@ -152,7 +152,7 @@ export default function Settings() {
   }
 
   async function handleSaveSlotSettings() {
-    if (!shop) return;
+    if (!shop || isCA) return;
 
     const interval = parseInt(slotInterval, 10);
 
@@ -177,12 +177,29 @@ export default function Settings() {
       return;
     }
 
+    const { data: caRows } = await supabase.rpc("ct_list_ca_info");
+    const caSlugs = Array.isArray(caRows)
+      ? (caRows as { slug: string }[]).map((r) => r.slug).filter(Boolean)
+      : [];
+
     const { error: syncErr } = await syncAgendaFromSlug(shop.slug);
     if (syncErr) {
-      console.warn("[settings] falha ao sincronizar agenda após intervalo:", syncErr.message);
+      console.warn("[settings] falha ao sincronizar agenda do titular:", syncErr.message);
     }
 
+    await Promise.all(
+      caSlugs.map(async (caSlug) => {
+        const { error: caSyncErr } = await syncAgendaFromSlug(caSlug);
+        if (caSyncErr) {
+          console.warn(`[settings] falha ao sincronizar agenda da CA (${caSlug}):`, caSyncErr.message);
+        }
+      }),
+    );
+
     clearBookingStaticCache(shop.slug);
+    for (const caSlug of caSlugs) {
+      clearBookingStaticCache(caSlug);
+    }
     patchDashboardShopCache({ slot_interval_minutes: interval });
     patchShop({ slot_interval_minutes: interval });
     bumpSlotGridRevision();
@@ -491,6 +508,7 @@ export default function Settings() {
 
         {canManageAggregated && <CtAggregatedAccountsSection />}
 
+        {!isCA && (
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-1.5">
@@ -517,6 +535,7 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+        )}
       </div>
     </>
   );

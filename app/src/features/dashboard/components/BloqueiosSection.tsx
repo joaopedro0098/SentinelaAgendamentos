@@ -70,12 +70,12 @@ function isPastDate(dateYmd: string) {
   return dateYmd < ymd(new Date());
 }
 
-function getBookableRange(minDayOffset: number) {
+function getBloqueiosDayRange() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const first = new Date(today);
-  first.setDate(today.getDate() + minDayOffset);
-  const last = new Date(first.getFullYear(), first.getMonth() + BOOKING_MONTHS, 0);
+  first.setDate(today.getDate() - BLOQUEIOS_PAST_DAYS);
+  const last = new Date(today.getFullYear(), today.getMonth() + BOOKING_MONTHS, 0);
   const days: Date[] = [];
   const cur = new Date(first);
   while (cur <= last) {
@@ -211,77 +211,6 @@ function savedPartialSlots(bloqueios: Bloqueio[], barbeiroId: string, dateYmd: s
     .map((b) => b.hora_inicio!.slice(0, 5));
 }
 
-function buildFeriasProgramadasFromBloqueios(
-  bloqueios: Bloqueio[],
-  profissionais: Profissional[],
-): FeriasProgramada[] {
-  const hoje = ymd(new Date());
-  const byBarbeiro = new Map<string, string[]>();
-
-  for (const b of bloqueios) {
-    if (b.motivo !== "ferias" || b.hora_inicio || b.hora_fim) continue;
-    const list = byBarbeiro.get(b.barbeiro_id) ?? [];
-    list.push(b.data);
-    byBarbeiro.set(b.barbeiro_id, list);
-  }
-
-  const result: FeriasProgramada[] = [];
-  for (const [barbeiroId, dates] of byBarbeiro) {
-    const prof = profissionais.find((p) => p.barbeiro_id === barbeiroId);
-    if (!prof) continue;
-    const sorted = [...dates].sort();
-    let start = sorted[0];
-    let end = sorted[0];
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = new Date(`${sorted[i - 1]}T12:00:00`);
-      prev.setDate(prev.getDate() + 1);
-      if (ymd(prev) === sorted[i]) {
-        end = sorted[i];
-      } else {
-        if (end >= hoje) {
-          result.push({ barbeiro_id: barbeiroId, nome: prof.nome, data_inicio: start, data_fim: end, is_ca: false });
-        }
-        start = sorted[i];
-        end = sorted[i];
-      }
-    }
-    if (end >= hoje) {
-      result.push({ barbeiro_id: barbeiroId, nome: prof.nome, data_inicio: start, data_fim: end, is_ca: false });
-    }
-  }
-
-  return result.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-}
-
-function periodsOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string) {
-  return aStart <= bEnd && bStart <= aEnd;
-}
-
-function formatFeriasOverlapMessage(names: string[]) {
-  const sorted = [...names].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  if (sorted.length === 1) return `Colaborador ${sorted[0]} ainda está de férias.`;
-  if (sorted.length === 2) return `Colaboradores ${sorted[0]} e ${sorted[1]} ainda estão de férias.`;
-  const last = sorted[sorted.length - 1];
-  const rest = sorted.slice(0, -1).join(", ");
-  return `Colaboradores ${rest} e ${last} ainda estão de férias.`;
-}
-
-function findFeriasOverlapNames(
-  feriasProgramadas: FeriasProgramada[],
-  barbeiroIds: string[],
-  inicio: string,
-  fim: string,
-) {
-  const names: string[] = [];
-  for (const id of barbeiroIds) {
-    const period = feriasProgramadas.find((f) => f.barbeiro_id === id && !f.is_ca);
-    if (period && periodsOverlap(period.data_inicio, period.data_fim, inicio, fim)) {
-      names.push(period.nome);
-    }
-  }
-  return names;
-}
-
 function ModeToggle({
   value,
   onChange,
@@ -348,7 +277,7 @@ function CheckboxRow({
 
 export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   const { slotGridRevision, bumpSlotGridRevision } = useDashboardShop();
-  const bookableRange = useMemo(() => getBookableRange(-BLOQUEIOS_PAST_DAYS), []);
+  const bookableRange = useMemo(() => getBloqueiosDayRange(), []);
   const hoje = useMemo(() => ymd(new Date()), []);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -406,6 +335,11 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
     return buildSlots(windows, selectedProf.slot_minutos);
   }, [selectedProf, selectedDate, selectedProfOnFerias]);
 
+  const profWorksOnSelectedDay = useMemo(() => {
+    if (!selectedProf || selectedProfOnFerias) return false;
+    return windowsForDay(selectedProf, selectedDate).length > 0;
+  }, [selectedProf, selectedDate, selectedProfOnFerias]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -440,11 +374,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
     const loadedBloqueios = payload.bloqueios ?? [];
     setProfissionais(profs);
     setBloqueios(loadedBloqueios);
-    setFeriasProgramadas(
-      payload.ferias_programadas?.length
-        ? payload.ferias_programadas
-        : buildFeriasProgramadasFromBloqueios(loadedBloqueios, profs),
-    );
+    setFeriasProgramadas(payload.ferias_programadas ?? []);
     setFeriasSelectedIds(new Set(profs.map((p) => p.barbeiro_id)));
   }, [barbershopId, bookableRange]);
 
@@ -659,7 +589,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   }
 
   async function handleSaveDay() {
-    if (!selectedBarbeiroId || selectedProfOnFerias) return;
+    if (!selectedBarbeiroId || selectedProfOnFerias || !profWorksOnSelectedDay) return;
     setSaving(true);
     const { error } = await supabase.rpc("salvar_bloqueios_dia_painel", {
       p_barbeiro_id: selectedBarbeiroId,
@@ -685,15 +615,6 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
     }
     if (feriasFim < feriasInicio) {
       toast({ title: "Data final deve ser igual ou posterior à inicial", variant: "destructive" });
-      return;
-    }
-    const overlapNames = findFeriasOverlapNames(feriasProgramadas, ids, feriasInicio, feriasFim);
-    if (overlapNames.length > 0) {
-      toast({
-        title: "Não foi possível salvar",
-        description: formatFeriasOverlapMessage(overlapNames),
-        variant: "destructive",
-      });
       return;
     }
     setSaving(true);
@@ -958,7 +879,12 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                       />
                     </div>
 
-                    <Button type="button" className="w-full sm:w-auto" disabled={saving} onClick={() => void handleSaveDay()}>
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      disabled={saving || !profWorksOnSelectedDay}
+                      onClick={() => void handleSaveDay()}
+                    >
                       {saving ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" /> Salvando…

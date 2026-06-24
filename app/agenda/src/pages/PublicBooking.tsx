@@ -496,8 +496,11 @@ const PublicBooking = ({
         show_service_prices?: boolean | null;
       } | null;
 
+      const rawPros = prosLoad.barbeiros;
       const contato = shopRow?.whatsapp_number ?? null;
-      setSlotInterval(shopRow?.slot_interval_minutes ?? 30);
+      const intervalFromPros = rawPros.find((b) => b.slot_minutos != null)?.slot_minutos;
+      const resolvedInterval = intervalFromPros ?? shopRow?.slot_interval_minutes ?? 30;
+      setSlotInterval(resolvedInterval);
       setShowServicePrices(shopRow?.show_service_prices ?? false);
 
       setBarbearia({
@@ -509,9 +512,7 @@ const PublicBooking = ({
         allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
       });
 
-      const rawPros = prosLoad.barbeiros;
-      const bbs = rawPros;
-      setBarbeiros(bbs);
+      setBarbeiros(rawPros);
 
       setBookingStaticCache(slug, {
         barbearia: {
@@ -522,14 +523,14 @@ const PublicBooking = ({
           telefone: contato,
           allow_client_public_booking: (b as { allow_client_public_booking?: boolean }).allow_client_public_booking ?? true,
         },
-        barbeiros: bbs,
-        slotInterval: shopRow?.slot_interval_minutes ?? 30,
+        barbeiros: rawPros,
+        slotInterval: resolvedInterval,
         showServicePrices: shopRow?.show_service_prices ?? false,
         fromYmd,
         toYmd,
       });
 
-      const bbIds = bbs.map((x) => x.id);
+      const bbIds = rawPros.map((x) => x.id);
       if (bbIds.length) {
         const { data: ag } = await supabase
           .from("agendamentos")
@@ -619,7 +620,7 @@ const PublicBooking = ({
         const dow = d.getDay();
         const windows = bb.disponibilidades.filter((x) => x.dia_semana === dow);
         m.set(`${bb.id}|${key}`, {
-          all: buildSlots(windows, slotInterval),
+          all: buildSlots(windows, bb.slot_minutos ?? slotInterval),
           windows,
           ocup: agOcupados.get(`${bb.id}|${key}`) ?? new Map(),
           dayBloqs: bb.bloqueios.filter((b) => b.data === key),
