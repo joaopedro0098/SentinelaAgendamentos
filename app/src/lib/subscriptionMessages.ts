@@ -11,6 +11,9 @@ export const OWNER_BOOKING_BLOCK_SIGNUP = "Assine para liberar novos agendamento
 export const SUBSCRIPTION_NOTICE_EXPIRED =
   "Assine novamente em Conta para liberar agendamentos.";
 
+export const AGGREGATED_BOOKING_BLOCK_MESSAGE =
+  "Assinatura do titular inativa. Contate-o para realizar a renovação";
+
 const LEGACY_SUBSCRIPTION_NOTICE_EXPIRED =
   "Assinatura inativa. Assine novamente em Conta para liberar agendamentos.";
 
@@ -24,6 +27,9 @@ export function formatSubscriptionNotice(notice: string | null | undefined): str
 }
 
 export function getOwnerBookingBlockMessage(info: SubscriptionInfo): string {
+  if (info.is_aggregated_account && !info.can_book) {
+    return AGGREGATED_BOOKING_BLOCK_MESSAGE;
+  }
   if (info.facial_trial_used) return FACIAL_TRIAL_BLOCKED_MESSAGE;
   if (info.trial_already_used) {
     return OWNER_BOOKING_BLOCK_SIGNUP;
