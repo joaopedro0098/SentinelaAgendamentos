@@ -1,12 +1,9 @@
-import { CalendarCheck, CreditCard, Link2, Scissors, ShieldCheck, Users } from "lucide-react";
+import { Link2, Scissors, Users } from "lucide-react";
 
 const benefits = [
   { icon: Link2, title: "Link próprio de agendamento", desc: "Compartilhe um link para seus clientes escolherem serviço, dia e horário." },
   { icon: Users, title: "Colaboradores organizados", desc: "Cadastre profissionais, serviços, duração e horários de atendimento." },
-  { icon: CalendarCheck, title: "Agenda sem bagunça", desc: "Acompanhe agendamentos confirmados, altere horários e evite conflito." },
   { icon: Scissors, title: "Serviços por profissional", desc: "Cada colaborador pode ter seus próprios serviços, preços e duração." },
-  { icon: CreditCard, title: "Plano simples", desc: "Teste grátis por 14 dias e continue com pagamento mensal no app." },
-  { icon: ShieldCheck, title: "Bloqueio automático", desc: "O sistema controla trial, assinatura e renovação sem conferências manuais." },
 ];
 
 const Benefits = () => (
