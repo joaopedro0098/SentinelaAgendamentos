@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import PublicBooking, { type RescheduleContext } from "@agenda/pages/PublicBooking";
+import PublicBooking, { type BookingPrefill, type RescheduleContext } from "@agenda/pages/PublicBooking";
 import { AgendaShell } from "@/features/agenda/AgendaShell";
 import { getAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 type LocationState = {
   reschedule?: RescheduleContext;
+  prefill?: BookingPrefill;
 };
 
 export default function AgendarPage() {
@@ -18,6 +19,7 @@ export default function AgendarPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const reschedule = (location.state as LocationState | null)?.reschedule ?? null;
+  const prefill = (location.state as LocationState | null)?.prefill ?? null;
   const { slug, loading, agendaReady, caBarbearias, slotGridRevision } = useDashboardShop();
   const syncPhase = slug ? getAgendaSyncPhase(slug) ?? "loading" : undefined;
 
@@ -105,6 +107,7 @@ export default function AgendarPage() {
         ownerPanel
         ownerPanelActive={location.pathname === "/app/agendar"}
         reschedule={reschedule}
+        prefill={reschedule ? null : prefill}
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}
         ownerBookingBlockMessage={ownerBookingBlockMessage}
         onOwnerBookingBlocked={showOwnerBookingBlockedToast}

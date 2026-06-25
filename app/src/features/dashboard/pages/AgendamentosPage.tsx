@@ -26,6 +26,8 @@ import {
 } from "@/lib/appointmentConfirmationMessage";
 import { DashboardPageSkeleton } from "@/components/layout/AppBootSkeleton";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
+import AgendamentosDesktopPanel from "@/features/dashboard/components/agendamentos/AgendamentosDesktopPanel";
+import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -167,6 +169,19 @@ export default function AgendamentosPage() {
   useEffect(() => {
     loadAgendamentos();
   }, [loadAgendamentos]);
+
+  const handlePanelRefresh = useCallback(
+    (detail?: { data?: string }) => {
+      if (detail?.data) {
+        setSelectedDate(detail.data);
+        setFocusDate(detail.data);
+      }
+      void loadAgendamentos();
+    },
+    [loadAgendamentos],
+  );
+
+  usePanelAgendamentosRefresh(handlePanelRefresh);
 
   useEffect(() => {
     if (!allBarbeariaIds.length) return;
@@ -361,7 +376,17 @@ export default function AgendamentosPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
+    <>
+      <div className="hidden md:block">
+        <AgendamentosDesktopPanel
+          slug={slug}
+          barbeariaId={barbeariaId}
+          caBarbearias={caBarbearias}
+          shop={shop}
+          allBarbeariaIds={allBarbeariaIds}
+        />
+      </div>
+      <div className="md:hidden p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <CalendarDays className="h-6 w-6 text-primary" />
@@ -529,7 +554,7 @@ export default function AgendamentosPage() {
                                   "bg-available/25 text-available border-available/90",
                               )}
                             >
-                              {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
+                              {confirmationBadge === "pending" ? "Não confirmado" : "Confirmado"}
                             </span>
                             <button
                               type="button"
@@ -559,7 +584,7 @@ export default function AgendamentosPage() {
                                   "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
                                 )}
                               >
-                                Aguardando confirmação
+                                Não confirmado
                               </span>
                               <button
                                 type="button"
@@ -589,7 +614,7 @@ export default function AgendamentosPage() {
                                   "bg-available/25 text-available border-available/90",
                               )}
                             >
-                              {confirmationBadge === "pending" ? "Aguardando confirmação" : "Confirmado"}
+                              {confirmationBadge === "pending" ? "Não confirmado" : "Confirmado"}
                             </span>
                           )
                         )}
@@ -742,7 +767,8 @@ export default function AgendamentosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }
 

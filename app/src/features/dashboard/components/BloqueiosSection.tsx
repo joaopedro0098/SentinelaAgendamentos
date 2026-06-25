@@ -70,6 +70,11 @@ function isPastDate(dateYmd: string) {
   return dateYmd < ymd(new Date());
 }
 
+/** Férias só podem ser encerradas se o último dia for hoje ou futuro. */
+function canEncerrarFerias(dataFimYmd: string) {
+  return dataFimYmd >= ymd(new Date());
+}
+
 function getBloqueiosDayRange() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -340,6 +345,9 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
     return windowsForDay(selectedProf, selectedDate).length > 0;
   }, [selectedProf, selectedDate, selectedProfOnFerias]);
 
+  const selectedDateIsPast = useMemo(() => isPastDate(selectedDate), [selectedDate]);
+  const canCreateOrEditBlocks = !selectedDateIsPast;
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -403,6 +411,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   }, [bloqueios, selectedBarbeiroId, selectedDate, selectedProfOnFerias]);
 
   function toggleSlot(slot: string) {
+    if (!canCreateOrEditBlocks) return;
     setSelectedSlots((prev) => (prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]));
   }
 
@@ -416,6 +425,8 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   }
 
   async function handleEncerrarFeriasIndividual(barbeiroId: string) {
+    const ferias = feriasProgramadas.find((f) => f.barbeiro_id === barbeiroId);
+    if (ferias && !canEncerrarFerias(ferias.data_fim)) return;
     const key = `ferias-${barbeiroId}`;
     setEncerrandoKey(key);
     const { error } = await supabase.rpc("encerrar_bloqueios_ferias_painel", {
@@ -431,6 +442,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   }
 
   async function handleEncerrarBloqueio(bloqueioId: string) {
+    if (selectedDateIsPast) return;
     const key = `bloqueio-${bloqueioId}`;
     setEncerrandoKey(key);
     const { error } = await supabase.rpc("encerrar_bloqueio_painel", {
@@ -447,7 +459,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
 
   function renderBloqueiosAtivosList() {
     if (bloqueiosDoDia.length === 0) return null;
-    const podeEncerrar = !isPastDate(selectedDate);
+    const podeEncerrar = canCreateOrEditBlocks;
     return (
       <div className="space-y-2.5 pt-2 border-t border-border/60">
         <p className="text-sm font-semibold">Bloqueios:</p>
@@ -520,7 +532,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                   {formatDateBr(f.data_inicio)} — {formatDateBr(f.data_fim)}
                 </p>
               </div>
-              {!f.is_ca && (
+              {!f.is_ca && canEncerrarFerias(f.data_fim) && (
                 <Button
                   type="button"
                   variant="secondary"
@@ -589,7 +601,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   }
 
   async function handleSaveDay() {
-    if (!selectedBarbeiroId || selectedProfOnFerias || !profWorksOnSelectedDay) return;
+    if (!selectedBarbeiroId || selectedProfOnFerias || !profWorksOnSelectedDay || selectedDateIsPast) return;
     setSaving(true);
     const { error } = await supabase.rpc("salvar_bloqueios_dia_painel", {
       p_barbeiro_id: selectedBarbeiroId,
@@ -806,6 +818,10 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                 {hasOwnProfissionais && selectedProfOnFerias ? (
                   <p className="text-sm text-muted-foreground">
                     {selectedProf?.nome} está de férias neste dia — bloqueios parciais ou totais não se aplicam.
+                  </p>
+                ) : hasOwnProfissionais && selectedDateIsPast ? (
+                  <p className="text-sm text-muted-foreground">
+                    Não é possível criar ou alterar bloqueios em dias passados.
                   </p>
                 ) : hasOwnProfissionais ? (
                   <>

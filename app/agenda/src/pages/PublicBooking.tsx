@@ -14,6 +14,7 @@ import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
 import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
+import { notifyPanelAgendamentosChanged } from "@/lib/panelAgendamentosRefresh";
 import {
   checkBarbeariaCanBook,
   getClientBookingBlockMessage,
@@ -346,6 +347,12 @@ export type RescheduleContext = {
   servicos_nomes?: string[];
 };
 
+export type BookingPrefill = {
+  data: string;
+  hora?: string;
+  barbeiroId?: string;
+};
+
 type RescheduleSummary = {
   data: string;
   hora: string;
@@ -361,6 +368,7 @@ export type PublicBookingProps = {
   slugOverride?: string;
   backHref?: string;
   reschedule?: RescheduleContext | null;
+  prefill?: BookingPrefill | null;
   onRescheduleComplete?: () => void;
   ownerBookingBlockMessage?: string;
   onOwnerBookingBlocked?: (message: string) => void;
@@ -378,6 +386,7 @@ const PublicBooking = ({
   slugOverride,
   backHref,
   reschedule = null,
+  prefill = null,
   onRescheduleComplete,
   ownerBookingBlockMessage,
   onOwnerBookingBlocked,
@@ -416,7 +425,7 @@ const PublicBooking = ({
   );
 
   useEffect(() => {
-    if (reschedule) return;
+    if (reschedule || prefill) return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -427,7 +436,7 @@ const PublicBooking = ({
         localStorage.removeItem(STORAGE_KEY);
       }
     }
-  }, [reschedule]);
+  }, [reschedule, prefill]);
 
   useEffect(() => {
     if (!reschedule) return;
@@ -439,6 +448,15 @@ const PublicBooking = ({
     setObservacao(reschedule.observacao ?? "");
     setServSel([]);
   }, [reschedule]);
+
+  useEffect(() => {
+    if (!prefill || reschedule) return;
+    setData(prefill.data);
+    if (prefill.barbeiroId) setBarbeiroId(prefill.barbeiroId);
+    if (prefill.hora) setHora(prefill.hora);
+    else setHora("");
+    setServSel([]);
+  }, [prefill, reschedule]);
 
   useEffect(() => {
     if (!slug) return;
@@ -813,6 +831,9 @@ const PublicBooking = ({
         } else toast.error(error.message);
         return;
       }
+      if (ownerPanel) {
+        notifyPanelAgendamentosChanged({ data, barbeiroId, agendamentoId: reschedule.agendamentoId });
+      }
       setDone(true);
     } finally {
       setSubmitting(false);
@@ -912,6 +933,11 @@ const PublicBooking = ({
         void supabase.functions
           .invoke("sync-panel-push-subscription", { body: { agendamento_id: createdAppointment.id } })
           .catch(() => undefined);
+        notifyPanelAgendamentosChanged({
+          data,
+          barbeiroId,
+          agendamentoId: createdAppointment.id,
+        });
       }
 
       if (!ownerPanel && createdAppointment?.id) {

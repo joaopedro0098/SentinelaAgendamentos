@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart2, Calendar, CalendarCheck, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,24 @@ import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
 
+const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function AppLayout() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -21,6 +39,7 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuEntered, setMenuEntered] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
 
   useBarberPushRegistration();
 
@@ -61,6 +80,14 @@ export default function AppLayout() {
 
   function closeMenu() {
     setMenuOpen(false);
+  }
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeSidebarCollapsed(next);
+      return next;
+    });
   }
 
   const panelBrandShop = useMemo(() => {
@@ -189,44 +216,53 @@ export default function AppLayout() {
         </div>
       )}
 
-      <aside className="hidden md:flex md:w-64 border-r border-border shrink-0 self-start md:sticky md:top-0">
-        <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-full">
-          <div className="px-4 py-4 border-b border-border/60">
-            <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
-          </div>
+      <aside
+        className={cn(
+          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen relative transition-[width] duration-200 ease-out border-r border-border/60",
+          sidebarCollapsed ? "w-9 bg-background/50" : "w-64",
+        )}
+      >
+        {!sidebarCollapsed && (
+          <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-[calc(100%-0.75rem)] min-h-[calc(100vh-1.5rem)]">
+            <div className="px-4 py-4 border-b border-border/60">
+              <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
+            </div>
 
-          <nav className="flex flex-col gap-1 p-2">
-            <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
-            <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
-            <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
-            <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
-            {subscriptionInfo?.is_admin && (
-              <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
-            )}
-            {subscriptionInfo?.is_admin && (
-              <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
-            )}
-            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-              <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
-            )}
-            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-              <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
-            )}
-          </nav>
+            <nav className="flex flex-col gap-1 p-2">
+              <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
+              <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
+              <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
+              <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
+              {subscriptionInfo?.is_admin && (
+                <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
+              )}
+              {subscriptionInfo?.is_admin && (
+                <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
+              )}
+              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+                <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
+              )}
+              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+                <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
+              )}
+            </nav>
 
-          <div className="mt-2 flex flex-col gap-2 p-3 border-t border-border/60">
-            <PwaInstallButton
-              label="Instalar"
-              helpVariant="app"
-              buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-              variant="default"
-            />
-            <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
-            <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" /> Sair
-            </Button>
+            <div className="mt-auto flex flex-col gap-2 p-3 border-t border-border/60">
+              <PwaInstallButton
+                label="Instalar"
+                helpVariant="app"
+                buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+                variant="default"
+              />
+              <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
+              <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
+
+        <SidebarCollapseToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
       </aside>
 
       <main className="flex-1 min-w-0 w-full overflow-x-hidden flex flex-col">
@@ -234,6 +270,31 @@ export default function AppLayout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+function SidebarCollapseToggle({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={collapsed ? "Mostrar menu do painel" : "Ocultar menu do painel"}
+      aria-label={collapsed ? "Mostrar menu do painel" : "Ocultar menu do painel"}
+      className={cn(
+        "absolute z-30 flex h-10 w-6 items-center justify-center rounded-r-md border border-border/70 bg-background/95 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        collapsed
+          ? "left-1.5 top-[4.75rem] border-l-0"
+          : "top-5 -right-3 border-l-0",
+      )}
+    >
+      {collapsed ? <ChevronRight className="h-4 w-4" strokeWidth={2.25} /> : <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />}
+    </button>
   );
 }
 
