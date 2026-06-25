@@ -1,10 +1,10 @@
 {
-  "id": "/app/settings?source=barber-pwa",
+  "id": "/app/agendamentos?source=barber-pwa",
   "name": "Sentinela Agendamentos",
   "short_name": "Sentinela",
   "description": "Teste grátis por 14 dias! Agendamento online para barbearias.",
   "lang": "pt-BR",
-  "start_url": "/app/settings?source=pwa",
+  "start_url": "/app/agendamentos?source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen"],

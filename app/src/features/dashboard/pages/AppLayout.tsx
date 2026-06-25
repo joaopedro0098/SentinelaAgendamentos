@@ -10,6 +10,7 @@ import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
+import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
 
 export default function AppLayout() {
   const { signOut, user } = useAuth();
@@ -75,6 +76,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
+      <PwaColdStartRedirect />
       <WelcomeSupportRedirect />
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
         <button
