@@ -387,6 +387,19 @@ export type Database = {
         Args: { p_data_inicio: string; p_data_fim: string; p_barbeiro_id: string }
         Returns: Json
       }
+      alterar_status_agendamento_passado_painel: {
+        Args: { p_agendamento_id: string; p_status: string }
+        Returns: Json
+      }
+      expirar_agendamentos_nao_confirmados: {
+        Args: { p_barbearia_ids?: string[] | null }
+        Returns: number
+      }
+      expirar_agendamentos_nao_confirmados_painel: { Args: Record<string, never>; Returns: number }
+      get_agendamentos_painel: {
+        Args: { p_data_inicio: string; p_data_fim: string }
+        Returns: Json
+      }
       marcar_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
       reverter_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
       check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }

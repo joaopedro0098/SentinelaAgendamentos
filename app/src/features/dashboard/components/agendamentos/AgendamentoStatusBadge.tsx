@@ -5,7 +5,10 @@ import {
   getStatusKind,
   type AgendamentoPainelItem,
   type AgendamentoStatusKind,
+  type AgendamentoStatusMenuAction,
 } from "@/features/dashboard/lib/agendamentosPanel";
+
+export type { AgendamentoStatusMenuAction } from "@/features/dashboard/lib/agendamentosPanel";
 
 type StatusAction = "confirmar" | "nao_confirmado" | "cancelar";
 
@@ -50,14 +53,25 @@ type Props = {
   item: AgendamentoPainelItem;
   busy?: boolean;
   allowStatusChange?: boolean;
+  menuActions?: AgendamentoStatusMenuAction[];
   onAction: (action: StatusAction) => void;
+  onMenuAction?: (key: AgendamentoStatusMenuAction["key"]) => void;
 };
 
-export function AgendamentoStatusBadge({ item, busy, allowStatusChange = true, onAction }: Props) {
+export function AgendamentoStatusBadge({
+  item,
+  busy,
+  allowStatusChange = true,
+  menuActions,
+  onAction,
+  onMenuAction,
+}: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const kind = getStatusKind(item);
-  const interactive = allowStatusChange && kind !== "faltou";
+  const statusActions = allowStatusChange && kind !== "faltou" ? ACTIONS_BY_KIND[kind] : [];
+  const customActions = menuActions ?? [];
+  const interactive = statusActions.length > 0 || customActions.length > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -67,8 +81,6 @@ export function AgendamentoStatusBadge({ item, busy, allowStatusChange = true, o
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
-
-  const actions = interactive ? ACTIONS_BY_KIND[kind] : [];
 
   return (
     <div ref={rootRef} className="relative justify-self-start">
@@ -103,12 +115,12 @@ export function AgendamentoStatusBadge({ item, busy, allowStatusChange = true, o
           </button>
         )}
       </span>
-      {open && actions.length > 0 && (
+      {open && interactive && (
         <ul
           className="absolute left-0 top-full z-50 mt-1 min-w-[9.5rem] overflow-hidden rounded-xl border border-border/80 bg-popover py-1 shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
           role="listbox"
         >
-          {actions.map((action) => (
+          {statusActions.map((action) => (
             <li key={action}>
               <button
                 type="button"
@@ -123,6 +135,24 @@ export function AgendamentoStatusBadge({ item, busy, allowStatusChange = true, o
                 }}
               >
                 {ACTION_LABELS[action]}
+              </button>
+            </li>
+          ))}
+          {customActions.map((action) => (
+            <li key={action.key}>
+              <button
+                type="button"
+                role="option"
+                className={cn(
+                  "w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-secondary/60",
+                  action.destructive && "text-unavailable hover:bg-unavailable/10",
+                )}
+                onClick={() => {
+                  setOpen(false);
+                  onMenuAction?.(action.key);
+                }}
+              >
+                {action.label}
               </button>
             </li>
           ))}

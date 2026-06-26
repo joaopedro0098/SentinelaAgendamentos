@@ -141,3 +141,33 @@ export function getDisplayBadge(item: AgendamentoPainelItem) {
 export function isPastDay(dateYmd: string) {
   return isPastCalendarDate(dateYmd);
 }
+
+export type PastDayStatusKey = "confirmado" | "faltou" | "cancelado";
+
+export type AgendamentoStatusMenuAction = {
+  key: PastDayStatusKey;
+  label: string;
+  destructive?: boolean;
+};
+
+export function pastDayMenuActions(item: { status: AgendamentoPainelItem["status"] }): AgendamentoStatusMenuAction[] {
+  if (item.status === "nao_veio") {
+    return [
+      { key: "confirmado", label: "Confirmado" },
+      { key: "cancelado", label: "Cancelado", destructive: true },
+    ];
+  }
+  if (item.status === "confirmado") {
+    return [
+      { key: "faltou", label: "Faltou", destructive: true },
+      { key: "cancelado", label: "Cancelado", destructive: true },
+    ];
+  }
+  if (item.status === "cancelado") {
+    return [
+      { key: "confirmado", label: "Confirmado" },
+      { key: "faltou", label: "Faltou", destructive: true },
+    ];
+  }
+  return [];
+}

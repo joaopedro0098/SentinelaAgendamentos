@@ -12,13 +12,14 @@ import { formatServicePrice } from "@agenda/lib/servicePrice";
 import { formatTotalServiceMinutes } from "@agenda/lib/formatDuration";
 import { maskPhone } from "@agenda/lib/phone";
 
-type ReportViewMode = "confirmados" | "faltas";
+type ReportViewMode = "confirmados" | "faltas" | "cancelamentos";
 
 type BarbeiroTotal = {
   barbeiro_id: string;
   barbeiro_nome: string;
   total: number;
   faltas: number;
+  cancelamentos: number;
 };
 
 type ReportServiceDetail = {
@@ -38,6 +39,10 @@ type ReportAppointmentDetail = {
 
 type ReportAbsenceDetail = Omit<ReportAppointmentDetail, "duracao_minutos">;
 
+type ReportCancellationDetail = ReportAbsenceDetail & {
+  cancelado_por: "cliente" | "profissional";
+};
+
 type CollaboratorReportSummary = {
   faturamento_total_centavos: number;
   horas_trabalhadas_minutos: number;
@@ -46,6 +51,7 @@ type CollaboratorReportSummary = {
 type ReportResult = {
   total: number;
   total_faltas: number;
+  total_cancelamentos: number;
   por_barbeiro: BarbeiroTotal[];
 };
 
@@ -97,6 +103,12 @@ function buildCollaboratorSummary(
   };
 }
 
+function cancellationSourceLabel(canceladoPor: ReportCancellationDetail["cancelado_por"]) {
+  return canceladoPor === "cliente"
+    ? "Cancelado pelo cliente (link público)"
+    : "Cancelado pelo profissional";
+}
+
 function ReportViewModeToggle({
   value,
   onChange,
@@ -106,7 +118,7 @@ function ReportViewModeToggle({
 }) {
   return (
     <div className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-muted/30 p-0.5">
-      {(["confirmados", "faltas"] as const).map((mode) => (
+      {(["confirmados", "faltas", "cancelamentos"] as const).map((mode) => (
         <button
           key={mode}
           type="button"
@@ -114,16 +126,41 @@ function ReportViewModeToggle({
           className={cn(
             "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
             value === mode
-              ? mode === "faltas"
-                ? "bg-unavailable text-unavailable-foreground shadow-sm"
-                : "bg-primary text-primary-foreground shadow-sm"
+              ? mode === "confirmados"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-unavailable text-unavailable-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {mode === "confirmados" ? "Confirmados" : "Faltas"}
+          {mode === "confirmados" ? "Confirmados" : mode === "faltas" ? "Faltas" : "Cancelamentos"}
         </button>
       ))}
     </div>
+  );
+}
+
+function CancellationListItem({ item }: { item: ReportCancellationDetail }) {
+  return (
+    <li className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1">
+      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+        <span>{formatDateBr(item.data)}</span>
+        <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
+        <span className="tabular-nums">{item.hora.slice(0, 5)}</span>
+      </div>
+      <p>
+        <span className="text-muted-foreground">Cliente: </span>
+        <span className="text-foreground">{item.cliente_nome}</span>
+      </p>
+      <p>
+        <span className="text-muted-foreground">Contato: </span>
+        <span className="text-foreground">{maskPhone(item.cliente_whatsapp)}</span>
+      </p>
+      <p>
+        <span className="text-muted-foreground">Serviço: </span>
+        <span className="text-foreground">{formatServicesNames(item.servicos ?? [])}</span>
+      </p>
+      <p className="mt-1 text-unavailable/90">{cancellationSourceLabel(item.cancelado_por)}</p>
+    </li>
   );
 }
 
@@ -171,16 +208,21 @@ function CollaboratorReportRow({
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ReportAppointmentDetail[] | null>(null);
   const [faltas, setFaltas] = useState<ReportAbsenceDetail[] | null>(null);
+  const [cancelamentos, setCancelamentos] = useState<ReportCancellationDetail[] | null>(null);
   const [summary, setSummary] = useState<CollaboratorReportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const normalizedStart = dateStart <= dateEnd ? dateStart : dateEnd;
   const normalizedEnd = dateStart <= dateEnd ? dateEnd : dateStart;
-  const rowTotal = viewMode === "faltas" ? barbeiro.faltas : barbeiro.total;
+  const rowTotal =
+    viewMode === "faltas" ? barbeiro.faltas : viewMode === "cancelamentos" ? barbeiro.cancelamentos : barbeiro.total;
+  const rowTotalClass =
+    viewMode === "confirmados" ? "text-primary" : "text-unavailable";
 
   useEffect(() => {
     setItems(null);
     setFaltas(null);
+    setCancelamentos(null);
     setSummary(null);
     setError(null);
   }, [normalizedStart, normalizedEnd, barbeiro.barbeiro_id, refreshKey]);
@@ -210,6 +252,7 @@ function CollaboratorReportRow({
         const payload = data as {
           items?: ReportAppointmentDetail[];
           faltas?: ReportAbsenceDetail[];
+          cancelamentos?: ReportCancellationDetail[];
           faturamento_total_centavos?: number;
           horas_trabalhadas_minutos?: number;
           error?: string;
@@ -221,6 +264,7 @@ function CollaboratorReportRow({
 
         setItems(Array.isArray(payload?.items) ? payload.items : []);
         setFaltas(Array.isArray(payload?.faltas) ? payload.faltas : []);
+        setCancelamentos(Array.isArray(payload?.cancelamentos) ? payload.cancelamentos : []);
         setSummary({
           faturamento_total_centavos: payload?.faturamento_total_centavos ?? 0,
           horas_trabalhadas_minutos: payload?.horas_trabalhadas_minutos ?? 0,
@@ -240,12 +284,7 @@ function CollaboratorReportRow({
       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
         <span className="text-sm font-medium truncate">{barbeiro.barbeiro_nome}</span>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className={cn(
-              "text-sm tabular-nums font-semibold",
-              viewMode === "faltas" ? "text-unavailable" : "text-primary",
-            )}
-          >
+          <span className={cn("text-sm tabular-nums font-semibold", rowTotalClass)}>
             {rowTotal}
           </span>
           <button
@@ -277,6 +316,18 @@ function CollaboratorReportRow({
                 <ul className="space-y-3 py-1">
                   {faltas.map((item) => (
                     <AbsenceListItem key={item.id} item={item} />
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : viewMode === "cancelamentos" ? (
+            <div className="px-3 py-2 max-h-64 overflow-y-auto">
+              {!cancelamentos?.length ? (
+                <p className="py-3 text-xs text-muted-foreground">Nenhum cancelamento no período.</p>
+              ) : (
+                <ul className="space-y-3 py-1">
+                  {cancelamentos.map((item) => (
+                    <CancellationListItem key={item.id} item={item} />
                   ))}
                 </ul>
               )}
@@ -400,7 +451,8 @@ export default function RelatoriosPage() {
     const payload = data as {
       total?: number;
       total_faltas?: number;
-      por_barbeiro?: Array<BarbeiroTotal & { faltas?: number }>;
+      total_cancelamentos?: number;
+      por_barbeiro?: Array<BarbeiroTotal & { cancelamentos?: number }>;
       error?: string;
     } | null;
     if (payload?.error) {
@@ -411,11 +463,13 @@ export default function RelatoriosPage() {
     setResult({
       total: payload?.total ?? 0,
       total_faltas: payload?.total_faltas ?? 0,
+      total_cancelamentos: payload?.total_cancelamentos ?? 0,
       por_barbeiro: (Array.isArray(payload?.por_barbeiro) ? payload.por_barbeiro : []).map((b) => ({
         barbeiro_id: b.barbeiro_id,
         barbeiro_nome: b.barbeiro_nome,
         total: b.total ?? 0,
         faltas: b.faltas ?? 0,
+        cancelamentos: b.cancelamentos ?? 0,
       })),
     });
 
@@ -461,6 +515,8 @@ export default function RelatoriosPage() {
       list = list.filter((b) => b.barbeiro_id === selectedBarbeiroId);
     } else if (reportViewMode === "faltas") {
       list = list.filter((b) => b.faltas > 0);
+    } else if (reportViewMode === "cancelamentos") {
+      list = list.filter((b) => b.cancelamentos > 0);
     }
 
     return list;
@@ -478,7 +534,9 @@ export default function RelatoriosPage() {
 
   const collaboratorListTitle = useMemo(() => {
     if (selectedBarbeiroId) {
-      return reportViewMode === "faltas" ? "Faltas de:" : "Agendamentos de:";
+      if (reportViewMode === "faltas") return "Faltas de:";
+      if (reportViewMode === "cancelamentos") return "Cancelamentos de:";
+      return "Agendamentos de:";
     }
     return "Por colaborador";
   }, [selectedBarbeiroId, reportViewMode]);
@@ -491,7 +549,7 @@ export default function RelatoriosPage() {
           Relatórios
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Agendamentos confirmados e faltas por período e colaborador.
+          Agendamentos confirmados, faltas e cancelamentos por período e colaborador.
         </p>
       </header>
 
@@ -638,6 +696,23 @@ export default function RelatoriosPage() {
             </Card>
           )}
 
+          {!selectedBarbeiroId && reportViewMode === "cancelamentos" && (
+            <Card className="glass-panel border-border/80">
+              <CardContent className="pt-6 pb-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                  Total de cancelamentos
+                </p>
+                <p className="text-5xl font-bold tabular-nums text-unavailable leading-none">
+                  {result.total_cancelamentos}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  cancelamento{result.total_cancelamentos !== 1 ? "s" : ""} no período
+                  {periodLabel ? ` · ${periodLabel}` : ""}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {visibleBarbeiros.length > 0 ? (
             <Card className="glass-panel border-border/80">
               <CardContent className="pt-5 pb-3">
@@ -665,7 +740,9 @@ export default function RelatoriosPage() {
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 {reportViewMode === "faltas"
                   ? "Nenhuma falta no período selecionado."
-                  : "Nenhum agendamento confirmado no período selecionado."}
+                  : reportViewMode === "cancelamentos"
+                    ? "Nenhum cancelamento no período selecionado."
+                    : "Nenhum agendamento confirmado no período selecionado."}
               </CardContent>
             </Card>
           )}

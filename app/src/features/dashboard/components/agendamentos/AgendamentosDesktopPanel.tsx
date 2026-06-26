@@ -29,8 +29,10 @@ import {
   getPeriodRange,
   isPastDay,
   parseYmd,
+  pastDayMenuActions,
   servicesInPeriod,
   type AgendamentoPainelItem,
+  type PastDayStatusKey,
   type AgendamentoPainelSummary,
   type AgendamentoProfissional,
   type StatusFilter,
@@ -505,32 +507,31 @@ export default function AgendamentosDesktopPanel({
     void loadData();
   }
 
-  async function handleMarkNoShow(a: AgendamentoPainelItem) {
+  async function handlePastDayStatus(a: AgendamentoPainelItem, novoStatus: PastDayStatusKey) {
     if (markingNoShowId) return;
     setMarkingNoShowId(a.id);
-    const { error } = await supabase.rpc("marcar_falta_agendamento_painel", {
+    const { data, error } = await supabase.rpc("alterar_status_agendamento_passado_painel", {
       p_agendamento_id: a.id,
+      p_status: novoStatus,
     });
     setMarkingNoShowId(null);
     if (error) {
-      toast({ title: "Não foi possível marcar falta", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
       return;
     }
-    setItems((prev) => prev.map((row) => (row.id === a.id ? { ...row, status: "nao_veio" } : row)));
-  }
-
-  async function handleRevertNoShow(a: AgendamentoPainelItem) {
-    if (markingNoShowId) return;
-    setMarkingNoShowId(a.id);
-    const { error } = await supabase.rpc("reverter_falta_agendamento_painel", {
-      p_agendamento_id: a.id,
-    });
-    setMarkingNoShowId(null);
-    if (error) {
-      toast({ title: "Não foi possível reverter", description: error.message, variant: "destructive" });
-      return;
-    }
-    setItems((prev) => prev.map((row) => (row.id === a.id ? { ...row, status: "confirmado" } : row)));
+    const row = data as { status?: string; client_confirmed_at?: string | null } | null;
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === a.id
+          ? {
+              ...item,
+              status: (row?.status as AgendamentoPainelItem["status"]) ?? item.status,
+              client_confirmed_at:
+                row && "client_confirmed_at" in row ? row.client_confirmed_at ?? null : item.client_confirmed_at,
+            }
+          : item,
+      ),
+    );
   }
 
   function caLabel(itemBarbeariaId: string) {
@@ -543,31 +544,7 @@ export default function AgendamentosDesktopPanel({
     const pastDay = isPastDay(a.data);
     const busy = statusChangingId === a.id || markingNoShowId === a.id;
 
-    if (pastDay) {
-      if (isNoShow) {
-        return (
-          <AgendamentoActionsMenu disabled={busy}>
-            {busy ? (
-              <AgendamentoMenuActionLoading />
-            ) : (
-              <AgendamentoMenuAction label="Reverter para confirmado" onClick={() => void handleRevertNoShow(a)} />
-            )}
-          </AgendamentoActionsMenu>
-        );
-      }
-      if (!isCancelled && a.status === "confirmado") {
-        return (
-          <AgendamentoActionsMenu disabled={busy}>
-            {busy ? (
-              <AgendamentoMenuActionLoading />
-            ) : (
-              <AgendamentoMenuAction label="Marcar como faltou" onClick={() => void handleMarkNoShow(a)} />
-            )}
-          </AgendamentoActionsMenu>
-        );
-      }
-      return null;
-    }
+    if (pastDay) return null;
 
     return (
       <AgendamentoActionsMenu disabled={busy}>
@@ -591,6 +568,8 @@ export default function AgendamentosDesktopPanel({
 
   function renderAppointmentRow(a: AgendamentoPainelItem) {
     const showDate = viewMode !== "dia";
+    const pastDay = isPastDay(a.data);
+    const rowBusy = statusChangingId === a.id || markingNoShowId === a.id;
 
     return (
       <div
@@ -606,15 +585,22 @@ export default function AgendamentosDesktopPanel({
           ) : null}
           {formatHora(a.hora)}
         </span>
-        <span className="min-w-0 text-sm font-medium truncate">{a.cliente_nome}</span>
-        <span className="min-w-0 text-sm text-muted-foreground truncate">
+        <span className="block min-w-0 text-sm font-medium truncate" title={a.cliente_nome}>
+          {a.cliente_nome}
+        </span>
+        <span
+          className="block min-w-0 text-sm text-muted-foreground truncate"
+          title={a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : undefined}
+        >
           {a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : "—"}
         </span>
         <AgendamentoStatusBadge
           item={a}
-          busy={statusChangingId === a.id}
-          allowStatusChange={!isPastDay(a.data)}
+          busy={rowBusy}
+          allowStatusChange={!pastDay}
+          menuActions={pastDay ? pastDayMenuActions(a) : undefined}
           onAction={(action) => void handleStatusAction(a, action)}
+          onMenuAction={(key) => void handlePastDayStatus(a, key)}
         />
         <div className="min-w-0 flex flex-col items-start gap-0.5">
           <span className="text-xs font-medium truncate text-primary/90">{a.barbeiro_nome}</span>

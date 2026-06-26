@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User, X } from "lucide-react";
+import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -27,6 +27,8 @@ import {
 import { DashboardPageSkeleton } from "@/components/layout/AppBootSkeleton";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 import AgendamentosDesktopPanel from "@/features/dashboard/components/agendamentos/AgendamentosDesktopPanel";
+import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
+import { pastDayMenuActions, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -47,6 +49,7 @@ type AgendamentoRow = {
   barbearia_id: string;
   confirmation_token: string;
   client_confirmed_at: string | null;
+  requires_client_confirmation: boolean;
   status: "confirmado" | "cancelado" | "concluido" | "nao_veio";
   barbeiros: { id: string; nome: string } | null;
 };
@@ -147,10 +150,11 @@ export default function AgendamentosPage() {
     if (!options?.preserveUi) {
       setLoadingList(true);
     }
+    await supabase.rpc("expirar_agendamentos_nao_confirmados_painel");
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, barbearia_id, confirmation_token, client_confirmed_at, status, barbeiros ( id, nome )",
+        "id, data, hora, cliente_nome, cliente_whatsapp, duracao_minutos, servicos_nomes, observacao, barbeiro_id, barbearia_id, confirmation_token, client_confirmed_at, requires_client_confirmation, status, barbeiros ( id, nome )",
       )
       .in("barbearia_id", allBarbeariaIds)
       .eq("data", selectedDate)
@@ -162,6 +166,7 @@ export default function AgendamentosPage() {
         (data ?? []).map((row) => ({
           ...row,
           servicos_nomes: row.servicos_nomes ?? [],
+          requires_client_confirmation: row.requires_client_confirmation ?? false,
         })) as AgendamentoRow[],
       );
     }
@@ -334,35 +339,30 @@ export default function AgendamentosPage() {
     );
   }
 
-  async function handleMarkNoShow(a: AgendamentoRow) {
+  async function handlePastDayStatus(a: AgendamentoRow, novoStatus: PastDayStatusKey) {
     if (markingNoShowId) return;
     setMarkingNoShowId(a.id);
-    const { error } = await supabase.rpc("marcar_falta_agendamento_painel", {
+    const { data, error } = await supabase.rpc("alterar_status_agendamento_passado_painel", {
       p_agendamento_id: a.id,
+      p_status: novoStatus,
     });
     setMarkingNoShowId(null);
     if (error) {
-      toast({ title: "Não foi possível marcar falta", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
       return;
     }
+    const row = data as { status?: string; client_confirmed_at?: string | null } | null;
     setAgendamentos((prev) =>
-      prev.map((row) => (row.id === a.id ? { ...row, status: "nao_veio" } : row)),
-    );
-  }
-
-  async function handleRevertNoShow(a: AgendamentoRow) {
-    if (markingNoShowId) return;
-    setMarkingNoShowId(a.id);
-    const { error } = await supabase.rpc("reverter_falta_agendamento_painel", {
-      p_agendamento_id: a.id,
-    });
-    setMarkingNoShowId(null);
-    if (error) {
-      toast({ title: "Não foi possível reverter", description: error.message, variant: "destructive" });
-      return;
-    }
-    setAgendamentos((prev) =>
-      prev.map((row) => (row.id === a.id ? { ...row, status: "confirmado" } : row)),
+      prev.map((item) =>
+        item.id === a.id
+          ? {
+              ...item,
+              status: (row?.status as AgendamentoRow["status"]) ?? item.status,
+              client_confirmed_at:
+                row && "client_confirmed_at" in row ? row.client_confirmed_at ?? null : item.client_confirmed_at,
+            }
+          : item,
+      ),
     );
   }
 
@@ -524,69 +524,28 @@ export default function AgendamentosPage() {
                     highlightedId === a.id && "ring-2 ring-primary shadow-glow border-primary/40",
                   )}
                 >
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="p-4 space-y-3 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
-                        {isCancelled && (
+                        {isPastDay &&
+                        (a.status === "confirmado" || a.status === "nao_veio" || a.status === "cancelado") ? (
+                          <AgendamentoStatusBadge
+                            item={{
+                              ...a,
+                              barbeiro_nome: a.barbeiros?.nome ?? "",
+                              requires_client_confirmation: a.requires_client_confirmation ?? false,
+                            }}
+                            busy={markingNoShowId === a.id}
+                            allowStatusChange={false}
+                            menuActions={pastDayMenuActions(a)}
+                            onAction={() => {}}
+                            onMenuAction={(key) => void handlePastDayStatus(a, key)}
+                          />
+                        ) : null}
+                        {isCancelled && !isPastDay && (
                           <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100">
                             Cancelado
                           </span>
-                        )}
-                        {isNoShow && isPastDay && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100">
-                              Faltou
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="Reverter para confirmado"
-                              disabled={markingNoShowId === a.id}
-                              onClick={() => void handleRevertNoShow(a)}
-                              className={cn(
-                                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                                "border-available/90 text-available hover:bg-available/15 active:bg-available/25",
-                                "disabled:opacity-50 disabled:pointer-events-none",
-                              )}
-                            >
-                              {markingNoShowId === a.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                              )}
-                            </button>
-                          </div>
-                        )}
-                        {!isNoShow && isPastDay && a.status === "confirmado" && confirmationBadge && (
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
-                                confirmationBadge === "pending" &&
-                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
-                                confirmationBadge === "confirmed" &&
-                                  "bg-available/25 text-available border-available/90",
-                              )}
-                            >
-                              {confirmationBadge === "pending" ? "Não confirmado" : "Confirmado"}
-                            </span>
-                            <button
-                              type="button"
-                              aria-label="Marcar como faltou"
-                              disabled={markingNoShowId === a.id}
-                              onClick={() => void handleMarkNoShow(a)}
-                              className={cn(
-                                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                                "border-unavailable/90 text-unavailable hover:bg-unavailable/15 active:bg-unavailable/25",
-                                "disabled:opacity-50 disabled:pointer-events-none",
-                              )}
-                            >
-                              {markingNoShowId === a.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <X className="h-3.5 w-3.5 stroke-[2.5]" />
-                              )}
-                            </button>
-                          </div>
                         )}
                         {confirmationBadge && !isPastDay && (
                           confirmationBadge === "pending" ? (
@@ -649,20 +608,27 @@ export default function AgendamentosPage() {
                         )}
                       </div>
                     </div>
-                    <div className="space-y-1.5 text-sm">
-                      <p className="flex items-center gap-2 font-medium">
+                    <div className="space-y-1.5 text-sm min-w-0">
+                      <p className="flex items-center gap-2 font-medium min-w-0">
                         <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                        {a.cliente_nome}
+                        <span className="min-w-0 truncate" title={a.cliente_nome}>
+                          {a.cliente_nome}
+                        </span>
                       </p>
                       <p className="flex items-center gap-2 text-muted-foreground">
                         <Phone className="h-4 w-4 shrink-0" />
                         {formatWhatsApp(a.cliente_whatsapp)}
                       </p>
                       {a.servicos_nomes?.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="flex items-start gap-2 text-foreground">
-                            <Scissors className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <span>{a.servicos_nomes.join(" · ")}</span>
+                        <div className="space-y-1 min-w-0">
+                          <p className="flex items-center gap-2 text-foreground min-w-0">
+                            <Scissors className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span
+                              className="min-w-0 truncate"
+                              title={a.servicos_nomes.join(" · ")}
+                            >
+                              {a.servicos_nomes.join(" · ")}
+                            </span>
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums pl-6">
                             {a.duracao_minutos} min no total
