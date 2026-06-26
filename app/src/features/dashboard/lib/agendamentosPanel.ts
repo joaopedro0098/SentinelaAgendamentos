@@ -19,6 +19,7 @@ export type AgendamentoPainelItem = {
   client_confirmed_at: string | null;
   requires_client_confirmation: boolean;
   status: "confirmado" | "cancelado" | "nao_veio";
+  can_manage?: boolean;
 };
 
 export type AgendamentoPainelSummary = {
@@ -140,6 +141,11 @@ export function getDisplayBadge(item: AgendamentoPainelItem) {
 
 export function isPastDay(dateYmd: string) {
   return isPastCalendarDate(dateYmd);
+}
+
+export function canManageAgendamento(item: { barbearia_id: string; can_manage?: boolean }, ownBarbeariaId: string | null) {
+  if (typeof item.can_manage === "boolean") return item.can_manage;
+  return ownBarbeariaId !== null && item.barbearia_id === ownBarbeariaId;
 }
 
 export type PastDayStatusKey = "confirmado" | "faltou" | "cancelado";

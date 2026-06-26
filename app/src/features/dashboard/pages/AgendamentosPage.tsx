@@ -28,8 +28,9 @@ import { DashboardPageSkeleton } from "@/components/layout/AppBootSkeleton";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 import AgendamentosDesktopPanel from "@/features/dashboard/components/agendamentos/AgendamentosDesktopPanel";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
-import { pastDayMenuActions, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import { pastDayMenuActions, canManageAgendamento, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -72,16 +73,20 @@ export default function AgendamentosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { slug, barbeariaId, caBarbearias, shop, loading: shopLoading } = useDashboardShop();
+  const { info: subscriptionInfo } = useSubscription();
+  const isCA = subscriptionInfo?.account_type === "ca";
 
-  // Todos os IDs de barbearia que o usuário pode ver (própria + CAs ativas)
+  // CT: própria barbearia + CAs. CA: somente a própria (nunca vê agendamentos da CT).
   const allBarbeariaIds = useMemo(() => {
     const ids: string[] = [];
     if (barbeariaId) ids.push(barbeariaId);
-    for (const ca of caBarbearias) {
-      if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
+    if (!isCA) {
+      for (const ca of caBarbearias) {
+        if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
+      }
     }
     return ids;
-  }, [barbeariaId, caBarbearias]);
+  }, [barbeariaId, caBarbearias, isCA]);
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
@@ -515,6 +520,7 @@ export default function AgendamentosPage() {
             {listaFiltrada.map((a) => {
               const isCancelled = a.status === "cancelado";
               const isNoShow = a.status === "nao_veio";
+              const manageable = canManageAgendamento({ barbearia_id: a.barbearia_id }, barbeariaId);
               const confirmationBadge = !isCancelled && !isNoShow ? getClientConfirmationBadgeForPanel(a) : null;
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
@@ -537,7 +543,7 @@ export default function AgendamentosPage() {
                             }}
                             busy={markingNoShowId === a.id}
                             allowStatusChange={false}
-                            menuActions={pastDayMenuActions(a)}
+                            menuActions={manageable ? pastDayMenuActions(a) : undefined}
                             onAction={() => {}}
                             onMenuAction={(key) => void handlePastDayStatus(a, key)}
                           />
@@ -558,6 +564,7 @@ export default function AgendamentosPage() {
                               >
                                 Não confirmado
                               </span>
+                              {manageable && (
                               <button
                                 type="button"
                                 aria-label="Confirmar presença"
@@ -575,6 +582,7 @@ export default function AgendamentosPage() {
                                   <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                                 )}
                               </button>
+                              )}
                             </div>
                           ) : (
                             <span
@@ -601,7 +609,7 @@ export default function AgendamentosPage() {
                             {a.barbeiros.nome}
                           </span>
                         )}
-                        {caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
+                        {!isCA && caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
                           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
                             {caBarbearias.find((ca) => ca.barbeariaId === a.barbearia_id)?.shopName ?? "CA"}
                           </span>
@@ -642,7 +650,7 @@ export default function AgendamentosPage() {
                         </p>
                       )}
                     </div>
-                    {!isPastDay && !isCancelled && (
+                    {!isPastDay && !isCancelled && manageable && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <Button

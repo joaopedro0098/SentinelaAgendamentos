@@ -28,6 +28,7 @@ import {
   formatMoney,
   getPeriodRange,
   isPastDay,
+  canManageAgendamento,
   parseYmd,
   pastDayMenuActions,
   servicesInPeriod,
@@ -79,6 +80,11 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 
 const LIST_ROW_GRID = cn(
   "grid w-full grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_8.5rem_6.5rem_2rem] items-center gap-x-3 px-6",
+);
+
+const LIST_HEADER_ROW = cn(
+  LIST_ROW_GRID,
+  "py-2 border-b border-border/40 bg-secondary/10 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
 );
 
 function formatHora(hora: string) {
@@ -480,7 +486,7 @@ export default function AgendamentosDesktopPanel({
     a: AgendamentoPainelItem,
     action: "confirmar" | "nao_confirmado" | "cancelar",
   ) {
-    if (statusChangingId || isPastDay(a.data)) return;
+    if (statusChangingId || isPastDay(a.data) || !canManageAgendamento(a, barbeariaId)) return;
     setStatusChangingId(a.id);
     const { data, error } = await supabase.rpc("alterar_agendamento_painel", {
       p_agendamento_id: a.id,
@@ -508,7 +514,7 @@ export default function AgendamentosDesktopPanel({
   }
 
   async function handlePastDayStatus(a: AgendamentoPainelItem, novoStatus: PastDayStatusKey) {
-    if (markingNoShowId) return;
+    if (markingNoShowId || !canManageAgendamento(a, barbeariaId)) return;
     setMarkingNoShowId(a.id);
     const { data, error } = await supabase.rpc("alterar_status_agendamento_passado_painel", {
       p_agendamento_id: a.id,
@@ -543,8 +549,9 @@ export default function AgendamentosDesktopPanel({
     const isNoShow = a.status === "nao_veio";
     const pastDay = isPastDay(a.data);
     const busy = statusChangingId === a.id || markingNoShowId === a.id;
+    const manageable = canManageAgendamento(a, barbeariaId);
 
-    if (pastDay) return null;
+    if (pastDay || !manageable) return null;
 
     return (
       <AgendamentoActionsMenu disabled={busy}>
@@ -570,6 +577,7 @@ export default function AgendamentosDesktopPanel({
     const showDate = viewMode !== "dia";
     const pastDay = isPastDay(a.data);
     const rowBusy = statusChangingId === a.id || markingNoShowId === a.id;
+    const manageable = canManageAgendamento(a, barbeariaId);
 
     return (
       <div
@@ -597,8 +605,8 @@ export default function AgendamentosDesktopPanel({
         <AgendamentoStatusBadge
           item={a}
           busy={rowBusy}
-          allowStatusChange={!pastDay}
-          menuActions={pastDay ? pastDayMenuActions(a) : undefined}
+          allowStatusChange={manageable && !pastDay}
+          menuActions={manageable && pastDay ? pastDayMenuActions(a) : undefined}
           onAction={(action) => void handleStatusAction(a, action)}
           onMenuAction={(key) => void handlePastDayStatus(a, key)}
         />
@@ -730,20 +738,17 @@ export default function AgendamentosDesktopPanel({
         </header>
 
         <div
-          className={cn(
-            LIST_ROW_GRID,
-            "shrink-0 py-2 border-b border-border/40 bg-secondary/10 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-          )}
+          className={cn(LIST_HEADER_ROW, "sticky top-0 z-10 shrink-0")}
         >
-          <span className="min-w-0">Horário</span>
-          <span className="min-w-0">Cliente</span>
-          <span className="min-w-0">Serviços</span>
-          <span className="min-w-0">Status</span>
-          <span className="min-w-0">Profissional</span>
+          <span className="min-w-0 truncate">Horário</span>
+          <span className="min-w-0 truncate">Cliente</span>
+          <span className="min-w-0 truncate">Serviços</span>
+          <span className="min-w-0 truncate">Status</span>
+          <span className="min-w-0 truncate">Profissional</span>
           <span aria-hidden />
         </div>
 
-        <div className="flex-1 overflow-y-auto relative [scrollbar-gutter:stable]">
+        <div className="flex-1 overflow-y-auto min-h-0 relative">
           {(loading || loadingSchedule) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
