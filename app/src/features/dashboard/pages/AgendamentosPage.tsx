@@ -138,13 +138,15 @@ export default function AgendamentosPage() {
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const loadAgendamentos = useCallback(async () => {
+  const loadAgendamentos = useCallback(async (options?: { preserveUi?: boolean }) => {
     if (!allBarbeariaIds.length || !isWithinAppointmentRetention(selectedDate)) {
       setAgendamentos([]);
       setLoadingList(false);
       return;
     }
-    setLoadingList(true);
+    if (!options?.preserveUi) {
+      setLoadingList(true);
+    }
     const { data, error } = await supabase
       .from("agendamentos")
       .select(
@@ -166,6 +168,10 @@ export default function AgendamentosPage() {
     setLoadingList(false);
   }, [allBarbeariaIds, selectedDate]);
 
+  const refreshAgendamentos = useCallback(() => {
+    void loadAgendamentos({ preserveUi: true });
+  }, [loadAgendamentos]);
+
   useEffect(() => {
     loadAgendamentos();
   }, [loadAgendamentos]);
@@ -175,10 +181,11 @@ export default function AgendamentosPage() {
       if (detail?.data) {
         setSelectedDate(detail.data);
         setFocusDate(detail.data);
+        if (detail.data !== selectedDate) return;
       }
-      void loadAgendamentos();
+      refreshAgendamentos();
     },
-    [loadAgendamentos],
+    [refreshAgendamentos, selectedDate],
   );
 
   usePanelAgendamentosRefresh(handlePanelRefresh);
@@ -192,14 +199,16 @@ export default function AgendamentosPage() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
-          () => { loadAgendamentos(); },
+          () => {
+            refreshAgendamentos();
+          },
         )
         .subscribe(),
     );
     return () => {
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [allBarbeariaIds, loadAgendamentos]);
+  }, [allBarbeariaIds, refreshAgendamentos]);
 
   const barbeirosNoDia = useMemo(() => {
     const map = new Map<string, string>();
@@ -280,7 +289,7 @@ export default function AgendamentosPage() {
     setDeleteTarget(null);
     setAgendamentos((prev) => prev.filter((a) => a.id !== removedId));
     toast({ title: "Agendamento excluído" });
-    void loadAgendamentos();
+    refreshAgendamentos();
   }
 
   function buildMessage(a: AgendamentoRow) {
@@ -469,21 +478,19 @@ export default function AgendamentosPage() {
         </section>
       )}
 
-      <section className="space-y-3">
+      <section className="relative space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">
             {selectedBarbeiroId
               ? `Horários — ${barbeirosNoDia.find((b) => b.id === selectedBarbeiroId)?.nome ?? ""}`
               : "Todos os agendamentos do dia"}
           </h2>
-          {!loadingList && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {listaFiltrada.length} {listaFiltrada.length === 1 ? "agendamento" : "agendamentos"}
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {listaFiltrada.length} {listaFiltrada.length === 1 ? "agendamento" : "agendamentos"}
+          </span>
         </div>
 
-        {loadingList || syncingAgenda ? (
+        {(loadingList || syncingAgenda) && agendamentos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             {syncingAgenda && !loadingList ? (
@@ -498,7 +505,13 @@ export default function AgendamentosPage() {
             </CardContent>
           </Card>
         ) : (
-          <ul className="space-y-3">
+          <div className="relative">
+            {loadingList && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            <ul className="space-y-3">
             {listaFiltrada.map((a) => {
               const isCancelled = a.status === "cancelado";
               const isNoShow = a.status === "nao_veio";
@@ -721,6 +734,7 @@ export default function AgendamentosPage() {
             );
             })}
           </ul>
+          </div>
         )}
       </section>
 

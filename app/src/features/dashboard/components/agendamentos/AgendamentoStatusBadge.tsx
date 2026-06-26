@@ -49,14 +49,15 @@ function badgeLabel(kind: AgendamentoStatusKind) {
 type Props = {
   item: AgendamentoPainelItem;
   busy?: boolean;
+  allowStatusChange?: boolean;
   onAction: (action: StatusAction) => void;
 };
 
-export function AgendamentoStatusBadge({ item, busy, onAction }: Props) {
+export function AgendamentoStatusBadge({ item, busy, allowStatusChange = true, onAction }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const kind = getStatusKind(item);
-  const interactive = kind !== "faltou";
+  const interactive = allowStatusChange && kind !== "faltou";
 
   useEffect(() => {
     if (!open) return;

@@ -75,8 +75,9 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "faltou", label: "Faltou" },
 ];
 
-const LIST_GRID_COLS = "grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_8.5rem_6.5rem_2rem]";
-const LIST_ROW_GRID = cn("grid items-center gap-x-3 px-6", LIST_GRID_COLS);
+const LIST_ROW_GRID = cn(
+  "grid w-full grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_8.5rem_6.5rem_2rem] items-center gap-x-3 px-6",
+);
 
 function formatHora(hora: string) {
   return String(hora).slice(0, 5);
@@ -477,7 +478,7 @@ export default function AgendamentosDesktopPanel({
     a: AgendamentoPainelItem,
     action: "confirmar" | "nao_confirmado" | "cancelar",
   ) {
-    if (statusChangingId) return;
+    if (statusChangingId || isPastDay(a.data)) return;
     setStatusChangingId(a.id);
     const { data, error } = await supabase.rpc("alterar_agendamento_painel", {
       p_agendamento_id: a.id,
@@ -542,27 +543,45 @@ export default function AgendamentosDesktopPanel({
     const pastDay = isPastDay(a.data);
     const busy = statusChangingId === a.id || markingNoShowId === a.id;
 
+    if (pastDay) {
+      if (isNoShow) {
+        return (
+          <AgendamentoActionsMenu disabled={busy}>
+            {busy ? (
+              <AgendamentoMenuActionLoading />
+            ) : (
+              <AgendamentoMenuAction label="Reverter para confirmado" onClick={() => void handleRevertNoShow(a)} />
+            )}
+          </AgendamentoActionsMenu>
+        );
+      }
+      if (!isCancelled && a.status === "confirmado") {
+        return (
+          <AgendamentoActionsMenu disabled={busy}>
+            {busy ? (
+              <AgendamentoMenuActionLoading />
+            ) : (
+              <AgendamentoMenuAction label="Marcar como faltou" onClick={() => void handleMarkNoShow(a)} />
+            )}
+          </AgendamentoActionsMenu>
+        );
+      }
+      return null;
+    }
+
     return (
       <AgendamentoActionsMenu disabled={busy}>
         {busy ? (
           <AgendamentoMenuActionLoading />
         ) : (
           <>
-            {!isNoShow && !isCancelled && !pastDay && (
+            {!isNoShow && !isCancelled && (
               <>
                 <AgendamentoMenuAction label="WhatsApp" onClick={() => handleWhatsApp(a)} />
                 <AgendamentoMenuAction label="Copiar mensagem" onClick={() => handleCopyConfirmationMessage(a)} />
                 <AgendamentoMenuAction label="Alterar" onClick={() => handleAlterar(a)} />
+                <AgendamentoMenuAction label="Excluir" destructive onClick={() => setDeleteTarget(a)} />
               </>
-            )}
-            {pastDay && !isCancelled && !isNoShow && a.status === "confirmado" && (
-              <AgendamentoMenuAction label="Marcar como faltou" onClick={() => void handleMarkNoShow(a)} />
-            )}
-            {pastDay && isNoShow && (
-              <AgendamentoMenuAction label="Reverter para confirmado" onClick={() => void handleRevertNoShow(a)} />
-            )}
-            {!isNoShow && (
-              <AgendamentoMenuAction label="Excluir" destructive onClick={() => setDeleteTarget(a)} />
             )}
           </>
         )}
@@ -594,6 +613,7 @@ export default function AgendamentosDesktopPanel({
         <AgendamentoStatusBadge
           item={a}
           busy={statusChangingId === a.id}
+          allowStatusChange={!isPastDay(a.data)}
           onAction={(action) => void handleStatusAction(a, action)}
         />
         <div className="min-w-0 flex flex-col items-start gap-0.5">
@@ -723,21 +743,21 @@ export default function AgendamentosDesktopPanel({
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto relative [scrollbar-gutter:stable]">
-          <div
-            className={cn(
-              LIST_ROW_GRID,
-              "sticky top-0 z-20 py-2 border-b border-border/40 bg-background/95 backdrop-blur-sm text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-            )}
-          >
-            <span className="min-w-0">Horário</span>
-            <span className="min-w-0">Cliente</span>
-            <span className="min-w-0">Serviços</span>
-            <span className="min-w-0">Status</span>
-            <span className="min-w-0">Profissional</span>
-            <span aria-hidden />
-          </div>
+        <div
+          className={cn(
+            LIST_ROW_GRID,
+            "shrink-0 py-2 border-b border-border/40 bg-secondary/10 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+          )}
+        >
+          <span className="min-w-0">Horário</span>
+          <span className="min-w-0">Cliente</span>
+          <span className="min-w-0">Serviços</span>
+          <span className="min-w-0">Status</span>
+          <span className="min-w-0">Profissional</span>
+          <span aria-hidden />
+        </div>
 
+        <div className="flex-1 overflow-y-auto relative [scrollbar-gutter:stable]">
           {(loading || loadingSchedule) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
