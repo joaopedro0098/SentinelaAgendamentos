@@ -376,7 +376,7 @@ export type Database = {
       }
       get_my_subscription: { Args: Record<string, never>; Returns: Json }
       get_booking_professionals: {
-        Args: { p_slug: string; p_from?: string; p_to?: string }
+        Args: { p_slug: string; p_from?: string; p_to?: string; p_hub_only?: boolean }
         Returns: Json
       }
       get_relatorio_agendamentos: {
@@ -391,6 +391,15 @@ export type Database = {
         Args: { p_agendamento_id: string; p_status: string }
         Returns: Json
       }
+      alterar_agendamento_painel: {
+        Args: { p_agendamento_id: string; p_acao: string }
+        Returns: Json
+      }
+      confirmar_presenca_agendamento_painel: {
+        Args: { p_agendamento_id: string }
+        Returns: string
+      }
+      excluir_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
       expirar_agendamentos_nao_confirmados: {
         Args: { p_barbearia_ids?: string[] | null }
         Returns: number
@@ -400,8 +409,6 @@ export type Database = {
         Args: { p_data_inicio: string; p_data_fim: string }
         Returns: Json
       }
-      marcar_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
-      reverter_falta_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
       check_barbearia_pode_agendar: { Args: { p_barbearia_id: string }; Returns: boolean }
     }
     Enums: {

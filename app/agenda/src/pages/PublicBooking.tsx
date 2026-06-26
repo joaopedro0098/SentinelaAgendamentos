@@ -223,7 +223,7 @@ async function loadProfessionalsForSlug(
   barbeariaId: string,
   fromYmd: string,
   toYmd: string,
-  extraBarbeariaIds: string[] = [],
+  hubOnly = false,
 ) {
   await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
 
@@ -232,6 +232,7 @@ async function loadProfessionalsForSlug(
       p_slug: slug,
       p_from: fromYmd,
       p_to: toYmd,
+      p_hub_only: hubOnly,
     });
 
   let prosRes = await fetchRpc();
@@ -242,15 +243,14 @@ async function loadProfessionalsForSlug(
 
   if (!prosRes.error) {
     const raw = parseBookingProfessionalsPayload(prosRes.data);
-    if (raw.length > 0 || extraBarbeariaIds.length === 0) {
+    if (raw.length > 0) {
       return { barbeiros: mapRpcProfessionals(raw), rpcFailed: false as const };
     }
   } else {
     console.error("[PublicBooking] get_booking_professionals:", prosRes.error.message);
   }
 
-  const fallbackIds = [...new Set([barbeariaId, ...extraBarbeariaIds].filter(Boolean))];
-  const barbeiros = await loadLegacyProfessionalsForBarbeariaIds(fallbackIds, fromYmd, toYmd);
+  const barbeiros = await loadLegacyProfessionalsForBarbeariaIds([barbeariaId], fromYmd, toYmd);
   return {
     barbeiros,
     rpcFailed: Boolean(prosRes.error),
@@ -376,8 +376,8 @@ export type PublicBookingProps = {
   ownerPanel?: boolean;
   /** Rota `/app/agendar` visível (KeepAlive esconde a aba sem desmontar). */
   ownerPanelActive?: boolean;
-  /** Barbearias das CAs ativas (painel CT/AA) — fallback se a RPC falhar. */
-  extraBarbeariaIds?: string[];
+  /** Painel Agendar CT/AA: só profissionais da própria barbearia (não inclui CAs). */
+  hubOnlyProfessionals?: boolean;
   /** Alterado ao salvar intervalo da grade — força recarga (KeepAlive). */
   slotGridRevision?: number;
 };
@@ -392,7 +392,7 @@ const PublicBooking = ({
   onOwnerBookingBlocked,
   ownerPanel = false,
   ownerPanelActive = true,
-  extraBarbeariaIds = [],
+  hubOnlyProfessionals = false,
   slotGridRevision = 0,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
@@ -503,7 +503,7 @@ const PublicBooking = ({
         return;
       }
 
-      const prosLoad = await loadProfessionalsForSlug(slug, b.id, fromYmd, toYmd, extraBarbeariaIds);
+      const prosLoad = await loadProfessionalsForSlug(slug, b.id, fromYmd, toYmd, ownerPanel || hubOnlyProfessionals);
       if (prosLoad.rpcFailed && prosLoad.barbeiros.length === 0) {
         toast.error("Não foi possível carregar os profissionais. Tente novamente.");
       }
@@ -569,7 +569,7 @@ const PublicBooking = ({
       setLoading(false);
     };
     load();
-  }, [slug, reschedule?.agendamentoId, minDayOffset, extraBarbeariaIds.join("|"), slotGridRevision]);
+  }, [slug, reschedule?.agendamentoId, minDayOffset, ownerPanel, hubOnlyProfessionals, slotGridRevision]);
 
   const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
 

@@ -1,4 +1,3 @@
-import { getClientConfirmationBadgeForPanel } from "@/lib/appointmentConfirmationMessage";
 import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
 export type ViewMode = "dia" | "semana" | "mes";
@@ -131,12 +130,20 @@ export function servicesInPeriod(items: AgendamentoPainelItem[]) {
   return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
-export function getDisplayBadge(item: AgendamentoPainelItem) {
-  if (item.status === "cancelado") return { label: "Cancelado", tone: "cancelado" as const };
-  if (item.status === "nao_veio") return { label: "Faltou", tone: "faltou" as const };
-  const badge = getClientConfirmationBadgeForPanel(item);
-  if (badge === "pending") return { label: "Não confirmado", tone: "pendente" as const };
-  return { label: "Confirmado", tone: "confirmado" as const };
+/** CT: própria barbearia + CAs. CA: somente a própria. */
+export function buildVisibleBarbeariaIds(
+  barbeariaId: string | null,
+  caBarbearias: { barbeariaId: string }[],
+  isCA: boolean,
+) {
+  const ids: string[] = [];
+  if (barbeariaId) ids.push(barbeariaId);
+  if (!isCA) {
+    for (const ca of caBarbearias) {
+      if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
+    }
+  }
+  return ids;
 }
 
 export function isPastDay(dateYmd: string) {
@@ -155,6 +162,23 @@ export type AgendamentoStatusMenuAction = {
   label: string;
   destructive?: boolean;
 };
+
+export function parsePainelRpc(data: unknown): {
+  items: AgendamentoPainelItem[];
+  profissionais: AgendamentoProfissional[];
+  summary: AgendamentoPainelSummary;
+} | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  if (row.error) return null;
+  const summary = row.summary as AgendamentoPainelSummary | undefined;
+  if (!summary) return null;
+  return {
+    items: (Array.isArray(row.items) ? row.items : []) as AgendamentoPainelItem[],
+    profissionais: (Array.isArray(row.profissionais) ? row.profissionais : []) as AgendamentoProfissional[],
+    summary,
+  };
+}
 
 export function pastDayMenuActions(item: { status: AgendamentoPainelItem["status"] }): AgendamentoStatusMenuAction[] {
   if (item.status === "nao_veio") {

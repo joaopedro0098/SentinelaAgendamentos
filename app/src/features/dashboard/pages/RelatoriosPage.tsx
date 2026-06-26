@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
+import { buildVisibleBarbeariaIds } from "@/features/dashboard/lib/agendamentosPanel";
+import { useSubscription } from "@/hooks/useSubscription";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { formatServicePrice } from "@agenda/lib/servicePrice";
 import { formatTotalServiceMinutes } from "@agenda/lib/formatDuration";
@@ -401,6 +403,8 @@ function CollaboratorReportRow({
 
 export default function RelatoriosPage() {
   const { barbeariaId, caBarbearias } = useDashboardShop();
+  const { info: subscriptionInfo } = useSubscription();
+  const isCA = subscriptionInfo?.account_type === "ca";
   const [dateStart, setDateStart] = useState(firstDayOfMonth);
   const [dateEnd, setDateEnd] = useState(today);
   const [loading, setLoading] = useState(false);
@@ -411,14 +415,10 @@ export default function RelatoriosPage() {
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const allBarbeariaIds = useMemo(() => {
-    const ids: string[] = [];
-    if (barbeariaId) ids.push(barbeariaId);
-    for (const ca of caBarbearias) {
-      if (ca.barbeariaId && !ids.includes(ca.barbeariaId)) ids.push(ca.barbeariaId);
-    }
-    return ids;
-  }, [barbeariaId, caBarbearias]);
+  const allBarbeariaIds = useMemo(
+    () => buildVisibleBarbeariaIds(barbeariaId, caBarbearias, isCA),
+    [barbeariaId, caBarbearias, isCA],
+  );
 
   useEffect(() => {
     document.title = "Relatórios — Sentinela Agendamentos";

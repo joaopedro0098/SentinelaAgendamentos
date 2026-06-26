@@ -29,6 +29,7 @@ import {
   getPeriodRange,
   isPastDay,
   canManageAgendamento,
+  parsePainelRpc,
   parseYmd,
   pastDayMenuActions,
   servicesInPeriod,
@@ -40,6 +41,13 @@ import {
   type ViewMode,
   ymd,
 } from "@/features/dashboard/lib/agendamentosPanel";
+import {
+  parsePanelStatusRow,
+  rpcAlterarAgendamentoPainel,
+  rpcAlterarStatusPassado,
+  rpcExcluirAgendamento,
+} from "@/features/dashboard/lib/agendamentosPanelActions";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { AgendamentosMiniCalendar, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
@@ -56,6 +64,7 @@ type Props = {
   caBarbearias: CaBarbearia[];
   shop: DashboardShop | null;
   allBarbeariaIds: string[];
+  isCA: boolean;
 };
 
 type BookingProfSchedule = {
@@ -98,23 +107,6 @@ function toMin(hhmm: string) {
 
 function toHHMM(mins: number) {
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
-}
-
-function parsePainelRpc(data: unknown): {
-  items: AgendamentoPainelItem[];
-  profissionais: AgendamentoProfissional[];
-  summary: AgendamentoPainelSummary;
-} | null {
-  if (!data || typeof data !== "object") return null;
-  const row = data as Record<string, unknown>;
-  if (row.error) return null;
-  const summary = row.summary as AgendamentoPainelSummary | undefined;
-  if (!summary) return null;
-  return {
-    items: (Array.isArray(row.items) ? row.items : []) as AgendamentoPainelItem[],
-    profissionais: (Array.isArray(row.profissionais) ? row.profissionais : []) as AgendamentoProfissional[],
-    summary,
-  };
 }
 
 function parseBookingProfessionals(data: unknown): BookingProfSchedule[] {
@@ -242,6 +234,7 @@ export default function AgendamentosDesktopPanel({
   caBarbearias,
   shop,
   allBarbeariaIds,
+  isCA,
 }: Props) {
   const navigate = useNavigate();
   const { slotGridRevision } = useDashboardShop();
@@ -319,6 +312,10 @@ export default function AgendamentosDesktopPanel({
 
   usePanelAgendamentosRefresh(handlePanelRefresh);
 
+  const debouncedLoadData = useDebouncedCallback(() => {
+    void loadData();
+  }, 400);
+
   useEffect(() => {
     if (!allBarbeariaIds.length) return;
     const channels = allBarbeariaIds.map((bid) =>
@@ -328,7 +325,7 @@ export default function AgendamentosDesktopPanel({
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
           () => {
-            void loadData();
+            debouncedLoadData();
           },
         )
         .subscribe(),
@@ -336,7 +333,7 @@ export default function AgendamentosDesktopPanel({
     return () => {
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [allBarbeariaIds, loadData]);
+  }, [allBarbeariaIds, debouncedLoadData]);
 
   const loadDaySchedules = useCallback(async () => {
     if (!slug || viewMode !== "dia") {
@@ -349,6 +346,7 @@ export default function AgendamentosDesktopPanel({
       p_slug: slug,
       p_from: anchorYmd,
       p_to: anchorYmd,
+      p_hub_only: !isCA,
     });
     if (error) {
       setProfSchedules([]);
@@ -357,7 +355,7 @@ export default function AgendamentosDesktopPanel({
     }
     setProfSchedules(parseBookingProfessionals(data));
     setLoadingSchedule(false);
-  }, [slug, viewMode, anchorYmd, slotGridRevision]);
+  }, [slug, viewMode, anchorYmd, slotGridRevision, isCA]);
 
   useEffect(() => {
     void loadDaySchedules();
@@ -443,9 +441,7 @@ export default function AgendamentosDesktopPanel({
     if (!deleteTarget) return;
     const removedId = deleteTarget.id;
     setDeleting(true);
-    const { error } = await supabase.rpc("excluir_agendamento_painel", {
-      p_agendamento_id: removedId,
-    });
+    const { error } = await rpcExcluirAgendamento(removedId);
     setDeleting(false);
     if (error) {
       toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
@@ -488,16 +484,13 @@ export default function AgendamentosDesktopPanel({
   ) {
     if (statusChangingId || isPastDay(a.data) || !canManageAgendamento(a, barbeariaId)) return;
     setStatusChangingId(a.id);
-    const { data, error } = await supabase.rpc("alterar_agendamento_painel", {
-      p_agendamento_id: a.id,
-      p_acao: action,
-    });
+    const { data, error } = await rpcAlterarAgendamentoPainel(a.id, action);
     setStatusChangingId(null);
     if (error) {
       toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
       return;
     }
-    const row = data as { status?: string; client_confirmed_at?: string | null } | null;
+    const row = parsePanelStatusRow(data);
     setItems((prev) =>
       prev.map((item) =>
         item.id === a.id
@@ -516,16 +509,13 @@ export default function AgendamentosDesktopPanel({
   async function handlePastDayStatus(a: AgendamentoPainelItem, novoStatus: PastDayStatusKey) {
     if (markingNoShowId || !canManageAgendamento(a, barbeariaId)) return;
     setMarkingNoShowId(a.id);
-    const { data, error } = await supabase.rpc("alterar_status_agendamento_passado_painel", {
-      p_agendamento_id: a.id,
-      p_status: novoStatus,
-    });
+    const { data, error } = await rpcAlterarStatusPassado(a.id, novoStatus);
     setMarkingNoShowId(null);
     if (error) {
       toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
       return;
     }
-    const row = data as { status?: string; client_confirmed_at?: string | null } | null;
+    const row = parsePanelStatusRow(data);
     setItems((prev) =>
       prev.map((item) =>
         item.id === a.id
@@ -612,7 +602,7 @@ export default function AgendamentosDesktopPanel({
         />
         <div className="min-w-0 flex flex-col items-start gap-0.5">
           <span className="text-xs font-medium truncate text-primary/90">{a.barbeiro_nome}</span>
-          {caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
+          {!isCA && caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground truncate max-w-full">
               {caLabel(a.barbearia_id)}
             </span>

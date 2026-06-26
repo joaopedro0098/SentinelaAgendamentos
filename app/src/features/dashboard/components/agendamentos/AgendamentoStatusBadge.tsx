@@ -8,8 +8,6 @@ import {
   type AgendamentoStatusMenuAction,
 } from "@/features/dashboard/lib/agendamentosPanel";
 
-export type { AgendamentoStatusMenuAction } from "@/features/dashboard/lib/agendamentosPanel";
-
 type StatusAction = "confirmar" | "nao_confirmado" | "cancelar";
 
 const ACTION_LABELS: Record<StatusAction, string> = {
