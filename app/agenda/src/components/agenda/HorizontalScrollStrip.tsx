@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { scrollElementIntoHorizontalStrip } from "@agenda/lib/scrollStrip";
 import { cn } from "@/lib/utils";
 
 const STRIP_CLASS =
@@ -16,11 +17,9 @@ export function HorizontalScrollStrip({ children, className, centerOn }: Props) 
 
   useEffect(() => {
     if (!centerOn || !ref.current) return;
-    ref.current.querySelector<HTMLElement>(centerOn)?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    const target = ref.current.querySelector<HTMLElement>(centerOn);
+    if (!target) return;
+    scrollElementIntoHorizontalStrip(ref.current, target);
   }, [centerOn]);
 
   useEffect(() => {

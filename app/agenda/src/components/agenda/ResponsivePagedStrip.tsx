@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
+import { scrollElementIntoHorizontalStrip } from "@agenda/lib/scrollStrip";
 
 type Props = {
   children: ReactNode;
@@ -46,11 +47,9 @@ export function ResponsivePagedStrip({
 
   useEffect(() => {
     if (!centerOn || !viewportRef.current) return;
-    viewportRef.current.querySelector<HTMLElement>(centerOn)?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    const target = viewportRef.current.querySelector<HTMLElement>(centerOn);
+    if (!target) return;
+    scrollElementIntoHorizontalStrip(viewportRef.current, target);
   }, [centerOn]);
 
   const scrollPage = (dir: -1 | 1) => {

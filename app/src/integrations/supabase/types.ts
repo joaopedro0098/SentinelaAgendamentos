@@ -376,7 +376,13 @@ export type Database = {
       }
       get_my_subscription: { Args: Record<string, never>; Returns: Json }
       get_booking_professionals: {
-        Args: { p_slug: string; p_from?: string; p_to?: string; p_hub_only?: boolean }
+        Args: {
+          p_slug: string
+          p_from?: string
+          p_to?: string
+          p_hub_only?: boolean
+          p_editable_cas_only?: boolean
+        }
         Returns: Json
       }
       get_relatorio_agendamentos: {
@@ -407,6 +413,11 @@ export type Database = {
       expirar_agendamentos_nao_confirmados_painel: { Args: Record<string, never>; Returns: number }
       painel_barbearia_ids_visiveis: { Args: Record<string, never>; Returns: string[] }
       painel_barbearia_ids_editaveis: { Args: Record<string, never>; Returns: string[] }
+      painel_barbearia_ids_agendamentos_editaveis: { Args: Record<string, never>; Returns: string[] }
+      update_ca_titular_appointment_permissions: {
+        Args: { p_owner_can_view_appointments: boolean; p_owner_can_edit_appointments: boolean }
+        Returns: Json
+      }
       get_agendamentos_painel: {
         Args: { p_data_inicio: string; p_data_fim: string }
         Returns: Json

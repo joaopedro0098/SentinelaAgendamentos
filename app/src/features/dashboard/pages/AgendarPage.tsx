@@ -99,6 +99,8 @@ export default function AgendarPage() {
       ? getOwnerBookingBlockMessage(subscriptionInfo)
       : undefined;
 
+  const includeEditableCaPros = subscriptionInfo?.titular_has_editable_ca_appointments ?? false;
+
   return (
     <AgendaShell variant="dashboard">
       <PublicBooking
@@ -111,7 +113,8 @@ export default function AgendarPage() {
         onRescheduleComplete={() => navigate("/app/agendamentos", { replace: true })}
         ownerBookingBlockMessage={ownerBookingBlockMessage}
         onOwnerBookingBlocked={showOwnerBookingBlockedToast}
-        hubOnlyProfessionals
+        hubOnlyProfessionals={!includeEditableCaPros}
+        ownerPanelEditableCas={includeEditableCaPros}
         slotGridRevision={slotGridRevision}
       />
     </AgendaShell>

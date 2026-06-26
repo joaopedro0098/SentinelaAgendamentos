@@ -223,8 +223,10 @@ async function loadProfessionalsForSlug(
   barbeariaId: string,
   fromYmd: string,
   toYmd: string,
-  hubOnly = false,
+  options: { hubOnly?: boolean; editableCasOnly?: boolean } = {},
 ) {
+  const hubOnly = options.hubOnly ?? false;
+  const editableCasOnly = options.editableCasOnly ?? false;
   await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
 
   const fetchRpc = () =>
@@ -233,6 +235,7 @@ async function loadProfessionalsForSlug(
       p_from: fromYmd,
       p_to: toYmd,
       p_hub_only: hubOnly,
+      p_editable_cas_only: editableCasOnly,
     });
 
   let prosRes = await fetchRpc();
@@ -378,6 +381,8 @@ export type PublicBookingProps = {
   ownerPanelActive?: boolean;
   /** Painel Agendar CT/AA: só profissionais da própria barbearia (não inclui CAs). */
   hubOnlyProfessionals?: boolean;
+  /** Painel Agendar CT/AA: inclui profissionais de CAs que permitiram edição pelo titular. */
+  ownerPanelEditableCas?: boolean;
   /** Alterado ao salvar intervalo da grade — força recarga (KeepAlive). */
   slotGridRevision?: number;
 };
@@ -393,6 +398,7 @@ const PublicBooking = ({
   ownerPanel = false,
   ownerPanelActive = true,
   hubOnlyProfessionals = false,
+  ownerPanelEditableCas = false,
   slotGridRevision = 0,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
@@ -503,7 +509,10 @@ const PublicBooking = ({
         return;
       }
 
-      const prosLoad = await loadProfessionalsForSlug(slug, b.id, fromYmd, toYmd, ownerPanel || hubOnlyProfessionals);
+      const prosLoad = await loadProfessionalsForSlug(slug, b.id, fromYmd, toYmd, {
+        hubOnly: ownerPanel && hubOnlyProfessionals && !ownerPanelEditableCas,
+        editableCasOnly: ownerPanel && ownerPanelEditableCas,
+      });
       if (prosLoad.rpcFailed && prosLoad.barbeiros.length === 0) {
         toast.error("Não foi possível carregar os profissionais. Tente novamente.");
       }
@@ -569,7 +578,7 @@ const PublicBooking = ({
       setLoading(false);
     };
     load();
-  }, [slug, reschedule?.agendamentoId, minDayOffset, ownerPanel, hubOnlyProfessionals, slotGridRevision]);
+  }, [slug, reschedule?.agendamentoId, minDayOffset, ownerPanel, hubOnlyProfessionals, ownerPanelEditableCas, slotGridRevision]);
 
   const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
 

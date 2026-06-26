@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { buildVisibleBarbeariaIds } from "@/features/dashboard/lib/agendamentosPanel";
+import { usePainelVisibleBarbeariaIds } from "@/features/dashboard/hooks/usePainelVisibleBarbeariaIds";
 import { useSubscription } from "@/hooks/useSubscription";
+import { PANEL_RELATORIOS_CHANGED } from "@agenda/lib/panelRelatoriosRefresh";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { formatServicePrice } from "@agenda/lib/servicePrice";
 import { formatTotalServiceMinutes } from "@agenda/lib/formatDuration";
@@ -415,10 +417,11 @@ export default function RelatoriosPage() {
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const allBarbeariaIds = useMemo(
+  const fallbackBarbeariaIds = useMemo(
     () => buildVisibleBarbeariaIds(barbeariaId, caBarbearias, isCA),
     [barbeariaId, caBarbearias, isCA],
   );
+  const allBarbeariaIds = usePainelVisibleBarbeariaIds(fallbackBarbeariaIds);
 
   useEffect(() => {
     document.title = "Relatórios — Sentinela Agendamentos";
@@ -485,6 +488,14 @@ export default function RelatoriosPage() {
   useEffect(() => {
     void fetchReport(dateStart, dateEnd);
   }, [fetchReport, dateStart, dateEnd]);
+
+  useEffect(() => {
+    const handler = () => {
+      refreshReport();
+    };
+    window.addEventListener(PANEL_RELATORIOS_CHANGED, handler);
+    return () => window.removeEventListener(PANEL_RELATORIOS_CHANGED, handler);
+  }, [refreshReport]);
 
   useEffect(() => {
     if (!allBarbeariaIds.length) return;

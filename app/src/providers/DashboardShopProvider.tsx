@@ -2,9 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { supabase as agendaSupabase } from "@agenda/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
 import { getAgendaSyncPhase, primeAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
+import { useCaTitularPermissionsRealtime } from "@/features/dashboard/hooks/useCaTitularPermissionsRealtime";
 import { isCacheFresh } from "@/lib/providerCache";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
+import { notifyPanelAgendamentosChanged } from "@agenda/lib/panelAgendamentosRefresh";
+import { notifyPanelRelatoriosChanged } from "@agenda/lib/panelRelatoriosRefresh";
 
 export type DashboardShop = {
   id: string;
@@ -39,6 +43,8 @@ type DashboardShopContextValue = {
   loading: boolean;
   /** Incrementado ao salvar intervalo da grade — força recarga de Agendar e Bloqueios. */
   slotGridRevision: number;
+  /** Incrementado quando permissões CA→titular mudam via Realtime. */
+  permissionsRevision: number;
   refresh: (options?: RefreshOptions) => Promise<void>;
   patchShop: (next: Partial<DashboardShop>) => void;
   bumpSlotGridRevision: () => void;
@@ -100,6 +106,7 @@ async function fetchCaBarbearias(): Promise<CaBarbearia[]> {
 
 export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { info: subscriptionInfo, refresh: refreshSubscription } = useSubscriptionContext();
   const userId = user?.id ?? null;
   const hasWarmCache = Boolean(userId && userId === cachedUserId && cachedShop);
 
@@ -109,6 +116,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!hasWarmCache);
   const [syncTick, setSyncTick] = useState(0);
   const [slotGridRevision, setSlotGridRevision] = useState(0);
+  const [permissionsRevision, setPermissionsRevision] = useState(0);
   const [ownerSlug, setOwnerSlug] = useState<string | null>(null);
   const [isCaAccount, setIsCaAccount] = useState(false);
 
@@ -237,6 +245,19 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
     bumpSlotGridRevision();
   }, [bumpSlotGridRevision]);
 
+  const handleCaPermissionsRemoteChange = useCallback(() => {
+    void refreshSubscription({ force: true });
+    setPermissionsRevision((n) => n + 1);
+    notifyPanelAgendamentosChanged();
+    notifyPanelRelatoriosChanged();
+  }, [refreshSubscription]);
+
+  useCaTitularPermissionsRealtime({
+    userId,
+    accountType: subscriptionInfo?.account_type,
+    onPermissionsChange: handleCaPermissionsRemoteChange,
+  });
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -308,11 +329,23 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       agendaReady: Boolean(shop?.slug && barbeariaId && getAgendaSyncPhase(shop.slug) === "ready"),
       loading,
       slotGridRevision,
+      permissionsRevision,
       refresh,
       patchShop,
       bumpSlotGridRevision,
     }),
-    [shop, barbeariaId, caBarbearias, loading, slotGridRevision, refresh, patchShop, bumpSlotGridRevision, syncTick],
+    [
+      shop,
+      barbeariaId,
+      caBarbearias,
+      loading,
+      slotGridRevision,
+      permissionsRevision,
+      refresh,
+      patchShop,
+      bumpSlotGridRevision,
+      syncTick,
+    ],
   );
 
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;

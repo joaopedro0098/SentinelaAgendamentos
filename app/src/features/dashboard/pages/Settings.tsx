@@ -19,13 +19,17 @@ import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { useSubscription } from "@/hooks/useSubscription";
+import { usePanelSettingsScrollTop } from "@/features/dashboard/hooks/usePanelSettingsScrollTop";
 
 export default function Settings() {
+  usePanelSettingsScrollTop();
   const { user } = useAuth();
   const { shop: contextShop, loading, refresh, patchShop, bumpSlotGridRevision } = useDashboardShop();
-  const { info: subscriptionInfo } = useSubscription();
+  const { info: subscriptionInfo, refresh: refreshSubscription } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
   const canManageAggregated = subscriptionInfo?.can_manage_aggregated_accounts ?? false;
+  const ownerCanViewAppointments = subscriptionInfo?.owner_can_view_appointments ?? true;
+  const ownerCanEditAppointments = subscriptionInfo?.owner_can_edit_appointments ?? false;
   const [shop, setShop] = useState<DashboardShop | null>(contextShop);
   const [saving, setSaving] = useState(false);
   const [copiedBooking, setCopiedBooking] = useState(false);
@@ -39,6 +43,7 @@ export default function Settings() {
   const [savingClientSelfService, setSavingClientSelfService] = useState(false);
   const [savingClientPublicBooking, setSavingClientPublicBooking] = useState(false);
   const [savingShowServicePrices, setSavingShowServicePrices] = useState(false);
+  const [savingTitularPermissions, setSavingTitularPermissions] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -255,6 +260,35 @@ export default function Settings() {
     patchDashboardShopCache({ allow_client_self_service: enabled });
   }
 
+  async function saveTitularAppointmentPermissions(view: boolean, edit: boolean) {
+    if (!isCA) return;
+    setSavingTitularPermissions(true);
+    const { data, error } = await supabase.rpc("update_ca_titular_appointment_permissions", {
+      p_owner_can_view_appointments: view,
+      p_owner_can_edit_appointments: edit,
+    });
+    setSavingTitularPermissions(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const result = data as { error?: string; ok?: boolean } | null;
+    if (result?.error) {
+      toast({ title: "Não foi possível salvar", variant: "destructive" });
+      return;
+    }
+    await refreshSubscription({ force: true });
+    toast({ title: "Permissões atualizadas" });
+  }
+
+  function handleToggleTitularView(next: boolean) {
+    void saveTitularAppointmentPermissions(next, next ? ownerCanEditAppointments : false);
+  }
+
+  function handleToggleTitularEdit(next: boolean) {
+    void saveTitularAppointmentPermissions(next ? true : ownerCanViewAppointments, next);
+  }
+
   function copyBookingLink(url: string) {
     navigator.clipboard.writeText(url);
     setCopiedBooking(true);
@@ -330,9 +364,30 @@ export default function Settings() {
             <BarberPushToggle />
 
             {isCA ? (
-              <p className="text-sm text-muted-foreground">
-                Link de agendamento controlado pelo titular — toggles desabilitados enquanto a conta estiver agregada.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Link de agendamento e demais opções do cliente continuam controlados pelo titular (
+                  {subscriptionInfo?.aggregated_by_email ?? "conta principal"}).
+                </p>
+                <PermissionToggleRow
+                  id="titular-view-appointments"
+                  label="Titular visualiza agendamentos"
+                  description="Permite que quem agregou sua conta veja seus agendamentos no painel e nos relatórios."
+                  checked={ownerCanViewAppointments}
+                  disabled={savingTitularPermissions}
+                  busy={savingTitularPermissions}
+                  onToggle={() => handleToggleTitularView(!ownerCanViewAppointments)}
+                />
+                <PermissionToggleRow
+                  id="titular-edit-appointments"
+                  label="Titular edita agendamentos"
+                  description="Permite alterar, excluir, reagendar e criar agendamentos pelo painel do titular."
+                  checked={ownerCanEditAppointments}
+                  disabled={savingTitularPermissions || !ownerCanViewAppointments}
+                  busy={savingTitularPermissions}
+                  onToggle={() => handleToggleTitularEdit(!ownerCanEditAppointments)}
+                />
+              </>
             ) : (
               <>
                 <PermissionToggleRow
