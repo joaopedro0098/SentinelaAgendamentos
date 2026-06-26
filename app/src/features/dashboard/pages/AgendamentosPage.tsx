@@ -5,6 +5,7 @@ import { DashboardPageSkeleton } from "@/components/layout/AppBootSkeleton";
 import AgendamentosDesktopPanel from "@/features/dashboard/components/agendamentos/AgendamentosDesktopPanel";
 import AgendamentosMobilePanel from "@/features/dashboard/components/agendamentos/AgendamentosMobilePanel";
 import { buildVisibleBarbeariaIds } from "@/features/dashboard/lib/agendamentosPanel";
+import { usePainelVisibleBarbeariaIds } from "@/features/dashboard/hooks/usePainelVisibleBarbeariaIds";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 
@@ -18,6 +19,7 @@ export default function AgendamentosPage() {
     () => buildVisibleBarbeariaIds(barbeariaId, caBarbearias, isCA),
     [barbeariaId, caBarbearias, isCA],
   );
+  const visibleBarbeariaIds = usePainelVisibleBarbeariaIds(allBarbeariaIds);
 
   const booting = shopLoading && !slug;
   const syncingAgenda = Boolean(slug && !barbeariaId);
@@ -56,7 +58,7 @@ export default function AgendamentosPage() {
         barbeariaId={barbeariaId}
         caBarbearias={caBarbearias}
         shop={shop}
-        allBarbeariaIds={allBarbeariaIds}
+        allBarbeariaIds={visibleBarbeariaIds}
         isCA={isCA}
       />
     );
@@ -67,7 +69,7 @@ export default function AgendamentosPage() {
       barbeariaId={barbeariaId}
       caBarbearias={caBarbearias}
       shop={shop}
-      allBarbeariaIds={allBarbeariaIds}
+      allBarbeariaIds={visibleBarbeariaIds}
       isCA={isCA}
       syncingAgenda={syncingAgenda}
     />

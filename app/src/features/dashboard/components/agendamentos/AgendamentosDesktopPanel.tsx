@@ -266,7 +266,7 @@ export default function AgendamentosDesktopPanel({
   const servico = servicoFilter === "todos" ? null : servicoFilter;
 
   const loadData = useCallback(async () => {
-    if (!allBarbeariaIds.length) {
+    if (!slug) {
       setItems([]);
       setProfissionais([]);
       setSummary({
@@ -296,7 +296,7 @@ export default function AgendamentosDesktopPanel({
       setSummary(parsed.summary);
     }
     setLoading(false);
-  }, [allBarbeariaIds.length, period.startYmd, period.endYmd]);
+  }, [slug, period.startYmd, period.endYmd]);
 
   useEffect(() => {
     void loadData();
@@ -394,10 +394,21 @@ export default function AgendamentosDesktopPanel({
         : profSchedules;
 
       const entries: TimelineEntry[] = [];
+      const scheduleIds = new Set(schedules.map((p) => p.id));
       for (const prof of schedules) {
         const visible = dayItemsVisible.filter((a) => a.barbeiro_id === prof.id);
         const occupancy = dayItemsAll.filter((a) => a.barbeiro_id === prof.id);
         entries.push(...buildDayTimeline(anchorYmd, visible, occupancy, prof, prof.id));
+      }
+      // Agendamentos de CA (ou de profissionais fora da grade do hub): só leitura, sem slots vazios.
+      for (const item of dayItemsVisible) {
+        if (scheduleIds.has(item.barbeiro_id)) continue;
+        entries.push({
+          kind: "appointment",
+          item,
+          sortMin: toMin(formatHora(item.hora)),
+          barbeiroId: item.barbeiro_id,
+        });
       }
       return mergeDayTimelines(entries);
     }

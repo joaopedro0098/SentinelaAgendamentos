@@ -405,6 +405,8 @@ export type Database = {
         Returns: number
       }
       expirar_agendamentos_nao_confirmados_painel: { Args: Record<string, never>; Returns: number }
+      painel_barbearia_ids_visiveis: { Args: Record<string, never>; Returns: string[] }
+      painel_barbearia_ids_editaveis: { Args: Record<string, never>; Returns: string[] }
       get_agendamentos_painel: {
         Args: { p_data_inicio: string; p_data_fim: string }
         Returns: Json

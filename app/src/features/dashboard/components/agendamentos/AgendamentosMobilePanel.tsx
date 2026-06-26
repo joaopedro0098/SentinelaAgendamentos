@@ -143,7 +143,7 @@ export default function AgendamentosMobilePanel({
   }, [searchParams, setSearchParams]);
 
   const loadAgendamentos = useCallback(async (options?: { preserveUi?: boolean }) => {
-    if (!allBarbeariaIds.length || !isWithinAppointmentRetention(selectedDate)) {
+    if (!isWithinAppointmentRetention(selectedDate)) {
       setAgendamentos([]);
       setLoadingList(false);
       return;
@@ -179,7 +179,7 @@ export default function AgendamentosMobilePanel({
       );
     }
     setLoadingList(false);
-  }, [allBarbeariaIds, selectedDate]);
+  }, [selectedDate]);
 
   const refreshAgendamentos = useCallback(() => {
     void loadAgendamentos({ preserveUi: true });
