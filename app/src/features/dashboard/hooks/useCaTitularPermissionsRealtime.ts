@@ -6,6 +6,7 @@ const DEBOUNCE_MS = 400;
 type PermissionRow = {
   owner_can_view_appointments?: boolean;
   owner_can_edit_appointments?: boolean;
+  owner_can_view_annotations?: boolean;
 };
 
 type Options = {
@@ -47,7 +48,8 @@ export function useCaTitularPermissionsRealtime({
           const newRow = payload.new as PermissionRow;
           if (
             oldRow?.owner_can_view_appointments === newRow.owner_can_view_appointments &&
-            oldRow?.owner_can_edit_appointments === newRow.owner_can_edit_appointments
+            oldRow?.owner_can_edit_appointments === newRow.owner_can_edit_appointments &&
+            oldRow?.owner_can_view_annotations === newRow.owner_can_view_annotations
           ) {
             return;
           }

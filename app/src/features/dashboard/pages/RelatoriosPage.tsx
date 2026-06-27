@@ -16,7 +16,7 @@ import { formatServicePrice } from "@agenda/lib/servicePrice";
 import { formatTotalServiceMinutes } from "@agenda/lib/formatDuration";
 import { maskPhone } from "@agenda/lib/phone";
 
-type ReportViewMode = "confirmados" | "faltas" | "cancelamentos";
+type ReportViewMode = "concluidos" | "faltas" | "cancelamentos";
 
 type BarbeiroTotal = {
   barbeiro_id: string;
@@ -113,6 +113,41 @@ function cancellationSourceLabel(canceladoPor: ReportCancellationDetail["cancela
     : "Cancelado pelo profissional";
 }
 
+function reportModeActiveClass(mode: ReportViewMode) {
+  switch (mode) {
+    case "concluidos":
+      return "bg-completed/25 text-completed border border-completed/90 dark:text-blue-100 shadow-sm";
+    case "cancelamentos":
+      return "bg-unavailable/25 text-unavailable border border-unavailable/90 dark:text-red-100 shadow-sm";
+    case "faltas":
+      return "bg-absent/25 text-absent border border-absent/90 dark:text-gray-200 shadow-sm";
+  }
+}
+
+function reportModeTotalClass(mode: ReportViewMode) {
+  switch (mode) {
+    case "concluidos":
+      return "text-completed";
+    case "faltas":
+      return "text-absent";
+    case "cancelamentos":
+      return "text-unavailable";
+  }
+}
+
+const REPORT_VIEW_MODES = ["concluidos", "cancelamentos", "faltas"] as const;
+
+function reportModeLabel(mode: ReportViewMode) {
+  switch (mode) {
+    case "concluidos":
+      return "Concluídos";
+    case "cancelamentos":
+      return "Cancelados";
+    case "faltas":
+      return "Faltas";
+  }
+}
+
 function ReportViewModeToggle({
   value,
   onChange,
@@ -122,7 +157,7 @@ function ReportViewModeToggle({
 }) {
   return (
     <div className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-muted/30 p-0.5">
-      {(["confirmados", "faltas", "cancelamentos"] as const).map((mode) => (
+      {REPORT_VIEW_MODES.map((mode) => (
         <button
           key={mode}
           type="button"
@@ -130,13 +165,11 @@ function ReportViewModeToggle({
           className={cn(
             "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
             value === mode
-              ? mode === "confirmados"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-unavailable text-unavailable-foreground shadow-sm"
+              ? reportModeActiveClass(mode)
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {mode === "confirmados" ? "Confirmados" : mode === "faltas" ? "Faltas" : "Cancelamentos"}
+          {reportModeLabel(mode)}
         </button>
       ))}
     </div>
@@ -220,8 +253,7 @@ function CollaboratorReportRow({
   const normalizedEnd = dateStart <= dateEnd ? dateEnd : dateStart;
   const rowTotal =
     viewMode === "faltas" ? barbeiro.faltas : viewMode === "cancelamentos" ? barbeiro.cancelamentos : barbeiro.total;
-  const rowTotalClass =
-    viewMode === "confirmados" ? "text-primary" : "text-unavailable";
+  const rowTotalClass = reportModeTotalClass(viewMode);
 
   useEffect(() => {
     setItems(null);
@@ -281,7 +313,7 @@ function CollaboratorReportRow({
   }, [barbeiro.barbeiro_id, expanded, items, normalizedEnd, normalizedStart]);
 
   const displaySummary =
-    viewMode === "confirmados" && items !== null ? buildCollaboratorSummary(items, summary) : null;
+    viewMode === "concluidos" && items !== null ? buildCollaboratorSummary(items, summary) : null;
 
   return (
     <li className="rounded-xl border border-border/60 bg-background/40">
@@ -346,7 +378,7 @@ function CollaboratorReportRow({
                         <Wallet className="h-3.5 w-3.5 shrink-0" />
                         Faturamento total
                       </div>
-                      <p className="mt-1.5 text-lg font-semibold tabular-nums text-primary leading-tight">
+                      <p className="mt-1.5 text-lg font-semibold tabular-nums text-completed leading-tight">
                         {formatServicePrice(displaySummary.faturamento_total_centavos) || "R$ 0,00"}
                       </p>
                     </div>
@@ -412,7 +444,7 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReportResult | null>(null);
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
-  const [reportViewMode, setReportViewMode] = useState<ReportViewMode>("confirmados");
+  const [reportViewMode, setReportViewMode] = useState<ReportViewMode>("concluidos");
   const [expandedBarbeiroId, setExpandedBarbeiroId] = useState<string | null>(null);
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -524,6 +556,8 @@ export default function RelatoriosPage() {
     let list = result.por_barbeiro;
     if (selectedBarbeiroId) {
       list = list.filter((b) => b.barbeiro_id === selectedBarbeiroId);
+    } else if (reportViewMode === "concluidos") {
+      list = list.filter((b) => b.total > 0);
     } else if (reportViewMode === "faltas") {
       list = list.filter((b) => b.faltas > 0);
     } else if (reportViewMode === "cancelamentos") {
@@ -560,7 +594,7 @@ export default function RelatoriosPage() {
           Relatórios
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Agendamentos confirmados, faltas e cancelamentos por período e colaborador.
+          Agendamentos concluídos, faltas e cancelamentos por período e colaborador.
         </p>
       </header>
 
@@ -677,15 +711,15 @@ export default function RelatoriosPage() {
         </Card>
       ) : result ? (
         <div className="space-y-4">
-          {!selectedBarbeiroId && reportViewMode === "confirmados" && (
+          {!selectedBarbeiroId && reportViewMode === "concluidos" && (
             <Card className="glass-panel border-border/80">
               <CardContent className="pt-6 pb-5">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
                   Total geral
                 </p>
-                <p className="text-5xl font-bold tabular-nums text-primary leading-none">{result.total}</p>
+                <p className="text-5xl font-bold tabular-nums text-completed leading-none">{result.total}</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  agendamento{result.total !== 1 ? "s" : ""} confirmado{result.total !== 1 ? "s" : ""}
+                  agendamento{result.total !== 1 ? "s" : ""} concluído{result.total !== 1 ? "s" : ""}
                   {periodLabel ? ` · ${periodLabel}` : ""}
                 </p>
               </CardContent>
@@ -698,7 +732,7 @@ export default function RelatoriosPage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
                   Total de faltas
                 </p>
-                <p className="text-5xl font-bold tabular-nums text-unavailable leading-none">{result.total_faltas}</p>
+                <p className="text-5xl font-bold tabular-nums text-absent leading-none">{result.total_faltas}</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   falta{result.total_faltas !== 1 ? "s" : ""} no período
                   {periodLabel ? ` · ${periodLabel}` : ""}
@@ -753,7 +787,7 @@ export default function RelatoriosPage() {
                   ? "Nenhuma falta no período selecionado."
                   : reportViewMode === "cancelamentos"
                     ? "Nenhum cancelamento no período selecionado."
-                    : "Nenhum agendamento confirmado no período selecionado."}
+                    : "Nenhum agendamento concluído no período selecionado."}
               </CardContent>
             </Card>
           )}

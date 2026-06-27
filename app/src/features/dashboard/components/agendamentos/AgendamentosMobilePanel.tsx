@@ -26,7 +26,11 @@ import {
 } from "@/lib/appointmentConfirmationMessage";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
-import { pastDayMenuActions, canManageAgendamento, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import { getAppointmentStatusMenuActions, canManageAgendamento, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import {
+  AgendamentoAnotacaoButton,
+  AgendamentoAnotacaoModal,
+} from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import {
   parsePanelStatusRow,
   rpcAlterarStatusPassado,
@@ -55,7 +59,7 @@ type AgendamentoRow = {
   confirmation_token: string;
   client_confirmed_at: string | null;
   requires_client_confirmation: boolean;
-  status: "confirmado" | "cancelado" | "nao_veio";
+  status: "confirmado" | "concluido" | "cancelado" | "nao_veio";
   can_manage?: boolean;
   barbeiros: { id: string; nome: string } | null;
 };
@@ -101,6 +105,7 @@ export default function AgendamentosMobilePanel({
   const [deleting, setDeleting] = useState(false);
   const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
+  const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
 
   const dias = useMemo(() => {
     const today = new Date();
@@ -494,6 +499,13 @@ export default function AgendamentosMobilePanel({
                 barbeariaId,
               );
               const confirmationBadge = !isCancelled && !isNoShow ? getClientConfirmationBadgeForPanel(a) : null;
+              const appointmentPast = isPastCalendarDate(a.data);
+              const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
+              const showStatusBadge =
+                a.status === "confirmado" ||
+                a.status === "concluido" ||
+                a.status === "nao_veio" ||
+                a.status === "cancelado";
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
@@ -505,38 +517,21 @@ export default function AgendamentosMobilePanel({
                   <CardContent className="p-4 space-y-3 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
-                        {isPastDay &&
-                        (a.status === "confirmado" || a.status === "nao_veio" || a.status === "cancelado") ? (
-                          <AgendamentoStatusBadge
-                            item={{
-                              ...a,
-                              barbeiro_nome: a.barbeiros?.nome ?? "",
-                              requires_client_confirmation: a.requires_client_confirmation ?? false,
-                            }}
-                            busy={markingNoShowId === a.id}
-                            allowStatusChange={false}
-                            menuActions={manageable ? pastDayMenuActions(a) : undefined}
-                            onAction={() => {}}
-                            onMenuAction={(key) => void handlePastDayStatus(a, key)}
-                          />
-                        ) : null}
-                        {isCancelled && !isPastDay && (
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100">
-                            Cancelado
-                          </span>
-                        )}
-                        {confirmationBadge && !isPastDay && (
-                          confirmationBadge === "pending" ? (
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
-                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
-                                )}
-                              >
-                                Não confirmado
-                              </span>
-                              {manageable && (
+                        {showStatusBadge ? (
+                          <div className="flex items-center gap-1.5">
+                            <AgendamentoStatusBadge
+                              item={{
+                                ...a,
+                                barbeiro_nome: a.barbeiros?.nome ?? "",
+                                requires_client_confirmation: a.requires_client_confirmation ?? false,
+                              }}
+                              busy={markingNoShowId === a.id}
+                              allowStatusChange={false}
+                              menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
+                              onAction={() => {}}
+                              onMenuAction={(key) => void handlePastDayStatus(a, key)}
+                            />
+                            {!appointmentPast && confirmationBadge === "pending" && manageable && (
                               <button
                                 type="button"
                                 aria-label="Confirmar presença"
@@ -554,28 +549,21 @@ export default function AgendamentosMobilePanel({
                                   <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                                 )}
                               </button>
-                              )}
-                            </div>
-                          ) : (
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide border",
-                                confirmationBadge === "pending" &&
-                                  "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100",
-                                confirmationBadge === "confirmed" &&
-                                  "bg-available/25 text-available border-available/90",
-                              )}
-                            >
-                              {confirmationBadge === "pending" ? "Não confirmado" : "Confirmado"}
-                            </span>
-                          )
-                        )}
+                            )}
+                          </div>
+                        ) : null}
                         <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
                           <Clock className="h-4 w-4 shrink-0" />
                           <span className="text-lg">{formatHora(a.hora)}</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
+                        {a.status === "concluido" && canWriteAnotacao(a, barbeariaId) ? (
+                          <AgendamentoAnotacaoButton
+                            disabled={markingNoShowId === a.id}
+                            onClick={() => setAnotacaoTarget(a)}
+                          />
+                        ) : null}
                         {!selectedBarbeiroId && a.barbeiros?.nome && (
                           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                             {a.barbeiros.nome}
@@ -622,7 +610,7 @@ export default function AgendamentosMobilePanel({
                         </p>
                       )}
                     </div>
-                    {!isPastDay && !isCancelled && manageable && (
+                    {!appointmentPast && !isCancelled && manageable && a.status !== "concluido" && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <Button
@@ -727,6 +715,13 @@ export default function AgendamentosMobilePanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AgendamentoAnotacaoModal
+        open={!!anotacaoTarget}
+        agendamentoId={anotacaoTarget?.id ?? null}
+        clienteNome={anotacaoTarget?.cliente_nome}
+        onClose={() => setAnotacaoTarget(null)}
+      />
     </div>
   );
 }

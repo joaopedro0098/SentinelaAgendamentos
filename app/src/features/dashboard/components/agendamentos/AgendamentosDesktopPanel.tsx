@@ -27,11 +27,14 @@ import {
   filterAgendamentos,
   formatMoney,
   getPeriodRange,
+  getPeriodSummaryVisibility,
+  getStatusFilterOptions,
   isPastDay,
   canManageAgendamento,
+  canWriteAnotacao,
   parsePainelRpc,
   parseYmd,
-  pastDayMenuActions,
+  getAppointmentStatusMenuActions,
   servicesInPeriod,
   type AgendamentoPainelItem,
   type PastDayStatusKey,
@@ -56,6 +59,10 @@ import {
   AgendamentoMenuAction,
   AgendamentoMenuActionLoading,
 } from "@/features/dashboard/components/agendamentos/AgendamentoActionsMenu";
+import {
+  AgendamentoAnotacaoButton,
+  AgendamentoAnotacaoModal,
+} from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
 
 type Props = {
@@ -78,14 +85,6 @@ type TimelineEntry =
   | { kind: "appointment"; item: AgendamentoPainelItem; sortMin: number; barbeiroId?: string }
   | { kind: "empty"; hora: string; sortMin: number; barbeiroId: string }
   | { kind: "gap"; horaInicio: string; horaFim: string; sortMin: number; barbeiroId: string };
-
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "todos", label: "Todos" },
-  { value: "confirmado", label: "Confirmado" },
-  { value: "aguardando_confirmacao", label: "Não confirmado" },
-  { value: "cancelado", label: "Cancelado" },
-  { value: "faltou", label: "Faltou" },
-];
 
 const LIST_ROW_GRID = cn(
   "grid w-full grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_8.5rem_6.5rem_2rem] items-center gap-x-3 px-6",
@@ -247,6 +246,7 @@ export default function AgendamentosDesktopPanel({
   const [summary, setSummary] = useState<AgendamentoPainelSummary>({
     total: 0,
     confirmados: 0,
+    concluidos: 0,
     aguardando_confirmacao: 0,
     cancelados: 0,
     faturamento_centavos: 0,
@@ -258,12 +258,31 @@ export default function AgendamentosDesktopPanel({
   const [deleting, setDeleting] = useState(false);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
+  const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoPainelItem | null>(null);
   const [profSchedules, setProfSchedules] = useState<BookingProfSchedule[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
   const period = useMemo(() => getPeriodRange(viewMode, anchorYmd), [viewMode, anchorYmd]);
+  const statusFilterOptions = useMemo(
+    () => getStatusFilterOptions(period.startYmd, period.endYmd),
+    [period.startYmd, period.endYmd],
+  );
+  const summaryVisibility = useMemo(
+    () => getPeriodSummaryVisibility(period.startYmd, period.endYmd),
+    [period.startYmd, period.endYmd],
+  );
+  const faltasCount = useMemo(
+    () => items.filter((item) => item.status === "nao_veio").length,
+    [items],
+  );
   const profissionalId = profFilter === "todos" ? null : profFilter;
   const servico = servicoFilter === "todos" ? null : servicoFilter;
+
+  useEffect(() => {
+    if (!statusFilterOptions.some((o) => o.value === statusFilter)) {
+      setStatusFilter("todos");
+    }
+  }, [statusFilter, statusFilterOptions]);
 
   const loadData = useCallback(async () => {
     if (!slug) {
@@ -272,6 +291,7 @@ export default function AgendamentosDesktopPanel({
       setSummary({
         total: 0,
         confirmados: 0,
+        concluidos: 0,
         aguardando_confirmacao: 0,
         cancelados: 0,
         faturamento_centavos: 0,
@@ -552,6 +572,16 @@ export default function AgendamentosDesktopPanel({
     const busy = statusChangingId === a.id || markingNoShowId === a.id;
     const manageable = canManageAgendamento(a, barbeariaId);
 
+    if (a.status === "concluido") {
+      if (!canWriteAnotacao(a, barbeariaId)) return null;
+      return (
+        <AgendamentoAnotacaoButton
+          disabled={busy}
+          onClick={() => setAnotacaoTarget(a)}
+        />
+      );
+    }
+
     if (pastDay || !manageable) return null;
 
     return (
@@ -576,9 +606,10 @@ export default function AgendamentosDesktopPanel({
 
   function renderAppointmentRow(a: AgendamentoPainelItem) {
     const showDate = viewMode !== "dia";
-    const pastDay = isPastDay(a.data);
+    const appointmentPast = isPastDay(a.data);
     const rowBusy = statusChangingId === a.id || markingNoShowId === a.id;
     const manageable = canManageAgendamento(a, barbeariaId);
+    const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
 
     return (
       <div
@@ -606,8 +637,8 @@ export default function AgendamentosDesktopPanel({
         <AgendamentoStatusBadge
           item={a}
           busy={rowBusy}
-          allowStatusChange={manageable && !pastDay}
-          menuActions={manageable && pastDay ? pastDayMenuActions(a) : undefined}
+          allowStatusChange={manageable && !appointmentPast}
+          menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
           onAction={(action) => void handleStatusAction(a, action)}
           onMenuAction={(key) => void handlePastDayStatus(a, key)}
         />
@@ -699,7 +730,7 @@ export default function AgendamentosDesktopPanel({
           <MinimalFilterSelect
             label="Status"
             value={statusFilter}
-            options={STATUS_OPTIONS}
+            options={statusFilterOptions}
             onChange={(v) => setStatusFilter(v as StatusFilter)}
           />
         </div>
@@ -710,18 +741,36 @@ export default function AgendamentosDesktopPanel({
             <span className="text-muted-foreground">Total</span>
             <span className="font-semibold tabular-nums">{summary.total}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Confirmados</span>
-            <span className="font-semibold tabular-nums text-available">{summary.confirmados}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Não confirmado</span>
-            <span className="font-semibold tabular-nums">{summary.aguardando_confirmacao}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Cancelados</span>
-            <span className="font-semibold tabular-nums text-unavailable">{summary.cancelados}</span>
-          </div>
+          {summaryVisibility.confirmados && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Confirmados</span>
+              <span className="font-semibold tabular-nums text-available">{summary.confirmados}</span>
+            </div>
+          )}
+          {summaryVisibility.concluidos && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Concluídos</span>
+              <span className="font-semibold tabular-nums text-completed">{summary.concluidos ?? 0}</span>
+            </div>
+          )}
+          {summaryVisibility.aguardando_confirmacao && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Não confirmado</span>
+              <span className="font-semibold tabular-nums">{summary.aguardando_confirmacao}</span>
+            </div>
+          )}
+          {summaryVisibility.cancelados && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Cancelados</span>
+              <span className="font-semibold tabular-nums text-unavailable">{summary.cancelados}</span>
+            </div>
+          )}
+          {summaryVisibility.faltas && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Faltas</span>
+              <span className="font-semibold tabular-nums text-absent">{faltasCount}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-1 border-t border-border/60">
             <span className="text-muted-foreground">Faturamento</span>
             <span className="font-semibold tabular-nums">{formatMoney(summary.faturamento_centavos)}</span>
@@ -841,6 +890,13 @@ export default function AgendamentosDesktopPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AgendamentoAnotacaoModal
+        open={!!anotacaoTarget}
+        agendamentoId={anotacaoTarget?.id ?? null}
+        clienteNome={anotacaoTarget?.cliente_nome}
+        onClose={() => setAnotacaoTarget(null)}
+      />
     </div>
   );
 }

@@ -16,7 +16,7 @@ const ACTION_LABELS: Record<StatusAction, string> = {
   cancelar: "Cancelar",
 };
 
-const ACTIONS_BY_KIND: Record<Exclude<AgendamentoStatusKind, "faltou">, StatusAction[]> = {
+const ACTIONS_BY_KIND: Record<Exclude<AgendamentoStatusKind, "faltou" | "concluido">, StatusAction[]> = {
   nao_confirmado: ["confirmar", "cancelar"],
   confirmado: ["nao_confirmado", "cancelar"],
   cancelado: ["confirmar", "nao_confirmado"],
@@ -25,10 +25,13 @@ const ACTIONS_BY_KIND: Record<Exclude<AgendamentoStatusKind, "faltou">, StatusAc
 function badgeToneClass(kind: AgendamentoStatusKind) {
   switch (kind) {
     case "cancelado":
-    case "faltou":
       return "bg-unavailable/25 text-unavailable border-unavailable/90 dark:text-red-100";
+    case "faltou":
+      return "bg-absent/25 text-absent border-absent/90 dark:text-gray-200";
     case "nao_confirmado":
       return "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100";
+    case "concluido":
+      return "bg-completed/25 text-completed border-completed/90 dark:text-blue-100";
     case "confirmado":
       return "bg-available/25 text-available border-available/90";
   }
@@ -42,6 +45,8 @@ function badgeLabel(kind: AgendamentoStatusKind) {
       return "Faltou";
     case "nao_confirmado":
       return "Não confirmado";
+    case "concluido":
+      return "Concluído";
     case "confirmado":
       return "Confirmado";
   }
@@ -67,7 +72,7 @@ export function AgendamentoStatusBadge({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const kind = getStatusKind(item);
-  const statusActions = allowStatusChange && kind !== "faltou" ? ACTIONS_BY_KIND[kind] : [];
+  const statusActions = allowStatusChange && kind !== "faltou" && kind !== "concluido" ? ACTIONS_BY_KIND[kind] : [];
   const customActions = menuActions ?? [];
   const interactive = statusActions.length > 0 || customActions.length > 0;
 
@@ -84,7 +89,7 @@ export function AgendamentoStatusBadge({
     <div ref={rootRef} className="relative justify-self-start">
       <span
         className={cn(
-          "inline-flex w-fit max-w-full items-center rounded-full border text-[10px] font-semibold whitespace-nowrap",
+          "inline-flex w-fit max-w-full items-center rounded-full border text-[11px] font-semibold whitespace-nowrap",
           interactive ? "pl-2 pr-0.5 py-0.5 gap-0.5" : "px-2 py-0.5",
           badgeToneClass(kind),
         )}
@@ -123,10 +128,7 @@ export function AgendamentoStatusBadge({
               <button
                 type="button"
                 role="option"
-                className={cn(
-                  "w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-secondary/60",
-                  action === "cancelar" && "text-unavailable hover:bg-unavailable/10",
-                )}
+                className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
                 onClick={() => {
                   setOpen(false);
                   onAction(action);
@@ -141,10 +143,7 @@ export function AgendamentoStatusBadge({
               <button
                 type="button"
                 role="option"
-                className={cn(
-                  "w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-secondary/60",
-                  action.destructive && "text-unavailable hover:bg-unavailable/10",
-                )}
+                className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
                 onClick={() => {
                   setOpen(false);
                   onMenuAction?.(action.key);

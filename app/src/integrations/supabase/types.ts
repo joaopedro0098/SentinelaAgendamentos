@@ -414,8 +414,23 @@ export type Database = {
       painel_barbearia_ids_visiveis: { Args: Record<string, never>; Returns: string[] }
       painel_barbearia_ids_editaveis: { Args: Record<string, never>; Returns: string[] }
       painel_barbearia_ids_agendamentos_editaveis: { Args: Record<string, never>; Returns: string[] }
+      painel_barbearia_ids_pacientes_visiveis: { Args: Record<string, never>; Returns: string[] }
       update_ca_titular_appointment_permissions: {
-        Args: { p_owner_can_view_appointments: boolean; p_owner_can_edit_appointments: boolean }
+        Args: {
+          p_owner_can_view_appointments: boolean
+          p_owner_can_edit_appointments: boolean
+          p_owner_can_view_annotations: boolean
+        }
+        Returns: Json
+      }
+      get_agendamento_anotacao: { Args: { p_agendamento_id: string }; Returns: Json }
+      upsert_agendamento_anotacao: {
+        Args: { p_agendamento_id: string; p_conteudo: string }
+        Returns: Json
+      }
+      list_pacientes_painel: { Args: { p_barbeiro_id?: string | null }; Returns: Json }
+      list_paciente_anotacoes: {
+        Args: { p_whatsapp_digits: string; p_barbeiro_id?: string | null }
         Returns: Json
       }
       get_agendamentos_painel: {

@@ -789,6 +789,11 @@ const PublicBooking = ({
     }
   }
 
+  const clientContactReady = useMemo(
+    () => nome.trim().length > 0 && isValidPhone(whatsapp),
+    [nome, whatsapp],
+  );
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barbearia || !barbeiroId || !data || !hora) return toast.error("Selecione dia, barbeiro e horário");
@@ -1173,7 +1178,7 @@ const PublicBooking = ({
               <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
                 Alterar
               </Button>
-              <Button type="button" className="flex-1 rounded-full" disabled={submitting} onClick={confirmBooking}>
+              <Button type="button" className="flex-1 rounded-full" disabled={submitting || !clientContactReady} onClick={confirmBooking}>
                 {submitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : isReschedule ? (
@@ -1663,7 +1668,7 @@ const PublicBooking = ({
 
               <Button
                 type="submit"
-                disabled={submitting || !barbeiroId || !hora}
+                disabled={submitting || !barbeiroId || !hora || !clientContactReady}
                 className="w-full h-13 md:h-11 text-base md:text-sm font-semibold py-3.5 md:py-2.5 rounded-xl"
               >
                 {submitting ? (

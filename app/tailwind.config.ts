@@ -60,10 +60,20 @@ export default {
           foreground: "hsl(var(--available-foreground))",
           soft: "hsl(var(--available-soft))",
         },
+        completed: {
+          DEFAULT: "hsl(var(--completed) / <alpha-value>)",
+          foreground: "hsl(var(--completed-foreground) / <alpha-value>)",
+          soft: "hsl(var(--completed-soft) / <alpha-value>)",
+        },
         unavailable: {
-          DEFAULT: "hsl(var(--unavailable))",
-          foreground: "hsl(var(--unavailable-foreground))",
-          soft: "hsl(var(--unavailable-soft))",
+          DEFAULT: "hsl(var(--unavailable) / <alpha-value>)",
+          foreground: "hsl(var(--unavailable-foreground) / <alpha-value>)",
+          soft: "hsl(var(--unavailable-soft) / <alpha-value>)",
+        },
+        absent: {
+          DEFAULT: "hsl(var(--absent) / <alpha-value>)",
+          foreground: "hsl(var(--absent-foreground) / <alpha-value>)",
+          soft: "hsl(var(--absent-soft) / <alpha-value>)",
         },
       },
       borderRadius: {

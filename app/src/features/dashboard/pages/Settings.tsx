@@ -26,6 +26,7 @@ export default function Settings() {
   const isCA = subscriptionInfo?.account_type === "ca";
   const ownerCanViewAppointments = subscriptionInfo?.owner_can_view_appointments ?? true;
   const ownerCanEditAppointments = subscriptionInfo?.owner_can_edit_appointments ?? false;
+  const ownerCanViewAnnotations = subscriptionInfo?.owner_can_view_annotations ?? true;
   const [shop, setShop] = useState<DashboardShop | null>(contextShop);
   const [saving, setSaving] = useState(false);
   const [copiedBooking, setCopiedBooking] = useState(false);
@@ -256,12 +257,13 @@ export default function Settings() {
     patchDashboardShopCache({ allow_client_self_service: enabled });
   }
 
-  async function saveTitularAppointmentPermissions(view: boolean, edit: boolean) {
+  async function saveTitularAppointmentPermissions(view: boolean, edit: boolean, annotations?: boolean) {
     if (!isCA) return;
     setSavingTitularPermissions(true);
     const { data, error } = await supabase.rpc("update_ca_titular_appointment_permissions", {
       p_owner_can_view_appointments: view,
       p_owner_can_edit_appointments: edit,
+      p_owner_can_view_annotations: annotations ?? ownerCanViewAnnotations,
     });
     setSavingTitularPermissions(false);
     if (error) {
@@ -278,11 +280,15 @@ export default function Settings() {
   }
 
   function handleToggleTitularView(next: boolean) {
-    void saveTitularAppointmentPermissions(next, next ? ownerCanEditAppointments : false);
+    void saveTitularAppointmentPermissions(next, next ? ownerCanEditAppointments : false, next ? ownerCanViewAnnotations : false);
   }
 
   function handleToggleTitularEdit(next: boolean) {
     void saveTitularAppointmentPermissions(next ? true : ownerCanViewAppointments, next);
+  }
+
+  function handleToggleTitularAnnotations(next: boolean) {
+    void saveTitularAppointmentPermissions(ownerCanViewAppointments, ownerCanEditAppointments, next);
   }
 
   function copyBookingLink(url: string) {
@@ -518,6 +524,15 @@ export default function Settings() {
                   disabled={savingTitularPermissions || !ownerCanViewAppointments}
                   busy={savingTitularPermissions}
                   onToggle={() => handleToggleTitularEdit(!ownerCanEditAppointments)}
+                />
+                <PermissionToggleRow
+                  id="titular-view-annotations"
+                  label="Titular visualiza anotações"
+                  description="Permite que o titular veja pacientes e anotações desta conta na aba Pacientes."
+                  checked={ownerCanViewAnnotations}
+                  disabled={savingTitularPermissions || !ownerCanViewAppointments}
+                  busy={savingTitularPermissions}
+                  onToggle={() => handleToggleTitularAnnotations(!ownerCanViewAnnotations)}
                 />
               </>
             ) : (

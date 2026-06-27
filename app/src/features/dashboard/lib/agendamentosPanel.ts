@@ -17,13 +17,14 @@ export type AgendamentoPainelItem = {
   confirmation_token: string;
   client_confirmed_at: string | null;
   requires_client_confirmation: boolean;
-  status: "confirmado" | "cancelado" | "nao_veio";
+  status: "confirmado" | "concluido" | "cancelado" | "nao_veio";
   can_manage?: boolean;
 };
 
 export type AgendamentoPainelSummary = {
   total: number;
   confirmados: number;
+  concluidos: number;
   aguardando_confirmacao: number;
   cancelados: number;
   faturamento_centavos: number;
@@ -38,11 +39,17 @@ export type AgendamentoProfissional = {
 export type StatusFilter =
   | "todos"
   | "confirmado"
+  | "concluido"
   | "aguardando_confirmacao"
   | "cancelado"
   | "faltou";
 
-export type AgendamentoStatusKind = "nao_confirmado" | "confirmado" | "cancelado" | "faltou";
+export type AgendamentoStatusKind =
+  | "nao_confirmado"
+  | "confirmado"
+  | "concluido"
+  | "cancelado"
+  | "faltou";
 
 export const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -87,9 +94,50 @@ export function formatMoney(centavos: number) {
   return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "confirmado", label: "Confirmado" },
+  { value: "concluido", label: "Concluído" },
+  { value: "aguardando_confirmacao", label: "Não confirmado" },
+  { value: "cancelado", label: "Cancelado" },
+  { value: "faltou", label: "Faltou" },
+];
+
+/** Opções de status conforme o período visível no painel. */
+export function getStatusFilterOptions(periodStartYmd: string, periodEndYmd: string) {
+  const todayYmd = ymd(new Date());
+  const includesPastDays = periodStartYmd < todayYmd;
+  const includesTodayOrFuture = periodEndYmd >= todayYmd;
+
+  return STATUS_FILTER_OPTIONS.filter((o) => {
+    if (o.value === "faltou") return includesPastDays;
+    if (o.value === "confirmado" || o.value === "aguardando_confirmacao") {
+      return includesTodayOrFuture;
+    }
+    return true;
+  });
+}
+
+/** Linhas do resumo do período (Agendamentos) conforme o intervalo visível. */
+export function getPeriodSummaryVisibility(periodStartYmd: string, periodEndYmd: string) {
+  const todayYmd = ymd(new Date());
+  const includesPastDaysBeforeToday = periodStartYmd < todayYmd;
+  const includesTodayOrFuture = periodEndYmd >= todayYmd;
+  const includesTodayOrPast = periodStartYmd <= todayYmd;
+
+  return {
+    confirmados: includesTodayOrFuture,
+    concluidos: includesTodayOrPast,
+    aguardando_confirmacao: includesTodayOrFuture,
+    cancelados: includesTodayOrPast,
+    faltas: includesPastDaysBeforeToday,
+  };
+}
+
 export function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
   if (item.status === "cancelado") return "cancelado";
   if (item.status === "nao_veio") return "faltou";
+  if (item.status === "concluido") return "concluido";
   if (item.requires_client_confirmation && !item.client_confirmed_at) return "aguardando_confirmacao";
   return "confirmado";
 }
@@ -97,6 +145,7 @@ export function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
 export function getStatusKind(item: AgendamentoPainelItem): AgendamentoStatusKind {
   if (item.status === "cancelado") return "cancelado";
   if (item.status === "nao_veio") return "faltou";
+  if (item.status === "concluido") return "concluido";
   if (item.requires_client_confirmation && !item.client_confirmed_at) return "nao_confirmado";
   return "confirmado";
 }
@@ -150,12 +199,29 @@ export function isPastDay(dateYmd: string) {
   return isPastCalendarDate(dateYmd);
 }
 
+export function isFutureDay(dateYmd: string) {
+  return dateYmd > ymd(new Date());
+}
+
+export function isTodayOrPastDay(dateYmd: string) {
+  return dateYmd <= ymd(new Date());
+}
+
 export function canManageAgendamento(item: { barbearia_id: string; can_manage?: boolean }, ownBarbeariaId: string | null) {
   if (typeof item.can_manage === "boolean") return item.can_manage;
   return ownBarbeariaId !== null && item.barbearia_id === ownBarbeariaId;
 }
 
-export type PastDayStatusKey = "confirmado" | "faltou" | "cancelado";
+/** Anotação: só agendamento concluído na barbearia própria (CT nunca em CA). */
+export function canWriteAnotacao(
+  item: { status: AgendamentoPainelItem["status"]; barbearia_id: string },
+  ownBarbeariaId: string | null,
+) {
+  if (item.status !== "concluido") return false;
+  return ownBarbeariaId !== null && item.barbearia_id === ownBarbeariaId;
+}
+
+export type PastDayStatusKey = "concluido" | "faltou" | "cancelado";
 
 export type AgendamentoStatusMenuAction = {
   key: PastDayStatusKey;
@@ -180,24 +246,43 @@ export function parsePainelRpc(data: unknown): {
   };
 }
 
-export function pastDayMenuActions(item: { status: AgendamentoPainelItem["status"] }): AgendamentoStatusMenuAction[] {
+export function getAppointmentStatusMenuActions(
+  item: { status: AgendamentoPainelItem["status"] },
+  dateYmd: string,
+): AgendamentoStatusMenuAction[] {
+  if (isFutureDay(dateYmd)) return [];
+
+  const allowConcluido = isTodayOrPastDay(dateYmd);
+  const allowFaltou = isPastDay(dateYmd);
+
+  let actions: AgendamentoStatusMenuAction[] = [];
+
   if (item.status === "nao_veio") {
-    return [
-      { key: "confirmado", label: "Confirmado" },
+    actions = [
+      { key: "concluido", label: "Concluído" },
       { key: "cancelado", label: "Cancelado", destructive: true },
     ];
-  }
-  if (item.status === "confirmado") {
-    return [
+  } else if (item.status === "confirmado") {
+    actions = [
+      { key: "concluido", label: "Concluído" },
       { key: "faltou", label: "Faltou", destructive: true },
       { key: "cancelado", label: "Cancelado", destructive: true },
     ];
-  }
-  if (item.status === "cancelado") {
-    return [
-      { key: "confirmado", label: "Confirmado" },
+  } else if (item.status === "concluido") {
+    actions = [
+      { key: "faltou", label: "Faltou", destructive: true },
+      { key: "cancelado", label: "Cancelado", destructive: true },
+    ];
+  } else if (item.status === "cancelado") {
+    actions = [
+      { key: "concluido", label: "Concluído" },
       { key: "faltou", label: "Faltou", destructive: true },
     ];
   }
-  return [];
+
+  return actions.filter((action) => {
+    if (action.key === "concluido") return allowConcluido;
+    if (action.key === "faltou") return allowFaltou;
+    return true;
+  });
 }

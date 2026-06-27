@@ -80,6 +80,12 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 45% 22%;
+    --completed: 217 65% 55%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 45% 22%;
+    --absent: 0 0% 46%;
+    --absent-foreground: 0 0% 96%;
+    --absent-soft: 0 0% 32%;
     --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
     --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.18) 0%, hsl(142 76% 45% / 0.12) 100%);
     --gradient-text: linear-gradient(135deg, hsl(152 55% 48%), hsl(142 76% 50%));
@@ -119,6 +125,12 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
+    --completed: 217 65% 50%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 65% 95%;
+    --absent: 0 0% 45%;
+    --absent-foreground: 0 0% 100%;
+    --absent-soft: 0 0% 90%;
   }
 
   /* ==========================================================
@@ -158,6 +170,12 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
+    --completed: 217 65% 50%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 65% 95%;
+    --absent: 0 0% 45%;
+    --absent-foreground: 0 0% 100%;
+    --absent-soft: 0 0% 90%;
     --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
     --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
     --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
@@ -290,6 +308,12 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
+    --completed: 217 65% 50%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 65% 95%;
+    --absent: 0 0% 45%;
+    --absent-foreground: 0 0% 100%;
+    --absent-soft: 0 0% 90%;
     --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
     --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
     --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
