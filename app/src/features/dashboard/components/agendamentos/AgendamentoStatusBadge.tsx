@@ -72,7 +72,12 @@ export function AgendamentoStatusBadge({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const kind = getStatusKind(item);
-  const statusActions = allowStatusChange && kind !== "faltou" && kind !== "concluido" ? ACTIONS_BY_KIND[kind] : [];
+  const statusActions: StatusAction[] =
+    allowStatusChange && kind !== "faltou"
+      ? kind === "concluido"
+        ? ["confirmar", "nao_confirmado"]
+        : ACTIONS_BY_KIND[kind as Exclude<AgendamentoStatusKind, "faltou" | "concluido">]
+      : [];
   const customActions = menuActions ?? [];
   const interactive = statusActions.length > 0 || customActions.length > 0;
 

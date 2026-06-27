@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
+import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
 import { buildSlots, filtrarSlotsLivres, type Window } from "@agenda/lib/slots";
 import type { CaBarbearia, DashboardShop } from "@/providers/DashboardShopProvider";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
@@ -534,6 +535,7 @@ export default function AgendamentosDesktopPanel({
           : item,
       ),
     );
+    notifyPanelPacientesChanged();
     void loadData();
   }
 
@@ -559,6 +561,7 @@ export default function AgendamentosDesktopPanel({
           : item,
       ),
     );
+    notifyPanelPacientesChanged();
   }
 
   function caLabel(itemBarbeariaId: string) {

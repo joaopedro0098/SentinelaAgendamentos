@@ -25,6 +25,7 @@ import {
   getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
+import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
 import { getAppointmentStatusMenuActions, canManageAgendamento, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import {
@@ -33,6 +34,7 @@ import {
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import {
   parsePanelStatusRow,
+  rpcAlterarAgendamentoPainel,
   rpcAlterarStatusPassado,
   rpcConfirmarPresenca,
   rpcExcluirAgendamento,
@@ -105,6 +107,7 @@ export default function AgendamentosMobilePanel({
   const [deleting, setDeleting] = useState(false);
   const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
 
   const dias = useMemo(() => {
@@ -350,7 +353,7 @@ export default function AgendamentosMobilePanel({
   }
 
   async function handlePastDayStatus(a: AgendamentoRow, novoStatus: PastDayStatusKey) {
-    if (markingNoShowId || !canManageAgendamento({ barbearia_id: a.barbearia_id, can_manage: a.can_manage }, barbeariaId)) return;
+    if (markingNoShowId || statusChangingId || !canManageAgendamento({ barbearia_id: a.barbearia_id, can_manage: a.can_manage }, barbeariaId)) return;
     setMarkingNoShowId(a.id);
     const { data, error } = await rpcAlterarStatusPassado(a.id, novoStatus);
     setMarkingNoShowId(null);
@@ -371,6 +374,43 @@ export default function AgendamentosMobilePanel({
           : item,
       ),
     );
+    notifyPanelPacientesChanged();
+  }
+
+  async function handleStatusAction(
+    a: AgendamentoRow,
+    action: "confirmar" | "nao_confirmado" | "cancelar",
+  ) {
+    if (
+      statusChangingId ||
+      markingNoShowId ||
+      isPastCalendarDate(a.data) ||
+      !canManageAgendamento({ barbearia_id: a.barbearia_id, can_manage: a.can_manage }, barbeariaId)
+    ) {
+      return;
+    }
+    setStatusChangingId(a.id);
+    const { data, error } = await rpcAlterarAgendamentoPainel(a.id, action);
+    setStatusChangingId(null);
+    if (error) {
+      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = parsePanelStatusRow(data);
+    setAgendamentos((prev) =>
+      prev.map((item) =>
+        item.id === a.id
+          ? {
+              ...item,
+              status: (row?.status as AgendamentoRow["status"]) ?? item.status,
+              client_confirmed_at:
+                row && "client_confirmed_at" in row ? row.client_confirmed_at ?? null : item.client_confirmed_at,
+            }
+          : item,
+      ),
+    );
+    notifyPanelPacientesChanged();
+    void loadAgendamentos();
   }
 
   return (
@@ -525,10 +565,10 @@ export default function AgendamentosMobilePanel({
                                 barbeiro_nome: a.barbeiros?.nome ?? "",
                                 requires_client_confirmation: a.requires_client_confirmation ?? false,
                               }}
-                              busy={markingNoShowId === a.id}
-                              allowStatusChange={false}
+                              busy={markingNoShowId === a.id || statusChangingId === a.id}
+                              allowStatusChange={manageable && !appointmentPast}
                               menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
-                              onAction={() => {}}
+                              onAction={(action) => void handleStatusAction(a, action)}
                               onMenuAction={(key) => void handlePastDayStatus(a, key)}
                             />
                             {!appointmentPast && confirmationBadge === "pending" && manageable && (
