@@ -905,6 +905,16 @@ const PublicBooking = ({
         _nome: nome.trim(),
       });
 
+      let nomeParaAgendamento = nome.trim();
+      const { data: cadastro } = await supabase.rpc("get_cliente_cadastro_por_whatsapp", {
+        p_barbearia_id: targetBarbeariaId,
+        p_whatsapp: whatsClean,
+      });
+      if (cadastro && typeof cadastro === "object" && "nome" in cadastro) {
+        const cadastroNome = String((cadastro as { nome?: string }).nome ?? "").trim();
+        if (cadastroNome) nomeParaAgendamento = cadastroNome;
+      }
+
       let whatsStored = whatsClean;
       if (ownerPanel && cliId) {
         const { data: cliente } = await supabase
@@ -922,7 +932,7 @@ const PublicBooking = ({
           barbeiro_id: barbeiroId,
           data,
           hora,
-          cliente_nome: nome.trim(),
+          cliente_nome: nomeParaAgendamento,
           cliente_whatsapp: whatsStored,
           cliente_id: cliId ?? null,
           duracao_minutos: duracaoTotal,

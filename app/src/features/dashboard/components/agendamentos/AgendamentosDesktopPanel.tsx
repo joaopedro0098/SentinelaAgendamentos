@@ -4,6 +4,14 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
+import {
+  patchClienteNomeInList,
+  dispatchClienteNomeSync,
+  isAgendamentoClienteNomeOnlyUpdate,
+  clienteNomePayloadFromAgendamentoRow,
+  whatsappMatches,
+} from "@agenda/lib/panelClienteNomeSync";
+import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { buildSlots, filtrarSlotsLivres, type Window } from "@agenda/lib/slots";
 import type { CaBarbearia, DashboardShop } from "@/providers/DashboardShopProvider";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
@@ -337,6 +345,20 @@ export default function AgendamentosDesktopPanel({
     void loadData();
   }, 400);
 
+  useClienteNomeSyncListener((payload) => {
+    setItems((prev) => patchClienteNomeInList(prev, payload));
+    setDeleteTarget((prev) =>
+      prev && whatsappMatches(prev.cliente_whatsapp, payload.whatsapp_digits)
+        ? { ...prev, cliente_nome: payload.nome }
+        : prev,
+    );
+    setAnotacaoTarget((prev) =>
+      prev && whatsappMatches(prev.cliente_whatsapp, payload.whatsapp_digits)
+        ? { ...prev, cliente_nome: payload.nome }
+        : prev,
+    );
+  });
+
   useEffect(() => {
     if (!allBarbeariaIds.length) return;
     const channels = allBarbeariaIds.map((bid) =>
@@ -345,7 +367,14 @@ export default function AgendamentosDesktopPanel({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
-          () => {
+          (payload) => {
+            if (isAgendamentoClienteNomeOnlyUpdate(payload)) {
+              const syncPayload = clienteNomePayloadFromAgendamentoRow(
+                payload.new as Record<string, unknown>,
+              );
+              if (syncPayload) dispatchClienteNomeSync(syncPayload);
+              return;
+            }
             debouncedLoadData();
           },
         )
@@ -391,13 +420,18 @@ export default function AgendamentosDesktopPanel({
     return [{ value: "todos", label: "Todos" }, ...names.map((n) => ({ value: n, label: n }))];
   }, [items]);
 
-  const profOptions = useMemo(
-    () => [
-      { value: "todos", label: "Todos" },
-      ...profissionais.map((p) => ({ value: p.id, label: p.nome })),
-    ],
-    [profissionais],
-  );
+  const profOptions = useMemo(() => {
+    const opts = profissionais.map((p) => ({ value: p.id, label: p.nome }));
+    if (isCA) return opts;
+    return [{ value: "todos", label: "Todos" }, ...opts];
+  }, [profissionais, isCA]);
+
+  useEffect(() => {
+    if (!isCA || profissionais.length === 0) return;
+    setProfFilter((cur) =>
+      cur === "todos" || !profissionais.some((p) => p.id === cur) ? profissionais[0].id : cur,
+    );
+  }, [isCA, profissionais]);
 
   const filteredList = useMemo(
     () => filterAgendamentos(items, profissionalId, servico, statusFilter),
@@ -723,7 +757,14 @@ export default function AgendamentosDesktopPanel({
         </div>
 
         <div className="space-y-2">
-          <MinimalFilterSelect label="Profissional" value={profFilter} options={profOptions} onChange={setProfFilter} />
+          {isCA && profissionais.length === 1 ? (
+            <div className="rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm">
+              <span className="text-muted-foreground">Profissional</span>
+              <p className="font-medium text-foreground">{profissionais[0].nome}</p>
+            </div>
+          ) : (
+            <MinimalFilterSelect label="Profissional" value={profFilter} options={profOptions} onChange={setProfFilter} />
+          )}
           <MinimalFilterSelect
             label="Serviço"
             value={servicoFilter}

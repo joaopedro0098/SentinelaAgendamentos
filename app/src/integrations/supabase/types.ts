@@ -433,6 +433,16 @@ export type Database = {
         Args: { p_whatsapp_digits: string; p_barbeiro_id?: string | null }
         Returns: Json
       }
+      painel_barbearia_ids_familia_conta: { Args: Record<PropertyKey, never>; Returns: string[] }
+      painel_titular_user_id: { Args: Record<PropertyKey, never>; Returns: string }
+      get_cliente_cadastro_por_whatsapp: {
+        Args: { p_barbearia_id: string; p_whatsapp: string }
+        Returns: Json
+      }
+      update_paciente_nome_painel: {
+        Args: { p_whatsapp_digits: string; p_nome: string }
+        Returns: Json
+      }
       get_agendamentos_painel: {
         Args: { p_data_inicio: string; p_data_fim: string }
         Returns: Json

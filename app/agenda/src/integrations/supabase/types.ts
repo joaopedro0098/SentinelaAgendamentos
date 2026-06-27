@@ -573,6 +573,10 @@ export type Database = {
         Args: { _barbearia_id: string; _nome: string; _whatsapp: string }
         Returns: string
       }
+      get_cliente_cadastro_por_whatsapp: {
+        Args: { p_barbearia_id: string; p_whatsapp: string }
+        Returns: Json
+      }
       user_barbearia_id: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {

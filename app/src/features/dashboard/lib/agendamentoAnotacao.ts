@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
+import {
+  dispatchClienteNomeSync,
+  emitClienteNomeUpdated,
+} from "@agenda/lib/panelClienteNomeSync";
 
 export type AgendamentoAnotacaoPayload = {
   id?: string;
@@ -15,6 +19,7 @@ export type PacientePainelItem = {
   ultimo_atendimento: string;
   total_concluidos: number;
   total_anotacoes: number;
+  can_rename_nome?: boolean;
 };
 
 export type PacienteProfissional = {
@@ -59,6 +64,21 @@ export async function saveAgendamentoAnotacao(agendamentoId: string, conteudo: s
   if (row?.error) return { error: row.error };
   notifyPanelPacientesChanged();
   return { ok: true, data: row };
+}
+
+export async function updatePacienteNome(whatsappDigits: string, nome: string) {
+  const { data, error } = await supabase.rpc("update_paciente_nome_painel", {
+    p_whatsapp_digits: whatsappDigits,
+    p_nome: nome,
+  });
+  if (error) return { error: error.message };
+  const row = data as { error?: string; ok?: boolean; nome?: string } | null;
+  if (row?.error) return { error: row.error };
+  const nomeFinal = row?.nome ?? nome;
+  const payload = { whatsapp_digits: whatsappDigits, nome: nomeFinal };
+  dispatchClienteNomeSync(payload);
+  void emitClienteNomeUpdated(payload);
+  return { ok: true, nome: nomeFinal };
 }
 
 function parseJsonArray(value: unknown): unknown[] {

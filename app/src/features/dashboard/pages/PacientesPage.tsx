@@ -20,6 +20,12 @@ import {
   type PacienteProfissional,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
 import { AgendamentoAnotacaoModal } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
+import {
+  PacienteNomeEditButton,
+  PacienteNomeEditModal,
+} from "@/features/dashboard/components/PacienteNomeEditModal";
+import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
+import { whatsappMatches, dispatchClienteNomeSync, isAgendamentoClienteNomeOnlyUpdate, clienteNomePayloadFromAgendamentoRow } from "@agenda/lib/panelClienteNomeSync";
 
 function formatHora(hora: string) {
   return String(hora).slice(0, 5);
@@ -60,6 +66,10 @@ export default function PacientesPage() {
   const [folderLoading, setFolderLoading] = useState(false);
   const [anotacaoAgendamentoId, setAnotacaoAgendamentoId] = useState<string | null>(null);
   const [anotacaoClienteNome, setAnotacaoClienteNome] = useState<string | undefined>();
+  const [nomeEditTarget, setNomeEditTarget] = useState<{
+    whatsapp_digits: string;
+    cliente_nome: string;
+  } | null>(null);
 
   useEffect(() => {
     document.title = "Pacientes — Sentinela Agendamentos";
@@ -141,6 +151,39 @@ export default function PacientesPage() {
     void loadPacientes();
   }
 
+  function openNomeEdit(paciente: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) {
+    setNomeEditTarget({
+      whatsapp_digits: paciente.whatsapp_digits,
+      cliente_nome: paciente.cliente_nome,
+    });
+  }
+
+  const applyClienteNomeSync = useCallback(
+    (payload: { whatsapp_digits: string; nome: string }) => {
+      setPacientes((prev) =>
+        prev.map((p) =>
+          p.whatsapp_digits === payload.whatsapp_digits ? { ...p, cliente_nome: payload.nome } : p,
+        ),
+      );
+      setSelectedPaciente((prev) =>
+        prev?.whatsapp_digits === payload.whatsapp_digits ? { ...prev, cliente_nome: payload.nome } : prev,
+      );
+      setFolderItems((prev) =>
+        prev.map((item) =>
+          whatsappMatches(item.cliente_whatsapp, payload.whatsapp_digits)
+            ? { ...item, cliente_nome: payload.nome }
+            : item,
+        ),
+      );
+      if (selectedPaciente?.whatsapp_digits === payload.whatsapp_digits && anotacaoAgendamentoId) {
+        setAnotacaoClienteNome(payload.nome);
+      }
+    },
+    [selectedPaciente?.whatsapp_digits, anotacaoAgendamentoId],
+  );
+
+  useClienteNomeSyncListener(applyClienteNomeSync);
+
   useEffect(() => {
     if (!pacientesBarbeariaIds.length) return;
 
@@ -150,7 +193,14 @@ export default function PacientesPage() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
-          () => {
+          (payload) => {
+            if (isAgendamentoClienteNomeOnlyUpdate(payload)) {
+              const syncPayload = clienteNomePayloadFromAgendamentoRow(
+                payload.new as Record<string, unknown>,
+              );
+              if (syncPayload) dispatchClienteNomeSync(syncPayload);
+              return;
+            }
             void loadPacientes();
             if (selectedPaciente) void loadFolder(selectedPaciente);
           },
@@ -177,16 +227,28 @@ export default function PacientesPage() {
   }, [pacientesBarbeariaIds, loadPacientes, loadFolder, selectedPaciente]);
 
   const profFilterOptions = useMemo(() => {
+    if (isCA) {
+      return profissionais.map((p) => ({ id: p.id, label: p.nome }));
+    }
     const opts = [{ id: "todos", label: "Todos" }];
     for (const p of profissionais) {
       const caSuffix =
-        !isCA && barbeariaId && p.barbearia_id !== barbeariaId
+        barbeariaId && p.barbearia_id !== barbeariaId
           ? ` · ${caBarbearias.find((ca) => ca.barbeariaId === p.barbearia_id)?.shopName ?? "CA"}`
           : "";
       opts.push({ id: p.id, label: `${p.nome}${caSuffix}` });
     }
     return opts;
   }, [profissionais, isCA, barbeariaId, caBarbearias]);
+
+  useEffect(() => {
+    if (!isCA || profissionais.length === 0) return;
+    setProfFilter((cur) =>
+      cur === "todos" || !profissionais.some((p) => p.id === cur) ? profissionais[0].id : cur,
+    );
+  }, [isCA, profissionais]);
+
+  const showProfFilter = isCA ? profissionais.length > 0 : profFilterOptions.length > 1;
 
   if (selectedPaciente) {
     return (
@@ -195,8 +257,18 @@ export default function PacientesPage() {
           <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={closeFolder}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight truncate">{selectedPaciente.cliente_nome}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-semibold tracking-tight truncate flex items-center gap-1.5">
+              <span className="truncate">{selectedPaciente.cliente_nome}</span>
+              {selectedPaciente.can_rename_nome === true && (
+                <PacienteNomeEditButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openNomeEdit(selectedPaciente);
+                  }}
+                />
+              )}
+            </h1>
             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Phone className="h-3.5 w-3.5" />
               {formatWhatsAppDisplay(selectedPaciente.whatsapp_digits)}
@@ -276,6 +348,13 @@ export default function PacientesPage() {
           }}
           onSaved={handleAnotacaoSaved}
         />
+        <PacienteNomeEditModal
+          open={!!nomeEditTarget}
+          whatsappDigits={nomeEditTarget?.whatsapp_digits ?? null}
+          initialNome={nomeEditTarget?.cliente_nome ?? ""}
+          onClose={() => setNomeEditTarget(null)}
+          onSaved={() => undefined}
+        />
       </div>
     );
   }
@@ -289,18 +368,20 @@ export default function PacientesPage() {
         </p>
       </header>
 
-      {profFilterOptions.length > 1 && (
+      {showProfFilter && (
         <HorizontalScrollStrip className="pb-1">
           {profFilterOptions.map((opt) => (
             <button
               key={opt.id}
               type="button"
+              disabled={isCA && profFilterOptions.length === 1}
               onClick={() => setProfFilter(opt.id)}
               className={cn(
                 "shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors border",
                 profFilter === opt.id
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-card/60 text-muted-foreground border-border/70 hover:bg-secondary/50",
+                isCA && profFilterOptions.length === 1 && "cursor-default",
               )}
             >
               {opt.label}
@@ -317,7 +398,7 @@ export default function PacientesPage() {
         <Card className="border-dashed">
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             Nenhum paciente com atendimento concluído
-            {profFilter !== "todos" ? " para este profissional" : ""}.
+            {!isCA && profFilter !== "todos" ? " para este profissional" : ""}.
           </CardContent>
         </Card>
       ) : (
@@ -337,9 +418,18 @@ export default function PacientesPage() {
                     <FolderOpen className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate flex items-center gap-2">
+                    <p className="font-medium truncate flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="truncate">{p.cliente_nome}</span>
+                      {p.can_rename_nome === true && (
+                        <PacienteNomeEditButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            openNomeEdit(p);
+                          }}
+                        />
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {formatWhatsAppDisplay(p.whatsapp_digits)}
@@ -357,6 +447,14 @@ export default function PacientesPage() {
           ))}
         </ul>
       )}
+
+      <PacienteNomeEditModal
+        open={!!nomeEditTarget}
+        whatsappDigits={nomeEditTarget?.whatsapp_digits ?? null}
+        initialNome={nomeEditTarget?.cliente_nome ?? ""}
+        onClose={() => setNomeEditTarget(null)}
+        onSaved={() => undefined}
+      />
     </div>
   );
 }

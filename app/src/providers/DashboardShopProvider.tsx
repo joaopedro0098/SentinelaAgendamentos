@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
 import { getAgendaSyncPhase, primeAgendaSyncPhase } from "@/features/agenda/hooks/useEnsureAgendaSync";
 import { useCaTitularPermissionsRealtime } from "@/features/dashboard/hooks/useCaTitularPermissionsRealtime";
+import { usePainelClienteNomeBroadcast } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { isCacheFresh } from "@/lib/providerCache";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { notifyPanelAgendamentosChanged } from "@agenda/lib/panelAgendamentosRefresh";
@@ -257,6 +258,8 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
     accountType: subscriptionInfo?.account_type,
     onPermissionsChange: handleCaPermissionsRemoteChange,
   });
+
+  usePainelClienteNomeBroadcast();
 
   useEffect(() => {
     void refresh();

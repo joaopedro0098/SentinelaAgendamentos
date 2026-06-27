@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
+import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
+import { patchClienteNomeInList } from "@agenda/lib/panelClienteNomeSync";
 import { buildVisibleBarbeariaIds } from "@/features/dashboard/lib/agendamentosPanel";
 import { usePainelVisibleBarbeariaIds } from "@/features/dashboard/hooks/usePainelVisibleBarbeariaIds";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -311,6 +313,12 @@ function CollaboratorReportRow({
       cancelled = true;
     };
   }, [barbeiro.barbeiro_id, expanded, items, normalizedEnd, normalizedStart]);
+
+  useClienteNomeSyncListener((payload) => {
+    setItems((prev) => (prev ? patchClienteNomeInList(prev, payload) : prev));
+    setFaltas((prev) => (prev ? patchClienteNomeInList(prev, payload) : prev));
+    setCancelamentos((prev) => (prev ? patchClienteNomeInList(prev, payload) : prev));
+  });
 
   const displaySummary =
     viewMode === "concluidos" && items !== null ? buildCollaboratorSummary(items, summary) : null;

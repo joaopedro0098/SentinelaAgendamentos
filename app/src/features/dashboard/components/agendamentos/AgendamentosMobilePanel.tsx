@@ -26,6 +26,14 @@ import {
 } from "@/lib/appointmentConfirmationMessage";
 import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
+import {
+  patchClienteNomeInList,
+  dispatchClienteNomeSync,
+  isAgendamentoClienteNomeOnlyUpdate,
+  clienteNomePayloadFromAgendamentoRow,
+  whatsappMatches,
+} from "@agenda/lib/panelClienteNomeSync";
+import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
 import { getAppointmentStatusMenuActions, canManageAgendamento, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import {
@@ -99,6 +107,7 @@ export default function AgendamentosMobilePanel({
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
+  const [panelProfissionais, setPanelProfissionais] = useState<{ id: string; nome: string }[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -165,6 +174,9 @@ export default function AgendamentosMobilePanel({
     });
     if (!error) {
       const parsed = parsePainelRpc(data);
+      setPanelProfissionais(
+        (parsed?.profissionais ?? []).map((p) => ({ id: p.id, nome: p.nome })),
+      );
       setAgendamentos(
         (parsed?.items ?? []).map((item) => ({
           id: item.id,
@@ -213,6 +225,20 @@ export default function AgendamentosMobilePanel({
 
   const debouncedRefresh = useDebouncedCallback(refreshAgendamentos, 400);
 
+  useClienteNomeSyncListener((payload) => {
+    setAgendamentos((prev) => patchClienteNomeInList(prev, payload));
+    setDeleteTarget((prev) =>
+      prev && whatsappMatches(prev.cliente_whatsapp, payload.whatsapp_digits)
+        ? { ...prev, cliente_nome: payload.nome }
+        : prev,
+    );
+    setAnotacaoTarget((prev) =>
+      prev && whatsappMatches(prev.cliente_whatsapp, payload.whatsapp_digits)
+        ? { ...prev, cliente_nome: payload.nome }
+        : prev,
+    );
+  });
+
   useEffect(() => {
     if (!allBarbeariaIds.length) return;
     const channels = allBarbeariaIds.map((bid) =>
@@ -221,7 +247,14 @@ export default function AgendamentosMobilePanel({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
-          () => {
+          (payload) => {
+            if (isAgendamentoClienteNomeOnlyUpdate(payload)) {
+              const syncPayload = clienteNomePayloadFromAgendamentoRow(
+                payload.new as Record<string, unknown>,
+              );
+              if (syncPayload) dispatchClienteNomeSync(syncPayload);
+              return;
+            }
             debouncedRefresh();
           },
         )
@@ -243,10 +276,27 @@ export default function AgendamentosMobilePanel({
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [agendamentos]);
 
+  const colaboradoresFiltro = useMemo(() => {
+    if (isCA) return panelProfissionais;
+    return barbeirosNoDia;
+  }, [isCA, panelProfissionais, barbeirosNoDia]);
+
+  useEffect(() => {
+    if (!isCA || panelProfissionais.length === 0) return;
+    setSelectedBarbeiroId((cur) =>
+      cur && panelProfissionais.some((p) => p.id === cur) ? cur : panelProfissionais[0].id,
+    );
+  }, [isCA, panelProfissionais]);
+
   const listaFiltrada = useMemo(() => {
+    if (isCA) {
+      const id = selectedBarbeiroId ?? panelProfissionais[0]?.id;
+      if (!id) return agendamentos;
+      return agendamentos.filter((a) => a.barbeiro_id === id);
+    }
     if (!selectedBarbeiroId) return agendamentos;
     return agendamentos.filter((a) => a.barbeiro_id === selectedBarbeiroId);
-  }, [agendamentos, selectedBarbeiroId]);
+  }, [agendamentos, selectedBarbeiroId, isCA, panelProfissionais]);
 
   useEffect(() => {
     if (!highlightedId || loadingList) return;
@@ -274,10 +324,14 @@ export default function AgendamentosMobilePanel({
 
   function handleDayClick(key: string) {
     if (key === selectedDate) {
-      setSelectedBarbeiroId(null);
+      if (!isCA) setSelectedBarbeiroId(null);
     } else {
       setSelectedDate(key);
-      setSelectedBarbeiroId(null);
+      if (!isCA) {
+        setSelectedBarbeiroId(null);
+      } else if (panelProfissionais[0]) {
+        setSelectedBarbeiroId(panelProfissionais[0].id);
+      }
     }
   }
 
@@ -458,30 +512,45 @@ export default function AgendamentosMobilePanel({
         <p className="mt-3 text-sm text-muted-foreground capitalize">{dataLabel}</p>
       </section>
 
-      {barbeirosNoDia.length > 0 && (
+      {colaboradoresFiltro.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold mb-2.5">Colaboradores</h2>
-          <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
-            <button
-              type="button"
-              onClick={() => setSelectedBarbeiroId(null)}
-              className={cn(
-                "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
-                selectedBarbeiroId === null
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-              )}
-            >
-              Todos
-            </button>
-            {barbeirosNoDia.map((b) => {
-              const sel = b.id === selectedBarbeiroId;
+          <HorizontalScrollStrip
+            centerOn={
+              selectedBarbeiroId || colaboradoresFiltro[0]?.id
+                ? `[data-barbeiro="${selectedBarbeiroId ?? colaboradoresFiltro[0]?.id}"]`
+                : null
+            }
+          >
+            {!isCA && (
+              <button
+                type="button"
+                onClick={() => setSelectedBarbeiroId(null)}
+                className={cn(
+                  "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
+                  selectedBarbeiroId === null
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                )}
+              >
+                Todos
+              </button>
+            )}
+            {colaboradoresFiltro.map((b) => {
+              const activeId = selectedBarbeiroId ?? (isCA ? colaboradoresFiltro[0]?.id : null);
+              const sel = b.id === activeId;
               return (
                 <button
                   key={b.id}
                   type="button"
                   data-barbeiro={b.id}
-                  onClick={() => setSelectedBarbeiroId(sel ? null : b.id)}
+                  onClick={() => {
+                    if (isCA) {
+                      setSelectedBarbeiroId(b.id);
+                      return;
+                    }
+                    setSelectedBarbeiroId(sel ? null : b.id);
+                  }}
                   className={cn(
                     "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
                     sel
@@ -500,9 +569,11 @@ export default function AgendamentosMobilePanel({
       <section className="relative space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">
-            {selectedBarbeiroId
-              ? `Horários — ${barbeirosNoDia.find((b) => b.id === selectedBarbeiroId)?.nome ?? ""}`
-              : "Todos os agendamentos do dia"}
+            {isCA && colaboradoresFiltro.length === 1
+              ? `Horários — ${colaboradoresFiltro[0].nome}`
+              : selectedBarbeiroId
+                ? `Horários — ${colaboradoresFiltro.find((b) => b.id === selectedBarbeiroId)?.nome ?? ""}`
+                : "Todos os agendamentos do dia"}
           </h2>
           <span className="text-xs text-muted-foreground tabular-nums">
             {listaFiltrada.length} {listaFiltrada.length === 1 ? "agendamento" : "agendamentos"}
