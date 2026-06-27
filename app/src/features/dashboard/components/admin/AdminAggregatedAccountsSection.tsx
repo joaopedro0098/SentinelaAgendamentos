@@ -152,7 +152,7 @@ export function AdminAggregatedAccountsSection() {
           <CardTitle className="text-lg">Contas Especiais (AA)</CardTitle>
           <CardDescription>
             Agregue contas pelo e-mail para torná-las AA: isentas de assinatura e com permissão de agregar CAs em
-            Configurações. Ao remover, perdem a isenção e o teste gratuito permanentemente.
+            Profissionais. Ao remover, perdem a isenção e o teste gratuito permanentemente.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

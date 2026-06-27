@@ -10,9 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
-import { CtAggregatedAccountsSection } from "@/features/dashboard/components/CtAggregatedAccountsSection";
-import { BloqueiosSection } from "@/features/dashboard/components/BloqueiosSection";
-import { StaffOperationsSection } from "@/features/dashboard/components/StaffOperationsSection";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
@@ -27,7 +24,6 @@ export default function Settings() {
   const { shop: contextShop, loading, refresh, patchShop, bumpSlotGridRevision } = useDashboardShop();
   const { info: subscriptionInfo, refresh: refreshSubscription } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
-  const canManageAggregated = subscriptionInfo?.can_manage_aggregated_accounts ?? false;
   const ownerCanViewAppointments = subscriptionInfo?.owner_can_view_appointments ?? true;
   const ownerCanEditAppointments = subscriptionInfo?.owner_can_edit_appointments ?? false;
   const [shop, setShop] = useState<DashboardShop | null>(contextShop);
@@ -349,77 +345,13 @@ export default function Settings() {
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
             <p className="text-sm text-muted-foreground">
-              Perfil da empresa, link de agendamento e equipe de atendimento.
+              Perfil da empresa, link de agendamento e preferências do painel.
             </p>
           </div>
           <div className="relative z-10 flex items-center gap-2 shrink-0">
             <DashboardThemeToggle />
           </div>
         </header>
-
-        <Card className="glass-panel border-border/80">
-          <CardContent className="pt-6 space-y-5">
-            <h2 className="text-base font-semibold tracking-tight">Permissões</h2>
-
-            <BarberPushToggle />
-
-            {isCA ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Link de agendamento e demais opções do cliente continuam controlados pelo titular (
-                  {subscriptionInfo?.aggregated_by_email ?? "conta principal"}).
-                </p>
-                <PermissionToggleRow
-                  id="titular-view-appointments"
-                  label="Titular visualiza agendamentos"
-                  description="Permite que quem agregou sua conta veja seus agendamentos no painel e nos relatórios."
-                  checked={ownerCanViewAppointments}
-                  disabled={savingTitularPermissions}
-                  busy={savingTitularPermissions}
-                  onToggle={() => handleToggleTitularView(!ownerCanViewAppointments)}
-                />
-                <PermissionToggleRow
-                  id="titular-edit-appointments"
-                  label="Titular edita agendamentos"
-                  description="Permite alterar, excluir, reagendar e criar agendamentos pelo painel do titular."
-                  checked={ownerCanEditAppointments}
-                  disabled={savingTitularPermissions || !ownerCanViewAppointments}
-                  busy={savingTitularPermissions}
-                  onToggle={() => handleToggleTitularEdit(!ownerCanEditAppointments)}
-                />
-              </>
-            ) : (
-              <>
-                <PermissionToggleRow
-                  id="client-public-booking"
-                  label="Cliente agenda pelo link"
-                  checked={shop.allow_client_public_booking ?? true}
-                  disabled={savingClientPublicBooking}
-                  busy={savingClientPublicBooking}
-                  onToggle={() => void handleToggleClientPublicBooking(!(shop.allow_client_public_booking ?? true))}
-                />
-
-                <PermissionToggleRow
-                  id="client-self-service"
-                  label="Cliente altera ou cancela pelo link"
-                  checked={shop.allow_client_self_service ?? true}
-                  disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
-                  busy={savingClientSelfService}
-                  onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
-                />
-
-                <PermissionToggleRow
-                  id="show-service-prices"
-                  label="Mostrar preço do serviço"
-                  checked={shop.show_service_prices ?? false}
-                  disabled={savingShowServicePrices}
-                  busy={savingShowServicePrices}
-                  onToggle={() => void handleToggleShowServicePrices(!(shop.show_service_prices ?? false))}
-                />
-              </>
-            )}
-          </CardContent>
-        </Card>
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6">
@@ -557,11 +489,69 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <StaffOperationsSection barbershopId={shop.id} barbershopSlug={shop.slug} maxActiveStaff={isCA ? 1 : undefined} />
+        <Card className="glass-panel border-border/80">
+          <CardContent className="pt-6 space-y-5">
+            <h2 className="text-base font-semibold tracking-tight">Permissões</h2>
 
-        <BloqueiosSection barbershopId={shop.id} barbershopSlug={shop.slug} />
+            <BarberPushToggle />
 
-        {canManageAggregated && <CtAggregatedAccountsSection />}
+            {isCA ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Link de agendamento e demais opções do cliente continuam controlados pelo titular (
+                  {subscriptionInfo?.aggregated_by_email ?? "conta principal"}).
+                </p>
+                <PermissionToggleRow
+                  id="titular-view-appointments"
+                  label="Titular visualiza agendamentos"
+                  description="Permite que quem agregou sua conta veja seus agendamentos no painel e nos relatórios."
+                  checked={ownerCanViewAppointments}
+                  disabled={savingTitularPermissions}
+                  busy={savingTitularPermissions}
+                  onToggle={() => handleToggleTitularView(!ownerCanViewAppointments)}
+                />
+                <PermissionToggleRow
+                  id="titular-edit-appointments"
+                  label="Titular edita agendamentos"
+                  description="Permite alterar, excluir, reagendar e criar agendamentos pelo painel do titular."
+                  checked={ownerCanEditAppointments}
+                  disabled={savingTitularPermissions || !ownerCanViewAppointments}
+                  busy={savingTitularPermissions}
+                  onToggle={() => handleToggleTitularEdit(!ownerCanEditAppointments)}
+                />
+              </>
+            ) : (
+              <>
+                <PermissionToggleRow
+                  id="client-public-booking"
+                  label="Cliente agenda pelo link"
+                  checked={shop.allow_client_public_booking ?? true}
+                  disabled={savingClientPublicBooking}
+                  busy={savingClientPublicBooking}
+                  onToggle={() => void handleToggleClientPublicBooking(!(shop.allow_client_public_booking ?? true))}
+                />
+
+                <PermissionToggleRow
+                  id="client-self-service"
+                  label="Cliente altera ou cancela pelo link"
+                  checked={shop.allow_client_self_service ?? true}
+                  disabled={savingClientSelfService || !(shop.allow_client_public_booking ?? true)}
+                  busy={savingClientSelfService}
+                  onToggle={() => void handleToggleClientSelfService(!(shop.allow_client_self_service ?? true))}
+                />
+
+                <PermissionToggleRow
+                  id="show-service-prices"
+                  label="Mostrar preço do serviço"
+                  checked={shop.show_service_prices ?? false}
+                  disabled={savingShowServicePrices}
+                  busy={savingShowServicePrices}
+                  onToggle={() => void handleToggleShowServicePrices(!(shop.show_service_prices ?? false))}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {!isCA && (
         <Card className="glass-panel border-border/80">

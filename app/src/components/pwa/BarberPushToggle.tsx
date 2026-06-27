@@ -139,7 +139,7 @@ export function BarberPushToggle() {
   return (
     <PermissionToggleRow
       id="barber-push-toggle"
-      label="Notificações de agendamentos"
+      label="Receber Notificações de agendamentos"
       checked={enabled}
       busy={busy}
       onToggle={() => void handleToggle()}
