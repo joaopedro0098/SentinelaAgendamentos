@@ -42,11 +42,11 @@ export const ServicosCarousel = ({
               type="button"
               onClick={() => onToggle(s.id)}
               className={cn(
-                "snap-start shrink-0 min-w-[8.5rem] min-h-14 px-3 py-2 rounded-2xl flex flex-col items-center justify-center font-semibold transition active:scale-95 md:min-h-12",
+                "snap-start shrink-0 min-w-[8.5rem] w-max max-w-[calc(100vw-2.5rem)] min-h-14 h-auto px-3 py-2 rounded-2xl flex flex-col items-center justify-center font-semibold transition active:scale-95 md:min-h-12 md:max-w-none",
                 sel ? "bg-foreground text-background" : "bg-muted text-foreground",
               )}
             >
-              <span className="text-sm leading-tight truncate max-w-[8rem]">{s.nome}</span>
+              <span className="text-sm leading-snug text-center whitespace-normal break-words">{s.nome}</span>
               {priceLabel && (
                 <span className="text-[10px] font-normal opacity-70 mt-0.5 leading-none">{priceLabel}</span>
               )}
