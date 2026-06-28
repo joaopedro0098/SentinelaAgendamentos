@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getStripe } from "../_shared/stripeConnect.ts";
+import { getStripe, retrieveAppointmentPaymentIntent } from "../_shared/stripeConnect.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
     const { data: row } = await supabase
       .from("agendamentos")
-      .select("id, status, confirmation_token, payment_intent_id")
+      .select("id, status, confirmation_token, payment_intent_id, barbearia_id")
       .eq("id", agendamentoId)
       .maybeSingle();
 
@@ -49,8 +49,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: row.status });
     }
 
+    const settingsRes = await supabase.rpc("get_effective_appointment_payment_settings", {
+      p_barbearia_id: row.barbearia_id,
+    });
+    const settings = settingsRes.data as Record<string, unknown> | null;
+    const connectAccountId = String(settings?.stripe_connect_account_id ?? "");
+
     const stripe = getStripe();
-    const pi = await stripe.paymentIntents.retrieve(row.payment_intent_id);
+    const pi = connectAccountId
+      ? await retrieveAppointmentPaymentIntent(stripe, row.payment_intent_id, connectAccountId)
+      : await stripe.paymentIntents.retrieve(row.payment_intent_id);
 
     if (pi.status === "succeeded") {
       await supabase.rpc("confirm_appointment_payment", {

@@ -149,10 +149,44 @@ export async function requestConnectRecipientTransfersV2(accountId: string) {
 }
 
 export function accountCanReceiveDestinationCharges(account: Stripe.Account): boolean {
-  const transfers = account.capabilities?.transfers;
-  if (transfers === "active") return true;
-  // Algumas contas v2 expõem legacy_payments enquanto migram capabilities.
-  return account.capabilities?.legacy_payments === "active";
+  return account.capabilities?.transfers === "active";
+}
+
+export async function retrieveAppointmentPaymentIntent(
+  stripe: Stripe,
+  paymentIntentId: string,
+  connectAccountId: string,
+) {
+  try {
+    return await stripe.paymentIntents.retrieve(paymentIntentId, {
+      stripeAccount: connectAccountId,
+    });
+  } catch {
+    return stripe.paymentIntents.retrieve(paymentIntentId);
+  }
+}
+
+export async function createAppointmentPaymentIntent(
+  stripe: Stripe,
+  params: {
+    amount: number;
+    connectAccountId: string;
+    metadata: Record<string, string>;
+  },
+) {
+  return stripe.paymentIntents.create(
+    {
+      amount: params.amount,
+      currency: "brl",
+      payment_method_types: ["card"],
+      metadata: params.metadata,
+    },
+    { stripeAccount: params.connectAccountId },
+  );
+}
+
+export function isLegacyDestinationChargeIntent(pi: Stripe.PaymentIntent): boolean {
+  return Boolean(pi.transfer_data?.destination);
 }
 
 /** Tenta Account Link v2; retorna null se indisponível. */
@@ -218,9 +252,8 @@ export async function createAccountLinkV1(
 }
 
 export function mapConnectAccountStatus(account: Stripe.Account): string {
-  const canTransfer = accountCanReceiveDestinationCharges(account);
-  if (account.charges_enabled && canTransfer) return "connected";
-  if (account.charges_enabled && !canTransfer) return "pending";
+  // Cobrança direta na conta Connect exige apenas card_payments (charges_enabled).
+  if (account.charges_enabled) return "connected";
   if (account.requirements?.disabled_reason) return "restricted";
   if (account.details_submitted) return "pending";
   return "pending";

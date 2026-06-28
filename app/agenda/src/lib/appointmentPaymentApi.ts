@@ -43,6 +43,7 @@ export type AppointmentPaymentCheckout = {
   payment_intent_id: string;
   amount_centavos: number;
   expires_at: string | null;
+  stripe_connect_account_id?: string;
 };
 
 export async function createAppointmentPaymentCheckout(input: {

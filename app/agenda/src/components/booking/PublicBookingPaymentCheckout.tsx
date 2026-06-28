@@ -12,6 +12,7 @@ import {
 
 type Props = {
   clientSecret: string;
+  stripeConnectAccountId: string;
   amountCentavos: number;
   expiresAt: string | null;
   agendamentoId: string;
@@ -126,9 +127,11 @@ function PaymentForm({
 
 export function PublicBookingPaymentCheckout(props: Props) {
   const stripePromise = useMemo(() => {
-    if (!STRIPE_PUBLISHABLE_KEY) return null;
-    return loadStripe(STRIPE_PUBLISHABLE_KEY);
-  }, []);
+    if (!STRIPE_PUBLISHABLE_KEY || !props.stripeConnectAccountId) return null;
+    return loadStripe(STRIPE_PUBLISHABLE_KEY, {
+      stripeAccount: props.stripeConnectAccountId,
+    });
+  }, [props.stripeConnectAccountId]);
 
   if (!stripePromise) {
     return (

@@ -1335,6 +1335,7 @@ const PublicBooking = ({
             <div className="mt-6">
               <PublicBookingPaymentCheckout
                 clientSecret={paymentCheckout.client_secret}
+                stripeConnectAccountId={paymentCheckout.stripe_connect_account_id ?? ""}
                 amountCentavos={paymentCheckout.amount_centavos}
                 expiresAt={paymentCheckout.expires_at}
                 agendamentoId={paymentCheckout.agendamentoId}

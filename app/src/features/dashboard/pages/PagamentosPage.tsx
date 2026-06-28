@@ -51,8 +51,7 @@ export default function PagamentosPage() {
 
       if (
         data.role !== "ca_readonly" &&
-        data.stripe_connect_account_id &&
-        data.stripe_connect_status !== "connected"
+        data.stripe_connect_account_id
       ) {
         try {
           await invokePaymentsFunction<{ ok?: boolean; status?: string }>("stripe-connect-sync");

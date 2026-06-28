@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getStripe } from "../_shared/stripeConnect.ts";
+import {
+  createAppointmentPaymentIntent,
+  getStripe,
+  isLegacyDestinationChargeIntent,
+  retrieveAppointmentPaymentIntent,
+} from "../_shared/stripeConnect.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +81,13 @@ Deno.serve(async (req) => {
     }
 
     const stripe = getStripe();
+    const connectAccount = await stripe.accounts.retrieve(connectAccountId);
+    if (!connectAccount.charges_enabled) {
+      return jsonResponse({
+        error: "A conta Stripe ainda não está pronta para receber pagamentos. Conclua o cadastro em Pagamentos.",
+      }, 503);
+    }
+
     const amount = appointment.valor_pago_centavos ?? 0;
     if (amount < 50) return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
 
@@ -83,7 +95,7 @@ Deno.serve(async (req) => {
     let clientSecret: string | null = null;
 
     if (paymentIntentId) {
-      const existing = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const existing = await retrieveAppointmentPaymentIntent(stripe, paymentIntentId, connectAccountId);
       if (existing.status === "succeeded") {
         await supabase.rpc("confirm_appointment_payment", {
           p_agendamento_id: agendamentoId,
@@ -93,18 +105,22 @@ Deno.serve(async (req) => {
       }
       if (existing.status === "canceled") {
         paymentIntentId = null;
+      } else if (isLegacyDestinationChargeIntent(existing)) {
+        try {
+          await stripe.paymentIntents.cancel(paymentIntentId);
+        } catch {
+          /* ignore */
+        }
+        paymentIntentId = null;
       } else {
         clientSecret = existing.client_secret;
       }
     }
 
     if (!paymentIntentId) {
-      const pi = await stripe.paymentIntents.create({
+      const pi = await createAppointmentPaymentIntent(stripe, {
         amount,
-        currency: "brl",
-        payment_method_types: ["card"],
-        application_fee_amount: 0,
-        transfer_data: { destination: connectAccountId },
+        connectAccountId,
         metadata: {
           agendamento_id: agendamentoId,
           barbearia_id: appointment.barbearia_id,
@@ -129,6 +145,7 @@ Deno.serve(async (req) => {
       payment_intent_id: paymentIntentId,
       amount_centavos: amount,
       expires_at: appointment.payment_expires_at,
+      stripe_connect_account_id: connectAccountId,
     });
   } catch (e) {
     console.error("stripe-create-appointment-payment:", e);
