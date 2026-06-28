@@ -56,9 +56,17 @@ Deno.serve(async (req) => {
     const connectAccountId = String(settings?.stripe_connect_account_id ?? "");
 
     const stripe = getStripe();
-    const pi = connectAccountId
-      ? await retrieveAppointmentPaymentIntent(stripe, row.payment_intent_id, connectAccountId)
-      : await stripe.paymentIntents.retrieve(row.payment_intent_id);
+    let pi;
+    try {
+      pi = connectAccountId
+        ? await retrieveAppointmentPaymentIntent(stripe, row.payment_intent_id, connectAccountId)
+        : await stripe.paymentIntents.retrieve(row.payment_intent_id);
+    } catch (e) {
+      console.error("stripe-verify-appointment-payment: retrieve PI", e);
+      return jsonResponse({
+        error: "Não foi possível verificar o pagamento. Tente novamente em instantes.",
+      }, 502);
+    }
 
     if (pi.status === "succeeded") {
       await supabase.rpc("confirm_appointment_payment", {

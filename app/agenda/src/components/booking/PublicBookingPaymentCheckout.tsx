@@ -22,7 +22,12 @@ type Props = {
   onFailed: () => void;
 };
 
+function isPaidIntentStatus(status: string | undefined) {
+  return status === "succeeded" || status === "processing";
+}
+
 function PaymentForm({
+  clientSecret,
   amountCentavos,
   expiresAt,
   agendamentoId,
@@ -30,11 +35,13 @@ function PaymentForm({
   onPaid,
   onExpired,
   onFailed,
-}: Omit<Props, "clientSecret">) {
+}: Props) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<"pay" | "confirm">("pay");
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const stripeReady = Boolean(stripe && elements);
 
   useEffect(() => {
     if (!expiresAt) return;
@@ -49,20 +56,25 @@ function PaymentForm({
   }, [expiresAt, onExpired]);
 
   async function pollConfirmed() {
-    for (let i = 0; i < 15; i += 1) {
-      const result = await verifyAppointmentPayment({
-        agendamento_id: agendamentoId,
-        confirmation_token: confirmationToken,
-      });
-      if (result.status === "confirmado" || result.ok) {
-        onPaid();
-        return;
+    setPhase("confirm");
+    for (let i = 0; i < 20; i += 1) {
+      try {
+        const result = await verifyAppointmentPayment({
+          agendamento_id: agendamentoId,
+          confirmation_token: confirmationToken,
+        });
+        if (result.status === "confirmado" || result.ok) {
+          onPaid();
+          return;
+        }
+        if (result.status === "cancelado") {
+          onFailed();
+          return;
+        }
+      } catch {
+        /* próxima tentativa */
       }
-      if (result.status === "cancelado") {
-        onFailed();
-        return;
-      }
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1200));
     }
     toast.message("Pagamento recebido. Aguarde a confirmação do agendamento.");
     onPaid();
@@ -73,31 +85,59 @@ function PaymentForm({
     if (!stripe || !elements) return;
 
     setSubmitting(true);
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required",
-    });
-    setSubmitting(false);
+    setPhase("pay");
 
-    if (error) {
-      toast.error(error.message ?? "Pagamento não concluído. Tente novamente.");
-      if (error.type === "card_error" || error.type === "validation_error") return;
-      onFailed();
-      return;
+    try {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        toast.error(submitError.message ?? "Verifique os dados do cartão.");
+        return;
+      }
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: "if_required",
+      });
+
+      if (error) {
+        toast.error(error.message ?? "Pagamento não concluído. Tente novamente.");
+        if (error.type !== "card_error" && error.type !== "validation_error") {
+          onFailed();
+        }
+        return;
+      }
+
+      const status = paymentIntent?.status;
+      if (isPaidIntentStatus(status)) {
+        await pollConfirmed();
+        return;
+      }
+
+      if (status === "requires_action") {
+        toast.error("Autenticação do cartão não concluída. Tente novamente.");
+        return;
+      }
+
+      toast.error("Não foi possível confirmar o pagamento. Tente novamente.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento.");
+    } finally {
+      setSubmitting(false);
+      setPhase("pay");
     }
-
-    if (paymentIntent?.status === "succeeded") {
-      await pollConfirmed();
-      return;
-    }
-
-    toast.error("Não foi possível confirmar o pagamento.");
   }
 
   const timerLabel =
     secondsLeft != null
       ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
       : null;
+
+  const buttonLabel =
+    phase === "confirm" ? "Confirmando agendamento…" : submitting ? "Processando pagamento…" : "Pagar e confirmar";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -110,10 +150,20 @@ function PaymentForm({
           </p>
         )}
       </div>
-      <PaymentElement options={{ layout: "tabs" }} />
-      <Button type="submit" className="w-full rounded-full" disabled={!stripe || !elements || submitting}>
+      {!stripeReady ? (
+        <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Carregando formulário de cartão…
+        </div>
+      ) : (
+        <PaymentElement options={{ layout: "tabs" }} />
+      )}
+      <Button type="submit" className="w-full rounded-full" disabled={!stripeReady || submitting}>
         {submitting ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <>
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            {buttonLabel}
+          </>
         ) : (
           <>
             <CreditCard className="h-4 w-4 mr-2" />
@@ -134,9 +184,12 @@ export function PublicBookingPaymentCheckout(props: Props) {
   }, [props.stripeConnectAccountId]);
 
   if (!stripePromise) {
+    const missingKey = !STRIPE_PUBLISHABLE_KEY;
     return (
       <p className="text-sm text-destructive text-center">
-        Pagamento online indisponível no momento.
+        {missingKey
+          ? "Chave pública Stripe (teste) não configurada no site (VITE_STRIPE_PUBLISHABLE_KEY)."
+          : "Conta Stripe Connect não retornou. Abra Pagamentos no painel, sincronize e tente de novo."}
       </p>
     );
   }

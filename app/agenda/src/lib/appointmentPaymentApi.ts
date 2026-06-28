@@ -21,21 +21,34 @@ export async function invokePublicPaymentFunction<T>(
     throw new Error("Supabase não configurado.");
   }
 
-  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/functions/v1/${functionName}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 45_000);
 
-  const payload = await readFunctionPayload(response);
-  if (!response.ok) {
-    throw new Error(payload?.error ?? payload?.message ?? "Não foi possível iniciar o pagamento.");
+  try {
+    const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const payload = await readFunctionPayload(response);
+    if (!response.ok) {
+      throw new Error(payload?.error ?? payload?.message ?? "Não foi possível iniciar o pagamento.");
+    }
+    return payload as T;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Tempo esgotado ao preparar o pagamento. Tente novamente.");
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  return payload as T;
 }
 
 export type AppointmentPaymentCheckout = {

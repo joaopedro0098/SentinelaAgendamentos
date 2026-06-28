@@ -3,7 +3,7 @@ import {
   createAppointmentPaymentIntent,
   getStripe,
   isLegacyDestinationChargeIntent,
-  retrieveAppointmentPaymentIntent,
+  retrieveAppointmentPaymentIntentForCreate,
 } from "../_shared/stripeConnect.ts";
 
 const corsHeaders = {
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     let clientSecret: string | null = null;
 
     if (paymentIntentId) {
-      const existing = await retrieveAppointmentPaymentIntent(stripe, paymentIntentId, connectAccountId);
+      const existing = await retrieveAppointmentPaymentIntentForCreate(stripe, paymentIntentId, connectAccountId);
       if (existing.status === "succeeded") {
         await supabase.rpc("confirm_appointment_payment", {
           p_agendamento_id: agendamentoId,

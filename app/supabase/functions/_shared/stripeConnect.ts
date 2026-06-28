@@ -157,10 +157,19 @@ export async function retrieveAppointmentPaymentIntent(
   paymentIntentId: string,
   connectAccountId: string,
 ) {
+  return stripe.paymentIntents.retrieve(paymentIntentId, {
+    stripeAccount: connectAccountId,
+  });
+}
+
+/** Só na criação: tenta conta conectada e, se falhar, PI legado na plataforma. */
+export async function retrieveAppointmentPaymentIntentForCreate(
+  stripe: Stripe,
+  paymentIntentId: string,
+  connectAccountId: string,
+) {
   try {
-    return await stripe.paymentIntents.retrieve(paymentIntentId, {
-      stripeAccount: connectAccountId,
-    });
+    return await retrieveAppointmentPaymentIntent(stripe, paymentIntentId, connectAccountId);
   } catch {
     return stripe.paymentIntents.retrieve(paymentIntentId);
   }

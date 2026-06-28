@@ -878,7 +878,7 @@ const PublicBooking = ({
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
 
     if (!ownerPanel && !isReschedule) {
-      await requestClientNotificationPermission();
+      void requestClientNotificationPermission();
     }
 
     const targetBarbeariaIdForBook = barbeiroSel?.barbearia_id ?? barbearia.id;
@@ -981,6 +981,12 @@ const PublicBooking = ({
               agendamento_id: hold.agendamento_id,
               confirmation_token: hold.confirmation_token,
             });
+
+            if (!checkout.client_secret || !checkout.stripe_connect_account_id) {
+              throw new Error(
+                "Pagamento não configurado corretamente. Verifique Pagamentos (Stripe) e atualize o site.",
+              );
+            }
 
             setPaymentCheckout({
               ...checkout,
@@ -1321,7 +1327,10 @@ const PublicBooking = ({
               </Button>
               <Button type="button" className="flex-1 rounded-full" disabled={submitting || !clientContactReady} onClick={confirmBooking}>
                 {submitting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Preparando pagamento…
+                  </>
                 ) : isReschedule ? (
                   "Confirmar novo horário"
                 ) : (
