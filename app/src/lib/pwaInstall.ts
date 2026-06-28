@@ -174,7 +174,11 @@ export function isBarberPwaMarketingPath(pathname: string) {
 }
 
 /** Destino após login/cadastro do barbeiro (PWA instalado → Agendamentos). */
-export function getBarberPostLoginPath() {
+export function getBarberPostLoginPath(from?: { pathname?: string; search?: string } | null) {
+  const pathname = from?.pathname?.trim();
+  if (pathname?.startsWith("/app/")) {
+    return `${pathname}${from?.search ?? ""}`;
+  }
   return isStandalonePwa() ? BARBER_PWA_HOME : "/app/agendamentos";
 }
 
@@ -199,5 +203,12 @@ export function subscribeInstallPrompt(onAvailable: (prompt: BeforeInstallPrompt
 
 export function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
+  // Em dev o SW cacheia bundles antigos e esconde mudanças (ex.: aba Pagamentos).
+  if (import.meta.env.DEV) {
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => void reg.unregister());
+    });
+    return;
+  }
   void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
 }

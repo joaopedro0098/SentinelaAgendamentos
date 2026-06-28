@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, UserCog, Users, X } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, UserCog, Users, Wallet, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -178,6 +178,12 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
+              <MobileNavItem
+                to="/app/pagamentos"
+                icon={<Wallet className="h-4 w-4" />}
+                label="Pagamentos"
+                onNavigate={closeMenu}
+              />
               {subscriptionInfo?.is_admin && (
                 <MobileNavItem
                   to="/app/relatorios"
@@ -247,6 +253,7 @@ export default function AppLayout() {
               <DesktopNavItem to="/app/profissionais" icon={<UserCog className="h-4 w-4" />} label="Profissionais" />
               <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
               <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
+              <DesktopNavItem to="/app/pagamentos" icon={<Wallet className="h-4 w-4" />} label="Pagamentos" />
               {subscriptionInfo?.is_admin && (
                 <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
               )}

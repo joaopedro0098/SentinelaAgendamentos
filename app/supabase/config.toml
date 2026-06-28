@@ -47,6 +47,15 @@ subject = "Convite — Sentinela Agendamentos"
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.stripe-connect-webhook]
+verify_jwt = false
+
+[functions.stripe-create-appointment-payment]
+verify_jwt = false
+
+[functions.stripe-verify-appointment-payment]
+verify_jwt = false
+
 [functions.mp-webhook]
 verify_jwt = false
 

@@ -6,7 +6,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v9").map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== "sentinela-shell-v10").map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -35,7 +35,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open("sentinela-shell-v9").then((cache) => cache.put("/index.html", copy));
+          caches.open("sentinela-shell-v10").then((cache) => cache.put("/index.html", copy));
           return response;
         })
         .catch(() => caches.match("/index.html")),
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset(url)) return;
 
   event.respondWith(
-    caches.open("sentinela-shell-v9").then(async (cache) => {
+    caches.open("sentinela-shell-v10").then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request)
         .then((response) => {

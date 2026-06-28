@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,14 +44,16 @@ function showSupabaseConfigError() {
 export default function Login() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const postLoginPath = getBarberPostLoginPath(location.state?.from);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [entering, setEntering] = useState(false);
 
   useEffect(() => {
-    if (session) navigate(getBarberPostLoginPath(), { replace: true });
-  }, [session, navigate]);
+    if (session) navigate(postLoginPath, { replace: true });
+  }, [session, navigate, postLoginPath]);
 
   useEffect(() => {
     void import("@/features/dashboard/pages/AppLayout");
@@ -130,7 +132,7 @@ export default function Login() {
     }
 
     setEntering(true);
-    navigate(getBarberPostLoginPath(), { replace: true });
+    navigate(postLoginPath, { replace: true });
   }
 
   if (entering) {
