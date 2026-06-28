@@ -200,11 +200,18 @@ export default function PerfilPage() {
     }
   }
 
-  const isAggregated = Boolean(info?.is_aggregated_account && info.aggregated_by_email);
+  const accountType = info?.account_type;
+  const isCaAccount = accountType === "ca" || Boolean(info?.is_aggregated_account);
+  const isAaAccount = accountType === "aa";
+  /** Banner “Conta agregada por …” (CA com titular identificado). */
+  const isAggregated = isCaAccount && Boolean(info?.aggregated_by_email);
+  /** CA/AA não assinam plano próprio — ocultar avisos de “Assine novamente…”. */
+  const usesExternalPlan = isCaAccount || isAaAccount;
 
   const statusLabel = (() => {
     if (loading) return "Carregando…";
     if (info?.is_admin) return info.label ?? "Administrador";
+    if (isAaAccount) return info?.label ?? "Conta especial — acesso garantido pelo administrador";
     if (isAggregated) {
       return info?.can_book ? "Incluso no plano do titular" : "Plano do titular inativo";
     }
@@ -218,23 +225,24 @@ export default function PerfilPage() {
   const showPay =
     !info?.is_admin &&
     !loading &&
-    !isAggregated &&
+    !usesExternalPlan &&
     info?.subscription_status !== "active";
   const hasStripeCard = Boolean(info?.stripe_subscription_id);
   const showCancel =
-    !info?.is_admin && !isAggregated && info?.subscription_status === "active" && hasStripeCard;
+    !info?.is_admin && !usesExternalPlan && info?.subscription_status === "active" && hasStripeCard;
 
-  const showPlanStatus = loading || info?.is_admin || isAggregated || info?.subscription_status !== "trial";
+  const showPlanStatus =
+    loading || info?.is_admin || isAggregated || isAaAccount || info?.subscription_status !== "trial";
 
   const showBookingBlockedMessage =
     !info?.is_admin &&
-    !isAggregated &&
+    !usesExternalPlan &&
     info?.subscription_status !== "trial" &&
     !info?.can_book &&
     info?.subscription_status !== "grace";
 
   const subscriptionNotice = formatSubscriptionNotice(info?.subscription_notice);
-  const showSubscriptionNotice = Boolean(subscriptionNotice && !isAggregated);
+  const showSubscriptionNotice = Boolean(subscriptionNotice && !usesExternalPlan);
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
@@ -243,13 +251,26 @@ export default function PerfilPage() {
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>
       </div>
 
-      {isAggregated && (
+      {isCaAccount && (
         <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-          <p className="font-bold">Conta agregada por {info!.aggregated_by_email}</p>
+          <p className="font-bold">
+            {info?.aggregated_by_email
+              ? `Conta agregada por ${info.aggregated_by_email}`
+              : "Conta agregada"}
+          </p>
           <p className="text-muted-foreground mt-1">
             {info?.can_book
               ? "Não é necessária assinatura própria — seus agendamentos usam o plano de quem agregou."
               : "O plano de quem agregou sua conta está inativo. Novos agendamentos estão bloqueados até a renovação ou até você assinar um plano próprio."}
+          </p>
+        </div>
+      )}
+
+      {isAaAccount && (
+        <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <p className="font-bold">{info?.label ?? "Conta especial"}</p>
+          <p className="text-muted-foreground mt-1">
+            Acesso garantido pelo administrador — não é necessária assinatura própria.
           </p>
         </div>
       )}
@@ -279,7 +300,7 @@ export default function PerfilPage() {
             </div>
           )}
 
-          {isAggregated && !info?.can_book && (
+          {isCaAccount && !info?.can_book && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
                 Você também pode assinar um plano próprio para deixar de depender do titular.
