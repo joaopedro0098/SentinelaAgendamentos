@@ -35,6 +35,8 @@ export type SubscriptionInfo = {
   owner_can_edit_appointments?: boolean;
   /** CA: titular (CT/AA) pode ver anotações/pacientes desta conta. */
   owner_can_view_annotations?: boolean;
+  /** AA: isenta de assinatura (agregada pelo admin da plataforma). */
+  is_admin_aggregated?: boolean;
   /** CT/AA: existe CA ativa que permite edição/criação de agendamentos pelo titular. */
   titular_has_editable_ca_appointments?: boolean;
 };

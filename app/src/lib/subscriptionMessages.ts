@@ -26,6 +26,14 @@ export function formatSubscriptionNotice(notice: string | null | undefined): str
   return notice;
 }
 
+/** CA/AA/admin agregado: não exibir avisos de assinatura própria do CT. */
+export function accountUsesExternalPlan(info: SubscriptionInfo | null | undefined): boolean {
+  if (!info || info.is_admin) return true;
+  if (info.is_admin_aggregated) return true;
+  if (info.account_type === "aa" || info.account_type === "ca") return true;
+  return Boolean(info.is_aggregated_account);
+}
+
 export function getOwnerBookingBlockMessage(info: SubscriptionInfo): string {
   if (info.is_aggregated_account && !info.can_book) {
     return AGGREGATED_BOOKING_BLOCK_MESSAGE;

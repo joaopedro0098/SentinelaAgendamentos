@@ -4,6 +4,7 @@ import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { invokeBillingFunction } from "@/lib/billingApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
-import { formatSubscriptionNotice } from "@/lib/subscriptionMessages";
+import { formatSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -38,9 +39,7 @@ export default function PerfilPage() {
 
   useEffect(() => {
     document.title = "Conta — Sentinela Agendamentos";
-  }, []);
-
-  useEffect(() => {
+    clearSubscriptionCache();
     void refresh({ force: true });
   }, [refresh]);
 
@@ -202,11 +201,11 @@ export default function PerfilPage() {
 
   const accountType = info?.account_type;
   const isCaAccount = accountType === "ca" || Boolean(info?.is_aggregated_account);
-  const isAaAccount = accountType === "aa";
+  const isAaAccount = accountType === "aa" || Boolean(info?.is_admin_aggregated);
   /** Banner “Conta agregada por …” (CA com titular identificado). */
   const isAggregated = isCaAccount && Boolean(info?.aggregated_by_email);
   /** CA/AA não assinam plano próprio — ocultar avisos de “Assine novamente…”. */
-  const usesExternalPlan = isCaAccount || isAaAccount;
+  const usesExternalPlan = accountUsesExternalPlan(info);
 
   const statusLabel = (() => {
     if (loading) return "Carregando…";

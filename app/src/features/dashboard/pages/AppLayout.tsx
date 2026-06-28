@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
+import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
@@ -350,7 +351,7 @@ function BillingProgressNotice({
   info: ReturnType<typeof useSubscription>["info"];
   loading: boolean;
 }) {
-  if (loading || !info || info.is_admin || info.is_aggregated_account) return null;
+  if (loading || !info || info.is_admin || accountUsesExternalPlan(info)) return null;
 
   const trialNotice = getTrialNotice(info);
   const renewalNotice = getRenewalNotice(info);
