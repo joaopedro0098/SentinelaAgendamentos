@@ -95,6 +95,13 @@ export async function tryCreateConnectAccountV2(email: string, shopId: string, o
             card_payments: { requested: true },
           },
         },
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { requested: true },
+            },
+          },
+        },
       },
       metadata: { shop_id: shopId, owner_id: ownerId, source: "sentinela_connect_v2" },
     }),
@@ -107,6 +114,45 @@ export async function tryCreateConnectAccountV2(email: string, shopId: string, o
   }
   if (!payload.id) throw new Error("Stripe v2 não retornou account id.");
   return payload.id;
+}
+
+/** Contas v2 criadas sem recipient precisam de stripe_transfers para destination charges. */
+export async function requestConnectRecipientTransfersV2(accountId: string) {
+  const key = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
+  if (!key) throw new Error("STRIPE_SECRET_KEY ausente.");
+
+  const res = await fetch(`https://api.stripe.com/v2/core/accounts/${accountId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Stripe-Version": getStripeApiVersion(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { requested: true },
+            },
+          },
+        },
+      },
+    }),
+  });
+
+  const payload = (await res.json()) as V2Error;
+  if (!res.ok) {
+    const msg = payload.error?.message ?? `Stripe v2 account update HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+}
+
+export function accountCanReceiveDestinationCharges(account: Stripe.Account): boolean {
+  const transfers = account.capabilities?.transfers;
+  if (transfers === "active") return true;
+  // Algumas contas v2 expõem legacy_payments enquanto migram capabilities.
+  return account.capabilities?.legacy_payments === "active";
 }
 
 /** Tenta Account Link v2; retorna null se indisponível. */
@@ -172,8 +218,9 @@ export async function createAccountLinkV1(
 }
 
 export function mapConnectAccountStatus(account: Stripe.Account): string {
-  // Destination charges só exigem cobrança habilitada; repasse pode ficar pendente.
-  if (account.charges_enabled) return "connected";
+  const canTransfer = accountCanReceiveDestinationCharges(account);
+  if (account.charges_enabled && canTransfer) return "connected";
+  if (account.charges_enabled && !canTransfer) return "pending";
   if (account.requirements?.disabled_reason) return "restricted";
   if (account.details_submitted) return "pending";
   return "pending";

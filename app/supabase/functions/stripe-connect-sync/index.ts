@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  accountCanReceiveDestinationCharges,
   getStripe,
+  requestConnectRecipientTransfersV2,
   resolveConnectShopForUser,
   syncConnectAccountToShop,
 } from "../_shared/stripeConnect.ts";
@@ -47,6 +49,12 @@ Deno.serve(async (req) => {
     }
 
     const stripe = getStripe();
+    try {
+      await requestConnectRecipientTransfersV2(shop.stripe_connect_account_id);
+    } catch (e) {
+      console.warn("stripe-connect-sync: recipient transfers request failed", e);
+    }
+
     const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id);
     const status = await syncConnectAccountToShop(supabase, shop.id, account);
 
@@ -55,6 +63,7 @@ Deno.serve(async (req) => {
       status,
       charges_enabled: account.charges_enabled,
       payouts_enabled: account.payouts_enabled,
+      transfers_enabled: accountCanReceiveDestinationCharges(account),
     });
   } catch (e) {
     console.error("stripe-connect-sync:", e);

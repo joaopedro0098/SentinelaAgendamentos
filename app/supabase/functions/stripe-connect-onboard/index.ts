@@ -4,6 +4,7 @@ import {
   createConnectAccountV1,
   getStripe,
   paymentsReturnUrls,
+  requestConnectRecipientTransfersV2,
   resolveAppOriginForConnect,
   resolveConnectShopForUser,
   tryCreateAccountLinkV2,
@@ -76,6 +77,11 @@ Deno.serve(async (req) => {
     if (accountId) {
       try {
         await stripe.accounts.retrieve(accountId);
+        try {
+          await requestConnectRecipientTransfersV2(accountId);
+        } catch (e) {
+          console.warn("stripe-connect-onboard: recipient transfers request failed", e);
+        }
       } catch {
         accountId = null;
         await supabase
