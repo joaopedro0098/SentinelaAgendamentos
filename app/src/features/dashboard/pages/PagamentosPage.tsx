@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   fetchPaymentPanelSettings,
   invokePaymentsFunction,
+  isStripePublishableTestMode,
   savePaymentPanelSettings,
   type PaymentPanelSettings,
 } from "@/lib/paymentsApi";
@@ -37,6 +38,7 @@ export default function PagamentosPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [seedingTest, setSeedingTest] = useState(false);
   const [settings, setSettings] = useState<PaymentPanelSettings | null>(null);
 
   const [paymentMode, setPaymentMode] = useState("none");
@@ -131,6 +133,34 @@ export default function PagamentosPage() {
     }
   }
 
+  async function handleSeedTestConnect() {
+    setSeedingTest(true);
+    try {
+      const data = await invokePaymentsFunction<{
+        ok?: boolean;
+        account_id?: string;
+        status?: string;
+        charges_enabled?: boolean;
+        message?: string;
+        error?: string;
+      }>("stripe-connect-seed-test-account");
+
+      await load();
+      toast({
+        title: data.charges_enabled ? "Conta de teste conectada" : "Conta de teste criada",
+        description: data.message ?? `ID ${data.account_id ?? ""} · status ${data.status ?? ""}`,
+      });
+    } catch (e) {
+      toast({
+        title: "Não foi possível criar conta de teste",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSeedingTest(false);
+    }
+  }
+
   async function handleSave() {
     if (readonly) return;
     setSaving(true);
@@ -186,6 +216,7 @@ export default function PagamentosPage() {
   const missingPrices = settings?.all_services_have_prices === false;
   const paymentModeActive = paymentMode !== "none";
   const connectBlocksPayment = paymentModeActive && connectStatus !== "connected";
+  const stripeTestMode = isStripePublishableTestMode();
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
@@ -248,6 +279,28 @@ export default function PagamentosPage() {
               "Conectar conta Stripe"
             )}
           </Button>
+          {stripeTestMode && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-3 space-y-2">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong className="text-foreground">Modo teste Stripe</strong> — chaves <code className="text-[11px]">pk_test_</code> /{" "}
+                <code className="text-[11px]">sk_test_</code>. Contas Connect de teste são separadas das de produção. Se o onboarding
+                da Stripe travar (comum no Brasil), use o botão abaixo para criar uma conta de teste via API, sem formulário.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                className="rounded-full w-full sm:w-auto"
+                disabled={seedingTest || connecting}
+                onClick={handleSeedTestConnect}
+              >
+                {seedingTest ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Criar conta Stripe de teste (sem onboarding)"
+                )}
+              </Button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             V1 aceita cartão (crédito/débito). Pix será adicionado depois.
             {connectStatus === "pending" && (

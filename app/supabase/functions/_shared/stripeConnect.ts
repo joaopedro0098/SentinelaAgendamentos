@@ -231,6 +231,90 @@ export async function tryCreateAccountLinkV2(accountId: string, returnUrl: strin
   return payload.url;
 }
 
+export function assertStripeTestMode() {
+  const key = Deno.env.get("STRIPE_SECRET_KEY")?.trim() ?? "";
+  if (!key.startsWith("sk_test_")) {
+    throw new Error("Disponível apenas com STRIPE_SECRET_KEY de teste (sk_test_).");
+  }
+}
+
+function splitOwnerName(displayName: string | null | undefined, email: string) {
+  const base = (displayName ?? "").trim();
+  if (base) {
+    const parts = base.split(/\s+/);
+    return {
+      first_name: parts[0] ?? "Teste",
+      last_name: parts.slice(1).join(" ") || "Sentinela",
+    };
+  }
+  const local = email.split("@")[0] ?? "teste";
+  return { first_name: local, last_name: "Sentinela" };
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Conta Connect de teste (BR) via API — sem onboarding UI. Só sk_test_. */
+export async function seedTestConnectAccount(
+  stripe: Stripe,
+  params: { email: string; shopId: string; ownerId: string; displayName?: string | null },
+) {
+  assertStripeTestMode();
+
+  const { first_name, last_name } = splitOwnerName(params.displayName, params.email);
+  const now = Math.floor(Date.now() / 1000);
+
+  const account = await stripe.accounts.create({
+    type: "custom",
+    country: "BR",
+    email: params.email,
+    business_type: "individual",
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+    business_profile: {
+      mcc: "7230",
+      name: params.displayName?.trim() || `${first_name} ${last_name}`,
+      url: cleanAppUrl(Deno.env.get("APP_URL")),
+    },
+    individual: {
+      first_name,
+      last_name,
+      email: params.email,
+      phone: "+5511999999999",
+      dob: { day: 1, month: 1, year: 1990 },
+      address: {
+        line1: "Avenida Paulista, 1000",
+        city: "Sao Paulo",
+        state: "SP",
+        postal_code: "01310100",
+        country: "BR",
+      },
+      id_number: "00000000000",
+    },
+    tos_acceptance: {
+      date: now,
+      ip: "127.0.0.1",
+    },
+    metadata: {
+      shop_id: params.shopId,
+      owner_id: params.ownerId,
+      source: "sentinela_test_seed",
+    },
+  });
+
+  let latest = account;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (latest.charges_enabled) break;
+    await sleep(800);
+    latest = await stripe.accounts.retrieve(account.id);
+  }
+
+  return latest;
+}
+
 export async function createConnectAccountV1(stripe: Stripe, email: string, shopId: string, ownerId: string) {
   const account = await stripe.accounts.create({
     type: "express",

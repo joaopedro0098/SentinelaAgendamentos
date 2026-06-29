@@ -91,3 +91,7 @@ export async function savePaymentPanelSettings(input: {
 }
 
 export const STRIPE_PUBLISHABLE_KEY = String(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "").trim();
+
+export function isStripePublishableTestMode() {
+  return STRIPE_PUBLISHABLE_KEY.startsWith("pk_test_");
+}
