@@ -41,6 +41,7 @@ import {
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import {
+  panelAgendamentoErrorMessage,
   parsePanelStatusRow,
   rpcAlterarAgendamentoPainel,
   rpcAlterarStatusPassado,
@@ -412,7 +413,7 @@ export default function AgendamentosMobilePanel({
     const { data, error } = await rpcAlterarStatusPassado(a.id, novoStatus);
     setMarkingNoShowId(null);
     if (error) {
-      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: panelAgendamentoErrorMessage(error.message), variant: "destructive" });
       return;
     }
     const row = parsePanelStatusRow(data);
@@ -447,7 +448,7 @@ export default function AgendamentosMobilePanel({
     const { data, error } = await rpcAlterarAgendamentoPainel(a.id, action);
     setStatusChangingId(null);
     if (error) {
-      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: panelAgendamentoErrorMessage(error.message), variant: "destructive" });
       return;
     }
     const row = parsePanelStatusRow(data);
@@ -721,7 +722,7 @@ export default function AgendamentosMobilePanel({
                         </p>
                       )}
                     </div>
-                    {!appointmentPast && !isCancelled && manageable && a.status !== "concluido" && (
+                    {!appointmentPast && manageable && a.status !== "concluido" && !isNoShow && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <Button

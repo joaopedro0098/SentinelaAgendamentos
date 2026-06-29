@@ -6,6 +6,20 @@ export type PanelStatusUpdateRow = {
   client_confirmed_at?: string | null;
 };
 
+const SLOT_OCCUPIED_HINT =
+  "agendamentos_barbeiro_data_hora_ocupado_key";
+
+export function panelAgendamentoErrorMessage(message: string): string {
+  const normalized = message.trim();
+  if (
+    normalized.includes(SLOT_OCCUPIED_HINT) ||
+    /duplicate key value violates unique constraint/i.test(normalized)
+  ) {
+    return "Já existe um agendamento para este horário.";
+  }
+  return normalized;
+}
+
 export function parsePanelStatusRow(data: unknown): PanelStatusUpdateRow | null {
   if (!data || typeof data !== "object") return null;
   const row = data as Record<string, unknown>;

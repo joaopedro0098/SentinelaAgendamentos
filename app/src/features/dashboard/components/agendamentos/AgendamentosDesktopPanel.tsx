@@ -54,6 +54,7 @@ import {
   ymd,
 } from "@/features/dashboard/lib/agendamentosPanel";
 import {
+  panelAgendamentoErrorMessage,
   parsePanelStatusRow,
   rpcAlterarAgendamentoPainel,
   rpcAlterarStatusPassado,
@@ -553,7 +554,7 @@ export default function AgendamentosDesktopPanel({
     const { data, error } = await rpcAlterarAgendamentoPainel(a.id, action);
     setStatusChangingId(null);
     if (error) {
-      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: panelAgendamentoErrorMessage(error.message), variant: "destructive" });
       return;
     }
     const row = parsePanelStatusRow(data);
@@ -579,7 +580,7 @@ export default function AgendamentosDesktopPanel({
     const { data, error } = await rpcAlterarStatusPassado(a.id, novoStatus);
     setMarkingNoShowId(null);
     if (error) {
-      toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+      toast({ title: "Não foi possível alterar", description: panelAgendamentoErrorMessage(error.message), variant: "destructive" });
       return;
     }
     const row = parsePanelStatusRow(data);
@@ -603,7 +604,6 @@ export default function AgendamentosDesktopPanel({
   }
 
   function renderActionsMenu(a: AgendamentoPainelItem) {
-    const isCancelled = a.status === "cancelado";
     const isNoShow = a.status === "nao_veio";
     const pastDay = isPastDay(a.data);
     const busy = statusChangingId === a.id || markingNoShowId === a.id;
@@ -627,7 +627,7 @@ export default function AgendamentosDesktopPanel({
           <AgendamentoMenuActionLoading />
         ) : (
           <>
-            {!isNoShow && !isCancelled && (
+            {!isNoShow && (
               <>
                 <AgendamentoMenuAction label="WhatsApp" onClick={() => handleWhatsApp(a)} />
                 <AgendamentoMenuAction label="Copiar mensagem" onClick={() => handleCopyConfirmationMessage(a)} />
