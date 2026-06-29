@@ -1,4 +1,4 @@
-import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import Stripe from "https://esm.sh/stripe@17.7.0?target=denonext";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 export function getStripe(): Stripe {
@@ -93,6 +93,7 @@ export async function tryCreateConnectAccountV2(email: string, shopId: string, o
         merchant: {
           capabilities: {
             card_payments: { requested: true },
+            pix_payments: { requested: true },
           },
         },
         recipient: {
@@ -162,8 +163,39 @@ export function appointmentPaymentMethodTypes(account: Stripe.Account): string[]
   return types;
 }
 
+/** Contas v2: solicita pix_payments na config merchant. */
+export async function requestConnectPixPaymentsV2(accountId: string) {
+  const key = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
+  if (!key) throw new Error("STRIPE_SECRET_KEY ausente.");
+
+  const res = await fetch(`https://api.stripe.com/v2/core/accounts/${accountId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Stripe-Version": getStripeApiVersion(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      configuration: {
+        merchant: {
+          capabilities: {
+            pix_payments: { requested: true },
+          },
+        },
+      },
+    }),
+  });
+
+  const payload = (await res.json()) as V2Error;
+  if (!res.ok) {
+    const msg = payload.error?.message ?? `Stripe v2 pix_payments HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+}
+
 /** Solicita capability pix_payments na conta Connect (idempotente). */
 export async function requestConnectPixPayments(stripe: Stripe, accountId: string) {
+  let v1Error: unknown = null;
   try {
     return await stripe.accounts.update(accountId, {
       capabilities: {
@@ -171,8 +203,17 @@ export async function requestConnectPixPayments(stripe: Stripe, accountId: strin
       },
     });
   } catch (e) {
-    console.warn("requestConnectPixPayments:", e);
-    return null;
+    v1Error = e;
+    console.warn("requestConnectPixPayments v1:", e);
+  }
+
+  try {
+    await requestConnectPixPaymentsV2(accountId);
+    return await stripe.accounts.retrieve(accountId);
+  } catch (e) {
+    console.warn("requestConnectPixPayments v2:", e);
+    if (v1Error) throw v1Error;
+    throw e;
   }
 }
 

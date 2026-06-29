@@ -1,4 +1,4 @@
-import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import Stripe from "https://esm.sh/stripe@17.7.0?target=denonext";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 export function getStripe(): Stripe {
