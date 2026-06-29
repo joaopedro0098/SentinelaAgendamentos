@@ -184,6 +184,8 @@ export default function PagamentosPage() {
 
   const connectStatus = settings?.stripe_connect_status ?? "not_connected";
   const missingPrices = settings?.all_services_have_prices === false;
+  const paymentModeActive = paymentMode !== "none";
+  const connectBlocksPayment = paymentModeActive && connectStatus !== "connected";
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
@@ -265,6 +267,13 @@ export default function PagamentosPage() {
           <CardDescription>Modo atual: {paymentModeLabel(settings?.appointment_payment_mode)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {connectBlocksPayment && (
+            <p className="text-sm text-destructive rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+              Cobrança ativa no painel, mas a Stripe não está conectada. Clientes no link público{" "}
+              <strong>não pagarão</strong> até você clicar em &quot;Conectar conta Stripe&quot; e concluir o cadastro
+              (use o mesmo modo teste/live das chaves configuradas).
+            </p>
+          )}
           {missingPrices && (
             <p className="text-sm text-destructive rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
               Cadastre o preço de todos os serviços ativos em{" "}

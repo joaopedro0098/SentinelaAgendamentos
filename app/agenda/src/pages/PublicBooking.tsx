@@ -438,6 +438,7 @@ const PublicBooking = ({
     (AppointmentPaymentCheckout & { agendamentoId: string; confirmationToken: string }) | null
   >(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
+  const [confirmPhase, setConfirmPhase] = useState<"idle" | "payment" | "save">("idle");
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -898,6 +899,7 @@ const PublicBooking = ({
     }
 
     setSubmitting(true);
+    setConfirmPhase("save");
     const whatsClean = unmaskPhone(whatsapp);
     const obs = observacao.trim() || null;
     const servicosNomes =
@@ -938,13 +940,26 @@ const PublicBooking = ({
         const { data: paySettings } = await supabase.rpc("get_effective_appointment_payment_settings", {
           p_barbearia_id: targetBarbeariaId,
         });
-        const requiresPayment =
-          paySettings &&
-          typeof paySettings === "object" &&
-          "requires_payment" in paySettings &&
-          (paySettings as { requires_payment?: boolean }).requires_payment === true;
+        const settingsObj =
+          paySettings && typeof paySettings === "object"
+            ? (paySettings as {
+                requires_payment?: boolean;
+                payment_mode?: string;
+              })
+            : null;
+        const requiresPayment = settingsObj?.requires_payment === true;
+        const paymentModeConfigured =
+          settingsObj?.payment_mode != null && settingsObj.payment_mode !== "none";
+
+        if (paymentModeConfigured && !requiresPayment) {
+          toast.error(
+            "Pagamento online indisponível no momento. A barbearia precisa reconectar a Stripe em Pagamentos (modo teste).",
+          );
+          return;
+        }
 
         if (requiresPayment) {
+          setConfirmPhase("payment");
           const { data: holdData, error: holdErr } = await supabase.rpc("create_public_booking_payment_hold", {
             p_barbearia_id: targetBarbeariaId,
             p_barbeiro_id: barbeiroId,
@@ -1064,6 +1079,7 @@ const PublicBooking = ({
       setBookingConfirmed(true);
     } finally {
       setSubmitting(false);
+      setConfirmPhase("idle");
     }
   };
 
@@ -1329,7 +1345,7 @@ const PublicBooking = ({
                 {submitting ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    Preparando pagamento…
+                    {confirmPhase === "payment" ? "Preparando pagamento…" : "Confirmando…"}
                   </>
                 ) : isReschedule ? (
                   "Confirmar novo horário"
