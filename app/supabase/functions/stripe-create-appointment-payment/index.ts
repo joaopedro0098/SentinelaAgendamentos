@@ -1,8 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  connectAccountPixPaymentsActive,
   createAppointmentPaymentIntent,
   getStripe,
   isLegacyDestinationChargeIntent,
+  refreshConnectAccountWithPix,
   retrieveAppointmentPaymentIntentForCreate,
 } from "../_shared/stripeConnect.ts";
 
@@ -81,7 +83,7 @@ Deno.serve(async (req) => {
     }
 
     const stripe = getStripe();
-    const connectAccount = await stripe.accounts.retrieve(connectAccountId);
+    const connectAccount = await refreshConnectAccountWithPix(stripe, connectAccountId);
     if (!connectAccount.charges_enabled) {
       return jsonResponse({
         error: "A conta Stripe ainda não está pronta para receber pagamentos. Conclua o cadastro em Pagamentos.",
@@ -113,7 +115,18 @@ Deno.serve(async (req) => {
         }
         paymentIntentId = null;
       } else {
-        clientSecret = existing.client_secret;
+        const pixActive = connectAccountPixPaymentsActive(connectAccount);
+        const existingHasPix = existing.payment_method_types?.includes("pix") ?? false;
+        if (pixActive && !existingHasPix) {
+          try {
+            await stripe.paymentIntents.cancel(paymentIntentId, {}, { stripeAccount: connectAccountId });
+          } catch {
+            /* ignore */
+          }
+          paymentIntentId = null;
+        } else {
+          clientSecret = existing.client_secret;
+        }
       }
     }
 
@@ -121,6 +134,7 @@ Deno.serve(async (req) => {
       const pi = await createAppointmentPaymentIntent(stripe, {
         amount,
         connectAccountId,
+        connectAccount,
         metadata: {
           agendamento_id: agendamentoId,
           barbearia_id: appointment.barbearia_id,
@@ -146,6 +160,7 @@ Deno.serve(async (req) => {
       amount_centavos: amount,
       expires_at: appointment.payment_expires_at,
       stripe_connect_account_id: connectAccountId,
+      pix_enabled: connectAccountPixPaymentsActive(connectAccount),
     });
   } catch (e) {
     console.error("stripe-create-appointment-payment:", e);

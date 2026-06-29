@@ -1,9 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   accountCanReceiveDestinationCharges,
+  capabilityStatusLabel,
+  connectAccountPixPaymentsActive,
   getStripe,
+  refreshConnectAccountWithPix,
   requestConnectRecipientTransfersV2,
   resolveConnectShopForUser,
+  retrievePlatformAccount,
   syncConnectAccountToShop,
 } from "../_shared/stripeConnect.ts";
 
@@ -55,8 +59,9 @@ Deno.serve(async (req) => {
       console.warn("stripe-connect-sync: recipient transfers request failed", e);
     }
 
-    const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id);
+    const account = await refreshConnectAccountWithPix(stripe, shop.stripe_connect_account_id);
     const status = await syncConnectAccountToShop(supabase, shop.id, account);
+    const platform = await retrievePlatformAccount(stripe);
 
     return jsonResponse({
       ok: true,
@@ -64,6 +69,11 @@ Deno.serve(async (req) => {
       charges_enabled: account.charges_enabled,
       payouts_enabled: account.payouts_enabled,
       transfers_enabled: accountCanReceiveDestinationCharges(account),
+      pix_payments_connect: account.capabilities?.pix_payments ?? null,
+      pix_payments_platform: platform?.capabilities?.pix_payments ?? null,
+      pix_enabled_on_checkout: connectAccountPixPaymentsActive(account),
+      pix_connect_label: capabilityStatusLabel(account.capabilities?.pix_payments),
+      pix_platform_label: capabilityStatusLabel(platform?.capabilities?.pix_payments),
     });
   } catch (e) {
     console.error("stripe-connect-sync:", e);

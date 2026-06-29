@@ -152,6 +152,62 @@ export function accountCanReceiveDestinationCharges(account: Stripe.Account): bo
   return account.capabilities?.transfers === "active";
 }
 
+export function connectAccountPixPaymentsActive(account: Stripe.Account): boolean {
+  return account.capabilities?.pix_payments === "active";
+}
+
+export function appointmentPaymentMethodTypes(account: Stripe.Account): string[] {
+  const types = ["card"];
+  if (connectAccountPixPaymentsActive(account)) types.push("pix");
+  return types;
+}
+
+/** Solicita capability pix_payments na conta Connect (idempotente). */
+export async function requestConnectPixPayments(stripe: Stripe, accountId: string) {
+  try {
+    return await stripe.accounts.update(accountId, {
+      capabilities: {
+        pix_payments: { requested: true },
+      },
+    });
+  } catch (e) {
+    console.warn("requestConnectPixPayments:", e);
+    return null;
+  }
+}
+
+/** Atualiza capability Pix e devolve conta Connect atualizada. */
+export async function refreshConnectAccountWithPix(
+  stripe: Stripe,
+  accountId: string,
+): Promise<Stripe.Account> {
+  await requestConnectPixPayments(stripe, accountId);
+  return stripe.accounts.retrieve(accountId);
+}
+
+/** Conta plataforma (titular da secret key) — útil para checar Pix habilitado. */
+export async function retrievePlatformAccount(stripe: Stripe) {
+  try {
+    return await stripe.accounts.retrieve();
+  } catch (e) {
+    console.warn("retrievePlatformAccount:", e);
+    return null;
+  }
+}
+
+export function capabilityStatusLabel(status: string | undefined | null): string {
+  switch (status) {
+    case "active":
+      return "ativo";
+    case "pending":
+      return "pendente";
+    case "inactive":
+      return "inativo";
+    default:
+      return status ?? "não solicitado";
+  }
+}
+
 export async function retrieveAppointmentPaymentIntent(
   stripe: Stripe,
   paymentIntentId: string,
@@ -181,13 +237,18 @@ export async function createAppointmentPaymentIntent(
     amount: number;
     connectAccountId: string;
     metadata: Record<string, string>;
+    connectAccount?: Stripe.Account;
   },
 ) {
+  const account = params.connectAccount ??
+    await stripe.accounts.retrieve(params.connectAccountId);
+  const payment_method_types = appointmentPaymentMethodTypes(account);
+
   return stripe.paymentIntents.create(
     {
       amount: params.amount,
       currency: "brl",
-      payment_method_types: ["card"],
+      payment_method_types,
       metadata: params.metadata,
     },
     { stripeAccount: params.connectAccountId },
@@ -276,6 +337,7 @@ function buildTestConnectSeedFields(params: {
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
+        pix_payments: { requested: true },
       },
       business_profile: {
         mcc: "7230",
@@ -408,6 +470,7 @@ export async function seedTestConnectAccount(
 
   const finalizeTestAccount = async (accountId: string) => {
     await ensureTestConnectBankAccount(stripe, accountId, fields.holderName);
+    await requestConnectPixPayments(stripe, accountId);
     return pollConnectAccountUntilReady(stripe, accountId);
   };
 
@@ -456,6 +519,7 @@ export async function createConnectAccountV1(stripe: Stripe, email: string, shop
     capabilities: {
       card_payments: { requested: true },
       transfers: { requested: true },
+      pix_payments: { requested: true },
     },
     metadata: { shop_id: shopId, owner_id: ownerId, source: "sentinela_connect_v1" },
   });

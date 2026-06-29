@@ -4,6 +4,8 @@ import {
   createConnectAccountV1,
   getStripe,
   paymentsReturnUrls,
+  refreshConnectAccountWithPix,
+  requestConnectPixPayments,
   requestConnectRecipientTransfersV2,
   resolveAppOriginForConnect,
   resolveConnectShopForUser,
@@ -76,7 +78,7 @@ Deno.serve(async (req) => {
 
     if (accountId) {
       try {
-        await stripe.accounts.retrieve(accountId);
+        await refreshConnectAccountWithPix(stripe, accountId);
         try {
           await requestConnectRecipientTransfersV2(accountId);
         } catch (e) {
@@ -104,6 +106,8 @@ Deno.serve(async (req) => {
         console.warn("stripe-connect-onboard: v2 account failed, fallback v1", v2Error);
         accountId = await createConnectAccountV1(stripe, user.email.trim(), shop.id, user.id);
       }
+
+      await requestConnectPixPayments(stripe, accountId);
 
       await supabase
         .from("barbershops")

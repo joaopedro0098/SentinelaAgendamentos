@@ -94,6 +94,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "cancelado" });
     }
 
+    if (pi.status === "processing" || pi.status === "requires_action") {
+      return jsonResponse({
+        status: "aguardando_pagamento",
+        payment_intent_status: pi.status,
+        awaiting_pix: true,
+      });
+    }
+
     return jsonResponse({ status: "aguardando_pagamento", payment_intent_status: pi.status });
   } catch (e) {
     console.error("stripe-verify-appointment-payment:", e);

@@ -69,7 +69,7 @@ export async function createAppointmentPaymentCheckout(input: {
 export async function verifyAppointmentPayment(input: {
   agendamento_id: string;
   confirmation_token: string;
-}): Promise<{ ok?: boolean; status?: string }> {
+}): Promise<{ ok?: boolean; status?: string; payment_intent_status?: string; awaiting_pix?: boolean }> {
   return invokePublicPaymentFunction("stripe-verify-appointment-payment", input);
 }
 

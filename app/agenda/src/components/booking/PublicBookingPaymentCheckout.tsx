@@ -22,9 +22,7 @@ type Props = {
   onFailed: () => void;
 };
 
-function isPaidIntentStatus(status: string | undefined) {
-  return status === "succeeded" || status === "processing";
-}
+type Phase = "pay" | "confirm" | "pix";
 
 function PaymentForm({
   clientSecret,
@@ -39,7 +37,7 @@ function PaymentForm({
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
-  const [phase, setPhase] = useState<"pay" | "confirm">("pay");
+  const [phase, setPhase] = useState<Phase>("pay");
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const stripeReady = Boolean(stripe && elements);
 
@@ -55,9 +53,12 @@ function PaymentForm({
     return () => window.clearInterval(id);
   }, [expiresAt, onExpired]);
 
-  async function pollConfirmed() {
-    setPhase("confirm");
-    for (let i = 0; i < 20; i += 1) {
+  async function pollUntilAppointmentConfirmed(options: { pix?: boolean }) {
+    setPhase(options.pix ? "pix" : "confirm");
+    const maxAttempts = options.pix ? 100 : 20;
+    const intervalMs = options.pix ? 3000 : 1200;
+
+    for (let i = 0; i < maxAttempts; i += 1) {
       try {
         const result = await verifyAppointmentPayment({
           agendamento_id: agendamentoId,
@@ -74,10 +75,15 @@ function PaymentForm({
       } catch {
         /* próxima tentativa */
       }
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((r) => setTimeout(r, intervalMs));
     }
+
+    if (options.pix) {
+      toast.message("Ainda aguardando o Pix. Mantenha esta página aberta ou volte em instantes.");
+      return;
+    }
+
     toast.message("Pagamento recebido. Aguarde a confirmação do agendamento.");
-    onPaid();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -90,7 +96,7 @@ function PaymentForm({
     try {
       const { error: submitError } = await elements.submit();
       if (submitError) {
-        toast.error(submitError.message ?? "Verifique os dados do cartão.");
+        toast.error(submitError.message ?? "Verifique os dados de pagamento.");
         return;
       }
 
@@ -112,13 +118,18 @@ function PaymentForm({
       }
 
       const status = paymentIntent?.status;
-      if (isPaidIntentStatus(status)) {
-        await pollConfirmed();
+      if (status === "succeeded") {
+        await pollUntilAppointmentConfirmed({ pix: false });
+        return;
+      }
+
+      if (status === "processing") {
+        await pollUntilAppointmentConfirmed({ pix: true });
         return;
       }
 
       if (status === "requires_action") {
-        toast.error("Autenticação do cartão não concluída. Tente novamente.");
+        await pollUntilAppointmentConfirmed({ pix: true });
         return;
       }
 
@@ -127,7 +138,6 @@ function PaymentForm({
       toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento.");
     } finally {
       setSubmitting(false);
-      setPhase("pay");
     }
   }
 
@@ -137,7 +147,13 @@ function PaymentForm({
       : null;
 
   const buttonLabel =
-    phase === "confirm" ? "Confirmando agendamento…" : submitting ? "Processando pagamento…" : "Pagar e confirmar";
+    phase === "pix"
+      ? "Aguardando confirmação do Pix…"
+      : phase === "confirm"
+        ? "Confirmando agendamento…"
+        : submitting
+          ? "Processando pagamento…"
+          : "Pagar e confirmar";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -150,16 +166,24 @@ function PaymentForm({
           </p>
         )}
       </div>
-      {!stripeReady ? (
-        <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando formulário de cartão…
-        </div>
-      ) : (
-        <PaymentElement options={{ layout: "tabs" }} />
+      {phase === "pix" && (
+        <p className="text-sm text-center text-muted-foreground leading-relaxed px-2">
+          Aguardando confirmação do Pix… Assim que o banco confirmar, seu agendamento será confirmado
+          automaticamente.
+        </p>
       )}
-      <Button type="submit" className="w-full rounded-full" disabled={!stripeReady || submitting}>
-        {submitting ? (
+      {phase === "pay" && (
+        !stripeReady ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Carregando opções de pagamento…
+          </div>
+        ) : (
+          <PaymentElement options={{ layout: "tabs" }} />
+        )
+      )}
+      <Button type="submit" className="w-full rounded-full" disabled={!stripeReady || submitting || phase !== "pay"}>
+        {submitting || phase !== "pay" ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
             {buttonLabel}
@@ -188,7 +212,7 @@ export function PublicBookingPaymentCheckout(props: Props) {
     return (
       <p className="text-sm text-destructive text-center">
         {missingKey
-          ? "Chave pública Stripe (teste) não configurada no site (VITE_STRIPE_PUBLISHABLE_KEY)."
+          ? "Chave pública Stripe não configurada no site (VITE_STRIPE_PUBLISHABLE_KEY)."
           : "Conta Stripe Connect não retornou. Abra Pagamentos no painel, sincronize e tente de novo."}
       </p>
     );

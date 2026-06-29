@@ -46,6 +46,11 @@ export default function PagamentosPage() {
   const [depositType, setDepositType] = useState<"percent" | "fixed">("percent");
   const [depositValue, setDepositValue] = useState("30");
   const [centralized, setCentralized] = useState(true);
+  const [pixSyncInfo, setPixSyncInfo] = useState<{
+    connectLabel?: string;
+    platformLabel?: string;
+    enabledOnCheckout?: boolean;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,11 +62,24 @@ export default function PagamentosPage() {
         data.stripe_connect_account_id
       ) {
         try {
-          await invokePaymentsFunction<{ ok?: boolean; status?: string }>("stripe-connect-sync");
+          const sync = await invokePaymentsFunction<{
+            ok?: boolean;
+            status?: string;
+            pix_connect_label?: string;
+            pix_platform_label?: string;
+            pix_enabled_on_checkout?: boolean;
+          }>("stripe-connect-sync");
+          setPixSyncInfo({
+            connectLabel: sync.pix_connect_label,
+            platformLabel: sync.pix_platform_label,
+            enabledOnCheckout: sync.pix_enabled_on_checkout,
+          });
           data = await fetchPaymentPanelSettings();
         } catch {
           /* mantém status do banco se sync falhar */
         }
+      } else {
+        setPixSyncInfo(null);
       }
 
       setSettings(data);
@@ -342,7 +360,27 @@ export default function PagamentosPage() {
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            V1 aceita cartão (crédito/débito). Pix será adicionado depois.
+            Link público: cartão (crédito/débito)
+            {pixSyncInfo?.enabledOnCheckout
+              ? " e Pix"
+              : connectStatus === "connected"
+                ? ". Pix será oferecido quando a Stripe liberar na conta conectada"
+                : ""}
+            .
+            {connectStatus === "connected" && pixSyncInfo && (
+              <>
+                {" "}
+                Pix na conta conectada:{" "}
+                <span className="font-medium text-foreground">{pixSyncInfo.connectLabel ?? "—"}</span>
+                {pixSyncInfo.platformLabel ? (
+                  <>
+                    {" "}
+                    · plataforma:{" "}
+                    <span className="font-medium text-foreground">{pixSyncInfo.platformLabel}</span>
+                  </>
+                ) : null}
+              </>
+            )}
             {connectStatus === "pending" && (
               <>
                 {" "}
