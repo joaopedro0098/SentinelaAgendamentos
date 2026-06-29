@@ -93,7 +93,6 @@ export async function tryCreateConnectAccountV2(email: string, shopId: string, o
         merchant: {
           capabilities: {
             card_payments: { requested: true },
-            pix_payments: { requested: true },
           },
         },
         recipient: {
@@ -163,66 +162,11 @@ export function appointmentPaymentMethodTypes(account: Stripe.Account): string[]
   return types;
 }
 
-/** Contas v2: solicita pix_payments na config merchant. */
-export async function requestConnectPixPaymentsV2(accountId: string) {
-  const key = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
-  if (!key) throw new Error("STRIPE_SECRET_KEY ausente.");
-
-  const res = await fetch(`https://api.stripe.com/v2/core/accounts/${accountId}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Stripe-Version": getStripeApiVersion(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      configuration: {
-        merchant: {
-          capabilities: {
-            pix_payments: { requested: true },
-          },
-        },
-      },
-    }),
-  });
-
-  const payload = (await res.json()) as V2Error;
-  if (!res.ok) {
-    const msg = payload.error?.message ?? `Stripe v2 pix_payments HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-}
-
-/** Solicita capability pix_payments na conta Connect (idempotente). */
-export async function requestConnectPixPayments(stripe: Stripe, accountId: string) {
-  let v1Error: unknown = null;
-  try {
-    return await stripe.accounts.update(accountId, {
-      capabilities: {
-        pix_payments: { requested: true },
-      },
-    });
-  } catch (e) {
-    v1Error = e;
-    console.warn("requestConnectPixPayments v1:", e);
-  }
-
-  try {
-    await requestConnectPixPaymentsV2(accountId);
-    return await stripe.accounts.retrieve(accountId);
-  } catch (e) {
-    console.warn("requestConnectPixPayments v2:", e);
-    if (v1Error) throw v1Error;
-    throw e;
-  }
-}
-
-/** Atualiza capability Pix e devolve conta Connect atualizada. */
+/** Lê a conta Connect na Stripe (Pix só entra no checkout se já estiver active na conta). */
 export async function refreshConnectAccountWithPix(
   stripe: Stripe,
   accountId: string,
 ): Promise<Stripe.Account> {
-  await requestConnectPixPayments(stripe, accountId);
   return stripe.accounts.retrieve(accountId);
 }
 
@@ -378,7 +322,6 @@ function buildTestConnectSeedFields(params: {
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
-        pix_payments: { requested: true },
       },
       business_profile: {
         mcc: "7230",
@@ -511,7 +454,6 @@ export async function seedTestConnectAccount(
 
   const finalizeTestAccount = async (accountId: string) => {
     await ensureTestConnectBankAccount(stripe, accountId, fields.holderName);
-    await requestConnectPixPayments(stripe, accountId);
     return pollConnectAccountUntilReady(stripe, accountId);
   };
 
@@ -560,7 +502,6 @@ export async function createConnectAccountV1(stripe: Stripe, email: string, shop
     capabilities: {
       card_payments: { requested: true },
       transfers: { requested: true },
-      pix_payments: { requested: true },
     },
     metadata: { shop_id: shopId, owner_id: ownerId, source: "sentinela_connect_v1" },
   });

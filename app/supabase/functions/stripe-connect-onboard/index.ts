@@ -4,8 +4,6 @@ import {
   createConnectAccountV1,
   getStripe,
   paymentsReturnUrls,
-  refreshConnectAccountWithPix,
-  requestConnectPixPayments,
   requestConnectRecipientTransfersV2,
   resolveAppOriginForConnect,
   resolveConnectShopForUser,
@@ -78,22 +76,9 @@ Deno.serve(async (req) => {
 
     if (accountId) {
       try {
-        await refreshConnectAccountWithPix(stripe, accountId);
-        try {
-          await requestConnectRecipientTransfersV2(accountId);
-        } catch (e) {
-          console.warn("stripe-connect-onboard: recipient transfers request failed", e);
-        }
-      } catch {
-        accountId = null;
-        await supabase
-          .from("barbershops")
-          .update({
-            stripe_connect_account_id: null,
-            stripe_connect_status: "not_connected",
-            stripe_connect_email: null,
-          })
-          .eq("id", shop.id);
+        await requestConnectRecipientTransfersV2(accountId);
+      } catch (e) {
+        console.warn("stripe-connect-onboard: recipient transfers request failed", e);
       }
     }
 
@@ -106,8 +91,6 @@ Deno.serve(async (req) => {
         console.warn("stripe-connect-onboard: v2 account failed, fallback v1", v2Error);
         accountId = await createConnectAccountV1(stripe, user.email.trim(), shop.id, user.id);
       }
-
-      await requestConnectPixPayments(stripe, accountId);
 
       await supabase
         .from("barbershops")
