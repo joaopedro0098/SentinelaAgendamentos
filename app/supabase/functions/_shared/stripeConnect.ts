@@ -255,60 +255,122 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Conta Connect de teste (BR) via API — sem onboarding UI. Só sk_test_. */
-export async function seedTestConnectAccount(
-  stripe: Stripe,
-  params: { email: string; shopId: string; ownerId: string; displayName?: string | null },
-) {
-  assertStripeTestMode();
-
+function buildTestConnectSeedFields(params: {
+  email: string;
+  shopId: string;
+  ownerId: string;
+  displayName?: string | null;
+}) {
   const { first_name, last_name } = splitOwnerName(params.displayName, params.email);
   const now = Math.floor(Date.now() / 1000);
   const holderName = `${first_name} ${last_name}`.slice(0, 120);
 
-  const account = await stripe.accounts.create({
-    type: "custom",
-    country: "BR",
-    email: params.email,
-    business_type: "individual",
-    capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
-    },
-    business_profile: {
-      mcc: "7230",
-      name: params.displayName?.trim() || holderName,
-      url: cleanAppUrl(Deno.env.get("APP_URL")),
-    },
-    individual: {
-      first_name,
-      last_name,
+  return {
+    holderName,
+    now,
+    createParams: {
+      type: "custom" as const,
+      country: "BR",
       email: params.email,
-      phone: "+5511999999999",
-      dob: { day: 1, month: 1, year: 1990 },
-      address: {
-        // Token Stripe: habilita charges + payouts em test mode.
-        line1: "address_full_match",
-        city: "Sao Paulo",
-        state: "SP",
-        postal_code: "01310100",
-        country: "BR",
+      business_type: "individual" as const,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
       },
-      id_number: "52998224725",
+      business_profile: {
+        mcc: "7230",
+        name: params.displayName?.trim() || holderName,
+        url: cleanAppUrl(Deno.env.get("APP_URL")),
+      },
+      individual: {
+        first_name,
+        last_name,
+        email: params.email,
+        phone: "+5511999999999",
+        dob: { day: 1, month: 1, year: 1990 },
+        address: {
+          // Token Stripe: habilita charges + payouts em test mode.
+          line1: "address_full_match",
+          city: "Sao Paulo",
+          state: "SP",
+          postal_code: "01310100",
+          country: "BR",
+        },
+        id_number: "52998224725",
+        political_exposure: "none" as const,
+        verification: {
+          document: {
+            front: "file_identity_document_success",
+          },
+        },
+      },
+      tos_acceptance: {
+        date: now,
+        ip: "127.0.0.1",
+      },
+      metadata: {
+        shop_id: params.shopId,
+        owner_id: params.ownerId,
+        source: "sentinela_test_seed",
+      },
     },
-    tos_acceptance: {
-      date: now,
-      ip: "127.0.0.1",
+    updateParams: {
+      business_profile: {
+        mcc: "7230",
+        name: params.displayName?.trim() || holderName,
+        url: cleanAppUrl(Deno.env.get("APP_URL")),
+      },
+      individual: {
+        first_name,
+        last_name,
+        email: params.email,
+        phone: "+5511999999999",
+        dob: { day: 1, month: 1, year: 1990 },
+        address: {
+          line1: "address_full_match",
+          city: "Sao Paulo",
+          state: "SP",
+          postal_code: "01310100",
+          country: "BR",
+        },
+        id_number: "52998224725",
+        political_exposure: "none" as const,
+        verification: {
+          document: {
+            front: "file_identity_document_success",
+          },
+        },
+      },
+      tos_acceptance: {
+        date: now,
+        ip: "127.0.0.1",
+      },
+      metadata: {
+        shop_id: params.shopId,
+        owner_id: params.ownerId,
+        source: "sentinela_test_seed",
+      },
     },
-    metadata: {
-      shop_id: params.shopId,
-      owner_id: params.ownerId,
-      source: "sentinela_test_seed",
-    },
-  });
+  };
+}
+
+async function ensureTestConnectBankAccount(
+  stripe: Stripe,
+  accountId: string,
+  holderName: string,
+) {
+  try {
+    const account = await stripe.accounts.retrieve(accountId);
+    const hasBank = (account.external_accounts?.data ?? []).some(
+      (item) => item.object === "bank_account",
+    );
+    if (hasBank) return;
+  } catch {
+    /* retrieve failed — tenta criar mesmo assim */
+  }
 
   try {
-    await stripe.accounts.createExternalAccount(account.id, {
+    await stripe.accounts.createExternalAccount(accountId, {
       external_account: {
         object: "bank_account",
         country: "BR",
@@ -320,33 +382,68 @@ export async function seedTestConnectAccount(
       },
     });
   } catch (e) {
-    console.warn("seedTestConnectAccount: external_account", e);
+    console.warn("ensureTestConnectBankAccount:", e);
   }
+}
 
-  let latest = account;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+async function pollConnectAccountUntilReady(stripe: Stripe, accountId: string) {
+  let latest = await stripe.accounts.retrieve(accountId);
+  for (let attempt = 0; attempt < 45; attempt += 1) {
     if (latest.charges_enabled) break;
-    await sleep(1000);
-    latest = await stripe.accounts.retrieve(account.id);
+    await sleep(2000);
+    latest = await stripe.accounts.retrieve(accountId);
+  }
+  return latest;
+}
+
+/** Conta Connect de teste (BR) via API — sem onboarding UI. Só sk_test_. */
+export async function seedTestConnectAccount(
+  stripe: Stripe,
+  params: { email: string; shopId: string; ownerId: string; displayName?: string | null },
+  existingAccountId?: string | null,
+) {
+  assertStripeTestMode();
+
+  const fields = buildTestConnectSeedFields(params);
+
+  const finalizeTestAccount = async (accountId: string) => {
+    await ensureTestConnectBankAccount(stripe, accountId, fields.holderName);
+    return pollConnectAccountUntilReady(stripe, accountId);
+  };
+
+  if (existingAccountId?.trim()) {
+    const existing = await stripe.accounts.retrieve(existingAccountId.trim());
+    if (existing.charges_enabled) return existing;
+
+    if (existing.type === "custom") {
+      const updated = await stripe.accounts.update(existingAccountId.trim(), fields.updateParams);
+      const ready = await finalizeTestAccount(updated.id);
+      if (ready.charges_enabled) return ready;
+    }
+    // Conta Express incompleta ou custom ainda restrita → cria custom nova limpa.
   }
 
-  return latest;
+  const account = await stripe.accounts.create(fields.createParams);
+  return finalizeTestAccount(account.id);
 }
 
 export type SeedTestConnectResult = {
   account: Stripe.Account;
   requirements_due: string[];
+  pending_verification: string[];
   disabled_reason: string | null;
 };
 
 export async function seedTestConnectAccountDetailed(
   stripe: Stripe,
   params: { email: string; shopId: string; ownerId: string; displayName?: string | null },
+  existingAccountId?: string | null,
 ): Promise<SeedTestConnectResult> {
-  const account = await seedTestConnectAccount(stripe, params);
+  const account = await seedTestConnectAccount(stripe, params, existingAccountId);
   return {
     account,
     requirements_due: account.requirements?.currently_due ?? [],
+    pending_verification: account.requirements?.pending_verification ?? [],
     disabled_reason: account.requirements?.disabled_reason ?? null,
   };
 }
@@ -383,7 +480,10 @@ export async function createAccountLinkV1(
 export function mapConnectAccountStatus(account: Stripe.Account): string {
   // Cobrança direta na conta Connect exige apenas card_payments (charges_enabled).
   if (account.charges_enabled) return "connected";
-  if (account.requirements?.disabled_reason) return "restricted";
+  const disabledReason = account.requirements?.disabled_reason;
+  if (disabledReason === "requirements.pending_verification") return "pending";
+  if ((account.requirements?.pending_verification?.length ?? 0) > 0) return "pending";
+  if (disabledReason) return "restricted";
   if (account.details_submitted) return "pending";
   return "pending";
 }

@@ -404,13 +404,15 @@ const PublicBooking = ({
   ownerPanelActive = true,
   hubOnlyProfessionals = false,
   ownerPanelEditableCas = false,
-  slotGridRevision = 0,
+  slotGridRevision: slotGridRevisionProp = 0,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
   const pageBgClass = ownerPanel ? "bg-transparent" : "bg-surface";
   const minDayOffset = bookableDayOffset(ownerPanel, isReschedule);
   const { slug: slugParam } = useParams();
   const slug = slugOverride ?? slugParam;
+  const [internalSlotGridRevision, setInternalSlotGridRevision] = useState(0);
+  const slotGridRevision = slotGridRevisionProp + internalSlotGridRevision;
   const [loading, setLoading] = useState(true);
   const [barbearia, setBarbearia] = useState<Barbearia | null>(null);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
@@ -1009,7 +1011,7 @@ const PublicBooking = ({
               confirmationToken: hold.confirmation_token,
             });
             setPaymentFailed(false);
-            setSlotGridRevision((r) => r + 1);
+            setInternalSlotGridRevision((r) => r + 1);
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
             return;
           } catch (payErr) {
@@ -1089,7 +1091,7 @@ const PublicBooking = ({
         p_agendamento_id: paymentCheckout.agendamentoId,
         p_confirmation_token: paymentCheckout.confirmationToken,
       });
-      setSlotGridRevision((r) => r + 1);
+      setInternalSlotGridRevision((r) => r + 1);
     }
     setBookingConfirmed(false);
     setDone(false);
@@ -1136,7 +1138,7 @@ const PublicBooking = ({
     toast.error("Tempo esgotado. O horário foi liberado — escolha outro.");
     setPaymentCheckout(null);
     setPaymentFailed(true);
-    setSlotGridRevision((r) => r + 1);
+    setInternalSlotGridRevision((r) => r + 1);
     alterBooking();
   }, []);
 
@@ -1144,7 +1146,7 @@ const PublicBooking = ({
     toast.error("Pagamento não concluído. O horário foi liberado.");
     setPaymentCheckout(null);
     setPaymentFailed(true);
-    setSlotGridRevision((r) => r + 1);
+    setInternalSlotGridRevision((r) => r + 1);
     alterBooking();
   }, []);
 

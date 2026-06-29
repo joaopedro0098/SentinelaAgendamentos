@@ -95,3 +95,8 @@ export const STRIPE_PUBLISHABLE_KEY = String(import.meta.env.VITE_STRIPE_PUBLISH
 export function isStripePublishableTestMode() {
   return STRIPE_PUBLISHABLE_KEY.startsWith("pk_test_");
 }
+
+/** Localhost: mostra seed de teste em dev; produção só com pk_test_. */
+export function showConnectTestSeedUi() {
+  return isStripePublishableTestMode() || import.meta.env.DEV;
+}

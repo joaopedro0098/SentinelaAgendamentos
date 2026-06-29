@@ -56,14 +56,21 @@ Deno.serve(async (req) => {
     const shop = resolved.shop;
     const stripe = getStripe();
 
-    const { account, requirements_due, disabled_reason } = await seedTestConnectAccountDetailed(stripe, {
-      email: user.email.trim(),
-      shopId: shop.id,
-      ownerId: user.id,
-      displayName: shop.display_name,
-    });
+    const { account, requirements_due, pending_verification, disabled_reason } =
+      await seedTestConnectAccountDetailed(
+        stripe,
+        {
+          email: user.email.trim(),
+          shopId: shop.id,
+          ownerId: user.id,
+          displayName: shop.display_name,
+        },
+        shop.stripe_connect_account_id,
+      );
 
     const status = await syncConnectAccountToShop(supabase, shop.id, account);
+    const isPendingVerification =
+      disabled_reason === "requirements.pending_verification" || pending_verification.length > 0;
 
     return jsonResponse({
       ok: true,
@@ -73,12 +80,17 @@ Deno.serve(async (req) => {
       payouts_enabled: account.payouts_enabled,
       transfers_enabled: accountCanReceiveDestinationCharges(account),
       requirements_due,
+      pending_verification,
       disabled_reason,
       message: account.charges_enabled
         ? "Conta de teste pronta para cobrança no link público."
-        : status === "restricted"
-          ? "Conta criada, mas a Stripe ainda marca como restrita. Clique no botão de teste novamente após o deploy ou veja os requisitos pendentes."
-          : "Conta criada; aguarde alguns segundos e recarregue Pagamentos.",
+        : isPendingVerification
+          ? "Stripe está verificando os dados (normal em teste). Aguarde 1–2 minutos e recarregue Pagamentos — não clique de novo no botão."
+          : requirements_due.some((field) => field.includes("verification.document"))
+            ? "Falta documento de identidade na Stripe. Faça deploy da function atualizada e clique no botão de teste uma vez."
+          : status === "restricted"
+            ? "Conta criada, mas a Stripe ainda marca como restrita. Veja os requisitos pendentes ou tente o botão de teste novamente após deploy."
+            : "Conta criada; aguarde alguns segundos e recarregue Pagamentos.",
     });
   } catch (e) {
     console.error("stripe-connect-seed-test-account:", e);
