@@ -131,11 +131,11 @@ export default function AppLayout() {
           />
           <aside
             className={cn(
-              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-background border-r border-border shadow-xl flex flex-col transition-transform duration-200 ease-out",
+              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-background border-r border-border shadow-xl flex flex-col min-h-0 transition-transform duration-200 ease-out",
               menuEntered ? "translate-x-0" : "-translate-x-full",
             )}
           >
-            <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border">
+            <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border shrink-0">
               <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-9 w-9" />
               <button
                 type="button"
@@ -147,7 +147,7 @@ export default function AppLayout() {
               </button>
             </div>
 
-            <nav className="flex flex-col gap-1 p-3">
+            <nav className="flex flex-col gap-1 p-3 flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <MobileNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end onNavigate={closeMenu} />
               <MobileNavItem
                 to="/app/agendamentos"
@@ -219,7 +219,7 @@ export default function AppLayout() {
               )}
             </nav>
 
-            <div className="mt-2 p-3 border-t border-border space-y-2">
+            <div className="mt-auto shrink-0 p-3 border-t border-border space-y-2">
               <PwaInstallButton
                 label="Instalar"
                 helpVariant="app"
@@ -237,17 +237,31 @@ export default function AppLayout() {
 
       <aside
         className={cn(
-          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen relative transition-[width] duration-200 ease-out border-r border-border/60",
+          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen relative transition-[width] duration-200 ease-out border-r border-border/60 flex-col",
           sidebarCollapsed ? "w-9 bg-background/50" : "w-64",
         )}
       >
+        {sidebarCollapsed && (
+          <div className="flex flex-1 flex-col items-center justify-end gap-2 pb-4 pt-16">
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sair"
+              aria-label="Sair"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {!sidebarCollapsed && (
-          <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-[calc(100%-0.75rem)] min-h-[calc(100vh-1.5rem)]">
-            <div className="px-4 py-4 border-b border-border/60">
+          <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-[calc(100%-0.75rem)] min-h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)]">
+            <div className="px-4 py-4 border-b border-border/60 shrink-0">
               <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
             </div>
 
-            <nav className="flex flex-col gap-1 p-2">
+            <nav className="flex flex-col gap-1 p-2 flex-1 min-h-0 overflow-y-auto overscroll-contain">
               <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
               <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
               <DesktopNavItem to="/app/pacientes" icon={<Users className="h-4 w-4" />} label="Pacientes" />
@@ -269,7 +283,7 @@ export default function AppLayout() {
               )}
             </nav>
 
-            <div className="mt-auto flex flex-col gap-2 p-3 border-t border-border/60">
+            <div className="mt-auto shrink-0 flex flex-col gap-2 p-3 border-t border-border/60">
               <PwaInstallButton
                 label="Instalar"
                 helpVariant="app"
