@@ -264,6 +264,7 @@ export async function seedTestConnectAccount(
 
   const { first_name, last_name } = splitOwnerName(params.displayName, params.email);
   const now = Math.floor(Date.now() / 1000);
+  const holderName = `${first_name} ${last_name}`.slice(0, 120);
 
   const account = await stripe.accounts.create({
     type: "custom",
@@ -276,7 +277,7 @@ export async function seedTestConnectAccount(
     },
     business_profile: {
       mcc: "7230",
-      name: params.displayName?.trim() || `${first_name} ${last_name}`,
+      name: params.displayName?.trim() || holderName,
       url: cleanAppUrl(Deno.env.get("APP_URL")),
     },
     individual: {
@@ -286,13 +287,14 @@ export async function seedTestConnectAccount(
       phone: "+5511999999999",
       dob: { day: 1, month: 1, year: 1990 },
       address: {
-        line1: "Avenida Paulista, 1000",
+        // Token Stripe: habilita charges + payouts em test mode.
+        line1: "address_full_match",
         city: "Sao Paulo",
         state: "SP",
         postal_code: "01310100",
         country: "BR",
       },
-      id_number: "00000000000",
+      id_number: "52998224725",
     },
     tos_acceptance: {
       date: now,
@@ -305,14 +307,48 @@ export async function seedTestConnectAccount(
     },
   });
 
+  try {
+    await stripe.accounts.createExternalAccount(account.id, {
+      external_account: {
+        object: "bank_account",
+        country: "BR",
+        currency: "brl",
+        account_holder_name: holderName,
+        account_holder_type: "individual",
+        routing_number: "110-0000",
+        account_number: "0001234",
+      },
+    });
+  } catch (e) {
+    console.warn("seedTestConnectAccount: external_account", e);
+  }
+
   let latest = account;
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
     if (latest.charges_enabled) break;
-    await sleep(800);
+    await sleep(1000);
     latest = await stripe.accounts.retrieve(account.id);
   }
 
   return latest;
+}
+
+export type SeedTestConnectResult = {
+  account: Stripe.Account;
+  requirements_due: string[];
+  disabled_reason: string | null;
+};
+
+export async function seedTestConnectAccountDetailed(
+  stripe: Stripe,
+  params: { email: string; shopId: string; ownerId: string; displayName?: string | null },
+): Promise<SeedTestConnectResult> {
+  const account = await seedTestConnectAccount(stripe, params);
+  return {
+    account,
+    requirements_due: account.requirements?.currently_due ?? [],
+    disabled_reason: account.requirements?.disabled_reason ?? null,
+  };
 }
 
 export async function createConnectAccountV1(stripe: Stripe, email: string, shopId: string, ownerId: string) {

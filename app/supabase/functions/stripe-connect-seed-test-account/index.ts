@@ -4,7 +4,7 @@ import {
   assertStripeTestMode,
   getStripe,
   resolveConnectShopForUser,
-  seedTestConnectAccount,
+  seedTestConnectAccountDetailed,
   syncConnectAccountToShop,
 } from "../_shared/stripeConnect.ts";
 
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const shop = resolved.shop;
     const stripe = getStripe();
 
-    const account = await seedTestConnectAccount(stripe, {
+    const { account, requirements_due, disabled_reason } = await seedTestConnectAccountDetailed(stripe, {
       email: user.email.trim(),
       shopId: shop.id,
       ownerId: user.id,
@@ -72,9 +72,13 @@ Deno.serve(async (req) => {
       charges_enabled: account.charges_enabled,
       payouts_enabled: account.payouts_enabled,
       transfers_enabled: accountCanReceiveDestinationCharges(account),
+      requirements_due,
+      disabled_reason,
       message: account.charges_enabled
         ? "Conta de teste pronta para cobrança no link público."
-        : "Conta criada, mas a Stripe ainda não liberou cobrança. Aguarde e sincronize em instantes.",
+        : status === "restricted"
+          ? "Conta criada, mas a Stripe ainda marca como restrita. Clique no botão de teste novamente após o deploy ou veja os requisitos pendentes."
+          : "Conta criada; aguarde alguns segundos e recarregue Pagamentos.",
     });
   } catch (e) {
     console.error("stripe-connect-seed-test-account:", e);

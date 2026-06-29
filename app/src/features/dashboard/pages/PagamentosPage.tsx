@@ -141,14 +141,26 @@ export default function PagamentosPage() {
         account_id?: string;
         status?: string;
         charges_enabled?: boolean;
+        requirements_due?: string[];
+        disabled_reason?: string | null;
         message?: string;
         error?: string;
       }>("stripe-connect-seed-test-account");
 
       await load();
+      const pending = (data.requirements_due ?? []).slice(0, 3).join(", ");
       toast({
-        title: data.charges_enabled ? "Conta de teste conectada" : "Conta de teste criada",
-        description: data.message ?? `ID ${data.account_id ?? ""} · status ${data.status ?? ""}`,
+        title: data.charges_enabled ? "Conta de teste conectada" : "Conta criada — ainda não cobra",
+        description: data.charges_enabled
+          ? (data.message ?? `ID ${data.account_id ?? ""}`)
+          : [
+              data.message,
+              data.disabled_reason ? `Motivo Stripe: ${data.disabled_reason}` : null,
+              pending ? `Pendente: ${pending}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+        variant: data.charges_enabled ? "default" : "destructive",
       });
     } catch (e) {
       toast({
@@ -279,6 +291,13 @@ export default function PagamentosPage() {
               "Conectar conta Stripe"
             )}
           </Button>
+          {stripeTestMode && connectStatus !== "connected" && (
+            <p className="text-xs text-amber-700 dark:text-amber-200 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 leading-relaxed">
+              Se aparecer <strong>Restrito</strong> após criar a conta de teste, o link público{" "}
+              <strong>ainda não cobra</strong>. Use de novo &quot;Criar conta Stripe de teste&quot; (após deploy da
+              function) ou conclua o cadastro na Stripe. Só siga com <strong>Conectado</strong>.
+            </p>
+          )}
           {stripeTestMode && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-3 space-y-2">
               <p className="text-xs text-muted-foreground leading-relaxed">
