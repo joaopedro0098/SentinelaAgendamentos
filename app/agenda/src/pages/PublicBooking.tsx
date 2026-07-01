@@ -986,6 +986,8 @@ const PublicBooking = ({
             error?: string;
             agendamento_id?: string;
             confirmation_token?: string;
+            valor_base_centavos?: number;
+            installment?: AppointmentPaymentCheckout["installment"];
           } | null;
 
           if (!hold?.ok || !hold.agendamento_id || !hold.confirmation_token) {
@@ -1009,6 +1011,9 @@ const PublicBooking = ({
               ...checkout,
               agendamentoId: hold.agendamento_id,
               confirmationToken: hold.confirmation_token,
+              valor_base_centavos:
+                checkout.valor_base_centavos ?? hold.valor_base_centavos ?? checkout.amount_centavos,
+              installment: checkout.installment ?? hold.installment ?? null,
             });
             setPaymentFailed(false);
             setInternalSlotGridRevision((r) => r + 1);
@@ -1364,6 +1369,10 @@ const PublicBooking = ({
                 clientSecret={paymentCheckout.client_secret}
                 stripeConnectAccountId={paymentCheckout.stripe_connect_account_id ?? ""}
                 amountCentavos={paymentCheckout.amount_centavos}
+                valorBaseCentavos={
+                  paymentCheckout.valor_base_centavos ?? paymentCheckout.amount_centavos
+                }
+                installmentConfig={paymentCheckout.installment}
                 expiresAt={paymentCheckout.expires_at}
                 agendamentoId={paymentCheckout.agendamentoId}
                 confirmationToken={paymentCheckout.confirmationToken}

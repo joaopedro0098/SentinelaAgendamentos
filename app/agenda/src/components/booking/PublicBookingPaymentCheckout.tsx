@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { CreditCard, Loader2 } from "lucide-react";
@@ -6,14 +6,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatServicePrice } from "@/lib/servicePrice";
 import {
+  createAppointmentPaymentCheckout,
   STRIPE_PUBLISHABLE_KEY,
   verifyAppointmentPayment,
+  type InstallmentCheckoutConfig,
 } from "@/lib/appointmentPaymentApi";
+import { buildInstallmentOptions, previewInstallmentTotalCentavos } from "@/lib/installmentPreview";
 
 type Props = {
   clientSecret: string;
   stripeConnectAccountId: string;
   amountCentavos: number;
+  valorBaseCentavos: number;
+  installmentConfig?: InstallmentCheckoutConfig | null;
   expiresAt: string | null;
   agendamentoId: string;
   confirmationToken: string;
@@ -24,34 +29,28 @@ type Props = {
 
 type Phase = "pay" | "confirm" | "pix";
 
+type PaymentFormProps = {
+  clientSecret: string;
+  agendamentoId: string;
+  confirmationToken: string;
+  checkoutLocked: boolean;
+  onPaid: () => void;
+  onFailed: () => void;
+};
+
 function PaymentForm({
   clientSecret,
-  amountCentavos,
-  expiresAt,
   agendamentoId,
   confirmationToken,
+  checkoutLocked,
   onPaid,
-  onExpired,
   onFailed,
-}: Props) {
+}: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<Phase>("pay");
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const stripeReady = Boolean(stripe && elements);
-
-  useEffect(() => {
-    if (!expiresAt) return;
-    const tick = () => {
-      const left = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
-      setSecondsLeft(left);
-      if (left <= 0) onExpired();
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [expiresAt, onExpired]);
 
   async function pollUntilAppointmentConfirmed(options: { pix?: boolean }) {
     setPhase(options.pix ? "pix" : "confirm");
@@ -88,7 +87,7 @@ function PaymentForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || checkoutLocked) return;
 
     setSubmitting(true);
     setPhase("pay");
@@ -123,12 +122,7 @@ function PaymentForm({
         return;
       }
 
-      if (status === "processing") {
-        await pollUntilAppointmentConfirmed({ pix: true });
-        return;
-      }
-
-      if (status === "requires_action") {
+      if (status === "processing" || status === "requires_action") {
         await pollUntilAppointmentConfirmed({ pix: true });
         return;
       }
@@ -141,11 +135,6 @@ function PaymentForm({
     }
   }
 
-  const timerLabel =
-    secondsLeft != null
-      ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
-      : null;
-
   const buttonLabel =
     phase === "pix"
       ? "Aguardando confirmação do Pix…"
@@ -157,15 +146,6 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
-        <p className="text-xs text-muted-foreground">Valor a pagar agora</p>
-        <p className="font-display text-2xl font-bold">{formatServicePrice(amountCentavos)}</p>
-        {timerLabel && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Horário reservado por mais <span className="font-semibold text-foreground">{timerLabel}</span>
-          </p>
-        )}
-      </div>
       {phase === "pix" && (
         <p className="text-sm text-center text-muted-foreground leading-relaxed px-2">
           Aguardando confirmação do Pix… Assim que o banco confirmar, seu agendamento será confirmado
@@ -182,7 +162,7 @@ function PaymentForm({
           <PaymentElement options={{ layout: "tabs" }} />
         )
       )}
-      <Button type="submit" className="w-full rounded-full" disabled={!stripeReady || submitting || phase !== "pay"}>
+      <Button type="submit" className="w-full rounded-full" disabled={!stripeReady || submitting || phase !== "pay" || checkoutLocked}>
         {submitting || phase !== "pay" ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -199,13 +179,88 @@ function PaymentForm({
   );
 }
 
-export function PublicBookingPaymentCheckout(props: Props) {
+export function PublicBookingPaymentCheckout({
+  clientSecret: initialClientSecret,
+  stripeConnectAccountId,
+  amountCentavos: initialAmountCentavos,
+  valorBaseCentavos,
+  installmentConfig,
+  expiresAt,
+  agendamentoId,
+  confirmationToken,
+  onPaid,
+  onExpired,
+  onFailed,
+}: Props) {
+  const [clientSecret, setClientSecret] = useState(initialClientSecret);
+  const [amountCentavos, setAmountCentavos] = useState(initialAmountCentavos);
+  const [installmentCount, setInstallmentCount] = useState(1);
+  const [updatingInstallment, setUpdatingInstallment] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const requestSeq = useRef(0);
+
+  const installmentOptions = useMemo(
+    () => buildInstallmentOptions(installmentConfig),
+    [installmentConfig],
+  );
+  const showInstallmentSelector = installmentOptions.length > 1;
+
   const stripePromise = useMemo(() => {
-    if (!STRIPE_PUBLISHABLE_KEY || !props.stripeConnectAccountId) return null;
+    if (!STRIPE_PUBLISHABLE_KEY || !stripeConnectAccountId) return null;
     return loadStripe(STRIPE_PUBLISHABLE_KEY, {
-      stripeAccount: props.stripeConnectAccountId,
+      stripeAccount: stripeConnectAccountId,
     });
-  }, [props.stripeConnectAccountId]);
+  }, [stripeConnectAccountId]);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const tick = () => {
+      const left = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left <= 0) onExpired();
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [expiresAt, onExpired]);
+
+  useEffect(() => {
+    setClientSecret(initialClientSecret);
+    setAmountCentavos(initialAmountCentavos);
+    setInstallmentCount(1);
+  }, [initialClientSecret, initialAmountCentavos]);
+
+  const applyInstallmentCount = useCallback(
+    async (count: number) => {
+      const seq = ++requestSeq.current;
+      setInstallmentCount(count);
+      setAmountCentavos(previewInstallmentTotalCentavos(valorBaseCentavos, count, installmentConfig));
+      setUpdatingInstallment(true);
+
+      try {
+        const result = await createAppointmentPaymentCheckout({
+          agendamento_id: agendamentoId,
+          confirmation_token: confirmationToken,
+          installment_count: count,
+        });
+
+        if (seq !== requestSeq.current) return;
+
+        if (!result.client_secret) {
+          throw new Error("Pagamento não retornou dados do cartão.");
+        }
+
+        setClientSecret(result.client_secret);
+        setAmountCentavos(result.amount_centavos);
+      } catch (err) {
+        if (seq !== requestSeq.current) return;
+        toast.error(err instanceof Error ? err.message : "Não foi possível atualizar o parcelamento.");
+      } finally {
+        if (seq === requestSeq.current) setUpdatingInstallment(false);
+      }
+    },
+    [agendamentoId, confirmationToken, installmentConfig, valorBaseCentavos],
+  );
 
   if (!stripePromise) {
     const missingKey = !STRIPE_PUBLISHABLE_KEY;
@@ -218,9 +273,62 @@ export function PublicBookingPaymentCheckout(props: Props) {
     );
   }
 
+  const timerLabel =
+    secondsLeft != null
+      ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
+      : null;
+
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret: props.clientSecret, locale: "pt-BR" }}>
-      <PaymentForm {...props} />
-    </Elements>
+    <div className="space-y-4">
+      {showInstallmentSelector && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium leading-none">Parcelas no cartão</label>
+          <select
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={String(installmentCount)}
+            disabled={updatingInstallment}
+            onChange={(e) => {
+              const next = parseInt(e.target.value, 10);
+              if (!Number.isFinite(next) || next === installmentCount) return;
+              void applyInstallmentCount(next);
+            }}
+          >
+            {installmentOptions.map((n) => (
+              <option key={n} value={String(n)}>
+                {n === 1 ? "1x (à vista)" : `${n}x`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
+        <p className="text-xs text-muted-foreground">Valor a pagar agora</p>
+        <p className="font-display text-2xl font-bold flex items-center justify-center gap-2">
+          {updatingInstallment && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          {formatServicePrice(amountCentavos)}
+        </p>
+        {timerLabel && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Horário reservado por mais <span className="font-semibold text-foreground">{timerLabel}</span>
+          </p>
+        )}
+      </div>
+
+      <Elements
+        key={clientSecret}
+        stripe={stripePromise}
+        options={{ clientSecret, locale: "pt-BR" }}
+      >
+        <PaymentForm
+          clientSecret={clientSecret}
+          agendamentoId={agendamentoId}
+          confirmationToken={confirmationToken}
+          checkoutLocked={updatingInstallment}
+          onPaid={onPaid}
+          onFailed={onFailed}
+        />
+      </Elements>
+    </div>
   );
 }

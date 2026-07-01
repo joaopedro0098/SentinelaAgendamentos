@@ -51,19 +51,34 @@ export async function invokePublicPaymentFunction<T>(
   }
 }
 
+export type InstallmentCheckoutConfig = {
+  pass_fee_to_client?: boolean;
+  max_count?: number | null;
+  surcharge_rates?: Record<string, number>;
+  enabled?: boolean;
+};
+
 export type AppointmentPaymentCheckout = {
   client_secret: string;
   payment_intent_id: string;
   amount_centavos: number;
+  valor_base_centavos?: number;
+  installment_count?: number;
   expires_at: string | null;
   stripe_connect_account_id?: string;
+  installment?: InstallmentCheckoutConfig | null;
 };
 
 export async function createAppointmentPaymentCheckout(input: {
   agendamento_id: string;
   confirmation_token: string;
+  installment_count?: number;
 }): Promise<AppointmentPaymentCheckout> {
-  return invokePublicPaymentFunction("stripe-create-appointment-payment", input);
+  return invokePublicPaymentFunction("stripe-create-appointment-payment", {
+    agendamento_id: input.agendamento_id,
+    confirmation_token: input.confirmation_token,
+    installment_count: input.installment_count ?? 1,
+  });
 }
 
 export async function verifyAppointmentPayment(input: {
