@@ -46,6 +46,13 @@ export async function invokePaymentsFunction<T>(
   return payload as T;
 }
 
+export const INSTALLMENT_STRIPE_PERCENT = 3.99;
+export const INSTALLMENT_STRIPE_FIXED_CENTAVOS = 39;
+export const MIN_INSTALLMENT_SURCHARGE_PERCENT = 3.99;
+export const INSTALLMENT_MAX_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+
+export type InstallmentSurchargeRates = Record<string, number>;
+
 export type PaymentPanelSettings = {
   role?: string;
   shop_id?: string;
@@ -58,11 +65,46 @@ export type PaymentPanelSettings = {
   appointment_payment_mode?: string;
   appointment_deposit_type?: string | null;
   appointment_deposit_value?: number | null;
+  installment_pass_fee_to_client?: boolean;
+  installment_max_count?: number | null;
+  installment_surcharge_rates?: InstallmentSurchargeRates | null;
+  installment_enabled?: boolean;
   all_services_have_prices?: boolean;
   can_enable_payment?: boolean;
   message?: string;
   error?: string;
 };
+
+export function clampInstallmentSurchargePercent(value: number): number {
+  if (!Number.isFinite(value)) return MIN_INSTALLMENT_SURCHARGE_PERCENT;
+  return Math.max(value, MIN_INSTALLMENT_SURCHARGE_PERCENT);
+}
+
+export function parseInstallmentRatesFromSettings(
+  raw: InstallmentSurchargeRates | null | undefined,
+): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, val] of Object.entries(raw)) {
+    const count = parseInt(key, 10);
+    if (count >= 2 && count <= 12 && typeof val === "number") {
+      out[count] = String(clampInstallmentSurchargePercent(val));
+    }
+  }
+  return out;
+}
+
+export function buildInstallmentRatesForSave(
+  maxCount: number,
+  rateInputs: Record<number, string>,
+): InstallmentSurchargeRates {
+  const rates: InstallmentSurchargeRates = {};
+  for (let i = 2; i <= maxCount; i += 1) {
+    const parsed = parseFloat(String(rateInputs[i] ?? "").replace(",", "."));
+    rates[String(i)] = clampInstallmentSurchargePercent(parsed);
+  }
+  return rates;
+}
 
 export async function fetchPaymentPanelSettings(): Promise<PaymentPanelSettings> {
   const { data, error } = await supabase.rpc("get_payment_panel_settings");
@@ -75,12 +117,18 @@ export async function savePaymentPanelSettings(input: {
   appointment_payment_mode?: string;
   appointment_deposit_type?: string | null;
   appointment_deposit_value?: number | null;
+  installment_pass_fee_to_client?: boolean;
+  installment_max_count?: number | null;
+  installment_surcharge_rates?: InstallmentSurchargeRates | null;
 }): Promise<PaymentPanelSettings> {
   const { data, error } = await supabase.rpc("update_payment_panel_settings", {
     p_payments_centralized: input.payments_centralized ?? null,
     p_appointment_payment_mode: input.appointment_payment_mode ?? null,
     p_appointment_deposit_type: input.appointment_deposit_type ?? null,
     p_appointment_deposit_value: input.appointment_deposit_value ?? null,
+    p_installment_pass_fee_to_client: input.installment_pass_fee_to_client ?? null,
+    p_installment_max_count: input.installment_max_count ?? null,
+    p_installment_surcharge_rates: input.installment_surcharge_rates ?? null,
   });
   if (error) throw new Error(error.message);
   const result = (data ?? {}) as PaymentPanelSettings;

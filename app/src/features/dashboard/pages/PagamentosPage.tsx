@@ -8,9 +8,15 @@ import { Input } from "@/components/ui/input";
 import { PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { toast } from "@/hooks/use-toast";
 import {
+  buildInstallmentRatesForSave,
+  clampInstallmentSurchargePercent,
   fetchPaymentPanelSettings,
+  INSTALLMENT_MAX_OPTIONS,
+  INSTALLMENT_STRIPE_PERCENT,
   invokePaymentsFunction,
   isStripePublishableTestMode,
+  MIN_INSTALLMENT_SURCHARGE_PERCENT,
+  parseInstallmentRatesFromSettings,
   savePaymentPanelSettings,
   showConnectTestSeedUi,
   type PaymentPanelSettings,
@@ -46,6 +52,9 @@ export default function PagamentosPage() {
   const [depositType, setDepositType] = useState<"percent" | "fixed">("percent");
   const [depositValue, setDepositValue] = useState("30");
   const [centralized, setCentralized] = useState(true);
+  const [installmentPassFee, setInstallmentPassFee] = useState(false);
+  const [installmentMaxCount, setInstallmentMaxCount] = useState("");
+  const [installmentRates, setInstallmentRates] = useState<Record<number, string>>({});
   const [pixSyncInfo, setPixSyncInfo] = useState<{
     connectLabel?: string;
     platformLabel?: string;
@@ -89,6 +98,17 @@ export default function PagamentosPage() {
       }
       if (data.appointment_deposit_value != null) setDepositValue(String(data.appointment_deposit_value));
       if (data.payments_centralized != null) setCentralized(data.payments_centralized);
+      setInstallmentPassFee(data.installment_pass_fee_to_client ?? false);
+      const max = data.installment_max_count;
+      const maxStr = max != null && max >= 2 ? String(max) : "";
+      setInstallmentMaxCount(maxStr);
+      const parsedRates = parseInstallmentRatesFromSettings(data.installment_surcharge_rates);
+      if (max != null && max >= 2) {
+        for (let i = 2; i <= max; i += 1) {
+          if (!parsedRates[i]) parsedRates[i] = String(MIN_INSTALLMENT_SURCHARGE_PERCENT);
+        }
+      }
+      setInstallmentRates(parsedRates);
     } catch (e) {
       toast({
         title: "Erro ao carregar pagamentos",
@@ -203,6 +223,42 @@ export default function PagamentosPage() {
     }
   }
 
+  function handleInstallmentMaxChange(value: string) {
+    setInstallmentMaxCount(value);
+    if (!value) {
+      setInstallmentRates({});
+      return;
+    }
+    const max = parseInt(value, 10);
+    if (!Number.isFinite(max) || max < 2) return;
+    setInstallmentRates((prev) => {
+      const next = { ...prev };
+      for (let i = 2; i <= max; i += 1) {
+        if (!next[i]) next[i] = String(MIN_INSTALLMENT_SURCHARGE_PERCENT);
+      }
+      for (const key of Object.keys(next)) {
+        const n = parseInt(key, 10);
+        if (n > max) delete next[n];
+      }
+      return next;
+    });
+  }
+
+  function handleInstallmentRateChange(count: number, raw: string) {
+    const cleaned = raw.replace(/[^\d.,]/g, "").replace(",", ".");
+    setInstallmentRates((prev) => ({ ...prev, [count]: cleaned }));
+  }
+
+  function handleInstallmentRateBlur(count: number) {
+    setInstallmentRates((prev) => {
+      const parsed = parseFloat(String(prev[count] ?? "").replace(",", "."));
+      return {
+        ...prev,
+        [count]: String(clampInstallmentSurchargePercent(parsed)),
+      };
+    });
+  }
+
   async function handleSave() {
     if (readonly) return;
     setSaving(true);
@@ -214,13 +270,27 @@ export default function PagamentosPage() {
             : Math.max(50, parseInt(depositValue, 10) || 0)
           : null;
 
+      const maxParsed = installmentMaxCount ? parseInt(installmentMaxCount, 10) : null;
+      const installmentMax =
+        maxParsed != null && Number.isFinite(maxParsed) && maxParsed >= 2
+          ? Math.min(12, maxParsed)
+          : null;
+
       const updated = await savePaymentPanelSettings({
         payments_centralized: settings?.can_edit_centralization ? centralized : undefined,
         appointment_payment_mode: paymentMode,
         appointment_deposit_type: paymentMode === "deposit" ? depositType : null,
         appointment_deposit_value: paymentMode === "deposit" ? depValue : null,
+        installment_pass_fee_to_client: installmentPassFee,
+        installment_max_count: installmentMax,
+        installment_surcharge_rates:
+          installmentMax != null ? buildInstallmentRatesForSave(installmentMax, installmentRates) : {},
       });
       setSettings(updated);
+      setInstallmentPassFee(updated.installment_pass_fee_to_client ?? false);
+      const max = updated.installment_max_count;
+      setInstallmentMaxCount(max != null && max >= 2 ? String(max) : "");
+      setInstallmentRates(parseInstallmentRatesFromSettings(updated.installment_surcharge_rates));
       toast({ title: "Configurações salvas" });
     } catch (e) {
       toast({
@@ -260,6 +330,8 @@ export default function PagamentosPage() {
   const connectBlocksPayment = paymentModeActive && connectStatus !== "connected";
   const stripeTestMode = isStripePublishableTestMode();
   const showTestSeedUi = showConnectTestSeedUi();
+  const installmentMaxParsed = installmentMaxCount ? parseInt(installmentMaxCount, 10) : 0;
+  const showInstallmentTable = Number.isFinite(installmentMaxParsed) && installmentMaxParsed >= 2;
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
@@ -456,6 +528,91 @@ export default function PagamentosPage() {
             O valor cobrado é a soma dos preços cadastrados dos serviços escolhidos. Reserva válida por 15 minutos;
             após isso ou em caso de falha, o agendamento é cancelado (mantido no histórico).
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Parcelamento no cartão</CardTitle>
+          <CardDescription>
+            Opções de parcelas no link público. Pagamento em 1x não inclui acréscimo de parcelamento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {paymentMode === "none" && (
+            <p className="text-sm text-muted-foreground rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
+              Ative a cobrança no link público acima para o parcelamento valer no checkout.
+            </p>
+          )}
+
+          <PermissionToggleRow
+            id="installment-pass-fee"
+            label="Repassar acréscimo de parcelamento ao cliente"
+            checked={installmentPassFee}
+            onToggle={() => setInstallmentPassFee((v) => !v)}
+          />
+
+          <div className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground space-y-1">
+            <p>
+              Taxa percentual Stripe:{" "}
+              <span className="font-medium text-foreground">{INSTALLMENT_STRIPE_PERCENT.toLocaleString("pt-BR")}%</span>
+            </p>
+            <p>
+              Taxa fixa por transação:{" "}
+              <span className="font-medium text-foreground">R$ 0,39</span>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Máximo de parcelas</Label>
+            <select
+              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={installmentMaxCount}
+              onChange={(e) => handleInstallmentMaxChange(e.target.value)}
+            >
+              <option value="">Sem parcelamento (apenas 1x)</option>
+              {INSTALLMENT_MAX_OPTIONS.map((n) => (
+                <option key={n} value={String(n)}>
+                  Até {n}x
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {showInstallmentTable && (
+            <div className="space-y-2">
+              <Label>Acréscimo por faixa (%)</Label>
+              <div className="rounded-lg border border-border/80 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/80 bg-muted/30">
+                      <th className="text-left font-medium px-3 py-2">Parcelas</th>
+                      <th className="text-left font-medium px-3 py-2">Acréscimo (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: installmentMaxParsed - 1 }, (_, idx) => idx + 2).map((count) => (
+                      <tr key={count} className="border-b border-border/50 last:border-0">
+                        <td className="px-3 py-2 text-muted-foreground">{count}x</td>
+                        <td className="px-3 py-2">
+                          <Input
+                            inputMode="decimal"
+                            className="h-9 max-w-[7rem]"
+                            value={installmentRates[count] ?? String(MIN_INSTALLMENT_SURCHARGE_PERCENT)}
+                            onChange={(e) => handleInstallmentRateChange(count, e.target.value)}
+                            onBlur={() => handleInstallmentRateBlur(count)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Mínimo de {MIN_INSTALLMENT_SURCHARGE_PERCENT.toLocaleString("pt-BR")}% por faixa.
+              </p>
+            </div>
+          )}
 
           <Button
             type="button"
