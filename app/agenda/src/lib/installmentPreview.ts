@@ -18,9 +18,20 @@ export function previewInstallmentTotalCentavos(
   const base = Math.max(baseCentavos, 0);
   const count = Math.max(installmentCount, 1);
 
-  if (count <= 1) return base;
-  if (!config?.enabled || !config.max_count || count > config.max_count) return base;
-  if (!config.pass_fee_to_client) return base;
+  if (!config?.pass_fee_to_client) return base;
+
+  const stripePercentPart = Math.round((base * STRIPE_PERCENT) / 100);
+  const basePercentual = base + stripePercentPart;
+
+  if (count <= 1) {
+    const total = basePercentual + STRIPE_FIXED_CENTAVOS;
+    return total < 50 ? 50 : total;
+  }
+
+  if (!config?.enabled || !config.max_count || count > config.max_count) {
+    const total = basePercentual + STRIPE_FIXED_CENTAVOS;
+    return total < 50 ? 50 : total;
+  }
 
   const rateRaw = config.surcharge_rates?.[String(count)];
   const profPercent = Math.max(
@@ -28,8 +39,6 @@ export function previewInstallmentTotalCentavos(
     MIN_SURCHARGE_PERCENT,
   );
 
-  const stripePercentPart = Math.round((base * STRIPE_PERCENT) / 100);
-  const basePercentual = base + stripePercentPart;
   const surcharge = Math.round((basePercentual * profPercent) / 100);
   const total = basePercentual + surcharge + STRIPE_FIXED_CENTAVOS;
   return total < 50 ? 50 : total;

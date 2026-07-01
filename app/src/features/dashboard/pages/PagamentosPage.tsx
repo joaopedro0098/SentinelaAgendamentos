@@ -535,7 +535,8 @@ export default function PagamentosPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Parcelamento no cartão</CardTitle>
           <CardDescription>
-            Opções de parcelas no link público. Pagamento em 1x não inclui acréscimo de parcelamento.
+            No link público, com repasse ativo: 1x inclui taxa fixa de cartão (3,99% + R$ 0,39). De 2x em
+            diante, configure o acréscimo extra por faixa.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -579,7 +580,7 @@ export default function PagamentosPage() {
             </select>
           </div>
 
-          {showInstallmentTable && (
+          {(installmentPassFee || showInstallmentTable) && (
             <div className="space-y-2">
               <Label>Acréscimo por faixa (%)</Label>
               <div className="rounded-lg border border-border/80 overflow-hidden">
@@ -587,31 +588,54 @@ export default function PagamentosPage() {
                   <thead>
                     <tr className="border-b border-border/80 bg-muted/30">
                       <th className="text-left font-medium px-3 py-2">Parcelas</th>
-                      <th className="text-left font-medium px-3 py-2">Acréscimo (%)</th>
+                      <th className="text-left font-medium px-3 py-2">Acréscimo</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.from({ length: installmentMaxParsed - 1 }, (_, idx) => idx + 2).map((count) => (
-                      <tr key={count} className="border-b border-border/50 last:border-0">
-                        <td className="px-3 py-2 text-muted-foreground">{count}x</td>
-                        <td className="px-3 py-2">
-                          <Input
-                            inputMode="decimal"
-                            className="h-9 max-w-[7rem]"
-                            value={installmentRates[count] ?? String(MIN_INSTALLMENT_SURCHARGE_PERCENT)}
-                            onChange={(e) => handleInstallmentRateChange(count, e.target.value)}
-                            onBlur={() => handleInstallmentRateBlur(count)}
-                          />
+                    {installmentPassFee && (
+                      <tr className="border-b border-border/50">
+                        <td className="px-3 py-2 text-muted-foreground">1x (à vista)</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {INSTALLMENT_STRIPE_PERCENT.toLocaleString("pt-BR")}% + R$ 0,39{" "}
+                          <span className="text-xs">(fixo)</span>
                         </td>
                       </tr>
-                    ))}
+                    )}
+                    {showInstallmentTable &&
+                      Array.from({ length: installmentMaxParsed - 1 }, (_, idx) => idx + 2).map((count) => (
+                        <tr key={count} className="border-b border-border/50 last:border-0">
+                          <td className="px-3 py-2 text-muted-foreground">{count}x</td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground shrink-0">+</span>
+                              <Input
+                                inputMode="decimal"
+                                className="h-9 max-w-[7rem]"
+                                value={installmentRates[count] ?? String(MIN_INSTALLMENT_SURCHARGE_PERCENT)}
+                                onChange={(e) => handleInstallmentRateChange(count, e.target.value)}
+                                onBlur={() => handleInstallmentRateBlur(count)}
+                              />
+                              <span className="text-xs text-muted-foreground">%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Mínimo de {MIN_INSTALLMENT_SURCHARGE_PERCENT.toLocaleString("pt-BR")}% por faixa.
-              </p>
+              {showInstallmentTable && (
+                <p className="text-xs text-muted-foreground">
+                  De 2x em diante: percentual extra sobre (valor + 3,99%), além dos R$ 0,39. Mínimo de{" "}
+                  {MIN_INSTALLMENT_SURCHARGE_PERCENT.toLocaleString("pt-BR")}% por faixa.
+                </p>
+              )}
             </div>
+          )}
+
+          {!installmentPassFee && showInstallmentTable && (
+            <p className="text-xs text-muted-foreground">
+              Com repasse desativado, o cliente paga apenas o valor do serviço em qualquer parcela.
+            </p>
           )}
 
           <Button
