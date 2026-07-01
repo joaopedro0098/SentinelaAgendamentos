@@ -40,3 +40,13 @@ export function buildInstallmentOptions(config: InstallmentCheckoutConfig | null
   const max = Math.min(12, config.max_count);
   return Array.from({ length: max }, (_, i) => i + 1);
 }
+
+/** Plano enviado na confirmação Stripe (não na criação do PI). */
+export function buildStripeInstallmentPlanForConfirm(installmentCount: number) {
+  if (installmentCount <= 1) return undefined;
+  return {
+    type: "fixed_count" as const,
+    interval: "month" as const,
+    count: installmentCount,
+  };
+}

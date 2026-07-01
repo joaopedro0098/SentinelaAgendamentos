@@ -220,16 +220,22 @@ export function buildCardInstallmentOptions(installmentCount: number): Stripe.Pa
   if (installmentCount <= 1) {
     return { card: { installments: { enabled: false } } };
   }
+  // Plano (count/interval) só pode ser enviado na confirmação — aqui apenas habilita parcelas.
   return {
     card: {
       installments: {
         enabled: true,
-        plan: {
-          count: installmentCount,
-          type: "fixed_count",
-        },
       },
     },
+  };
+}
+
+export function buildCardInstallmentPlanForConfirm(installmentCount: number) {
+  if (installmentCount <= 1) return undefined;
+  return {
+    type: "fixed_count" as const,
+    interval: "month" as const,
+    count: installmentCount,
   };
 }
 
@@ -250,10 +256,12 @@ export function appointmentPaymentIntentNeedsReplace(
   if (isLegacyDestinationChargeIntent(existing)) return true;
   if (existing.amount !== amount) return true;
   if (String(existing.metadata?.installment_count ?? "1") !== String(installmentCount)) return true;
+  const installmentsEnabled = existing.payment_method_options?.card?.installments?.enabled === true;
   if (installmentCount > 1) {
     if (existing.payment_method_types?.includes("pix")) return true;
-    const planCount = existing.payment_method_options?.card?.installments?.plan?.count;
-    if (planCount !== installmentCount) return true;
+    if (!installmentsEnabled) return true;
+  } else if (installmentsEnabled) {
+    return true;
   }
   return false;
 }

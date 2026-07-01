@@ -11,7 +11,7 @@ import {
   verifyAppointmentPayment,
   type InstallmentCheckoutConfig,
 } from "@/lib/appointmentPaymentApi";
-import { buildInstallmentOptions, previewInstallmentTotalCentavos } from "@/lib/installmentPreview";
+import { buildInstallmentOptions, buildStripeInstallmentPlanForConfirm, previewInstallmentTotalCentavos } from "@/lib/installmentPreview";
 
 type Props = {
   clientSecret: string;
@@ -31,6 +31,7 @@ type Phase = "pay" | "confirm" | "pix";
 
 type PaymentFormProps = {
   clientSecret: string;
+  installmentCount: number;
   agendamentoId: string;
   confirmationToken: string;
   checkoutLocked: boolean;
@@ -40,6 +41,7 @@ type PaymentFormProps = {
 
 function PaymentForm({
   clientSecret,
+  installmentCount,
   agendamentoId,
   confirmationToken,
   checkoutLocked,
@@ -99,11 +101,24 @@ function PaymentForm({
         return;
       }
 
+      const installmentPlan = buildStripeInstallmentPlanForConfirm(installmentCount);
+
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         clientSecret,
         confirmParams: {
           return_url: window.location.href,
+          ...(installmentPlan
+            ? {
+                payment_method_options: {
+                  card: {
+                    installments: {
+                      plan: installmentPlan,
+                    },
+                  },
+                },
+              }
+            : {}),
         },
         redirect: "if_required",
       });
@@ -322,6 +337,7 @@ export function PublicBookingPaymentCheckout({
       >
         <PaymentForm
           clientSecret={clientSecret}
+          installmentCount={installmentCount}
           agendamentoId={agendamentoId}
           confirmationToken={confirmationToken}
           checkoutLocked={updatingInstallment}
