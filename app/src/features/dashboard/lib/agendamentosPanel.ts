@@ -212,13 +212,33 @@ export function canManageAgendamento(item: { barbearia_id: string; can_manage?: 
   return ownBarbeariaId !== null && item.barbearia_id === ownBarbeariaId;
 }
 
-/** Anotação: só agendamento concluído na barbearia própria (CT nunca em CA). */
+/** Anotação: concluído na barbearia própria com profissional da mesma conta (CT nunca em CA). */
 export function canWriteAnotacao(
-  item: { status: AgendamentoPainelItem["status"]; barbearia_id: string },
+  item: Pick<AgendamentoPainelItem, "status" | "barbearia_id" | "barbeiro_id">,
   ownBarbeariaId: string | null,
+  caBarbeariaIds: string[] = [],
+  profissionais: Pick<AgendamentoProfissional, "id" | "barbearia_id">[] = [],
 ) {
   if (item.status !== "concluido") return false;
+  if (caBarbeariaIds.includes(item.barbearia_id)) return false;
+  const prof = profissionais.find((p) => p.id === item.barbeiro_id);
+  if (prof && caBarbeariaIds.includes(prof.barbearia_id)) return false;
   return ownBarbeariaId !== null && item.barbearia_id === ownBarbeariaId;
+}
+
+/** Abre modal de anotação (edição ou somente leitura). */
+export function canOpenAnotacaoConcluido(
+  item: Pick<AgendamentoPainelItem, "status" | "barbearia_id" | "barbeiro_id">,
+  ownBarbeariaId: string | null,
+  caBarbeariaIds: string[] = [],
+  profissionais: Pick<AgendamentoProfissional, "id" | "barbearia_id">[] = [],
+) {
+  if (item.status !== "concluido") return false;
+  if (canWriteAnotacao(item, ownBarbeariaId, caBarbeariaIds, profissionais)) return true;
+  if (!ownBarbeariaId || caBarbeariaIds.length === 0) return false;
+  if (caBarbeariaIds.includes(item.barbearia_id)) return true;
+  const prof = profissionais.find((p) => p.id === item.barbeiro_id);
+  return !!prof && caBarbeariaIds.includes(prof.barbearia_id);
 }
 
 export type PastDayStatusKey = "concluido" | "faltou" | "cancelado";

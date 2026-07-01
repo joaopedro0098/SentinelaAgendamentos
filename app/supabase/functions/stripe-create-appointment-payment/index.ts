@@ -1,11 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  appointmentPaymentIntentNeedsReplace,
   connectAccountPixPaymentsActive,
   createAppointmentPaymentIntent,
   getStripe,
   isLegacyDestinationChargeIntent,
   refreshConnectAccountWithPix,
   retrieveAppointmentPaymentIntentForCreate,
+  updateAppointmentPaymentIntent,
 } from "../_shared/stripeConnect.ts";
 
 const corsHeaders = {
@@ -26,9 +28,36 @@ type HoldRow = {
   confirmation_token: string;
   payment_intent_id: string | null;
   valor_pago_centavos: number | null;
+  valor_base_centavos: number | null;
   payment_expires_at: string | null;
   barbearia_id: string;
 };
+
+type InstallmentCalc = {
+  error?: string;
+  ok?: boolean;
+  total_centavos?: number;
+  valor_base_centavos?: number;
+  installment_count?: number;
+  stripe_percent_centavos?: number;
+  installment_surcharge_centavos?: number;
+  installment_fixed_fee_centavos?: number;
+};
+
+function parseInstallmentCount(raw: unknown): number {
+  const n = Math.trunc(Number(raw ?? 1));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 12);
+}
+
+function buildPaymentMetadata(agendamentoId: string, barbeariaId: string, installmentCount: number) {
+  return {
+    agendamento_id: agendamentoId,
+    barbearia_id: barbeariaId,
+    kind: "appointment_deposit",
+    installment_count: String(installmentCount),
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -37,6 +66,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const agendamentoId = String(body.agendamento_id ?? "");
     const confirmationToken = String(body.confirmation_token ?? "");
+    const installmentCount = parseInstallmentCount(body.installment_count);
 
     if (!agendamentoId || !confirmationToken) {
       return jsonResponse({ error: "agendamento_id e confirmation_token são obrigatórios." }, 400);
@@ -49,7 +79,9 @@ Deno.serve(async (req) => {
 
     const { data: row, error } = await supabase
       .from("agendamentos")
-      .select("id, status, confirmation_token, payment_intent_id, valor_pago_centavos, payment_expires_at, barbearia_id")
+      .select(
+        "id, status, confirmation_token, payment_intent_id, valor_pago_centavos, valor_base_centavos, payment_expires_at, barbearia_id",
+      )
       .eq("id", agendamentoId)
       .maybeSingle();
 
@@ -73,6 +105,22 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Reserva expirada. Escolha outro horário." }, 410);
     }
 
+    const calcRes = await supabase.rpc("update_agendamento_installment_checkout", {
+      p_agendamento_id: agendamentoId,
+      p_confirmation_token: confirmationToken,
+      p_installment_count: installmentCount,
+    });
+
+    if (calcRes.error) return jsonResponse({ error: calcRes.error.message }, 500);
+
+    const calc = (calcRes.data ?? {}) as InstallmentCalc;
+    if (calc.error) {
+      return jsonResponse({ error: calc.error }, 400);
+    }
+
+    const amount = calc.total_centavos ?? 0;
+    if (amount < 50) return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
+
     const settingsRes = await supabase.rpc("get_effective_appointment_payment_settings", {
       p_barbearia_id: appointment.barbearia_id,
     });
@@ -82,6 +130,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Conta de pagamento não configurada." }, 503);
     }
 
+    const installmentSettings = settings?.installment as Record<string, unknown> | undefined;
+
     const stripe = getStripe();
     const connectAccount = await refreshConnectAccountWithPix(stripe, connectAccountId);
     if (!connectAccount.charges_enabled) {
@@ -90,8 +140,7 @@ Deno.serve(async (req) => {
       }, 503);
     }
 
-    const amount = appointment.valor_pago_centavos ?? 0;
-    if (amount < 50) return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
+    const metadata = buildPaymentMetadata(agendamentoId, appointment.barbearia_id, installmentCount);
 
     let paymentIntentId = appointment.payment_intent_id;
     let clientSecret: string | null = null;
@@ -105,28 +154,46 @@ Deno.serve(async (req) => {
         });
         return jsonResponse({ ok: true, already_paid: true });
       }
-      if (existing.status === "canceled") {
+
+      if (
+        existing.status !== "canceled"
+        && !isLegacyDestinationChargeIntent(existing)
+        && !appointmentPaymentIntentNeedsReplace(existing, amount, installmentCount)
+      ) {
+        clientSecret = existing.client_secret;
+      } else {
+        if (existing.status !== "canceled" && existing.status !== "succeeded") {
+          try {
+            await stripe.paymentIntents.cancel(paymentIntentId, {}, { stripeAccount: connectAccountId });
+          } catch {
+            try {
+              await stripe.paymentIntents.cancel(paymentIntentId);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
         paymentIntentId = null;
-      } else if (isLegacyDestinationChargeIntent(existing)) {
+      }
+    }
+
+    if (paymentIntentId && !clientSecret) {
+      try {
+        const updated = await updateAppointmentPaymentIntent(stripe, paymentIntentId, connectAccountId, {
+          amount,
+          metadata,
+          installmentCount,
+          connectAccount,
+        });
+        clientSecret = updated.client_secret;
+      } catch (updateErr) {
+        console.warn("stripe-create-appointment-payment: PI update failed, recreating", updateErr);
         try {
-          await stripe.paymentIntents.cancel(paymentIntentId);
+          await stripe.paymentIntents.cancel(paymentIntentId, {}, { stripeAccount: connectAccountId });
         } catch {
           /* ignore */
         }
         paymentIntentId = null;
-      } else {
-        const pixActive = connectAccountPixPaymentsActive(connectAccount);
-        const existingHasPix = existing.payment_method_types?.includes("pix") ?? false;
-        if (pixActive && !existingHasPix) {
-          try {
-            await stripe.paymentIntents.cancel(paymentIntentId, {}, { stripeAccount: connectAccountId });
-          } catch {
-            /* ignore */
-          }
-          paymentIntentId = null;
-        } else {
-          clientSecret = existing.client_secret;
-        }
       }
     }
 
@@ -135,11 +202,8 @@ Deno.serve(async (req) => {
         amount,
         connectAccountId,
         connectAccount,
-        metadata: {
-          agendamento_id: agendamentoId,
-          barbearia_id: appointment.barbearia_id,
-          kind: "appointment_deposit",
-        },
+        installmentCount,
+        metadata,
       });
       paymentIntentId = pi.id;
       clientSecret = pi.client_secret;
@@ -158,9 +222,15 @@ Deno.serve(async (req) => {
       client_secret: clientSecret,
       payment_intent_id: paymentIntentId,
       amount_centavos: amount,
+      valor_base_centavos: calc.valor_base_centavos ?? appointment.valor_base_centavos,
+      installment_count: calc.installment_count ?? installmentCount,
+      stripe_percent_centavos: calc.stripe_percent_centavos ?? 0,
+      installment_surcharge_centavos: calc.installment_surcharge_centavos ?? 0,
+      installment_fixed_fee_centavos: calc.installment_fixed_fee_centavos ?? 0,
       expires_at: appointment.payment_expires_at,
       stripe_connect_account_id: connectAccountId,
-      pix_enabled: connectAccountPixPaymentsActive(connectAccount),
+      installment: installmentSettings ?? null,
+      pix_enabled: installmentCount <= 1 && connectAccountPixPaymentsActive(connectAccount),
     });
   } catch (e) {
     console.error("stripe-create-appointment-payment:", e);

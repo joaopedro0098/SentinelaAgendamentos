@@ -16,6 +16,8 @@ export type AgendamentoAnotacaoPayload = {
 export type PacientePainelItem = {
   whatsapp_digits: string;
   cliente_nome: string;
+  data_nascimento?: string | null;
+  avatar_url?: string | null;
   ultimo_atendimento: string;
   total_concluidos: number;
   total_anotacoes: number;
@@ -27,6 +29,17 @@ export type PacienteProfissional = {
   nome: string;
   barbearia_id: string;
 };
+
+export type PacientesPainelPage = {
+  pacientes: PacientePainelItem[];
+  profissionais: PacienteProfissional[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+};
+
+export const PACIENTES_PAINEL_PAGE_LIMIT = 50;
 
 export type PacienteAnotacaoItem = {
   agendamento_id: string;
@@ -66,6 +79,31 @@ export async function saveAgendamentoAnotacao(agendamentoId: string, conteudo: s
   return { ok: true, data: row };
 }
 
+export async function updatePacienteDataNascimento(
+  whatsappDigits: string,
+  dataNascimento: string | null,
+) {
+  const { data, error } = await supabase.rpc("update_paciente_data_nascimento_painel", {
+    p_whatsapp_digits: whatsappDigits,
+    p_data_nascimento: dataNascimento,
+  });
+  if (error) return { error: error.message };
+  const row = data as { error?: string; ok?: boolean; data_nascimento?: string | null } | null;
+  if (row?.error) return { error: row.error };
+  return { ok: true, data_nascimento: row?.data_nascimento ?? dataNascimento };
+}
+
+export async function updatePacienteAvatar(whatsappDigits: string, avatarUrl: string) {
+  const { data, error } = await supabase.rpc("update_paciente_avatar_painel", {
+    p_whatsapp_digits: whatsappDigits,
+    p_avatar_url: avatarUrl,
+  });
+  if (error) return { error: error.message };
+  const row = data as { error?: string; ok?: boolean; avatar_url?: string | null } | null;
+  if (row?.error) return { error: row.error };
+  return { ok: true, avatar_url: row?.avatar_url ?? avatarUrl };
+}
+
 export async function updatePacienteNome(whatsappDigits: string, nome: string) {
   const { data, error } = await supabase.rpc("update_paciente_nome_painel", {
     p_whatsapp_digits: whatsappDigits,
@@ -98,16 +136,26 @@ function normalizeStringArray(value: unknown): string[] {
   return parseJsonArray(value).filter((v): v is string => typeof v === "string");
 }
 
-export function parsePacientesRpc(data: unknown): {
-  pacientes: PacientePainelItem[];
-  profissionais: PacienteProfissional[];
-} | null {
+export function parsePacientesRpc(data: unknown): PacientesPainelPage | null {
   if (!data || typeof data !== "object") return null;
   const row = data as Record<string, unknown>;
   if (row.error) return null;
+  const pacientes = parseJsonArray(row.pacientes) as PacientePainelItem[];
+  const totalCount = typeof row.total_count === "number" ? row.total_count : pacientes.length;
+  const limit =
+    typeof row.limit === "number" ? row.limit : PACIENTES_PAINEL_PAGE_LIMIT;
+  const offset = typeof row.offset === "number" ? row.offset : 0;
+  const hasMore =
+    typeof row.has_more === "boolean"
+      ? row.has_more
+      : offset + pacientes.length < totalCount;
   return {
-    pacientes: parseJsonArray(row.pacientes) as PacientePainelItem[],
+    pacientes,
     profissionais: parseJsonArray(row.profissionais) as PacienteProfissional[],
+    total_count: totalCount,
+    limit,
+    offset,
+    has_more: hasMore,
   };
 }
 

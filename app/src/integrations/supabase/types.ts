@@ -428,7 +428,15 @@ export type Database = {
         Args: { p_agendamento_id: string; p_conteudo: string }
         Returns: Json
       }
-      list_pacientes_painel: { Args: { p_barbeiro_id?: string | null }; Returns: Json }
+      list_pacientes_painel: {
+        Args: {
+          p_barbeiro_id?: string | null
+          p_search?: string | null
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
       list_paciente_anotacoes: {
         Args: { p_whatsapp_digits: string; p_barbeiro_id?: string | null }
         Returns: Json

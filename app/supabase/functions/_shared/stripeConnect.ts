@@ -216,6 +216,48 @@ export async function retrieveAppointmentPaymentIntentForCreate(
   }
 }
 
+export function buildCardInstallmentOptions(installmentCount: number): Stripe.PaymentIntentCreateParams.PaymentMethodOptions {
+  if (installmentCount <= 1) {
+    return { card: { installments: { enabled: false } } };
+  }
+  return {
+    card: {
+      installments: {
+        enabled: true,
+        plan: {
+          count: installmentCount,
+          type: "fixed_count",
+        },
+      },
+    },
+  };
+}
+
+export function appointmentPaymentIntentMethodTypes(
+  account: Stripe.Account,
+  installmentCount: number,
+): string[] {
+  if (installmentCount > 1) return ["card"];
+  return appointmentPaymentMethodTypes(account);
+}
+
+export function appointmentPaymentIntentNeedsReplace(
+  existing: Stripe.PaymentIntent,
+  amount: number,
+  installmentCount: number,
+): boolean {
+  if (existing.status === "canceled") return true;
+  if (isLegacyDestinationChargeIntent(existing)) return true;
+  if (existing.amount !== amount) return true;
+  if (String(existing.metadata?.installment_count ?? "1") !== String(installmentCount)) return true;
+  if (installmentCount > 1) {
+    if (existing.payment_method_types?.includes("pix")) return true;
+    const planCount = existing.payment_method_options?.card?.installments?.plan?.count;
+    if (planCount !== installmentCount) return true;
+  }
+  return false;
+}
+
 export async function createAppointmentPaymentIntent(
   stripe: Stripe,
   params: {
@@ -223,20 +265,51 @@ export async function createAppointmentPaymentIntent(
     connectAccountId: string;
     metadata: Record<string, string>;
     connectAccount?: Stripe.Account;
+    installmentCount?: number;
   },
 ) {
+  const installmentCount = Math.max(1, params.installmentCount ?? 1);
   const account = params.connectAccount ??
     await stripe.accounts.retrieve(params.connectAccountId);
-  const payment_method_types = appointmentPaymentMethodTypes(account);
+  const payment_method_types = appointmentPaymentIntentMethodTypes(account, installmentCount);
 
   return stripe.paymentIntents.create(
     {
       amount: params.amount,
       currency: "brl",
       payment_method_types,
+      payment_method_options: buildCardInstallmentOptions(installmentCount),
       metadata: params.metadata,
     },
     { stripeAccount: params.connectAccountId },
+  );
+}
+
+export async function updateAppointmentPaymentIntent(
+  stripe: Stripe,
+  paymentIntentId: string,
+  connectAccountId: string,
+  params: {
+    amount: number;
+    metadata: Record<string, string>;
+    installmentCount: number;
+    connectAccount?: Stripe.Account;
+  },
+) {
+  const account = params.connectAccount ??
+    await stripe.accounts.retrieve(connectAccountId);
+  const payment_method_types = appointmentPaymentIntentMethodTypes(account, params.installmentCount);
+
+  return stripe.paymentIntents.update(
+    paymentIntentId,
+    {
+      amount: params.amount,
+      currency: "brl",
+      payment_method_types,
+      payment_method_options: buildCardInstallmentOptions(params.installmentCount),
+      metadata: params.metadata,
+    },
+    { stripeAccount: connectAccountId },
   );
 }
 

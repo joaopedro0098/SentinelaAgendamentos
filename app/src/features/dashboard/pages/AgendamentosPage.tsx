@@ -53,14 +53,16 @@ export default function AgendamentosPage() {
 
   if (isDesktop) {
     return (
-      <AgendamentosDesktopPanel
-        slug={slug}
-        barbeariaId={barbeariaId}
-        caBarbearias={caBarbearias}
-        shop={shop}
-        allBarbeariaIds={visibleBarbeariaIds}
-        isCA={isCA}
-      />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <AgendamentosDesktopPanel
+          slug={slug}
+          barbeariaId={barbeariaId}
+          caBarbearias={caBarbearias}
+          shop={shop}
+          allBarbeariaIds={visibleBarbeariaIds}
+          isCA={isCA}
+        />
+      </div>
     );
   }
 

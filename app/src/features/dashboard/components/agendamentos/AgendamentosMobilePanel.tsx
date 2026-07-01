@@ -35,7 +35,7 @@ import {
 } from "@agenda/lib/panelClienteNomeSync";
 import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
-import { getAppointmentStatusMenuActions, canManageAgendamento, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import { getAppointmentStatusMenuActions, canManageAgendamento, canOpenAnotacaoConcluido, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import {
   AgendamentoAnotacaoButton,
   AgendamentoAnotacaoModal,
@@ -119,6 +119,11 @@ export default function AgendamentosMobilePanel({
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
+
+  const caBarbeariaIds = useMemo(
+    () => caBarbearias.map((ca) => ca.barbeariaId).filter(Boolean),
+    [caBarbearias],
+  );
 
   const dias = useMemo(() => {
     const today = new Date();
@@ -670,7 +675,7 @@ export default function AgendamentosMobilePanel({
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        {a.status === "concluido" && canWriteAnotacao(a, barbeariaId) ? (
+                        {a.status === "concluido" && canOpenAnotacaoConcluido(a, barbeariaId, caBarbeariaIds, profissionais) ? (
                           <AgendamentoAnotacaoButton
                             disabled={markingNoShowId === a.id}
                             onClick={() => setAnotacaoTarget(a)}

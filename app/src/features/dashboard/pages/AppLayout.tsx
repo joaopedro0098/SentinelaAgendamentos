@@ -103,7 +103,7 @@ export default function AppLayout() {
   }, [shop, subscriptionInfo]);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row w-full max-w-[100vw] overflow-x-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
       <PwaColdStartRedirect />
       <WelcomeSupportRedirect />
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
@@ -301,7 +301,7 @@ export default function AppLayout() {
         <SidebarCollapseToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
       </aside>
 
-      <main className="flex-1 min-w-0 w-full overflow-x-hidden flex flex-col">
+      <main className="flex-1 min-w-0 min-h-0 w-full overflow-x-hidden overflow-y-auto flex flex-col">
         <BillingProgressNotice info={subscriptionInfo} loading={subscriptionLoading} />
         <Outlet />
       </main>

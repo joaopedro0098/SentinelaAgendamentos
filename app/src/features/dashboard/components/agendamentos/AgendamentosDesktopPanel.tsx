@@ -40,6 +40,7 @@ import {
   getStatusFilterOptions,
   isPastDay,
   canManageAgendamento,
+  canOpenAnotacaoConcluido,
   canWriteAnotacao,
   parsePainelRpc,
   parseYmd,
@@ -427,6 +428,11 @@ export default function AgendamentosDesktopPanel({
     return [{ value: "todos", label: "Todos" }, ...opts];
   }, [profissionais, isCA]);
 
+  const caBarbeariaIds = useMemo(
+    () => caBarbearias.map((ca) => ca.barbeariaId).filter(Boolean),
+    [caBarbearias],
+  );
+
   useEffect(() => {
     if (!isCA || profissionais.length === 0) return;
     setProfFilter((cur) =>
@@ -610,7 +616,7 @@ export default function AgendamentosDesktopPanel({
     const manageable = canManageAgendamento(a, barbeariaId);
 
     if (a.status === "concluido") {
-      if (!canWriteAnotacao(a, barbeariaId)) return null;
+      if (!canOpenAnotacaoConcluido(a, barbeariaId, caBarbeariaIds, profissionais)) return null;
       return (
         <AgendamentoAnotacaoButton
           disabled={busy}
@@ -704,125 +710,129 @@ export default function AgendamentosDesktopPanel({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full">
-      <aside className="w-[280px] shrink-0 border-r border-border/60 p-4 space-y-4 overflow-y-auto">
-        <AgendamentosMiniCalendar
-          viewMode={viewMode}
-          anchorYmd={anchorYmd}
-          onAnchorChange={setAnchorYmd}
-          onMonthChange={(delta) =>
-            setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
-          }
-          displayMonth={displayMonth}
-        />
-
-        <div className="flex rounded-xl border border-border/70 p-0.5 bg-card/40">
-          {(["dia", "semana", "mes"] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setViewMode(mode)}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-xs font-semibold capitalize transition-colors",
-                viewMode === mode
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary/50",
-              )}
-            >
-              {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between gap-1">
-          <button
-            type="button"
-            aria-label="Período anterior"
-            onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, -1))}
-            className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <p className="text-sm font-semibold capitalize text-center flex-1 leading-tight">
-            {formatPeriodTitle(viewMode, anchorYmd)}
-          </p>
-          <button
-            type="button"
-            aria-label="Próximo período"
-            onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, 1))}
-            className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {isCA && profissionais.length === 1 ? (
-            <div className="rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm">
-              <span className="text-muted-foreground">Profissional</span>
-              <p className="font-medium text-foreground">{profissionais[0].nome}</p>
-            </div>
-          ) : (
-            <MinimalFilterSelect label="Profissional" value={profFilter} options={profOptions} onChange={setProfFilter} />
-          )}
-          <MinimalFilterSelect
-            label="Serviço"
-            value={servicoFilter}
-            options={servicoOptions}
-            onChange={setServicoFilter}
+    <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+      <aside className="flex w-[280px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-background overflow-hidden">
+        <div className="shrink-0 space-y-4 border-b border-border/60 p-4">
+          <AgendamentosMiniCalendar
+            viewMode={viewMode}
+            anchorYmd={anchorYmd}
+            onAnchorChange={setAnchorYmd}
+            onMonthChange={(delta) =>
+              setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
+            }
+            displayMonth={displayMonth}
           />
-          <MinimalFilterSelect
-            label="Status"
-            value={statusFilter}
-            options={statusFilterOptions}
-            onChange={(v) => setStatusFilter(v as StatusFilter)}
-          />
-        </div>
 
-        <div className="rounded-2xl border border-border/70 bg-card/50 p-3 space-y-2 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumo do período</p>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Total</span>
-            <span className="font-semibold tabular-nums">{summary.total}</span>
+          <div className="flex rounded-xl border border-border/70 p-0.5 bg-card/40">
+            {(["dia", "semana", "mes"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-xs font-semibold capitalize transition-colors",
+                  viewMode === mode
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-secondary/50",
+                )}
+              >
+                {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
+              </button>
+            ))}
           </div>
-          {summaryVisibility.confirmados && (
+
+          <div className="flex items-center justify-between gap-1">
+            <button
+              type="button"
+              aria-label="Período anterior"
+              onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, -1))}
+              className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="text-sm font-semibold capitalize text-center flex-1 leading-tight">
+              {formatPeriodTitle(viewMode, anchorYmd)}
+            </p>
+            <button
+              type="button"
+              aria-label="Próximo período"
+              onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, 1))}
+              className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+          <div className="space-y-2">
+            {isCA && profissionais.length === 1 ? (
+              <div className="rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm">
+                <span className="text-muted-foreground">Profissional</span>
+                <p className="font-medium text-foreground">{profissionais[0].nome}</p>
+              </div>
+            ) : (
+              <MinimalFilterSelect label="Profissional" value={profFilter} options={profOptions} onChange={setProfFilter} />
+            )}
+            <MinimalFilterSelect
+              label="Serviço"
+              value={servicoFilter}
+              options={servicoOptions}
+              onChange={setServicoFilter}
+            />
+            <MinimalFilterSelect
+              label="Status"
+              value={statusFilter}
+              options={statusFilterOptions}
+              onChange={(v) => setStatusFilter(v as StatusFilter)}
+            />
+          </div>
+
+          <div className="rounded-2xl border border-border/70 bg-card/50 p-3 space-y-2 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumo do período</p>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Confirmados</span>
-              <span className="font-semibold tabular-nums text-available">{summary.confirmados}</span>
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-semibold tabular-nums">{summary.total}</span>
             </div>
-          )}
-          {summaryVisibility.concluidos && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Concluídos</span>
-              <span className="font-semibold tabular-nums text-completed">{summary.concluidos ?? 0}</span>
+            {summaryVisibility.confirmados && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Confirmados</span>
+                <span className="font-semibold tabular-nums text-available">{summary.confirmados}</span>
+              </div>
+            )}
+            {summaryVisibility.concluidos && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Concluídos</span>
+                <span className="font-semibold tabular-nums text-completed">{summary.concluidos ?? 0}</span>
+              </div>
+            )}
+            {summaryVisibility.aguardando_confirmacao && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Não confirmado</span>
+                <span className="font-semibold tabular-nums">{summary.aguardando_confirmacao}</span>
+              </div>
+            )}
+            {summaryVisibility.cancelados && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cancelados</span>
+                <span className="font-semibold tabular-nums text-unavailable">{summary.cancelados}</span>
+              </div>
+            )}
+            {summaryVisibility.faltas && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Faltas</span>
+                <span className="font-semibold tabular-nums text-absent">{faltasCount}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-1 border-t border-border/60">
+              <span className="text-muted-foreground">Faturamento</span>
+              <span className="font-semibold tabular-nums">{formatMoney(summary.faturamento_centavos)}</span>
             </div>
-          )}
-          {summaryVisibility.aguardando_confirmacao && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Não confirmado</span>
-              <span className="font-semibold tabular-nums">{summary.aguardando_confirmacao}</span>
-            </div>
-          )}
-          {summaryVisibility.cancelados && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Cancelados</span>
-              <span className="font-semibold tabular-nums text-unavailable">{summary.cancelados}</span>
-            </div>
-          )}
-          {summaryVisibility.faltas && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Faltas</span>
-              <span className="font-semibold tabular-nums text-absent">{faltasCount}</span>
-            </div>
-          )}
-          <div className="flex justify-between pt-1 border-t border-border/60">
-            <span className="text-muted-foreground">Faturamento</span>
-            <span className="font-semibold tabular-nums">{formatMoney(summary.faturamento_centavos)}</span>
           </div>
         </div>
       </aside>
 
-      <section className="flex-1 min-w-0 flex flex-col">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border/60 shrink-0">
           <h1 className="text-lg font-semibold tracking-tight">Agendamentos</h1>
           <Button type="button" size="sm" className="rounded-full" onClick={() => goAgendar()}>
@@ -842,7 +852,7 @@ export default function AgendamentosDesktopPanel({
           <span aria-hidden />
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 relative">
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {(loading || loadingSchedule) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
