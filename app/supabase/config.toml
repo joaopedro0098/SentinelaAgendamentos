@@ -50,6 +50,12 @@ verify_jwt = false
 [functions.mp-webhook]
 verify_jwt = false
 
+[functions.mp-oauth-start]
+verify_jwt = true
+
+[functions.mp-oauth-callback]
+verify_jwt = false
+
 [functions.notify-barber-new-booking]
 verify_jwt = false
 
