@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,41 +37,24 @@ function ensureMpInit() {
   mpInitialized = true;
 }
 
-export function PublicBookingPaymentCheckout({
-  amountCentavos,
-  remainingCentavos,
+function PaymentHoldCountdown({
   expiresAt,
-  agendamentoId,
-  confirmationToken,
-  enableCard,
-  enablePix,
-  maxInstallments,
-  onPaid,
   onExpired,
-  onFailed,
-}: Props) {
+}: {
+  expiresAt: string | null;
+  onExpired: () => void;
+}) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [brickKey, setBrickKey] = useState(0);
-  const [pixQr, setPixQr] = useState<string | null>(null);
-  const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
-  const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
   const expiredCalledRef = useRef(false);
   const onExpiredRef = useRef(onExpired);
-  const onPaidRef = useRef(onPaid);
-  const onFailedRef = useRef(onFailed);
-
   onExpiredRef.current = onExpired;
-  onPaidRef.current = onPaid;
-  onFailedRef.current = onFailed;
-
-  useEffect(() => {
-    ensureMpInit();
-  }, []);
 
   useEffect(() => {
     expiredCalledRef.current = false;
-    if (!expiresAt) return;
+    if (!expiresAt) {
+      setSecondsLeft(null);
+      return;
+    }
 
     const tick = () => {
       const left = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
@@ -87,7 +70,104 @@ export function PublicBookingPaymentCheckout({
     return () => window.clearInterval(id);
   }, [expiresAt]);
 
-  async function pollConfirmed() {
+  if (secondsLeft == null) return null;
+
+  const timerLabel = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
+
+  return (
+    <p className="mt-1 text-xs text-muted-foreground">
+      Horário reservado por mais <span className="font-semibold text-foreground">{timerLabel}</span>
+    </p>
+  );
+}
+
+type MpPaymentBrickProps = {
+  agendamentoId: string;
+  brickRetryKey: number;
+  initialization: { amount: number; marketplace: boolean };
+  customization: {
+    paymentMethods: {
+      creditCard: "all" | "none";
+      debitCard: "all" | "none";
+      prepaidCard: "all" | "none";
+      bankTransfer: "all" | "none";
+      maxInstallments: number;
+    };
+  };
+  onSubmit: (formData: unknown) => Promise<void>;
+  onBrickError: (message: string) => void;
+};
+
+function MpPaymentBrick({
+  agendamentoId,
+  brickRetryKey,
+  initialization,
+  customization,
+  onSubmit,
+  onBrickError,
+}: MpPaymentBrickProps) {
+  const submitRef = useRef(onSubmit);
+  submitRef.current = onSubmit;
+
+  const onBrickErrorRef = useRef(onBrickError);
+  onBrickErrorRef.current = onBrickError;
+
+  const stableSubmit = useCallback(async (formData: unknown) => {
+    await submitRef.current(formData);
+  }, []);
+
+  const stableOnError = useCallback((error: unknown) => {
+    const message =
+      typeof error === "object" && error && "message" in error
+        ? String((error as { message?: string }).message)
+        : "Erro no formulário de pagamento.";
+    onBrickErrorRef.current(message);
+  }, []);
+
+  const brickId = `mp-payment-${agendamentoId}-${brickRetryKey}`;
+
+  return (
+    <Payment
+      id={brickId}
+      initialization={initialization}
+      customization={customization}
+      onSubmit={stableSubmit}
+      onError={stableOnError}
+    />
+  );
+}
+
+export function PublicBookingPaymentCheckout({
+  amountCentavos,
+  remainingCentavos,
+  expiresAt,
+  agendamentoId,
+  confirmationToken,
+  enableCard,
+  enablePix,
+  maxInstallments,
+  onPaid,
+  onExpired,
+  onFailed,
+}: Props) {
+  const [processing, setProcessing] = useState(false);
+  const [brickRetryKey, setBrickRetryKey] = useState(0);
+  const [pixQr, setPixQr] = useState<string | null>(null);
+  const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
+
+  const onExpiredRef = useRef(onExpired);
+  const onPaidRef = useRef(onPaid);
+  const onFailedRef = useRef(onFailed);
+  onExpiredRef.current = onExpired;
+  onPaidRef.current = onPaid;
+  onFailedRef.current = onFailed;
+
+  useEffect(() => {
+    ensureMpInit();
+  }, []);
+
+  const pollConfirmed = useCallback(async () => {
     for (let i = 0; i < 40; i += 1) {
       const result = await verifyAppointmentPayment({
         agendamento_id: agendamentoId,
@@ -105,12 +185,7 @@ export function PublicBookingPaymentCheckout({
     }
     toast.message("Pagamento em processamento. Aguarde a confirmação.");
     onPaidRef.current();
-  }
-
-  const timerLabel =
-    secondsLeft != null
-      ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
-      : null;
+  }, [agendamentoId, confirmationToken]);
 
   const initialization = useMemo(
     () => ({
@@ -133,11 +208,27 @@ export function PublicBookingPaymentCheckout({
     [enableCard, enablePix, maxInstallments],
   );
 
-  const handleSubmit = useMemo(
-    () => async (formData: unknown) => {
+  const handleBrickError = useCallback((message: string) => {
+    setLastPaymentError({
+      title: "Erro no formulário Mercado Pago",
+      message:
+        message.includes("informação de pagamento") || message.includes("informacion de pago")
+          ? "O Brick não conseguiu ler os dados do cartão (parcelas/meio de pagamento)."
+          : message,
+      hint:
+        "Use cartão teste 5031 4332 1540 6351, validade futura, CVV 123, nome APRO. Se persistir, recarregue a página ou teste 1 parcela no painel.",
+      mp_code: null,
+      mp_status_detail: null,
+      retry: true,
+      release_hold: false,
+    });
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (formData: unknown) => {
       setProcessing(true);
       setLastPaymentError(null);
-      let canRetry = false;
+      let shouldRemountBrick = false;
       try {
         const result = await processAppointmentPayment({
           agendamento_id: agendamentoId,
@@ -167,7 +258,7 @@ export function PublicBookingPaymentCheckout({
           return;
         }
 
-        canRetry = true;
+        shouldRemountBrick = true;
         const details = parseAppointmentPaymentErrorPayload(result);
         setLastPaymentError(details);
         toast.error(details.title, {
@@ -187,16 +278,16 @@ export function PublicBookingPaymentCheckout({
         if (details.release_hold) {
           onFailedRef.current();
         } else {
-          canRetry = true;
+          shouldRemountBrick = true;
         }
       } finally {
         setProcessing(false);
-        if (canRetry) {
-          setBrickKey((key) => key + 1);
+        if (shouldRemountBrick) {
+          setBrickRetryKey((key) => key + 1);
         }
       }
     },
-    [agendamentoId, confirmationToken],
+    [agendamentoId, confirmationToken, pollConfirmed],
   );
 
   if (!MP_PUBLIC_KEY) {
@@ -217,11 +308,7 @@ export function PublicBookingPaymentCheckout({
             Restante presencial: {formatServicePrice(remainingCentavos)}
           </p>
         )}
-        {timerLabel && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Horário reservado por mais <span className="font-semibold text-foreground">{timerLabel}</span>
-          </p>
-        )}
+        <PaymentHoldCountdown expiresAt={expiresAt} onExpired={() => onExpiredRef.current()} />
       </div>
 
       {MP_TEST_MODE && (
@@ -264,32 +351,13 @@ export function PublicBookingPaymentCheckout({
       )}
 
       {!pixQrBase64 && (
-        <Payment
-          key={`mp-payment-${agendamentoId}-${brickKey}`}
-          id={`mp-payment-${agendamentoId}-${brickKey}`}
+        <MpPaymentBrick
+          agendamentoId={agendamentoId}
+          brickRetryKey={brickRetryKey}
           initialization={initialization}
           customization={customization}
           onSubmit={handleSubmit}
-          onError={(error) => {
-            const message =
-              typeof error === "object" && error && "message" in error
-                ? String((error as { message?: string }).message)
-                : "Erro no formulário de pagamento.";
-            setLastPaymentError({
-              title: "Erro no formulário Mercado Pago",
-              message:
-                message.includes("informação de pagamento") || message.includes("informacion de pago")
-                  ? "O Brick não conseguiu ler os dados do cartão (parcelas/meio de pagamento)."
-                  : message,
-              hint:
-                "Use cartão teste 5031 4332 1540 6351, validade futura, CVV 123, nome APRO. Se persistir, recarregue a página ou teste 1 parcela no painel.",
-              mp_code: null,
-              mp_status_detail: null,
-              retry: true,
-              release_hold: false,
-            });
-            setBrickKey((key) => key + 1);
-          }}
+          onBrickError={handleBrickError}
         />
       )}
 
