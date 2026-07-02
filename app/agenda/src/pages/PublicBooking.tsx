@@ -24,6 +24,11 @@ import {
 } from "../lib/subscription";
 import { getBookingStaticCache, setBookingStaticCache } from "../lib/bookingStaticCache";
 import { requestClientNotificationPermission, saveClientConfirmationPushSubscription } from "../lib/clientConfirmationPush";
+import { PublicBookingPaymentCheckout } from "@/components/booking/PublicBookingPaymentCheckout";
+import {
+  createAppointmentPaymentCheckout,
+  type AppointmentPaymentCheckout,
+} from "@/lib/appointmentPaymentApi";
 
 const bookingPageX = "px-3 sm:px-5 md:px-0";
 const bookingScrollBleed = "-mx-3 sm:-mx-5 md:mx-0";
@@ -431,6 +436,10 @@ const PublicBooking = ({
   const [desktopViewMonth, setDesktopViewMonth] = useState(() =>
     monthStart(parseYmd(initialBookingDate(ownerPanel, isReschedule))),
   );
+  const [paymentCheckout, setPaymentCheckout] = useState<
+    (AppointmentPaymentCheckout & { agendamentoId: string; confirmationToken: string }) | null
+  >(null);
+  const [paymentFailed, setPaymentFailed] = useState(false);
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -927,6 +936,83 @@ const PublicBooking = ({
         if (cliente?.whatsapp) whatsStored = cliente.whatsapp;
       }
 
+      if (!ownerPanel) {
+        const { data: paySettings } = await supabase.rpc("get_effective_appointment_payment_settings", {
+          p_barbearia_id: targetBarbeariaId,
+        });
+        const requiresPayment =
+          paySettings &&
+          typeof paySettings === "object" &&
+          "requires_payment" in paySettings &&
+          (paySettings as { requires_payment?: boolean }).requires_payment === true;
+
+        if (requiresPayment) {
+          const { data: holdData, error: holdErr } = await supabase.rpc("create_public_booking_payment_hold", {
+            p_barbearia_id: targetBarbeariaId,
+            p_barbeiro_id: barbeiroId,
+            p_data: data,
+            p_hora: hora,
+            p_cliente_nome: nomeParaAgendamento,
+            p_cliente_whatsapp: whatsStored,
+            p_cliente_id: cliId ?? null,
+            p_duracao_minutos: duracaoTotal,
+            p_servicos_nomes: servicosNomes,
+            p_observacao: obs,
+          });
+
+          if (holdErr) {
+            if (holdErr.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+            else if (isSubscriptionBlockError(holdErr.message)) notifyBookingBlocked();
+            else toast.error(holdErr.message);
+            return;
+          }
+
+          const hold = holdData as {
+            ok?: boolean;
+            error?: string;
+            agendamento_id?: string;
+            confirmation_token?: string;
+          };
+
+          if (hold?.error === "payment_not_required" || !hold?.ok || !hold.agendamento_id || !hold.confirmation_token) {
+            if (hold?.error && hold.error !== "payment_not_required") {
+              toast.error(hold.error);
+              return;
+            }
+          } else {
+            try {
+              const checkout = await createAppointmentPaymentCheckout({
+                agendamento_id: hold.agendamento_id,
+                confirmation_token: hold.confirmation_token,
+              });
+
+              setPaymentCheckout({
+                ...checkout,
+                agendamentoId: hold.agendamento_id,
+                confirmationToken: hold.confirmation_token,
+              });
+              setPaymentFailed(false);
+              setBookingConfirmed(false);
+              setDone(true);
+              setSlotGridRevision((r) => r + 1);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
+              return;
+            } catch (payErr) {
+              await supabase.rpc("cancel_public_booking_payment_hold", {
+                p_agendamento_id: hold.agendamento_id,
+                p_confirmation_token: hold.confirmation_token,
+              });
+              if (payErr instanceof Error && payErr.message === "already_confirmed") {
+                setBookingConfirmed(true);
+                return;
+              }
+              toast.error(payErr instanceof Error ? payErr.message : "Não foi possível iniciar o pagamento.");
+              return;
+            }
+          }
+        }
+      }
+
       const { data: createdAppointment, error } = await supabase
         .from("agendamentos")
         .insert({
@@ -987,9 +1073,18 @@ const PublicBooking = ({
   };
 
   const alterBooking = () => {
+    if (paymentCheckout) {
+      void supabase.rpc("cancel_public_booking_payment_hold", {
+        p_agendamento_id: paymentCheckout.agendamentoId,
+        p_confirmation_token: paymentCheckout.confirmationToken,
+      });
+      setSlotGridRevision((r) => r + 1);
+    }
     setBookingConfirmed(false);
     setDone(false);
     setRescheduleSummary(null);
+    setPaymentCheckout(null);
+    setPaymentFailed(false);
   };
 
   const startNewOwnerBooking = useCallback(() => {
@@ -1011,6 +1106,50 @@ const PublicBooking = ({
   }, [bookingConfirmed, done, ownerPanel, ownerPanelActive, startNewOwnerBooking]);
 
   const showClientExit = !ownerPanel && !isReschedule;
+
+  const handlePaymentPaid = useCallback(async () => {
+    if (!paymentCheckout) return;
+    void supabase.functions
+      .invoke("notify-barber-new-booking", { body: { agendamento_id: paymentCheckout.agendamentoId } })
+      .catch(() => undefined);
+    void saveClientConfirmationPushSubscription({
+      confirmationToken: paymentCheckout.confirmationToken,
+      ensureValidBrowserSubscription: true,
+    }).catch(() => undefined);
+    setPaymentCheckout(null);
+    setPaymentFailed(false);
+    setBookingConfirmed(true);
+  }, [paymentCheckout]);
+
+  const handlePaymentExpired = useCallback(() => {
+    toast.error("Tempo esgotado. O horário foi liberado — escolha outro.");
+    if (paymentCheckout) {
+      void supabase.rpc("cancel_public_booking_payment_hold", {
+        p_agendamento_id: paymentCheckout.agendamentoId,
+        p_confirmation_token: paymentCheckout.confirmationToken,
+      });
+    }
+    setPaymentCheckout(null);
+    setPaymentFailed(true);
+    setDone(false);
+    setBookingConfirmed(false);
+    setSlotGridRevision((r) => r + 1);
+  }, [paymentCheckout]);
+
+  const handlePaymentFailed = useCallback(() => {
+    toast.error("Pagamento não concluído. O horário foi liberado.");
+    if (paymentCheckout) {
+      void supabase.rpc("cancel_public_booking_payment_hold", {
+        p_agendamento_id: paymentCheckout.agendamentoId,
+        p_confirmation_token: paymentCheckout.confirmationToken,
+      });
+    }
+    setPaymentCheckout(null);
+    setPaymentFailed(true);
+    setDone(false);
+    setBookingConfirmed(false);
+    setSlotGridRevision((r) => r + 1);
+  }, [paymentCheckout]);
 
   if (loading) return (
     <div className={cn("min-h-screen flex items-center justify-center", pageBgClass)}>
@@ -1146,13 +1285,28 @@ const PublicBooking = ({
             </div>
           )}
 
-          {!bookingConfirmed && (
+          {!bookingConfirmed && !paymentCheckout && (
             <>
               <h1 className="font-display text-xl font-bold text-center">Confirme seu agendamento</h1>
               <p className="mt-2 text-muted-foreground text-sm text-center">
                 Revise os dados antes de salvar. Você pode alterar se algo estiver errado.
               </p>
             </>
+          )}
+
+          {!bookingConfirmed && paymentCheckout && (
+            <>
+              <h1 className="font-display text-xl font-bold text-center">Pagamento</h1>
+              <p className="mt-2 text-muted-foreground text-sm text-center">
+                Pague para confirmar. Seu horário fica reservado por 15 minutos.
+              </p>
+            </>
+          )}
+
+          {paymentFailed && !paymentCheckout && !bookingConfirmed && (
+            <p className="text-sm text-destructive text-center mb-2">
+              Reserva cancelada. Escolha outro horário e tente novamente.
+            </p>
           )}
 
           <ul className={cn("space-y-2 text-sm border-t border-border pt-4", !bookingConfirmed && "mt-4")}>
@@ -1185,7 +1339,7 @@ const PublicBooking = ({
               </li>
             )}
           </ul>
-          {!bookingConfirmed && (
+          {!bookingConfirmed && !paymentCheckout && (
             <div className="mt-6 flex gap-2">
               <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
                 Alterar
@@ -1201,6 +1355,32 @@ const PublicBooking = ({
                 ) : (
                   "Confirmar"
                 )}
+              </Button>
+            </div>
+          )}
+
+          {!bookingConfirmed && paymentCheckout && (
+            <div className="mt-6">
+              <PublicBookingPaymentCheckout
+                amountCentavos={paymentCheckout.amount_centavos}
+                remainingCentavos={paymentCheckout.remaining_centavos}
+                expiresAt={paymentCheckout.expires_at}
+                agendamentoId={paymentCheckout.agendamentoId}
+                confirmationToken={paymentCheckout.confirmationToken}
+                enableCard={paymentCheckout.payment_enable_card}
+                enablePix={paymentCheckout.payment_enable_pix}
+                maxInstallments={paymentCheckout.payment_max_installments}
+                onPaid={handlePaymentPaid}
+                onExpired={handlePaymentExpired}
+                onFailed={handlePaymentFailed}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-3 w-full rounded-full"
+                onClick={alterBooking}
+              >
+                Cancelar pagamento
               </Button>
             </div>
           )}

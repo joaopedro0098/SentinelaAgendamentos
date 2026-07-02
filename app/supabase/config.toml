@@ -56,6 +56,15 @@ verify_jwt = true
 [functions.mp-oauth-callback]
 verify_jwt = false
 
+[functions.mp-create-appointment-checkout]
+verify_jwt = false
+
+[functions.mp-process-appointment-payment]
+verify_jwt = false
+
+[functions.mp-verify-appointment-payment]
+verify_jwt = false
+
 [functions.notify-barber-new-booking]
 verify_jwt = false
 
