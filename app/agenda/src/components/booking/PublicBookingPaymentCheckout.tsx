@@ -87,10 +87,8 @@ type MpPaymentBrickProps = {
   initialization: { amount: number; marketplace: boolean };
   customization: {
     paymentMethods: {
-      creditCard: "all" | "none";
-      debitCard: "all" | "none";
-      prepaidCard: "all" | "none";
-      bankTransfer: "all" | "none";
+      creditCard?: "all";
+      bankTransfer?: "all";
       maxInstallments: number;
     };
   };
@@ -196,18 +194,18 @@ export function PublicBookingPaymentCheckout({
     [amountCentavos],
   );
 
-  const customization = useMemo(
-    () => ({
-      paymentMethods: {
-        creditCard: enableCard ? ("all" as const) : ("none" as const),
-        debitCard: "none" as const,
-        prepaidCard: "none" as const,
-        bankTransfer: enablePix ? ("all" as const) : ("none" as const),
-        maxInstallments: Math.max(1, maxInstallments),
-      },
-    }),
-    [enableCard, enablePix, maxInstallments],
-  );
+  const customization = useMemo(() => {
+    const paymentMethods: {
+      creditCard?: "all";
+      bankTransfer?: "all";
+      maxInstallments: number;
+    } = {
+      maxInstallments: Math.max(1, maxInstallments),
+    };
+    if (enableCard) paymentMethods.creditCard = "all";
+    if (enablePix) paymentMethods.bankTransfer = "all";
+    return { paymentMethods };
+  }, [enableCard, enablePix, maxInstallments]);
 
   const handleBrickError = useCallback((message: string) => {
     const normalized = message.toLowerCase();
