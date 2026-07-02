@@ -200,8 +200,8 @@ export function PublicBookingPaymentCheckout({
     () => ({
       paymentMethods: {
         creditCard: enableCard ? ("all" as const) : ("none" as const),
-        debitCard: enableCard ? ("all" as const) : ("none" as const),
-        prepaidCard: enableCard ? ("all" as const) : ("none" as const),
+        debitCard: "none" as const,
+        prepaidCard: "none" as const,
         bankTransfer: enablePix ? ("all" as const) : ("none" as const),
         maxInstallments: Math.max(1, maxInstallments),
       },
