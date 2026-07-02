@@ -1,8 +1,10 @@
 import {
   createMpAppointmentPayment,
   createServiceClient,
+  explainMpPaymentFailure,
   getSellerAccessToken,
   loadHoldForCheckout,
+  MpPaymentApiError,
   parsePaymentBrickSubmit,
 } from "../_shared/mpAppointment.ts";
 
@@ -114,15 +116,47 @@ Deno.serve(async (req) => {
       p_mp_payment_id: paymentId || null,
     });
 
+    const rejected = explainMpPaymentFailure(payment as Record<string, unknown>, {
+      status: String(payment.status ?? "rejected"),
+      status_detail: payment.status_detail ? String(payment.status_detail) : null,
+    });
+
     return jsonResponse({
-      error: "Pagamento recusado pelo Mercado Pago.",
+      error: rejected.message,
+      error_title: rejected.title,
+      error_hint: rejected.hint,
+      mp_code: rejected.mp_code,
+      mp_status_detail: rejected.mp_status_detail,
       status,
       status_detail: payment.status_detail ?? null,
-      release_hold: true,
+      release_hold: rejected.release_hold,
+      retry: rejected.retry,
     }, 402);
   } catch (e) {
     console.error("mp-process-appointment-payment:", e);
+    if (e instanceof MpPaymentApiError) {
+      return jsonResponse({
+        error: e.info.message,
+        error_title: e.info.title,
+        error_hint: e.info.hint,
+        mp_code: e.info.mp_code,
+        mp_status_detail: e.info.mp_status_detail,
+        retry: e.info.retry,
+        release_hold: e.info.release_hold,
+        raw_message: e.info.raw_message,
+      }, 502);
+    }
     const message = e instanceof Error ? e.message : String(e);
-    return jsonResponse({ error: message, retry: true }, 500);
+    const explained = explainMpPaymentFailure(message);
+    return jsonResponse({
+      error: explained.message,
+      error_title: explained.title,
+      error_hint: explained.hint,
+      mp_code: explained.mp_code,
+      mp_status_detail: explained.mp_status_detail,
+      retry: explained.retry,
+      release_hold: explained.release_hold,
+      raw_message: explained.raw_message,
+    }, 500);
   }
 });

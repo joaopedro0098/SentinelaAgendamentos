@@ -3,19 +3,112 @@ const SUPABASE_PUBLISHABLE_KEY = String(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
 ).trim();
 
+export type AppointmentPaymentErrorDetails = {
+  title: string;
+  message: string;
+  hint: string | null;
+  mp_code: number | null;
+  mp_status_detail: string | null;
+  retry: boolean;
+  release_hold: boolean;
+  raw_message?: string | null;
+};
+
+type FunctionErrorPayload = {
+  error?: string;
+  message?: string;
+  error_title?: string;
+  error_hint?: string | null;
+  mp_code?: number | null;
+  mp_status_detail?: string | null;
+  retry?: boolean;
+  release_hold?: boolean;
+  raw_message?: string | null;
+  [key: string]: unknown;
+};
+
 async function readFunctionPayload(response: Response) {
   const text = await response.text();
   if (!text) return null;
   try {
-    return JSON.parse(text) as {
-      error?: string;
-      message?: string;
-      retry?: boolean;
-      release_hold?: boolean;
-      [key: string]: unknown;
-    };
+    return JSON.parse(text) as FunctionErrorPayload;
   } catch {
     return { message: text };
+  }
+}
+
+function explainPaymentErrorLocally(message: string): AppointmentPaymentErrorDetails {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("invalid users involved")) {
+    return {
+      title: "Usuários incompatíveis (teste × produção)",
+      message: "O Mercado Pago detectou mistura entre conta teste e conta real.",
+      hint:
+        "Use comprador teste (e-mail/CPF do painel MP), vendedor teste conectado e chave TEST- da mesma app.",
+      mp_code: 145,
+      mp_status_detail: null,
+      retry: true,
+      release_hold: false,
+    };
+  }
+
+  if (normalized.includes("invalid test user email")) {
+    return {
+      title: "E-mail de comprador teste inválido",
+      message: "No modo teste, use o e-mail do comprador teste criado no Mercado Pago.",
+      hint: "Mercado Pago Developers → Contas de teste → Comprador.",
+      mp_code: null,
+      mp_status_detail: null,
+      retry: true,
+      release_hold: false,
+    };
+  }
+
+  return {
+    title: "Erro no pagamento",
+    message,
+    hint: null,
+    mp_code: null,
+    mp_status_detail: null,
+    retry: true,
+    release_hold: false,
+  };
+}
+
+export function parseAppointmentPaymentErrorPayload(
+  payload: FunctionErrorPayload | null | undefined,
+): AppointmentPaymentErrorDetails {
+  if (!payload) {
+    return explainPaymentErrorLocally("Não foi possível processar o pagamento.");
+  }
+
+  if (payload.error_title || payload.error_hint || payload.mp_code != null || payload.mp_status_detail) {
+    return {
+      title: String(payload.error_title ?? "Erro no pagamento"),
+      message: String(payload.error ?? payload.message ?? "Não foi possível processar o pagamento."),
+      hint: payload.error_hint != null ? String(payload.error_hint) : null,
+      mp_code: typeof payload.mp_code === "number" ? payload.mp_code : null,
+      mp_status_detail:
+        payload.mp_status_detail != null ? String(payload.mp_status_detail) : null,
+      retry: payload.retry !== false,
+      release_hold: payload.release_hold === true,
+      raw_message: payload.raw_message != null ? String(payload.raw_message) : null,
+    };
+  }
+
+  return explainPaymentErrorLocally(
+    String(payload.error ?? payload.message ?? "Não foi possível processar o pagamento."),
+  );
+}
+
+export class AppointmentPaymentError extends Error {
+  details: AppointmentPaymentErrorDetails;
+
+  constructor(details: AppointmentPaymentErrorDetails) {
+    super(details.message);
+    this.name = "AppointmentPaymentError";
+    this.details = details;
   }
 }
 
@@ -39,13 +132,7 @@ export async function invokePublicPaymentFunction<T>(
 
   const payload = await readFunctionPayload(response);
   if (!response.ok) {
-    const err = new Error(payload?.error ?? payload?.message ?? "Não foi possível iniciar o pagamento.") as Error & {
-      retry?: boolean;
-      release_hold?: boolean;
-    };
-    err.retry = payload?.retry === true;
-    err.release_hold = payload?.release_hold === true;
-    throw err;
+    throw new AppointmentPaymentError(parseAppointmentPaymentErrorPayload(payload));
   }
   return payload as T;
 }
@@ -91,6 +178,10 @@ export async function processAppointmentPayment(input: {
   retry?: boolean;
   release_hold?: boolean;
   error?: string;
+  error_title?: string;
+  error_hint?: string | null;
+  mp_code?: number | null;
+  mp_status_detail?: string | null;
 }> {
   return invokePublicPaymentFunction("mp-process-appointment-payment", input);
 }
@@ -106,9 +197,18 @@ export const MP_PUBLIC_KEY = String(import.meta.env.VITE_MP_PUBLIC_KEY ?? "").tr
 export const MP_TEST_MODE = MP_PUBLIC_KEY.startsWith("TEST-");
 
 export function formatAppointmentPaymentError(message: string): string {
-  const normalized = message.toLowerCase();
-  if (normalized.includes("invalid test user email")) {
-    return "Modo teste: use o e-mail de um comprador teste do Mercado Pago (ex.: algo@testuser.com), não um e-mail pessoal.";
+  return explainPaymentErrorLocally(message).message;
+}
+
+export function paymentErrorToastDescription(details: AppointmentPaymentErrorDetails): string {
+  const parts = [details.message];
+  if (details.hint) parts.push(details.hint);
+  if (MP_TEST_MODE && (details.mp_code != null || details.mp_status_detail)) {
+    const codes = [
+      details.mp_code != null ? `código MP ${details.mp_code}` : null,
+      details.mp_status_detail ? `detalhe ${details.mp_status_detail}` : null,
+    ].filter(Boolean);
+    if (codes.length) parts.push(`(${codes.join(", ")})`);
   }
-  return message;
+  return parts.join(" ");
 }

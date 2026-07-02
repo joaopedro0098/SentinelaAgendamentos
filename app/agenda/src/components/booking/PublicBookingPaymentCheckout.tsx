@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatServicePrice } from "@/lib/servicePrice";
 import {
-  formatAppointmentPaymentError,
+  AppointmentPaymentError,
   MP_PUBLIC_KEY,
   MP_TEST_MODE,
+  parseAppointmentPaymentErrorPayload,
+  paymentErrorToastDescription,
   processAppointmentPayment,
+  type AppointmentPaymentErrorDetails,
   verifyAppointmentPayment,
 } from "@/lib/appointmentPaymentApi";
 
@@ -52,6 +55,7 @@ export function PublicBookingPaymentCheckout({
   const [brickKey, setBrickKey] = useState(0);
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
   const expiredCalledRef = useRef(false);
   const onExpiredRef = useRef(onExpired);
   const onPaidRef = useRef(onPaid);
@@ -128,6 +132,7 @@ export function PublicBookingPaymentCheckout({
   const handleSubmit = useMemo(
     () => async (formData: unknown) => {
       setProcessing(true);
+      setLastPaymentError(null);
       let canRetry = false;
       try {
         const result = await processAppointmentPayment({
@@ -148,23 +153,34 @@ export function PublicBookingPaymentCheckout({
           return;
         }
 
-        if (result.status === "confirmado") {
-          onPaidRef.current();
-          return;
-        }
-
         if (result.release_hold) {
-          toast.error("Pagamento não concluído. O horário foi liberado.");
+          const details = parseAppointmentPaymentErrorPayload(result);
+          setLastPaymentError(details);
+          toast.error(details.title, {
+            description: paymentErrorToastDescription(details),
+          });
           onFailedRef.current();
           return;
         }
 
         canRetry = true;
-        toast.error(formatAppointmentPaymentError("Pagamento não concluído. Tente novamente."));
+        const details = parseAppointmentPaymentErrorPayload(result);
+        setLastPaymentError(details);
+        toast.error(details.title, {
+          description: paymentErrorToastDescription(details),
+        });
       } catch (e) {
-        const err = e as Error & { retry?: boolean; release_hold?: boolean };
-        toast.error(formatAppointmentPaymentError(err.message || "Pagamento não concluído."));
-        if (err.release_hold) {
+        const details =
+          e instanceof AppointmentPaymentError
+            ? e.details
+            : parseAppointmentPaymentErrorPayload({
+                error: e instanceof Error ? e.message : "Pagamento não concluído.",
+              });
+        setLastPaymentError(details);
+        toast.error(details.title, {
+          description: paymentErrorToastDescription(details),
+        });
+        if (details.release_hold) {
           onFailedRef.current();
         } else {
           canRetry = true;
@@ -206,10 +222,26 @@ export function PublicBookingPaymentCheckout({
 
       {MP_TEST_MODE && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-          Ambiente de teste: no e-mail do pagamento, use um comprador teste do Mercado Pago (ex.:{" "}
-          <span className="font-medium">comprador@testuser.com</span>) e cartões de teste. E-mail pessoal não funciona
-          neste fluxo.
+          Ambiente de teste: use e-mail e CPF do comprador teste em Mercado Pago Developers → Contas de
+          teste, cartão de teste e nome <span className="font-medium">APRO</span> para simular aprovação.
         </p>
+      )}
+
+      {lastPaymentError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm space-y-1">
+          <p className="font-medium text-destructive">{lastPaymentError.title}</p>
+          <p className="text-foreground/90">{lastPaymentError.message}</p>
+          {lastPaymentError.hint && (
+            <p className="text-xs text-muted-foreground">{lastPaymentError.hint}</p>
+          )}
+          {MP_TEST_MODE && (lastPaymentError.mp_code != null || lastPaymentError.mp_status_detail) && (
+            <p className="text-[11px] text-muted-foreground font-mono">
+              {lastPaymentError.mp_code != null ? `MP código ${lastPaymentError.mp_code}` : null}
+              {lastPaymentError.mp_code != null && lastPaymentError.mp_status_detail ? " · " : null}
+              {lastPaymentError.mp_status_detail ? `detalhe ${lastPaymentError.mp_status_detail}` : null}
+            </p>
+          )}
+        </div>
       )}
 
       {pixQrBase64 && (
