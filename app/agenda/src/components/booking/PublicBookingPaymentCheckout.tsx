@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatServicePrice } from "@/lib/servicePrice";
+import { applyMpPassFeeCentavos, readMpBrickPaymentState } from "@/lib/mpPassFee";
 import {
   AppointmentPaymentError,
   MP_PUBLIC_KEY,
@@ -17,6 +18,9 @@ import {
 
 type Props = {
   amountCentavos: number;
+  chargeBaseCentavos: number;
+  passFeeCard: boolean;
+  passFeePix: boolean;
   remainingCentavos: number;
   expiresAt: string | null;
   agendamentoId: string;
@@ -84,7 +88,7 @@ function PaymentHoldCountdown({
 type MpPaymentBrickProps = {
   agendamentoId: string;
   brickRetryKey: number;
-  initialization: { amount: number; marketplace: boolean };
+  initialization: { amount: number };
   customization: {
     paymentMethods: {
       creditCard?: "all";
@@ -94,6 +98,7 @@ type MpPaymentBrickProps = {
   };
   onSubmit: (formData: unknown) => Promise<void>;
   onBrickError: (message: string) => void;
+  onBrickReady?: () => void;
 };
 
 function MpPaymentBrick({
@@ -103,12 +108,16 @@ function MpPaymentBrick({
   customization,
   onSubmit,
   onBrickError,
+  onBrickReady,
 }: MpPaymentBrickProps) {
   const submitRef = useRef(onSubmit);
   submitRef.current = onSubmit;
 
   const onBrickErrorRef = useRef(onBrickError);
   onBrickErrorRef.current = onBrickError;
+
+  const onBrickReadyRef = useRef(onBrickReady);
+  onBrickReadyRef.current = onBrickReady;
 
   const stableSubmit = useCallback(async (formData: unknown) => {
     await submitRef.current(formData);
@@ -122,6 +131,10 @@ function MpPaymentBrick({
     onBrickErrorRef.current(message);
   }, []);
 
+  const stableOnReady = useCallback(() => {
+    onBrickReadyRef.current?.();
+  }, []);
+
   const brickId = `mp-payment-${agendamentoId}-${brickRetryKey}`;
 
   return (
@@ -131,12 +144,16 @@ function MpPaymentBrick({
       customization={customization}
       onSubmit={stableSubmit}
       onError={stableOnError}
+      onReady={stableOnReady}
     />
   );
 }
 
 export function PublicBookingPaymentCheckout({
   amountCentavos,
+  chargeBaseCentavos,
+  passFeeCard,
+  passFeePix,
   remainingCentavos,
   expiresAt,
   agendamentoId,
@@ -154,6 +171,80 @@ export function PublicBookingPaymentCheckout({
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
   const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
+  const [brickDomId, setBrickDomId] = useState<string | null>(null);
+  const [selectedInstallments, setSelectedInstallments] = useState(1);
+  const [selectedMethod, setSelectedMethod] = useState<"card" | "pix">(
+    enableCard ? "card" : "pix",
+  );
+
+  const hasPassFee = passFeeCard || passFeePix;
+  const baseCentavos = chargeBaseCentavos > 0 ? chargeBaseCentavos : amountCentavos;
+
+  const displayTotalCentavos = useMemo(() => {
+    if (!hasPassFee) return amountCentavos;
+    return applyMpPassFeeCentavos(
+      baseCentavos,
+      selectedMethod,
+      selectedInstallments,
+      passFeeCard,
+      passFeePix,
+    );
+  }, [
+    hasPassFee,
+    amountCentavos,
+    baseCentavos,
+    selectedMethod,
+    selectedInstallments,
+    passFeeCard,
+    passFeePix,
+  ]);
+
+  const displayInstallmentCentavos =
+    selectedInstallments > 1
+      ? Math.ceil(displayTotalCentavos / selectedInstallments)
+      : displayTotalCentavos;
+
+  const syncBrickPaymentState = useCallback(() => {
+    if (!brickDomId) return;
+    const root = document.getElementById(brickDomId);
+    if (!root) return;
+    const state = readMpBrickPaymentState(root);
+    setSelectedInstallments(state.installments);
+    setSelectedMethod(state.method);
+  }, [brickDomId]);
+
+  useEffect(() => {
+    if (!brickDomId || pixQrBase64) return;
+    const root = document.getElementById(brickDomId);
+    if (!root) return;
+
+    const onChange = (event: Event) => {
+      if (event.target instanceof HTMLSelectElement) {
+        syncBrickPaymentState();
+      }
+    };
+
+    root.addEventListener("change", onChange, true);
+    root.addEventListener("click", syncBrickPaymentState, true);
+
+    const observer = new MutationObserver(() => {
+      syncBrickPaymentState();
+    });
+    observer.observe(root, { childList: true, subtree: true, attributes: true });
+
+    syncBrickPaymentState();
+
+    return () => {
+      root.removeEventListener("change", onChange, true);
+      root.removeEventListener("click", syncBrickPaymentState, true);
+      observer.disconnect();
+    };
+  }, [brickDomId, pixQrBase64, syncBrickPaymentState]);
+
+  const handleBrickReady = useCallback(() => {
+    setBrickDomId(`mp-payment-${agendamentoId}-${brickRetryKey}`);
+    window.setTimeout(syncBrickPaymentState, 300);
+  }, [agendamentoId, brickRetryKey, syncBrickPaymentState]);
 
   const onExpiredRef = useRef(onExpired);
   const onPaidRef = useRef(onPaid);
@@ -345,8 +436,26 @@ export function PublicBookingPaymentCheckout({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
-        <p className="text-xs text-muted-foreground">Valor a pagar agora</p>
-        <p className="font-display text-2xl font-bold">{formatServicePrice(amountCentavos)}</p>
+        <p className="text-xs text-muted-foreground">
+          {selectedInstallments > 1 && selectedMethod === "card"
+            ? "Valor da parcela"
+            : "Valor a pagar agora"}
+        </p>
+        <p className="font-display text-2xl font-bold">
+          {formatServicePrice(
+            selectedInstallments > 1 && selectedMethod === "card"
+              ? displayInstallmentCentavos
+              : displayTotalCentavos,
+          )}
+        </p>
+        {selectedInstallments > 1 && selectedMethod === "card" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {selectedInstallments}x · total {formatServicePrice(displayTotalCentavos)}
+          </p>
+        )}
+        {hasPassFee && selectedInstallments === 1 && selectedMethod === "card" && passFeeCard && (
+          <p className="mt-1 text-[11px] text-muted-foreground">inclui repasse estimado da taxa MP</p>
+        )}
         {remainingCentavos > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
             Restante presencial: {formatServicePrice(remainingCentavos)}
@@ -408,6 +517,7 @@ export function PublicBookingPaymentCheckout({
           customization={customization}
           onSubmit={handleSubmit}
           onBrickError={handleBrickError}
+          onBrickReady={handleBrickReady}
         />
       )}
 

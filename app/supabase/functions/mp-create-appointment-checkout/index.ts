@@ -61,11 +61,15 @@ Deno.serve(async (req) => {
       ok: true,
       agendamento_id: appointment.id,
       amount_centavos: amount,
+      charge_base_centavos:
+        appointment.valor_cobranca_base_centavos ?? appointment.valor_pago_centavos ?? amount,
       total_centavos: appointment.valor_base_centavos ?? amount,
       remaining_centavos: appointment.valor_restante_centavos ?? 0,
       expires_at: appointment.payment_expires_at,
       payment_enable_card: settings.payment_enable_card !== false,
       payment_enable_pix: settings.payment_enable_pix !== false,
+      payment_pass_fee_card: settings.payment_pass_fee_card === true,
+      payment_pass_fee_pix: settings.payment_pass_fee_pix === true,
       payment_max_installments: Number(settings.payment_max_installments ?? 1),
       mp_live_mode: settings.mp_live_mode ?? null,
     });

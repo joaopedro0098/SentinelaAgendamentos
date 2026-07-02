@@ -139,11 +139,14 @@ export async function invokePublicPaymentFunction<T>(
 
 export type AppointmentPaymentCheckout = {
   amount_centavos: number;
+  charge_base_centavos?: number;
   total_centavos: number;
   remaining_centavos: number;
   expires_at: string | null;
   payment_enable_card: boolean;
   payment_enable_pix: boolean;
+  payment_pass_fee_card?: boolean;
+  payment_pass_fee_pix?: boolean;
   payment_max_installments: number;
 };
 

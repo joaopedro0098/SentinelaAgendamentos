@@ -1374,6 +1374,11 @@ const PublicBooking = ({
             <div className="mt-6">
               <PublicBookingPaymentCheckout
                 amountCentavos={paymentCheckout.amount_centavos}
+                chargeBaseCentavos={
+                  paymentCheckout.charge_base_centavos ?? paymentCheckout.amount_centavos
+                }
+                passFeeCard={paymentCheckout.payment_pass_fee_card === true}
+                passFeePix={paymentCheckout.payment_pass_fee_pix === true}
                 remainingCentavos={paymentCheckout.remaining_centavos}
                 expiresAt={paymentCheckout.expires_at}
                 agendamentoId={paymentCheckout.agendamentoId}

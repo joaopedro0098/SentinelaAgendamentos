@@ -10,6 +10,7 @@ export type HoldRow = {
   mp_payment_id: string | null;
   valor_pago_centavos: number | null;
   valor_base_centavos: number | null;
+  valor_cobranca_base_centavos?: number | null;
   valor_restante_centavos: number | null;
   payment_expires_at: string | null;
   barbearia_id: string;
@@ -86,7 +87,7 @@ export async function loadHoldForCheckout(
   const { data: row, error } = await supabase
     .from("agendamentos")
     .select(
-      "id, status, confirmation_token, mp_payment_id, valor_pago_centavos, valor_base_centavos, valor_restante_centavos, payment_expires_at, barbearia_id, installment_count",
+      "id, status, confirmation_token, mp_payment_id, valor_pago_centavos, valor_base_centavos, valor_cobranca_base_centavos, valor_restante_centavos, payment_expires_at, barbearia_id, installment_count",
     )
     .eq("id", agendamentoId)
     .maybeSingle();
