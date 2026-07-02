@@ -30,6 +30,18 @@ import {
   type AppointmentPaymentCheckout,
 } from "@/lib/appointmentPaymentApi";
 
+type PaymentHoldRef = { agendamentoId: string; confirmationToken: string };
+
+async function releasePublicBookingPaymentHold(hold: PaymentHoldRef): Promise<boolean> {
+  const { data, error } = await supabase.rpc("cancel_public_booking_payment_hold", {
+    p_agendamento_id: hold.agendamentoId,
+    p_confirmation_token: hold.confirmationToken,
+  });
+  if (error) return false;
+  const result = data as { ok?: boolean; already_cancelled?: boolean; error?: string } | null;
+  return result?.ok === true || result?.already_cancelled === true;
+}
+
 const bookingPageX = "px-3 sm:px-5 md:px-0";
 const bookingScrollBleed = "-mx-3 sm:-mx-5 md:mx-0";
 const bookingScrollPad = "px-3 sm:px-5 md:px-0";
@@ -440,6 +452,7 @@ const PublicBooking = ({
     (AppointmentPaymentCheckout & { agendamentoId: string; confirmationToken: string }) | null
   >(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
+  const [cancellingPayment, setCancellingPayment] = useState(false);
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -997,9 +1010,9 @@ const PublicBooking = ({
               localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
               return;
             } catch (payErr) {
-              await supabase.rpc("cancel_public_booking_payment_hold", {
-                p_agendamento_id: hold.agendamento_id,
-                p_confirmation_token: hold.confirmation_token,
+              await releasePublicBookingPaymentHold({
+                agendamentoId: hold.agendamento_id,
+                confirmationToken: hold.confirmation_token,
               });
               if (payErr instanceof Error && payErr.message === "already_confirmed") {
                 setBookingConfirmed(true);
@@ -1071,12 +1084,17 @@ const PublicBooking = ({
     }
   };
 
-  const alterBooking = () => {
+  const alterBooking = async () => {
     if (paymentCheckout) {
-      void supabase.rpc("cancel_public_booking_payment_hold", {
-        p_agendamento_id: paymentCheckout.agendamentoId,
-        p_confirmation_token: paymentCheckout.confirmationToken,
-      });
+      setCancellingPayment(true);
+      try {
+        const released = await releasePublicBookingPaymentHold(paymentCheckout);
+        if (!released) {
+          toast.error("Não foi possível liberar o horário. Aguarde um instante ou escolha outro.");
+        }
+      } finally {
+        setCancellingPayment(false);
+      }
       setInternalSlotGridRevision((r) => r + 1);
     }
     setBookingConfirmed(false);
@@ -1120,13 +1138,10 @@ const PublicBooking = ({
     setBookingConfirmed(true);
   }, [paymentCheckout]);
 
-  const handlePaymentExpired = useCallback(() => {
+  const handlePaymentExpired = useCallback(async () => {
     toast.error("Tempo esgotado. O horário foi liberado — escolha outro.");
     if (paymentCheckout) {
-      void supabase.rpc("cancel_public_booking_payment_hold", {
-        p_agendamento_id: paymentCheckout.agendamentoId,
-        p_confirmation_token: paymentCheckout.confirmationToken,
-      });
+      await releasePublicBookingPaymentHold(paymentCheckout);
     }
     setPaymentCheckout(null);
     setPaymentFailed(true);
@@ -1135,13 +1150,10 @@ const PublicBooking = ({
     setInternalSlotGridRevision((r) => r + 1);
   }, [paymentCheckout]);
 
-  const handlePaymentFailed = useCallback(() => {
+  const handlePaymentFailed = useCallback(async () => {
     toast.error("Pagamento não concluído. O horário foi liberado.");
     if (paymentCheckout) {
-      void supabase.rpc("cancel_public_booking_payment_hold", {
-        p_agendamento_id: paymentCheckout.agendamentoId,
-        p_confirmation_token: paymentCheckout.confirmationToken,
-      });
+      await releasePublicBookingPaymentHold(paymentCheckout);
     }
     setPaymentCheckout(null);
     setPaymentFailed(true);
@@ -1377,9 +1389,17 @@ const PublicBooking = ({
                 type="button"
                 variant="ghost"
                 className="mt-3 w-full rounded-full"
-                onClick={alterBooking}
+                disabled={cancellingPayment}
+                onClick={() => void alterBooking()}
               >
-                Cancelar pagamento
+                {cancellingPayment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cancelando…
+                  </>
+                ) : (
+                  "Cancelar pagamento"
+                )}
               </Button>
             </div>
           )}
