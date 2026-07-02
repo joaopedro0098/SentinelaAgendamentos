@@ -113,7 +113,10 @@ export function PublicBookingPaymentCheckout({
       : null;
 
   const initialization = useMemo(
-    () => ({ amount: amountCentavos / 100 }),
+    () => ({
+      amount: Math.max(0.5, amountCentavos / 100),
+      marketplace: true,
+    }),
     [amountCentavos],
   );
 
@@ -122,6 +125,7 @@ export function PublicBookingPaymentCheckout({
       paymentMethods: {
         creditCard: enableCard ? ("all" as const) : ("none" as const),
         debitCard: enableCard ? ("all" as const) : ("none" as const),
+        prepaidCard: enableCard ? ("all" as const) : ("none" as const),
         bankTransfer: enablePix ? ("all" as const) : ("none" as const),
         maxInstallments: Math.max(1, maxInstallments),
       },
@@ -222,8 +226,10 @@ export function PublicBookingPaymentCheckout({
 
       {MP_TEST_MODE && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-          Ambiente de teste: use e-mail e CPF do comprador teste em Mercado Pago Developers → Contas de
-          teste, cartão de teste e nome <span className="font-medium">APRO</span> para simular aprovação.
+          Ambiente de teste: e-mail/CPF do comprador teste (painel MP), cartão{" "}
+          <span className="font-medium">5031 4332 1540 6351</span>, CVV <span className="font-medium">123</span>,
+          validade futura, titular <span className="font-medium">APRO</span>. CPF titular teste:{" "}
+          <span className="font-medium">12345678909</span>.
         </p>
       )}
 
@@ -264,6 +270,26 @@ export function PublicBookingPaymentCheckout({
           initialization={initialization}
           customization={customization}
           onSubmit={handleSubmit}
+          onError={(error) => {
+            const message =
+              typeof error === "object" && error && "message" in error
+                ? String((error as { message?: string }).message)
+                : "Erro no formulário de pagamento.";
+            setLastPaymentError({
+              title: "Erro no formulário Mercado Pago",
+              message:
+                message.includes("informação de pagamento") || message.includes("informacion de pago")
+                  ? "O Brick não conseguiu ler os dados do cartão (parcelas/meio de pagamento)."
+                  : message,
+              hint:
+                "Use cartão teste 5031 4332 1540 6351, validade futura, CVV 123, nome APRO. Se persistir, recarregue a página ou teste 1 parcela no painel.",
+              mp_code: null,
+              mp_status_detail: null,
+              retry: true,
+              release_hold: false,
+            });
+            setBrickKey((key) => key + 1);
+          }}
         />
       )}
 
