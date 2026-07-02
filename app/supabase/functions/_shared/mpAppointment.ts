@@ -227,10 +227,14 @@ export async function createMpAppointmentPayment(params: {
 
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message =
+    const rawMessage =
       typeof payload === "object" && payload && "message" in payload
         ? String((payload as { message?: string }).message)
         : `HTTP ${res.status}`;
+    const message =
+      rawMessage.toLowerCase().includes("invalid test user email")
+        ? "Modo teste: use o e-mail de um comprador teste do Mercado Pago (ex.: algo@testuser.com)."
+        : rawMessage;
     throw new Error(message);
   }
 

@@ -103,3 +103,12 @@ export async function verifyAppointmentPayment(input: {
 }
 
 export const MP_PUBLIC_KEY = String(import.meta.env.VITE_MP_PUBLIC_KEY ?? "").trim();
+export const MP_TEST_MODE = MP_PUBLIC_KEY.startsWith("TEST-");
+
+export function formatAppointmentPaymentError(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid test user email")) {
+    return "Modo teste: use o e-mail de um comprador teste do Mercado Pago (ex.: algo@testuser.com), não um e-mail pessoal.";
+  }
+  return message;
+}

@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatServicePrice } from "@/lib/servicePrice";
 import {
+  formatAppointmentPaymentError,
   MP_PUBLIC_KEY,
+  MP_TEST_MODE,
   processAppointmentPayment,
   verifyAppointmentPayment,
 } from "@/lib/appointmentPaymentApi";
@@ -47,6 +49,7 @@ export function PublicBookingPaymentCheckout({
 }: Props) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [brickKey, setBrickKey] = useState(0);
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
   const expiredCalledRef = useRef(false);
@@ -125,6 +128,7 @@ export function PublicBookingPaymentCheckout({
   const handleSubmit = useMemo(
     () => async (formData: unknown) => {
       setProcessing(true);
+      let canRetry = false;
       try {
         const result = await processAppointmentPayment({
           agendamento_id: agendamentoId,
@@ -150,20 +154,26 @@ export function PublicBookingPaymentCheckout({
         }
 
         if (result.release_hold) {
-          toast.error("Pagamento não concluído. Tente novamente.");
+          toast.error("Pagamento não concluído. O horário foi liberado.");
           onFailedRef.current();
           return;
         }
 
-        toast.error("Pagamento não concluído. Tente novamente.");
+        canRetry = true;
+        toast.error(formatAppointmentPaymentError("Pagamento não concluído. Tente novamente."));
       } catch (e) {
         const err = e as Error & { retry?: boolean; release_hold?: boolean };
-        toast.error(err.message || "Pagamento não concluído.");
+        toast.error(formatAppointmentPaymentError(err.message || "Pagamento não concluído."));
         if (err.release_hold) {
           onFailedRef.current();
+        } else {
+          canRetry = true;
         }
       } finally {
         setProcessing(false);
+        if (canRetry) {
+          setBrickKey((key) => key + 1);
+        }
       }
     },
     [agendamentoId, confirmationToken],
@@ -194,6 +204,14 @@ export function PublicBookingPaymentCheckout({
         )}
       </div>
 
+      {MP_TEST_MODE && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+          Ambiente de teste: no e-mail do pagamento, use um comprador teste do Mercado Pago (ex.:{" "}
+          <span className="font-medium">comprador@testuser.com</span>) e cartões de teste. E-mail pessoal não funciona
+          neste fluxo.
+        </p>
+      )}
+
       {pixQrBase64 && (
         <div className="rounded-xl border border-border p-4 text-center space-y-2">
           <p className="text-sm font-medium">Pix gerado — escaneie ou copie o código</p>
@@ -209,7 +227,8 @@ export function PublicBookingPaymentCheckout({
 
       {!pixQrBase64 && (
         <Payment
-          id={`mp-payment-${agendamentoId}`}
+          key={`mp-payment-${agendamentoId}-${brickKey}`}
+          id={`mp-payment-${agendamentoId}-${brickKey}`}
           initialization={initialization}
           customization={customization}
           onSubmit={handleSubmit}
