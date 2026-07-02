@@ -189,8 +189,10 @@ export function PublicBookingPaymentCheckout({
 
   const initialization = useMemo(
     () => ({
-      amount: Math.max(0.5, amountCentavos / 100),
-      marketplace: true,
+      // Checkout Transparente + OAuth: public_key do integrador no front,
+      // access_token do vendedor no backend. NÃO usar marketplace:true aqui
+      // (isso exige preferenceId — ver doc wallet-credits / split Bricks).
+      amount: Math.max(1, amountCentavos / 100),
     }),
     [amountCentavos],
   );
@@ -209,14 +211,21 @@ export function PublicBookingPaymentCheckout({
   );
 
   const handleBrickError = useCallback((message: string) => {
+    const normalized = message.toLowerCase();
+    const isInstallmentOrBin =
+      normalized.includes("informação de pagamento") ||
+      normalized.includes("informacion de pago") ||
+      normalized.includes("installments") ||
+      normalized.includes("bin");
+
     setLastPaymentError({
       title: "Erro no formulário Mercado Pago",
-      message:
-        message.includes("informação de pagamento") || message.includes("informacion de pago")
-          ? "O Brick não conseguiu ler os dados do cartão (parcelas/meio de pagamento)."
-          : message,
-      hint:
-        "Use cartão teste 5031 4332 1540 6351, validade futura, CVV 123, nome APRO. Se persistir, recarregue a página ou teste 1 parcela no painel.",
+      message: isInstallmentOrBin
+        ? "O Brick não conseguiu ler o cartão (BIN/parcelas). Verifique chave TEST- da app de agendamentos."
+        : message,
+      hint: isInstallmentOrBin
+        ? "Cartão teste: 5031 4332 1540 6351 · CVV 123 · validade 11/30 · titular APRO · CPF 12345678909. E-mail diferente do seu login MP."
+        : "Recarregue a página e tente novamente.",
       mp_code: null,
       mp_status_detail: null,
       retry: true,
