@@ -35,6 +35,7 @@ import {
 import {
   filterAgendamentos,
   formatMoney,
+  formatPaymentSummary,
   getPeriodRange,
   getPeriodSummaryVisibility,
   getStatusFilterOptions,
@@ -259,6 +260,7 @@ export default function AgendamentosDesktopPanel({
     confirmados: 0,
     concluidos: 0,
     aguardando_confirmacao: 0,
+    aguardando_pagamento: 0,
     cancelados: 0,
     faturamento_centavos: 0,
   });
@@ -304,6 +306,7 @@ export default function AgendamentosDesktopPanel({
         confirmados: 0,
         concluidos: 0,
         aguardando_confirmacao: 0,
+        aguardando_pagamento: 0,
         cancelados: 0,
         faturamento_centavos: 0,
       });
@@ -653,6 +656,7 @@ export default function AgendamentosDesktopPanel({
     const rowBusy = statusChangingId === a.id || markingNoShowId === a.id;
     const manageable = canManageAgendamento(a, barbeariaId);
     const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
+    const paymentSummary = formatPaymentSummary(a);
 
     return (
       <div
@@ -676,11 +680,16 @@ export default function AgendamentosDesktopPanel({
           title={a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : undefined}
         >
           {a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : "—"}
+          {paymentSummary && (
+            <span className="block text-[11px] text-orange-700/90 dark:text-orange-300/90 truncate">
+              {paymentSummary}
+            </span>
+          )}
         </span>
         <AgendamentoStatusBadge
           item={a}
           busy={rowBusy}
-          allowStatusChange={manageable && !appointmentPast}
+          allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
           menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
           onAction={(action) => void handleStatusAction(a, action)}
           onMenuAction={(key) => void handlePastDayStatus(a, key)}
@@ -810,6 +819,14 @@ export default function AgendamentosDesktopPanel({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Não confirmado</span>
                 <span className="font-semibold tabular-nums">{summary.aguardando_confirmacao}</span>
+              </div>
+            )}
+            {summaryVisibility.aguardando_pagamento && (summary.aguardando_pagamento ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Aguardando pagamento</span>
+                <span className="font-semibold tabular-nums text-orange-600 dark:text-orange-300">
+                  {summary.aguardando_pagamento}
+                </span>
               </div>
             )}
             {summaryVisibility.cancelados && (

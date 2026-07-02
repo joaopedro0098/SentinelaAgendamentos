@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   disconnectMpAccount,
   fetchPaymentPanelSettings,
@@ -28,6 +29,29 @@ const MP_STATUS_LABEL: Record<string, string> = {
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
+type MpPaymentException = {
+  id: string;
+  agendamento_id: string | null;
+  mp_payment_id: string;
+  amount_centavos: number;
+  reason: string;
+  agendamento_data: string | null;
+  agendamento_hora: string | null;
+  cliente_nome: string | null;
+  created_at: string;
+};
+
+function formatMoney(centavos: number) {
+  return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function exceptionReasonLabel(reason: string) {
+  if (reason === "late_pix_after_hold_expired") {
+    return "Pix recebido após expiração da reserva (15 min)";
+  }
+  return reason;
+}
+
 export default function PagamentosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -45,6 +69,9 @@ export default function PagamentosPage() {
   const [passFeeCard, setPassFeeCard] = useState(false);
   const [passFeePix, setPassFeePix] = useState(false);
   const [maxInstallments, setMaxInstallments] = useState("1");
+  const [exceptions, setExceptions] = useState<MpPaymentException[]>([]);
+  const [loadingExceptions, setLoadingExceptions] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const applySettingsToForm = useCallback((data: PaymentPanelSettings) => {
     if (data.appointment_payment_mode) setPaymentMode(data.appointment_payment_mode);
@@ -64,6 +91,22 @@ export default function PagamentosPage() {
     if (data.payment_pass_fee_card != null) setPassFeeCard(data.payment_pass_fee_card);
     if (data.payment_pass_fee_pix != null) setPassFeePix(data.payment_pass_fee_pix);
     if (data.payment_max_installments != null) setMaxInstallments(String(data.payment_max_installments));
+  }, []);
+
+  const loadExceptions = useCallback(async () => {
+    setLoadingExceptions(true);
+    try {
+      const { data, error } = await supabase.rpc("list_mp_payment_exceptions", { p_limit: 20 });
+      if (error) throw error;
+      const row = data as { error?: string; items?: MpPaymentException[] } | null;
+      if (row?.error) throw new Error(row.error);
+      setExceptions(Array.isArray(row?.items) ? row.items : []);
+    } catch (e) {
+      console.error("list_mp_payment_exceptions:", e);
+      setExceptions([]);
+    } finally {
+      setLoadingExceptions(false);
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -89,7 +132,8 @@ export default function PagamentosPage() {
   useEffect(() => {
     document.title = "Pagamentos — Sentinela Agendamentos";
     void load();
-  }, [load]);
+    void loadExceptions();
+  }, [load, loadExceptions]);
 
   useEffect(() => {
     const mp = searchParams.get("mp");
@@ -201,6 +245,28 @@ export default function PagamentosPage() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleResolveException(exceptionId: string) {
+    setResolvingId(exceptionId);
+    try {
+      const { data, error } = await supabase.rpc("resolve_mp_payment_exception", {
+        p_exception_id: exceptionId,
+      });
+      if (error) throw error;
+      const row = data as { error?: string; ok?: boolean } | null;
+      if (row?.error) throw new Error(row.error);
+      toast({ title: "Exceção marcada como resolvida" });
+      await loadExceptions();
+    } catch (e) {
+      toast({
+        title: "Não foi possível resolver",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setResolvingId(null);
     }
   }
 
@@ -495,6 +561,62 @@ export default function PagamentosPage() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {mpConnected && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Exceções de pagamento</CardTitle>
+            <CardDescription>
+              Pix recebidos após a reserva expirar. Confira manualmente e marque como resolvido.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingExceptions ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : exceptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma exceção pendente.</p>
+            ) : (
+              <ul className="space-y-3">
+                {exceptions.map((ex) => (
+                  <li
+                    key={ex.id}
+                    className="rounded-lg border border-border/70 bg-muted/20 px-3 py-3 text-sm space-y-1"
+                  >
+                    <p className="font-medium">{ex.cliente_nome ?? "Cliente"}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {ex.agendamento_data
+                        ? `${ex.agendamento_data.split("-").reverse().join("/")}${ex.agendamento_hora ? ` · ${ex.agendamento_hora}` : ""}`
+                        : "Agendamento"}
+                      {" · "}
+                      {formatMoney(ex.amount_centavos)}
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      {exceptionReasonLabel(ex.reason)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-mono">MP #{ex.mp_payment_id}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 rounded-full"
+                      disabled={resolvingId === ex.id}
+                      onClick={() => void handleResolveException(ex.id)}
+                    >
+                      {resolvingId === ex.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Marcar como resolvido"
+                      )}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Button

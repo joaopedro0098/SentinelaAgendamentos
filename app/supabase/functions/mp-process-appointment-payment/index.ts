@@ -6,6 +6,7 @@ import {
   loadHoldForCheckout,
   MpPaymentApiError,
   parsePaymentBrickSubmit,
+  resolveAppointmentChargeCentavos,
 } from "../_shared/mpAppointment.ts";
 
 const corsHeaders = {
@@ -46,9 +47,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: message, release_hold: status === 410 }, status);
     }
 
-    const amount = appointment.valor_pago_centavos ?? 0;
-    if (amount < 50) return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
-
     const brick = parsePaymentBrickSubmit(rawFormData);
     if (!brick.paymentMethodId) {
       return jsonResponse({
@@ -62,6 +60,13 @@ Deno.serve(async (req) => {
         retry: true,
       }, 400);
     }
+
+    const amount = await resolveAppointmentChargeCentavos(supabase, {
+      agendamentoId,
+      barbeariaId: appointment.barbearia_id,
+      isPix: brick.isPix,
+      installments: brick.installments,
+    });
 
     const { accessToken } = await getSellerAccessToken(supabase, appointment.barbearia_id);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

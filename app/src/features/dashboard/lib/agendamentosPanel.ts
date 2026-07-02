@@ -17,7 +17,12 @@ export type AgendamentoPainelItem = {
   confirmation_token: string;
   client_confirmed_at: string | null;
   requires_client_confirmation: boolean;
-  status: "confirmado" | "concluido" | "cancelado" | "nao_veio";
+  status: "confirmado" | "concluido" | "cancelado" | "nao_veio" | "aguardando_pagamento";
+  valor_base_centavos?: number | null;
+  valor_pago_centavos?: number | null;
+  valor_restante_centavos?: number | null;
+  payment_expires_at?: string | null;
+  payment_status?: string | null;
   can_manage?: boolean;
 };
 
@@ -26,6 +31,7 @@ export type AgendamentoPainelSummary = {
   confirmados: number;
   concluidos: number;
   aguardando_confirmacao: number;
+  aguardando_pagamento?: number;
   cancelados: number;
   faturamento_centavos: number;
 };
@@ -41,6 +47,7 @@ export type StatusFilter =
   | "confirmado"
   | "concluido"
   | "aguardando_confirmacao"
+  | "aguardando_pagamento"
   | "cancelado"
   | "faltou";
 
@@ -49,7 +56,8 @@ export type AgendamentoStatusKind =
   | "confirmado"
   | "concluido"
   | "cancelado"
-  | "faltou";
+  | "faltou"
+  | "aguardando_pagamento";
 
 export const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -99,6 +107,7 @@ export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "confirmado", label: "Confirmado" },
   { value: "concluido", label: "Concluído" },
   { value: "aguardando_confirmacao", label: "Não confirmado" },
+  { value: "aguardando_pagamento", label: "Aguardando pagamento" },
   { value: "cancelado", label: "Cancelado" },
   { value: "faltou", label: "Faltou" },
 ];
@@ -111,7 +120,7 @@ export function getStatusFilterOptions(periodStartYmd: string, periodEndYmd: str
 
   return STATUS_FILTER_OPTIONS.filter((o) => {
     if (o.value === "faltou") return includesPastDays;
-    if (o.value === "confirmado" || o.value === "aguardando_confirmacao") {
+    if (o.value === "confirmado" || o.value === "aguardando_confirmacao" || o.value === "aguardando_pagamento") {
       return includesTodayOrFuture;
     }
     return true;
@@ -129,12 +138,14 @@ export function getPeriodSummaryVisibility(periodStartYmd: string, periodEndYmd:
     confirmados: includesTodayOrFuture,
     concluidos: includesTodayOrPast,
     aguardando_confirmacao: includesTodayOrFuture,
+    aguardando_pagamento: includesTodayOrFuture,
     cancelados: includesTodayOrPast,
     faltas: includesPastDaysBeforeToday,
   };
 }
 
 export function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
+  if (item.status === "aguardando_pagamento") return "aguardando_pagamento";
   if (item.status === "cancelado") return "cancelado";
   if (item.status === "nao_veio") return "faltou";
   if (item.status === "concluido") return "concluido";
@@ -143,6 +154,7 @@ export function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
 }
 
 export function getStatusKind(item: AgendamentoPainelItem): AgendamentoStatusKind {
+  if (item.status === "aguardando_pagamento") return "aguardando_pagamento";
   if (item.status === "cancelado") return "cancelado";
   if (item.status === "nao_veio") return "faltou";
   if (item.status === "concluido") return "concluido";
@@ -266,10 +278,22 @@ export function parsePainelRpc(data: unknown): {
   };
 }
 
+export function formatPaymentSummary(item: AgendamentoPainelItem) {
+  if (item.status !== "aguardando_pagamento") return null;
+  const paid = item.valor_pago_centavos ?? 0;
+  const rest = item.valor_restante_centavos ?? 0;
+  if (paid <= 0 && rest <= 0) return null;
+  if (rest > 0) {
+    return `${formatMoney(paid)} online · ${formatMoney(rest)} presencial`;
+  }
+  return `${formatMoney(paid)} a pagar`;
+}
+
 export function getAppointmentStatusMenuActions(
   item: { status: AgendamentoPainelItem["status"] },
   dateYmd: string,
 ): AgendamentoStatusMenuAction[] {
+  if (item.status === "aguardando_pagamento") return [];
   if (isFutureDay(dateYmd)) return [];
 
   const allowConcluido = isTodayOrPastDay(dateYmd);

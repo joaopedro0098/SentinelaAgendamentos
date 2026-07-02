@@ -16,7 +16,7 @@ const ACTION_LABELS: Record<StatusAction, string> = {
   cancelar: "Cancelar",
 };
 
-const ACTIONS_BY_KIND: Record<Exclude<AgendamentoStatusKind, "faltou" | "concluido">, StatusAction[]> = {
+const ACTIONS_BY_KIND: Record<Exclude<AgendamentoStatusKind, "faltou" | "concluido" | "aguardando_pagamento">, StatusAction[]> = {
   nao_confirmado: ["confirmar", "cancelar"],
   confirmado: ["nao_confirmado", "cancelar"],
   cancelado: ["confirmar", "nao_confirmado"],
@@ -30,6 +30,8 @@ function badgeToneClass(kind: AgendamentoStatusKind) {
       return "bg-absent/25 text-absent border-absent/90 dark:text-gray-200";
     case "nao_confirmado":
       return "bg-yellow-400/25 text-yellow-950 border-yellow-500/90 dark:text-yellow-100";
+    case "aguardando_pagamento":
+      return "bg-orange-400/25 text-orange-950 border-orange-500/90 dark:text-orange-100";
     case "concluido":
       return "bg-completed/25 text-completed border-completed/90 dark:text-blue-100";
     case "confirmado":
@@ -45,6 +47,8 @@ function badgeLabel(kind: AgendamentoStatusKind) {
       return "Faltou";
     case "nao_confirmado":
       return "Não confirmado";
+    case "aguardando_pagamento":
+      return "Aguardando pagamento";
     case "concluido":
       return "Concluído";
     case "confirmado":
@@ -73,10 +77,10 @@ export function AgendamentoStatusBadge({
   const rootRef = useRef<HTMLDivElement>(null);
   const kind = getStatusKind(item);
   const statusActions: StatusAction[] =
-    allowStatusChange && kind !== "faltou"
+    allowStatusChange && kind !== "faltou" && kind !== "aguardando_pagamento"
       ? kind === "concluido"
         ? ["confirmar", "nao_confirmado"]
-        : ACTIONS_BY_KIND[kind as Exclude<AgendamentoStatusKind, "faltou" | "concluido">]
+        : ACTIONS_BY_KIND[kind as Exclude<AgendamentoStatusKind, "faltou" | "concluido" | "aguardando_pagamento">]
       : [];
   const customActions = menuActions ?? [];
   const interactive = statusActions.length > 0 || customActions.length > 0;

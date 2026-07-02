@@ -587,7 +587,7 @@ const PublicBooking = ({
           .from("agendamentos")
           .select("id, barbeiro_id, data, hora, duracao_minutos")
           .in("barbeiro_id", bbIds)
-          .in("status", ["confirmado"])
+          .in("status", ["confirmado", "aguardando_pagamento"])
           .gte("data", fromYmd)
           .lte("data", toYmd);
         const map = new Map<string, Map<string, number>>();

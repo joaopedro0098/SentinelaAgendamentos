@@ -54,6 +54,9 @@ Deno.serve(async (req) => {
     }
 
     if (row.payment_expires_at && new Date(row.payment_expires_at).getTime() < Date.now()) {
+      if (row.mp_payment_id) {
+        return jsonResponse({ ok: true, status: "aguardando_pagamento", hold_expired: true });
+      }
       await supabase.rpc("fail_appointment_payment", { p_agendamento_id: agendamentoId });
       return jsonResponse({ ok: true, status: "cancelado", expired: true });
     }
@@ -63,6 +66,8 @@ Deno.serve(async (req) => {
         const { accessToken } = await getSellerAccessToken(supabase, row.barbearia_id);
         const payment = await fetchMpPayment(accessToken, row.mp_payment_id);
         const mpStatus = String(payment.status ?? "");
+        const methodId = String(payment.payment_method_id ?? payment.payment_type_id ?? "");
+        const isPix = methodId === "pix" || methodId === "bank_transfer";
 
         if (mpStatus === "approved") {
           await supabase.rpc("confirm_appointment_payment", {
@@ -73,6 +78,9 @@ Deno.serve(async (req) => {
         }
 
         if (mpStatus === "rejected" || mpStatus === "cancelled") {
+          if (isPix) {
+            return jsonResponse({ ok: true, status: "aguardando_pagamento", mp_status: mpStatus });
+          }
           await supabase.rpc("fail_appointment_payment", {
             p_agendamento_id: agendamentoId,
             p_mp_payment_id: row.mp_payment_id,

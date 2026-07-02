@@ -46,7 +46,7 @@ type ReportAppointmentDetail = {
 type ReportAbsenceDetail = Omit<ReportAppointmentDetail, "duracao_minutos">;
 
 type ReportCancellationDetail = ReportAbsenceDetail & {
-  cancelado_por: "cliente" | "profissional";
+  cancelado_por: "cliente" | "profissional" | "sistema";
 };
 
 type CollaboratorReportSummary = {
@@ -110,9 +110,9 @@ function buildCollaboratorSummary(
 }
 
 function cancellationSourceLabel(canceladoPor: ReportCancellationDetail["cancelado_por"]) {
-  return canceladoPor === "cliente"
-    ? "Cancelado pelo cliente (link público)"
-    : "Cancelado pelo profissional";
+  if (canceladoPor === "cliente") return "Cancelado pelo cliente (link público)";
+  if (canceladoPor === "sistema") return "Cancelado pelo sistema (expiração ou falha no pagamento)";
+  return "Cancelado pelo profissional";
 }
 
 function reportModeActiveClass(mode: ReportViewMode) {

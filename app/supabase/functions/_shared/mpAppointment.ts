@@ -107,9 +107,17 @@ export async function loadHoldForCheckout(
     throw new Error("Agendamento não está aguardando pagamento.");
   }
 
-  if (appointment.payment_expires_at && new Date(appointment.payment_expires_at).getTime() < Date.now()) {
+  const expired =
+    appointment.payment_expires_at &&
+    new Date(appointment.payment_expires_at).getTime() < Date.now();
+
+  if (expired && !appointment.mp_payment_id) {
     await supabase.rpc("fail_appointment_payment", { p_agendamento_id: agendamentoId });
     throw new Error("Reserva expirada. Escolha outro horário.");
+  }
+
+  if (expired && appointment.mp_payment_id) {
+    throw new Error("Reserva expirada. Verifique o pagamento Pix ou escolha outro horário.");
   }
 
   return appointment;
@@ -412,6 +420,43 @@ export class MpPaymentApiError extends Error {
     this.name = "MpPaymentApiError";
     this.info = info;
   }
+}
+
+export async function resolveAppointmentChargeCentavos(
+  supabase: SupabaseClient,
+  params: {
+    agendamentoId: string;
+    barbeariaId: string;
+    isPix: boolean;
+    installments: number;
+  },
+): Promise<number> {
+  const { data: settings, error: settingsErr } = await supabase.rpc(
+    "get_effective_appointment_payment_settings",
+    { p_barbearia_id: params.barbeariaId },
+  );
+  if (settingsErr || !settings || (settings as { error?: string }).error) {
+    throw new Error("Configuração de pagamento indisponível.");
+  }
+
+  const s = settings as {
+    payment_pass_fee_card?: boolean;
+    payment_pass_fee_pix?: boolean;
+  };
+
+  const { data: amount, error } = await supabase.rpc("resolve_appointment_charge_centavos", {
+    p_agendamento_id: params.agendamentoId,
+    p_method: params.isPix ? "pix" : "card",
+    p_installments: params.installments,
+    p_pass_fee_card: s.payment_pass_fee_card === true,
+    p_pass_fee_pix: s.payment_pass_fee_pix === true,
+  });
+
+  if (error || typeof amount !== "number" || amount < 50) {
+    throw new Error("Valor de pagamento inválido.");
+  }
+
+  return amount;
 }
 
 export async function createMpAppointmentPayment(params: {

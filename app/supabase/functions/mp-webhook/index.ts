@@ -125,10 +125,14 @@ Deno.serve(async (req) => {
             }
           }
         } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
-          await supabase.rpc("fail_appointment_payment", {
-            p_agendamento_id: appointmentId,
-            p_mp_payment_id: String(resourceId),
-          });
+          const methodId = String(payment?.payment_method_id ?? payment?.payment_type_id ?? "");
+          const isPix = methodId === "pix" || methodId === "bank_transfer";
+          if (!isPix) {
+            await supabase.rpc("fail_appointment_payment", {
+              p_agendamento_id: appointmentId,
+              p_mp_payment_id: String(resourceId),
+            });
+          }
         }
 
         return new Response(

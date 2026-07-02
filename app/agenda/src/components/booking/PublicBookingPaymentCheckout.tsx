@@ -321,10 +321,11 @@ export function PublicBookingPaymentCheckout({
 
       {MP_TEST_MODE && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-          Ambiente de teste: e-mail/CPF do comprador teste (painel MP), cartão{" "}
+          Ambiente de teste: cartão{" "}
           <span className="font-medium">5031 4332 1540 6351</span>, CVV <span className="font-medium">123</span>,
-          validade futura, titular <span className="font-medium">APRO</span>. CPF titular teste:{" "}
-          <span className="font-medium">12345678909</span>.
+          validade futura, titular <span className="font-medium">APRO</span>, CPF{" "}
+          <span className="font-medium">12345678909</span>, e-mail diferente do login MP. Pix: o QR é gerado, mas o
+          sandbox não processa pagamento real — use cartão para validar confirmação automática.
         </p>
       )}
 

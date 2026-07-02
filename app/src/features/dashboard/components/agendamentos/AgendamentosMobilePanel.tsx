@@ -35,7 +35,7 @@ import {
 } from "@agenda/lib/panelClienteNomeSync";
 import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
-import { getAppointmentStatusMenuActions, canManageAgendamento, canOpenAnotacaoConcluido, canWriteAnotacao, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import { getAppointmentStatusMenuActions, canManageAgendamento, canOpenAnotacaoConcluido, canWriteAnotacao, formatPaymentSummary, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 import {
   AgendamentoAnotacaoButton,
   AgendamentoAnotacaoModal,
@@ -70,7 +70,9 @@ type AgendamentoRow = {
   confirmation_token: string;
   client_confirmed_at: string | null;
   requires_client_confirmation: boolean;
-  status: "confirmado" | "concluido" | "cancelado" | "nao_veio";
+  status: "confirmado" | "concluido" | "cancelado" | "nao_veio" | "aguardando_pagamento";
+  valor_pago_centavos?: number | null;
+  valor_restante_centavos?: number | null;
   can_manage?: boolean;
   barbeiros: { id: string; nome: string } | null;
 };
@@ -199,6 +201,8 @@ export default function AgendamentosMobilePanel({
           client_confirmed_at: item.client_confirmed_at,
           requires_client_confirmation: item.requires_client_confirmation ?? false,
           status: item.status,
+          valor_pago_centavos: item.valor_pago_centavos,
+          valor_restante_centavos: item.valor_restante_centavos,
           can_manage: item.can_manage,
           barbeiros: { id: item.barbeiro_id, nome: item.barbeiro_nome },
         })),
@@ -622,7 +626,9 @@ export default function AgendamentosMobilePanel({
                 a.status === "confirmado" ||
                 a.status === "concluido" ||
                 a.status === "nao_veio" ||
-                a.status === "cancelado";
+                a.status === "cancelado" ||
+                a.status === "aguardando_pagamento";
+              const paymentSummary = formatPaymentSummary(a);
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
@@ -643,7 +649,7 @@ export default function AgendamentosMobilePanel({
                                 requires_client_confirmation: a.requires_client_confirmation ?? false,
                               }}
                               busy={markingNoShowId === a.id || statusChangingId === a.id}
-                              allowStatusChange={manageable && !appointmentPast}
+                              allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
                               menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
                               onAction={(action) => void handleStatusAction(a, action)}
                               onMenuAction={(key) => void handlePastDayStatus(a, key)}
@@ -718,6 +724,11 @@ export default function AgendamentosMobilePanel({
                           <p className="text-xs text-muted-foreground tabular-nums pl-6">
                             {a.duracao_minutos} min no total
                           </p>
+                          {paymentSummary && (
+                            <p className="text-xs text-orange-700/90 dark:text-orange-300/90 pl-6">
+                              {paymentSummary}
+                            </p>
+                          )}
                         </div>
                       )}
                       {a.observacao?.trim() && (
