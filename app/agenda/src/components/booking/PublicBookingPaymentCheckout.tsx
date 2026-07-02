@@ -173,7 +173,7 @@ export function PublicBookingPaymentCheckout({
         agendamento_id: agendamentoId,
         confirmation_token: confirmationToken,
       });
-      if (result.status === "confirmado" || result.ok) {
+      if (result.status === "confirmado") {
         onPaidRef.current();
         return;
       }
@@ -183,8 +183,7 @@ export function PublicBookingPaymentCheckout({
       }
       await new Promise((r) => setTimeout(r, 2000));
     }
-    toast.message("Pagamento em processamento. Aguarde a confirmação.");
-    onPaidRef.current();
+    toast.message("Pix ainda pendente. Pague e toque em \"Já paguei — verificar\".");
   }, [agendamentoId, confirmationToken]);
 
   const initialization = useMemo(
