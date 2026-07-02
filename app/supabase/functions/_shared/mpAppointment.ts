@@ -1,11 +1,6 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import {
-  exchangeMpAuthorizationCode,
-  getMpAppointmentsClientId,
-  getMpAppointmentsClientSecret,
-} from "./mpOAuth.ts";
+import { refreshMpAccessToken } from "./mpOAuth.ts";
 
-const MP_TOKEN_URL = "https://api.mercadopago.com/oauth/token";
 const MP_PAYMENTS_URL = "https://api.mercadopago.com/v1/payments";
 
 export type HoldRow = {
@@ -81,33 +76,6 @@ export async function getSellerAccessToken(
     accessToken,
     liveMode: shop.mp_live_mode ?? null,
   };
-}
-
-async function refreshMpAccessToken(refreshToken: string): Promise<Record<string, unknown>> {
-  const clientId = getMpAppointmentsClientId();
-  const clientSecret = getMpAppointmentsClientSecret();
-  if (!clientId || !clientSecret) throw new Error("OAuth Mercado Pago não configurado.");
-
-  const res = await fetch(MP_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
-
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(
-      typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message?: string }).message)
-        : "Não foi possível renovar token Mercado Pago.",
-    );
-  }
-  return payload as Record<string, unknown>;
 }
 
 export async function loadHoldForCheckout(

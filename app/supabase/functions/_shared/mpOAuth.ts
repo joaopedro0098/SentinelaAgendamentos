@@ -117,3 +117,39 @@ export async function exchangeMpAuthorizationCode(params: {
 
   return payload as Record<string, unknown>;
 }
+
+export async function refreshMpAccessToken(refreshToken: string): Promise<Record<string, unknown>> {
+  const clientId = getMpAppointmentsClientId();
+  const clientSecret = getMpAppointmentsClientSecret();
+  if (!clientId || !clientSecret) {
+    throw new Error("OAuth Mercado Pago não configurado.");
+  }
+
+  const body: Record<string, unknown> = {
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  };
+
+  if (isMpOAuthTestMode()) {
+    body.test_token = "true";
+  }
+
+  const res = await fetch(MP_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof payload === "object" && payload && "message" in payload
+        ? String((payload as { message?: string }).message)
+        : "Não foi possível renovar token Mercado Pago.";
+    throw new Error(message);
+  }
+
+  return payload as Record<string, unknown>;
+}
