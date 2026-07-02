@@ -994,7 +994,6 @@ const PublicBooking = ({
               setPaymentFailed(false);
               setBookingConfirmed(false);
               setDone(true);
-              setSlotGridRevision((r) => r + 1);
               localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
               return;
             } catch (payErr) {
@@ -1078,7 +1077,7 @@ const PublicBooking = ({
         p_agendamento_id: paymentCheckout.agendamentoId,
         p_confirmation_token: paymentCheckout.confirmationToken,
       });
-      setSlotGridRevision((r) => r + 1);
+      setInternalSlotGridRevision((r) => r + 1);
     }
     setBookingConfirmed(false);
     setDone(false);
@@ -1133,7 +1132,7 @@ const PublicBooking = ({
     setPaymentFailed(true);
     setDone(false);
     setBookingConfirmed(false);
-    setSlotGridRevision((r) => r + 1);
+    setInternalSlotGridRevision((r) => r + 1);
   }, [paymentCheckout]);
 
   const handlePaymentFailed = useCallback(() => {
@@ -1148,7 +1147,7 @@ const PublicBooking = ({
     setPaymentFailed(true);
     setDone(false);
     setBookingConfirmed(false);
-    setSlotGridRevision((r) => r + 1);
+    setInternalSlotGridRevision((r) => r + 1);
   }, [paymentCheckout]);
 
   if (loading) return (

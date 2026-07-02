@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,22 +49,36 @@ export function PublicBookingPaymentCheckout({
   const [processing, setProcessing] = useState(false);
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const expiredCalledRef = useRef(false);
+  const onExpiredRef = useRef(onExpired);
+  const onPaidRef = useRef(onPaid);
+  const onFailedRef = useRef(onFailed);
+
+  onExpiredRef.current = onExpired;
+  onPaidRef.current = onPaid;
+  onFailedRef.current = onFailed;
 
   useEffect(() => {
     ensureMpInit();
   }, []);
 
   useEffect(() => {
+    expiredCalledRef.current = false;
     if (!expiresAt) return;
+
     const tick = () => {
       const left = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
       setSecondsLeft(left);
-      if (left <= 0) onExpired();
+      if (left <= 0 && !expiredCalledRef.current) {
+        expiredCalledRef.current = true;
+        onExpiredRef.current();
+      }
     };
+
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [expiresAt, onExpired]);
+  }, [expiresAt]);
 
   async function pollConfirmed() {
     for (let i = 0; i < 40; i += 1) {
@@ -73,23 +87,28 @@ export function PublicBookingPaymentCheckout({
         confirmation_token: confirmationToken,
       });
       if (result.status === "confirmado" || result.ok) {
-        onPaid();
+        onPaidRef.current();
         return;
       }
       if (result.status === "cancelado") {
-        onFailed();
+        onFailedRef.current();
         return;
       }
       await new Promise((r) => setTimeout(r, 2000));
     }
     toast.message("Pagamento em processamento. Aguarde a confirmação.");
-    onPaid();
+    onPaidRef.current();
   }
 
   const timerLabel =
     secondsLeft != null
       ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
       : null;
+
+  const initialization = useMemo(
+    () => ({ amount: amountCentavos / 100 }),
+    [amountCentavos],
+  );
 
   const customization = useMemo(
     () => ({
@@ -101,6 +120,45 @@ export function PublicBookingPaymentCheckout({
       },
     }),
     [enableCard, enablePix, maxInstallments],
+  );
+
+  const handleSubmit = useMemo(
+    () => async (formData: unknown) => {
+      setProcessing(true);
+      try {
+        const result = await processAppointmentPayment({
+          agendamento_id: agendamentoId,
+          confirmation_token: confirmationToken,
+          formData: formData as Record<string, unknown>,
+        });
+
+        if (result.already_confirmed || result.status === "confirmado") {
+          onPaidRef.current();
+          return;
+        }
+
+        if (result.status === "pending" && (result.qr_code_base64 || result.qr_code)) {
+          setPixQr(result.qr_code ?? null);
+          setPixQrBase64(result.qr_code_base64 ?? null);
+          void pollConfirmed();
+          return;
+        }
+
+        if (result.status === "confirmado") {
+          onPaidRef.current();
+          return;
+        }
+
+        toast.error("Pagamento não concluído. Tente novamente.");
+        onFailedRef.current();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Pagamento não concluído.");
+        onFailedRef.current();
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [agendamentoId, confirmationToken],
   );
 
   if (!MP_PUBLIC_KEY) {
@@ -143,43 +201,10 @@ export function PublicBookingPaymentCheckout({
 
       {!pixQrBase64 && (
         <Payment
-          initialization={{ amount: amountCentavos / 100 }}
+          id={`mp-payment-${agendamentoId}`}
+          initialization={initialization}
           customization={customization}
-          onSubmit={async (formData) => {
-            setProcessing(true);
-            try {
-              const result = await processAppointmentPayment({
-                agendamento_id: agendamentoId,
-                confirmation_token: confirmationToken,
-                formData: formData as unknown as Record<string, unknown>,
-              });
-
-              if (result.already_confirmed || result.status === "confirmado") {
-                onPaid();
-                return;
-              }
-
-              if (result.status === "pending" && (result.qr_code_base64 || result.qr_code)) {
-                setPixQr(result.qr_code ?? null);
-                setPixQrBase64(result.qr_code_base64 ?? null);
-                void pollConfirmed();
-                return;
-              }
-
-              if (result.status === "confirmado") {
-                onPaid();
-                return;
-              }
-
-              toast.error("Pagamento não concluído. Tente novamente.");
-              onFailed();
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Pagamento não concluído.");
-              onFailed();
-            } finally {
-              setProcessing(false);
-            }
-          }}
+          onSubmit={handleSubmit}
         />
       )}
 
