@@ -149,6 +149,7 @@ export function PublicBookingPaymentCheckout({
   onFailed,
 }: Props) {
   const [processing, setProcessing] = useState(false);
+  const [verifyingPix, setVerifyingPix] = useState(false);
   const [brickRetryKey, setBrickRetryKey] = useState(0);
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
@@ -165,24 +166,61 @@ export function PublicBookingPaymentCheckout({
     ensureMpInit();
   }, []);
 
-  const pollConfirmed = useCallback(async () => {
-    for (let i = 0; i < 40; i += 1) {
-      const result = await verifyAppointmentPayment({
-        agendamento_id: agendamentoId,
-        confirmation_token: confirmationToken,
-      });
-      if (result.status === "confirmado") {
-        onPaidRef.current();
+  const verifyInFlightRef = useRef(false);
+
+  const verifyPixPayment = useCallback(
+    async (options?: { background?: boolean }) => {
+      if (verifyInFlightRef.current) {
+        if (!options?.background) {
+          toast.message("Verificação em andamento…");
+        }
         return;
       }
-      if (result.status === "cancelado") {
-        onFailedRef.current();
-        return;
+
+      verifyInFlightRef.current = true;
+      if (!options?.background) setVerifyingPix(true);
+      try {
+        const result = await verifyAppointmentPayment({
+          agendamento_id: agendamentoId,
+          confirmation_token: confirmationToken,
+        });
+
+        if (result.status === "confirmado") {
+          onPaidRef.current();
+          return;
+        }
+        if (result.status === "cancelado") {
+          onFailedRef.current();
+          return;
+        }
+
+        if (!options?.background) {
+          toast.message("Pix ainda pendente. Pague e toque em \"Já paguei — verificar\" novamente.");
+        }
+      } catch (e) {
+        const details =
+          e instanceof AppointmentPaymentError
+            ? e.details
+            : parseAppointmentPaymentErrorPayload({
+                error: e instanceof Error ? e.message : "Não foi possível verificar o Pix.",
+              });
+        if (!options?.background) {
+          toast.error(details.title, { description: paymentErrorToastDescription(details) });
+        }
+      } finally {
+        verifyInFlightRef.current = false;
+        if (!options?.background) setVerifyingPix(false);
       }
-      await new Promise((r) => setTimeout(r, 2000));
+    },
+    [agendamentoId, confirmationToken],
+  );
+
+  const pollPixInBackground = useCallback(async () => {
+    for (let i = 0; i < 5; i += 1) {
+      await new Promise((r) => setTimeout(r, 3000));
+      await verifyPixPayment({ background: true });
     }
-    toast.message("Pix ainda pendente. Pague e toque em \"Já paguei — verificar\".");
-  }, [agendamentoId, confirmationToken]);
+  }, [verifyPixPayment]);
 
   const initialization = useMemo(
     () => ({
@@ -250,7 +288,7 @@ export function PublicBookingPaymentCheckout({
         if (result.status === "pending" && (result.qr_code_base64 || result.qr_code)) {
           setPixQr(result.qr_code ?? null);
           setPixQrBase64(result.qr_code_base64 ?? null);
-          void pollConfirmed();
+          void pollPixInBackground();
           return;
         }
 
@@ -293,7 +331,7 @@ export function PublicBookingPaymentCheckout({
         }
       }
     },
-    [agendamentoId, confirmationToken, pollConfirmed],
+    [agendamentoId, confirmationToken, pollPixInBackground],
   );
 
   if (!MP_PUBLIC_KEY) {
@@ -351,8 +389,13 @@ export function PublicBookingPaymentCheckout({
           {pixQr && (
             <p className="text-xs break-all text-muted-foreground bg-muted/40 rounded-lg p-2">{pixQr}</p>
           )}
-          <Button type="button" className="w-full rounded-full" disabled={processing} onClick={() => void pollConfirmed()}>
-            {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Já paguei — verificar"}
+          <Button
+            type="button"
+            className="w-full rounded-full"
+            disabled={processing || verifyingPix}
+            onClick={() => void verifyPixPayment()}
+          >
+            {verifyingPix ? <Loader2 className="h-5 w-5 animate-spin" /> : "Já paguei — verificar"}
           </Button>
         </div>
       )}
