@@ -7,7 +7,13 @@ async function readFunctionPayload(response: Response) {
   const text = await response.text();
   if (!text) return null;
   try {
-    return JSON.parse(text) as { error?: string; message?: string; [key: string]: unknown };
+    return JSON.parse(text) as {
+      error?: string;
+      message?: string;
+      retry?: boolean;
+      release_hold?: boolean;
+      [key: string]: unknown;
+    };
   } catch {
     return { message: text };
   }
@@ -33,7 +39,13 @@ export async function invokePublicPaymentFunction<T>(
 
   const payload = await readFunctionPayload(response);
   if (!response.ok) {
-    throw new Error(payload?.error ?? payload?.message ?? "Não foi possível iniciar o pagamento.");
+    const err = new Error(payload?.error ?? payload?.message ?? "Não foi possível iniciar o pagamento.") as Error & {
+      retry?: boolean;
+      release_hold?: boolean;
+    };
+    err.retry = payload?.retry === true;
+    err.release_hold = payload?.release_hold === true;
+    throw err;
   }
   return payload as T;
 }
@@ -76,6 +88,9 @@ export async function processAppointmentPayment(input: {
   qr_code_base64?: string | null;
   ticket_url?: string | null;
   already_confirmed?: boolean;
+  retry?: boolean;
+  release_hold?: boolean;
+  error?: string;
 }> {
   return invokePublicPaymentFunction("mp-process-appointment-payment", input);
 }

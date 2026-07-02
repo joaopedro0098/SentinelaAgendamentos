@@ -1,9 +1,9 @@
 import {
   createMpAppointmentPayment,
   createServiceClient,
-  fetchMpPayment,
   getSellerAccessToken,
   loadHoldForCheckout,
+  parsePaymentBrickSubmit,
 } from "../_shared/mpAppointment.ts";
 
 const corsHeaders = {
@@ -25,10 +25,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const agendamentoId = String(body.agendamento_id ?? "");
     const confirmationToken = String(body.confirmation_token ?? "");
-    const formData = (body.formData ?? body.form_data) as Record<string, unknown> | undefined;
-    const payerEmail = String(body.payer_email ?? "").trim() || undefined;
+    const rawFormData = (body.formData ?? body.form_data) as Record<string, unknown> | undefined;
 
-    if (!agendamentoId || !confirmationToken || !formData) {
+    if (!agendamentoId || !confirmationToken || !rawFormData) {
       return jsonResponse({ error: "Dados de pagamento incompletos." }, 400);
     }
 
@@ -42,28 +41,39 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, already_confirmed: true, status: "confirmado" });
       }
       const status = message.includes("expirada") ? 410 : 400;
-      return jsonResponse({ error: message }, status);
+      return jsonResponse({ error: message, release_hold: status === 410 }, status);
     }
 
     const amount = appointment.valor_pago_centavos ?? 0;
     if (amount < 50) return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
 
+    const brick = parsePaymentBrickSubmit(rawFormData);
+    if (!brick.paymentMethodId) {
+      return jsonResponse({
+        error: "Não foi possível identificar o meio de pagamento. Tente novamente.",
+        retry: true,
+      }, 400);
+    }
+    if (!brick.isPix && !brick.token) {
+      return jsonResponse({
+        error: "Dados do cartão incompletos. Tente novamente.",
+        retry: true,
+      }, 400);
+    }
+
     const { accessToken } = await getSellerAccessToken(supabase, appointment.barbearia_id);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-
-    const paymentMethodId = String(formData.payment_method_id ?? "");
-    const token = formData.token ? String(formData.token) : undefined;
-    const installments = formData.installments ? Number(formData.installments) : 1;
 
     const payment = await createMpAppointmentPayment({
       accessToken,
       supabaseUrl,
       agendamentoId,
       amountCentavos: amount,
-      paymentMethodId,
-      token,
-      installments,
-      payerEmail,
+      paymentMethodId: brick.paymentMethodId,
+      token: brick.token,
+      installments: brick.installments,
+      payerEmail: brick.payerEmail,
+      payerIdentification: brick.identification,
     });
 
     const paymentId = String(payment.id ?? "");
@@ -73,7 +83,7 @@ Deno.serve(async (req) => {
       .from("agendamentos")
       .update({
         mp_payment_id: paymentId || null,
-        installment_count: paymentMethodId !== "pix" ? installments : null,
+        installment_count: !brick.isPix ? brick.installments : null,
       })
       .eq("id", agendamentoId);
 
@@ -108,9 +118,11 @@ Deno.serve(async (req) => {
       error: "Pagamento recusado pelo Mercado Pago.",
       status,
       status_detail: payment.status_detail ?? null,
+      release_hold: true,
     }, 402);
   } catch (e) {
     console.error("mp-process-appointment-payment:", e);
-    return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: message, retry: true }, 500);
   }
 });

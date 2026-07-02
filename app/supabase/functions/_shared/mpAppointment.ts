@@ -147,6 +147,40 @@ export async function loadHoldForCheckout(
   return appointment;
 }
 
+export function parsePaymentBrickSubmit(raw: Record<string, unknown>) {
+  const paymentType = String(raw.paymentType ?? raw.selectedPaymentMethod ?? "").toLowerCase();
+  const inner = (raw.formData as Record<string, unknown> | undefined) ?? raw;
+
+  const isPix =
+    paymentType.includes("bank_transfer") ||
+    paymentType === "pix" ||
+    String(inner.payment_method_id ?? "").toLowerCase() === "pix";
+
+  let paymentMethodId = String(inner.payment_method_id ?? "").trim();
+  if (isPix) paymentMethodId = "pix";
+
+  const token = inner.token ? String(inner.token) : undefined;
+  const installmentsRaw = inner.installments ?? inner.installment;
+  const installments = installmentsRaw ? Number(installmentsRaw) : 1;
+
+  const payer = (inner.payer as Record<string, unknown> | undefined) ?? undefined;
+  const payerEmail = payer?.email ? String(payer.email).trim() : undefined;
+  const identificationRaw = payer?.identification as { type?: string; number?: string } | undefined;
+  const identification =
+    identificationRaw?.number && identificationRaw?.type
+      ? { type: String(identificationRaw.type), number: String(identificationRaw.number).replace(/\D/g, "") }
+      : undefined;
+
+  return {
+    isPix,
+    paymentMethodId,
+    token,
+    installments: Number.isFinite(installments) && installments > 0 ? installments : 1,
+    payerEmail,
+    identification,
+  };
+}
+
 export async function createMpAppointmentPayment(params: {
   accessToken: string;
   supabaseUrl: string;
@@ -156,16 +190,24 @@ export async function createMpAppointmentPayment(params: {
   token?: string;
   installments?: number;
   payerEmail?: string;
+  payerIdentification?: { type: string; number: string };
   description?: string;
 }): Promise<Record<string, unknown>> {
   const amount = params.amountCentavos / 100;
+  const payer: Record<string, unknown> = {
+    email: params.payerEmail?.trim() || "cliente@sentinelagendamentos.com",
+  };
+  if (params.payerIdentification?.number) {
+    payer.identification = params.payerIdentification;
+  }
+
   const body: Record<string, unknown> = {
     transaction_amount: amount,
     description: params.description ?? "Agendamento Sentinela",
     payment_method_id: params.paymentMethodId,
     external_reference: appointmentExternalReference(params.agendamentoId),
     notification_url: `${params.supabaseUrl.replace(/\/+$/, "")}/functions/v1/mp-webhook`,
-    payer: params.payerEmail ? { email: params.payerEmail } : { email: "cliente@sentinelagendamentos.com" },
+    payer,
   };
 
   if (params.token) {

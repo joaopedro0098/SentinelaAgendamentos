@@ -149,11 +149,19 @@ export function PublicBookingPaymentCheckout({
           return;
         }
 
+        if (result.release_hold) {
+          toast.error("Pagamento não concluído. Tente novamente.");
+          onFailedRef.current();
+          return;
+        }
+
         toast.error("Pagamento não concluído. Tente novamente.");
-        onFailedRef.current();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Pagamento não concluído.");
-        onFailedRef.current();
+        const err = e as Error & { retry?: boolean; release_hold?: boolean };
+        toast.error(err.message || "Pagamento não concluído.");
+        if (err.release_hold) {
+          onFailedRef.current();
+        }
       } finally {
         setProcessing(false);
       }
