@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ExternalLink, Loader2, Wallet } from "lucide-react";
+import { ExternalLink, Loader2, TriangleAlert, Wallet } from "lucide-react";
+import { maskPhone } from "@agenda/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,8 @@ type MpPaymentException = {
   agendamento_data: string | null;
   agendamento_hora: string | null;
   cliente_nome: string | null;
+  cliente_whatsapp?: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -45,11 +48,49 @@ function formatMoney(centavos: number) {
   return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function exceptionReasonLabel(reason: string) {
-  if (reason === "late_pix_after_hold_expired") {
-    return "Pix recebido após expiração da reserva (15 min)";
+function formatDateBr(isoDate: string | null) {
+  if (!isoDate) return null;
+  const [y, m, d] = isoDate.split("-");
+  if (!y || !m || !d) return isoDate;
+  return `${d}/${m}/${y}`;
+}
+
+function formatSlotLabel(data: string | null, hora: string | null) {
+  const date = formatDateBr(data);
+  if (!date) return "horário não informado";
+  return hora ? `${date} às ${hora}` : date;
+}
+
+function buildExceptionDescription(ex: MpPaymentException) {
+  const nome = ex.cliente_nome?.trim() || "Cliente";
+  const whatsappRaw = ex.cliente_whatsapp?.trim() || "";
+  const whatsapp = whatsappRaw ? maskPhone(whatsappRaw) : "não informado";
+  const valor = formatMoney(ex.amount_centavos);
+  const slot = formatSlotLabel(ex.agendamento_data, ex.agendamento_hora);
+
+  if (ex.reason === "slot_taken_late_payment") {
+    return (
+      <>
+        Pagamento de <strong>{nome}</strong> (WhatsApp: {whatsapp}) no valor de{" "}
+        <strong>{valor}</strong> foi confirmado após o prazo de reserva de 15 minutos, quando o horário{" "}
+        <strong>{slot}</strong> já havia sido ocupado por outro cliente. Isso costuma acontecer por atraso na
+        confirmação do Pix do lado do banco do cliente. Entre em contato com <strong>{nome}</strong> para
+        remarcar em outro horário disponível ou realizar o reembolso.
+      </>
+    );
   }
-  return reason;
+
+  if (ex.reason === "late_pix_after_hold_expired") {
+    return (
+      <>
+        Pix de <strong>{nome}</strong> (WhatsApp: {whatsapp}) no valor de <strong>{valor}</strong> foi recebido
+        após a expiração da reserva de 15 minutos. Verifique o pagamento e entre em contato com{" "}
+        <strong>{nome}</strong> se necessário.
+      </>
+    );
+  }
+
+  return <>Pagamento de {nome} requer resolução manual ({ex.reason}).</>;
 }
 
 export default function PagamentosPage() {
@@ -313,6 +354,60 @@ export default function PagamentosPage() {
         </p>
       </div>
 
+      {!loadingExceptions && exceptions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+            <TriangleAlert className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+            <p>
+              {exceptions.length === 1
+                ? "1 pagamento precisa de resolução manual."
+                : `${exceptions.length} pagamentos precisam de resolução manual.`}
+            </p>
+          </div>
+
+          <Card className="border-amber-500/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Pendências de pagamento</CardTitle>
+              <CardDescription>
+                Pagamentos confirmados fora do prazo quando o horário já estava ocupado. Resolva com o cliente
+                (remarcação ou reembolso) e marque como resolvido quando concluir.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ul className="space-y-3">
+                {exceptions.map((ex) => (
+                  <li
+                    key={ex.id}
+                    className="rounded-lg border border-border/70 bg-muted/20 px-3 py-3 text-sm space-y-2"
+                  >
+                    <p className="font-medium">{ex.cliente_nome ?? "Cliente"}</p>
+                    <p className="text-muted-foreground leading-relaxed">{buildExceptionDescription(ex)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Valor pago: {formatMoney(ex.amount_centavos)} · MP #{ex.mp_payment_id} · Horário tentado:{" "}
+                      {formatSlotLabel(ex.agendamento_data, ex.agendamento_hora)}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-1 rounded-full"
+                      disabled={resolvingId === ex.id}
+                      onClick={() => void handleResolveException(ex.id)}
+                    >
+                      {resolvingId === ex.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Marcar como resolvido"
+                      )}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {settings?.can_edit_centralization && (
         <Card>
           <CardHeader className="pb-3">
@@ -561,62 +656,6 @@ export default function PagamentosPage() {
             </CardContent>
           </Card>
         </>
-      )}
-
-      {mpConnected && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Exceções de pagamento</CardTitle>
-            <CardDescription>
-              Pix recebidos após a reserva expirar. Confira manualmente e marque como resolvido.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {loadingExceptions ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : exceptions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma exceção pendente.</p>
-            ) : (
-              <ul className="space-y-3">
-                {exceptions.map((ex) => (
-                  <li
-                    key={ex.id}
-                    className="rounded-lg border border-border/70 bg-muted/20 px-3 py-3 text-sm space-y-1"
-                  >
-                    <p className="font-medium">{ex.cliente_nome ?? "Cliente"}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {ex.agendamento_data
-                        ? `${ex.agendamento_data.split("-").reverse().join("/")}${ex.agendamento_hora ? ` · ${ex.agendamento_hora}` : ""}`
-                        : "Agendamento"}
-                      {" · "}
-                      {formatMoney(ex.amount_centavos)}
-                    </p>
-                    <p className="text-xs text-amber-800 dark:text-amber-200">
-                      {exceptionReasonLabel(ex.reason)}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground font-mono">MP #{ex.mp_payment_id}</p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-2 rounded-full"
-                      disabled={resolvingId === ex.id}
-                      onClick={() => void handleResolveException(ex.id)}
-                    >
-                      {resolvingId === ex.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Marcar como resolvido"
-                      )}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       )}
 
       <Button
