@@ -99,6 +99,7 @@ type MpPaymentBrickProps = {
   onSubmit: (formData: unknown) => Promise<void>;
   onBrickError: (message: string) => void;
   onBrickReady?: () => void;
+  onBinChange?: (bin: string) => void;
 };
 
 function MpPaymentBrick({
@@ -109,6 +110,7 @@ function MpPaymentBrick({
   onSubmit,
   onBrickError,
   onBrickReady,
+  onBinChange,
 }: MpPaymentBrickProps) {
   const submitRef = useRef(onSubmit);
   submitRef.current = onSubmit;
@@ -118,6 +120,9 @@ function MpPaymentBrick({
 
   const onBrickReadyRef = useRef(onBrickReady);
   onBrickReadyRef.current = onBrickReady;
+
+  const onBinChangeRef = useRef(onBinChange);
+  onBinChangeRef.current = onBinChange;
 
   const stableSubmit = useCallback(async (formData: unknown) => {
     await submitRef.current(formData);
@@ -135,6 +140,10 @@ function MpPaymentBrick({
     onBrickReadyRef.current?.();
   }, []);
 
+  const stableOnBinChange = useCallback((bin: string) => {
+    onBinChangeRef.current?.(bin);
+  }, []);
+
   const brickId = `mp-payment-${agendamentoId}-${brickRetryKey}`;
 
   return (
@@ -145,6 +154,7 @@ function MpPaymentBrick({
       onSubmit={stableSubmit}
       onError={stableOnError}
       onReady={stableOnReady}
+      onBinChange={stableOnBinChange}
     />
   );
 }
@@ -209,35 +219,47 @@ export function PublicBookingPaymentCheckout({
     const root = document.getElementById(brickDomId);
     if (!root) return;
     const state = readMpBrickPaymentState(root);
-    setSelectedInstallments(state.installments);
-    setSelectedMethod(state.method);
+    setSelectedInstallments((prev) => (prev === state.installments ? prev : state.installments));
+    setSelectedMethod((prev) => (prev === state.method ? prev : state.method));
   }, [brickDomId]);
+
+  const handleBinChange = useCallback(() => {
+    window.setTimeout(syncBrickPaymentState, 80);
+    window.setTimeout(syncBrickPaymentState, 400);
+  }, [syncBrickPaymentState]);
 
   useEffect(() => {
     if (!brickDomId || pixQrBase64) return;
     const root = document.getElementById(brickDomId);
     if (!root) return;
 
-    const onChange = (event: Event) => {
-      if (event.target instanceof HTMLSelectElement) {
-        syncBrickPaymentState();
-      }
+    const onInteraction = () => {
+      syncBrickPaymentState();
     };
 
-    root.addEventListener("change", onChange, true);
-    root.addEventListener("click", syncBrickPaymentState, true);
+    root.addEventListener("change", onInteraction, true);
+    root.addEventListener("click", onInteraction, true);
+    root.addEventListener("input", onInteraction, true);
 
     const observer = new MutationObserver(() => {
       syncBrickPaymentState();
     });
-    observer.observe(root, { childList: true, subtree: true, attributes: true });
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-selected", "aria-checked", "value", "class"],
+    });
 
     syncBrickPaymentState();
+    const intervalId = window.setInterval(syncBrickPaymentState, 500);
 
     return () => {
-      root.removeEventListener("change", onChange, true);
-      root.removeEventListener("click", syncBrickPaymentState, true);
+      root.removeEventListener("change", onInteraction, true);
+      root.removeEventListener("click", onInteraction, true);
+      root.removeEventListener("input", onInteraction, true);
       observer.disconnect();
+      window.clearInterval(intervalId);
     };
   }, [brickDomId, pixQrBase64, syncBrickPaymentState]);
 
@@ -518,6 +540,7 @@ export function PublicBookingPaymentCheckout({
           onSubmit={handleSubmit}
           onBrickError={handleBrickError}
           onBrickReady={handleBrickReady}
+          onBinChange={handleBinChange}
         />
       )}
 
