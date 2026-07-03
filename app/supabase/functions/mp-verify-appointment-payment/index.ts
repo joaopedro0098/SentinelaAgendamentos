@@ -1,7 +1,11 @@
 import {
   createServiceClient,
+  deleteAppointmentPaymentHold,
   fetchMpPayment,
+  finalizeExpiredPaymentHoldWithMp,
+  finalizeExpiredPaymentHoldsBatch,
   getSellerAccessToken,
+  promoteAppointmentPaymentIfSlotAvailable,
 } from "../_shared/mpAppointment.ts";
 
 const corsHeaders = {
@@ -29,6 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createServiceClient();
+    void finalizeExpiredPaymentHoldsBatch(supabase, 5);
 
     const { data: row } = await supabase
       .from("agendamentos")
@@ -36,7 +41,7 @@ Deno.serve(async (req) => {
       .eq("id", agendamentoId)
       .maybeSingle();
 
-    if (!row) return jsonResponse({ error: "Agendamento não encontrado." }, 404);
+    if (!row) return jsonResponse({ ok: true, status: "deleted" });
     if (row.confirmation_token !== confirmationToken) {
       return jsonResponse({ error: "Token inválido." }, 403);
     }
@@ -45,20 +50,30 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, status: "confirmado" });
     }
 
-    if (row.status === "cancelado") {
-      return jsonResponse({ ok: true, status: "cancelado" });
-    }
-
     if (row.status !== "aguardando_pagamento") {
-      return jsonResponse({ error: "Status inválido." }, 400);
+      return jsonResponse({ ok: true, status: "deleted" });
     }
 
-    if (row.payment_expires_at && new Date(row.payment_expires_at).getTime() < Date.now()) {
-      if (row.mp_payment_id) {
-        return jsonResponse({ ok: true, status: "aguardando_pagamento", hold_expired: true });
+    const holdExpired =
+      row.payment_expires_at && new Date(row.payment_expires_at).getTime() < Date.now();
+
+    if (holdExpired) {
+      if (!row.mp_payment_id) {
+        await deleteAppointmentPaymentHold(supabase, agendamentoId);
+        return jsonResponse({ ok: true, status: "deleted", expired: true });
       }
-      await supabase.rpc("fail_appointment_payment", { p_agendamento_id: agendamentoId });
-      return jsonResponse({ ok: true, status: "cancelado", expired: true });
+
+      const finalized = await finalizeExpiredPaymentHoldWithMp(supabase, row);
+      if (finalized === "confirmed") {
+        return jsonResponse({ ok: true, status: "confirmado", late_payment: true });
+      }
+      if (finalized === "slot_conflict") {
+        return jsonResponse({ ok: true, status: "slot_conflict", late_payment: true });
+      }
+      if (finalized === "deleted") {
+        return jsonResponse({ ok: true, status: "deleted", expired: true });
+      }
+      return jsonResponse({ ok: true, status: "aguardando_pagamento", hold_expired: true });
     }
 
     if (row.mp_payment_id) {
@@ -70,10 +85,14 @@ Deno.serve(async (req) => {
         const isPix = methodId === "pix" || methodId === "bank_transfer";
 
         if (mpStatus === "approved") {
-          await supabase.rpc("confirm_appointment_payment", {
-            p_agendamento_id: agendamentoId,
-            p_mp_payment_id: row.mp_payment_id,
-          });
+          const promoted = await promoteAppointmentPaymentIfSlotAvailable(
+            supabase,
+            agendamentoId,
+            row.mp_payment_id,
+          );
+          if (promoted.slot_conflict) {
+            return jsonResponse({ ok: true, status: "slot_conflict" });
+          }
           return jsonResponse({ ok: true, status: "confirmado" });
         }
 
@@ -81,11 +100,8 @@ Deno.serve(async (req) => {
           if (isPix) {
             return jsonResponse({ ok: true, status: "aguardando_pagamento", mp_status: mpStatus });
           }
-          await supabase.rpc("fail_appointment_payment", {
-            p_agendamento_id: agendamentoId,
-            p_mp_payment_id: row.mp_payment_id,
-          });
-          return jsonResponse({ ok: true, status: "cancelado" });
+          await deleteAppointmentPaymentHold(supabase, agendamentoId);
+          return jsonResponse({ ok: true, status: "deleted" });
         }
 
         return jsonResponse({ ok: true, status: "aguardando_pagamento", mp_status: mpStatus });

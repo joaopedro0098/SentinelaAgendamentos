@@ -280,7 +280,7 @@ export function PublicBookingPaymentCheckout({
           onPaidRef.current();
           return;
         }
-        if (result.status === "cancelado") {
+        if (result.status === "deleted" || result.status === "cancelado") {
           onFailedRef.current();
           return;
         }

@@ -65,6 +65,9 @@ verify_jwt = false
 [functions.mp-verify-appointment-payment]
 verify_jwt = false
 
+[functions.mp-finalize-expired-payment-holds]
+verify_jwt = false
+
 [functions.notify-barber-new-booking]
 verify_jwt = false
 

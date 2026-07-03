@@ -6,6 +6,7 @@ import {
   loadHoldForCheckout,
   MpPaymentApiError,
   parsePaymentBrickSubmit,
+  promoteAppointmentPaymentIfSlotAvailable,
   resolveAppointmentChargeCentavos,
 } from "../_shared/mpAppointment.ts";
 
@@ -95,10 +96,14 @@ Deno.serve(async (req) => {
       .eq("id", agendamentoId);
 
     if (status === "approved") {
-      await supabase.rpc("confirm_appointment_payment", {
-        p_agendamento_id: agendamentoId,
-        p_mp_payment_id: paymentId,
-      });
+      const promoted = await promoteAppointmentPaymentIfSlotAvailable(
+        supabase,
+        agendamentoId,
+        paymentId,
+      );
+      if (promoted.slot_conflict) {
+        return jsonResponse({ ok: true, status: "slot_conflict", payment_id: paymentId });
+      }
       return jsonResponse({ ok: true, status: "confirmado", payment_id: paymentId });
     }
 

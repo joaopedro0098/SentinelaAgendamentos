@@ -3,6 +3,9 @@ import {
   fetchMpPayment,
   getSellerAccessToken,
   parseAppointmentExternalReference,
+  finalizeExpiredPaymentHoldsBatch,
+  deleteAppointmentPaymentHold,
+  promoteAppointmentPaymentIfSlotAvailable,
 } from "../_shared/mpAppointment.ts";
 
 const corsHeaders = {
@@ -60,6 +63,8 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
 
+      void finalizeExpiredPaymentHoldsBatch(supabase, 5);
+
       let payment: Record<string, unknown> | null = null;
       let externalReference = "";
 
@@ -101,19 +106,12 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (ag?.status === "aguardando_pagamento") {
-            if (ag.payment_expires_at && new Date(ag.payment_expires_at).getTime() < Date.now()) {
-              await supabase.from("mp_payment_exceptions").insert({
-                barbearia_id: ag.barbearia_id,
-                agendamento_id: appointmentId,
-                mp_payment_id: String(resourceId),
-                amount_centavos: Math.round(Number(payment?.transaction_amount ?? 0) * 100),
-                reason: "late_pix_after_hold_expired",
-              });
-            } else {
-              await supabase.rpc("confirm_appointment_payment", {
-                p_agendamento_id: appointmentId,
-                p_mp_payment_id: String(resourceId),
-              });
+            const promoted = await promoteAppointmentPaymentIfSlotAvailable(
+              supabase,
+              appointmentId,
+              String(resourceId),
+            );
+            if (promoted.confirmed || promoted.already_confirmed) {
               await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-barber-new-booking`, {
                 method: "POST",
                 headers: {
@@ -128,10 +126,7 @@ Deno.serve(async (req) => {
           const methodId = String(payment?.payment_method_id ?? payment?.payment_type_id ?? "");
           const isPix = methodId === "pix" || methodId === "bank_transfer";
           if (!isPix) {
-            await supabase.rpc("fail_appointment_payment", {
-              p_agendamento_id: appointmentId,
-              p_mp_payment_id: String(resourceId),
-            });
+            await deleteAppointmentPaymentHold(supabase, appointmentId);
           }
         }
 

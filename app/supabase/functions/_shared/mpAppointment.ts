@@ -525,6 +525,126 @@ export async function fetchMpPayment(accessToken: string, paymentId: string): Pr
   return payload as Record<string, unknown>;
 }
 
+export async function deleteAppointmentPaymentHold(
+  supabase: SupabaseClient,
+  agendamentoId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_appointment_payment_hold", {
+    p_agendamento_id: agendamentoId,
+  });
+  if (error) throw error;
+}
+
+export type PromotePaymentResult = {
+  ok?: boolean;
+  confirmed?: boolean;
+  already_confirmed?: boolean;
+  slot_conflict?: boolean;
+  exception_id?: string;
+  error?: string;
+  status?: string;
+};
+
+export async function promoteAppointmentPaymentIfSlotAvailable(
+  supabase: SupabaseClient,
+  agendamentoId: string,
+  mpPaymentId: string,
+): Promise<PromotePaymentResult> {
+  const { data, error } = await supabase.rpc("promote_appointment_payment_if_slot_available", {
+    p_agendamento_id: agendamentoId,
+    p_mp_payment_id: mpPaymentId,
+  });
+  if (error) throw error;
+  return (data ?? {}) as PromotePaymentResult;
+}
+
+export type FinalizeExpiredHoldResult = "confirmed" | "deleted" | "skipped" | "api_error" | "slot_conflict";
+
+/** Expiração com Pix: consulta MP antes de excluir; nunca exclui em dúvida. */
+export async function finalizeExpiredPaymentHoldWithMp(
+  supabase: SupabaseClient,
+  row: { id: string; barbearia_id: string; mp_payment_id: string | null },
+): Promise<FinalizeExpiredHoldResult> {
+  if (!row.mp_payment_id) {
+    await deleteAppointmentPaymentHold(supabase, row.id);
+    return "deleted";
+  }
+
+  let payment: Record<string, unknown>;
+  try {
+    const { accessToken } = await getSellerAccessToken(supabase, row.barbearia_id);
+    payment = await fetchMpPayment(accessToken, row.mp_payment_id);
+  } catch {
+    return "api_error";
+  }
+
+  const mpStatus = String(payment.status ?? "");
+
+  if (mpStatus === "approved") {
+    const promoted = await promoteAppointmentPaymentIfSlotAvailable(
+      supabase,
+      row.id,
+      row.mp_payment_id,
+    );
+    if (promoted.slot_conflict) return "slot_conflict";
+    return "confirmed";
+  }
+
+  if (mpStatus === "pending" || mpStatus === "in_process") {
+    return "skipped";
+  }
+
+  if (mpStatus === "rejected" || mpStatus === "cancelled") {
+    await deleteAppointmentPaymentHold(supabase, row.id);
+    return "deleted";
+  }
+
+  await deleteAppointmentPaymentHold(supabase, row.id);
+  return "deleted";
+}
+
+export async function finalizeExpiredPaymentHoldsBatch(
+  supabase: SupabaseClient,
+  limit = 25,
+): Promise<{
+  processed: number;
+  confirmed: number;
+  deleted: number;
+  skipped: number;
+  api_errors: number;
+  slot_conflicts: number;
+}> {
+  const { data: rows } = await supabase
+    .from("agendamentos")
+    .select("id, barbearia_id, mp_payment_id")
+    .eq("status", "aguardando_pagamento")
+    .not("payment_expires_at", "is", null)
+    .lt("payment_expires_at", new Date().toISOString())
+    .not("mp_payment_id", "is", null)
+    .limit(limit);
+
+  const stats = {
+    processed: 0,
+    confirmed: 0,
+    deleted: 0,
+    skipped: 0,
+    api_errors: 0,
+    slot_conflicts: 0,
+  };
+
+  for (const row of rows ?? []) {
+    stats.processed += 1;
+    const result = await finalizeExpiredPaymentHoldWithMp(supabase, row);
+    if (result === "confirmed") stats.confirmed += 1;
+    else if (result === "deleted") stats.deleted += 1;
+    else if (result === "api_error") stats.api_errors += 1;
+    else if (result === "slot_conflict") stats.slot_conflicts += 1;
+    else stats.skipped += 1;
+  }
+
+  return stats;
+}
+
 export function createServiceClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,

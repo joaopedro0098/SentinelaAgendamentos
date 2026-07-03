@@ -33,13 +33,23 @@ import {
 type PaymentHoldRef = { agendamentoId: string; confirmationToken: string };
 
 async function releasePublicBookingPaymentHold(hold: PaymentHoldRef): Promise<boolean> {
-  const { data, error } = await supabase.rpc("cancel_public_booking_payment_hold", {
+  const { data, error } = await supabase.rpc("delete_public_booking_payment_hold", {
     p_agendamento_id: hold.agendamentoId,
     p_confirmation_token: hold.confirmationToken,
   });
   if (error) return false;
-  const result = data as { ok?: boolean; already_cancelled?: boolean; error?: string } | null;
-  return result?.ok === true || result?.already_cancelled === true;
+  const result = data as { ok?: boolean; already_gone?: boolean; deleted?: boolean; error?: string } | null;
+  return result?.ok === true || result?.already_gone === true;
+}
+
+async function abandonPublicBookingPaymentCheckout(hold: PaymentHoldRef): Promise<boolean> {
+  const { data, error } = await supabase.rpc("abandon_public_booking_payment_checkout", {
+    p_agendamento_id: hold.agendamentoId,
+    p_confirmation_token: hold.confirmationToken,
+  });
+  if (error) return false;
+  const result = data as { ok?: boolean; already_gone?: boolean; deleted?: boolean; awaiting_mp_finalize?: boolean } | null;
+  return result?.ok === true || result?.already_gone === true;
 }
 
 const bookingPageX = "px-3 sm:px-5 md:px-0";
@@ -284,6 +294,8 @@ type AgendamentoOcupado = {
   data: string;
   hora: string;
   duracao_minutos: number | null;
+  status?: string;
+  payment_expires_at?: string | null;
 };
 
 const STORAGE_KEY = "agendabarber:cliente";
@@ -585,14 +597,21 @@ const PublicBooking = ({
       if (bbIds.length) {
         const { data: ag } = await supabase
           .from("agendamentos")
-          .select("id, barbeiro_id, data, hora, duracao_minutos")
+          .select("id, barbeiro_id, data, hora, duracao_minutos, status, payment_expires_at")
           .in("barbeiro_id", bbIds)
           .in("status", ["confirmado", "aguardando_pagamento"])
           .gte("data", fromYmd)
           .lte("data", toYmd);
         const map = new Map<string, Map<string, number>>();
+        const nowMs = Date.now();
         ((ag ?? []) as AgendamentoOcupado[]).forEach((a) => {
           if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
+          if (a.status === "aguardando_pagamento") {
+            const expiresMs = a.payment_expires_at
+              ? new Date(a.payment_expires_at).getTime()
+              : 0;
+            if (!expiresMs || expiresMs < nowMs) return;
+          }
           const k = `${a.barbeiro_id}|${a.data}`;
           if (!map.has(k)) map.set(k, new Map());
           map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
@@ -1141,7 +1160,7 @@ const PublicBooking = ({
   const handlePaymentExpired = useCallback(async () => {
     toast.error("Tempo esgotado. O horário foi liberado — escolha outro.");
     if (paymentCheckout) {
-      await releasePublicBookingPaymentHold(paymentCheckout);
+      await abandonPublicBookingPaymentCheckout(paymentCheckout);
     }
     setPaymentCheckout(null);
     setPaymentFailed(true);
