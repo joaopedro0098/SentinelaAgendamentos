@@ -201,6 +201,39 @@
     @apply bg-background text-foreground antialiased;
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Scrollbars minimalistas — mesmo tom do tema (landing, painel, booking) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.32) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.32);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--primary) / 0.55);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   html[data-theme="landing"] body {
     font-family: 'Inter', system-ui, sans-serif;
     background-image:

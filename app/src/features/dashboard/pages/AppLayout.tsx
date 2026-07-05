@@ -17,9 +17,11 @@ const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
 
 function readSidebarCollapsed() {
   try {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    const value = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (value === null) return true;
+    return value === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -237,53 +239,50 @@ export default function AppLayout() {
 
       <aside
         className={cn(
-          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen relative transition-[width] duration-200 ease-out border-r border-border/60 flex-col",
-          sidebarCollapsed ? "w-9 bg-background/50" : "w-64",
+          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen transition-[width] duration-200 ease-out border-r border-border/60 flex-col bg-background",
+          sidebarCollapsed ? "w-[5rem]" : "w-64",
         )}
       >
-        {sidebarCollapsed && (
-          <div className="flex flex-1 flex-col items-center justify-end gap-2 pb-4 pt-16">
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Sair"
-              aria-label="Sair"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {!sidebarCollapsed && (
-          <div className="glass-panel m-3 rounded-2xl flex flex-col overflow-hidden w-[calc(100%-0.75rem)] min-h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)]">
-            <div className="px-4 py-4 border-b border-border/60 shrink-0">
+        <div className="flex flex-col flex-1 min-h-0 h-full w-full overflow-hidden">
+          {!sidebarCollapsed && (
+            <div className="px-4 py-4 shrink-0">
               <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
             </div>
+          )}
 
-            <nav className="flex flex-col gap-1 p-2 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-              <DesktopNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end />
-              <DesktopNavItem to="/app/agendamentos" icon={<CalendarCheck className="h-4 w-4" />} label="Agendamentos" />
-              <DesktopNavItem to="/app/pacientes" icon={<Users className="h-4 w-4" />} label="Pacientes" />
-              <DesktopNavItem to="/app/profissionais" icon={<UserCog className="h-4 w-4" />} label="Profissionais" />
-              <DesktopNavItem to="/app/settings" icon={<Settings className="h-4 w-4" />} label="Configurações" />
-              <DesktopNavItem to="/app/perfil" icon={<User className="h-4 w-4" />} label="Conta" />
-              <DesktopNavItem to="/app/pagamentos" icon={<Wallet className="h-4 w-4" />} label="Pagamentos" />
-              {subscriptionInfo?.is_admin && (
-                <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
-              )}
-              {subscriptionInfo?.is_admin && (
-                <DesktopNavItem to="/app/admin" icon={<Shield className="h-4 w-4" />} label="Admin" />
-              )}
-              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-                <DesktopNavItem to="/app/relatorios" icon={<BarChart2 className="h-4 w-4" />} label="Relatórios" />
-              )}
-              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-                <DesktopNavItem to="/app/suporte" icon={<Headphones className="h-4 w-4" />} label="Suporte" />
-              )}
-            </nav>
+          <nav
+            className={cn(
+              "flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              sidebarCollapsed ? "p-1.5 pt-3" : "p-2",
+            )}
+          >
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendar" icon={<Calendar className="h-5 w-5" />} label="Agendar" end />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendamentos" icon={<CalendarCheck className="h-5 w-5" />} label="Agendamentos" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pacientes" icon={<Users className="h-5 w-5" />} label="Pacientes" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/profissionais" icon={<UserCog className="h-5 w-5" />} label="Profissionais" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/perfil" icon={<User className="h-5 w-5" />} label="Conta" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pagamentos" icon={<Wallet className="h-5 w-5" />} label="Pagamentos" />
+            {subscriptionInfo?.is_admin && (
+              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/relatorios" icon={<BarChart2 className="h-5 w-5" />} label="Relatórios" />
+            )}
+            {subscriptionInfo?.is_admin && (
+              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/admin" icon={<Shield className="h-5 w-5" />} label="Admin" />
+            )}
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/relatorios" icon={<BarChart2 className="h-5 w-5" />} label="Relatórios" />
+            )}
+            {subscriptionInfo != null && !subscriptionInfo.is_admin && (
+              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/suporte" icon={<Headphones className="h-5 w-5" />} label="Suporte" />
+            )}
+          </nav>
 
-            <div className="mt-auto shrink-0 flex flex-col gap-2 p-3 border-t border-border/60">
+          {sidebarCollapsed ? (
+            <div className="mt-auto shrink-0 p-1.5">
+              <SidebarExpandToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
+            </div>
+          ) : (
+            <div className="mt-auto shrink-0 flex flex-col gap-2 p-3">
               <PwaInstallButton
                 label="Instalar"
                 helpVariant="app"
@@ -294,11 +293,10 @@ export default function AppLayout() {
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Sair
               </Button>
+              <SidebarExpandToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
             </div>
-          </div>
-        )}
-
-        <SidebarCollapseToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
+          )}
+        </div>
       </aside>
 
       <main className="flex-1 min-w-0 min-h-0 w-full overflow-x-hidden overflow-y-auto flex flex-col">
@@ -309,7 +307,7 @@ export default function AppLayout() {
   );
 }
 
-function SidebarCollapseToggle({
+function SidebarExpandToggle({
   collapsed,
   onToggle,
 }: {
@@ -320,16 +318,21 @@ function SidebarCollapseToggle({
     <button
       type="button"
       onClick={onToggle}
-      title={collapsed ? "Mostrar menu do painel" : "Ocultar menu do painel"}
-      aria-label={collapsed ? "Mostrar menu do painel" : "Ocultar menu do painel"}
+      title={collapsed ? "Expandir menu" : "Recolher menu"}
+      aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
       className={cn(
-        "absolute z-30 flex h-10 w-6 items-center justify-center rounded-r-md border border-border/70 bg-background/95 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        collapsed
-          ? "left-1.5 top-[4.75rem] border-l-0"
-          : "top-5 -right-3 border-l-0",
+        "flex w-full items-center rounded-xl py-2.5 font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        collapsed ? "justify-center" : "justify-center gap-2 px-2 text-sm",
       )}
     >
-      {collapsed ? <ChevronRight className="h-4 w-4" strokeWidth={2.25} /> : <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />}
+      {collapsed ? (
+        <ChevronRight className="h-6 w-6 shrink-0" strokeWidth={2.75} />
+      ) : (
+        <>
+          <span>Recolher menu</span>
+          <ChevronLeft className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+        </>
+      )}
     </button>
   );
 }
@@ -439,14 +442,28 @@ function daysBetween(from: Date, to: Date) {
   return Math.floor((to.getTime() - from.getTime()) / msPerDay);
 }
 
-function DesktopNavItem({ to, icon, label, end }: { to: string; icon: React.ReactNode; label: string; end?: boolean }) {
+function DesktopNavItem({
+  to,
+  icon,
+  label,
+  end,
+  collapsed,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  end?: boolean;
+  collapsed?: boolean;
+}) {
   return (
     <NavLink
       to={to}
       end={end}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition justify-start",
+          "flex items-center rounded-xl text-sm font-medium transition",
+          collapsed ? "justify-center px-2 py-2.5" : "gap-2 px-3 py-2.5 justify-start",
           isActive
             ? "bg-primary text-primary-foreground shadow-glow"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
@@ -454,7 +471,7 @@ function DesktopNavItem({ to, icon, label, end }: { to: string; icon: React.Reac
       }
     >
       {icon}
-      <span>{label}</span>
+      {!collapsed && <span>{label}</span>}
     </NavLink>
   );
 }
