@@ -34,26 +34,16 @@ function hasMenuChildren(children: ReactNode) {
 
 const CompactMenuContext = createContext(false);
 
-/** Quanto o menu acompanha o scroll por frame (mobile). */
-const SCROLL_FOLLOW_FACTOR = 0.2;
-/** Limite de pixels por frame — reduz a amplitude do movimento. */
-const MAX_SCROLL_STEP_PX = 4;
+/** Deslocamento vertical máximo do menu durante o scroll (mobile). */
+const MAX_VERTICAL_SCROLL_OFFSET = 5;
 
-function smoothToward(current: number, target: number) {
-  const delta = target - current;
-  if (Math.abs(delta) < 0.5) return target;
-  const step = delta * SCROLL_FOLLOW_FACTOR;
-  const capped =
-    Math.abs(step) <= MAX_SCROLL_STEP_PX ? step : Math.sign(step) * MAX_SCROLL_STEP_PX;
-  return current + capped;
-}
+type ScrollAnchor = {
+  cardBottom: number;
+  style: MenuStyle;
+};
 
-function stylesMatch(a: MenuStyle, b: MenuStyle) {
-  return (
-    Math.abs((a.top ?? 0) - (b.top ?? 0)) < 0.5 &&
-    Math.abs((a.bottom ?? 0) - (b.bottom ?? 0)) < 0.5 &&
-    Math.abs(a.left - b.left) < 0.5
-  );
+function clampVerticalOffset(delta: number) {
+  return Math.max(-MAX_VERTICAL_SCROLL_OFFSET, Math.min(MAX_VERTICAL_SCROLL_OFFSET, delta));
 }
 
 export function AgendamentoActionsMenu({
@@ -67,12 +57,14 @@ export function AgendamentoActionsMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuStyle, setMenuStyle] = useState<MenuStyle | null>(null);
-  const targetStyleRef = useRef<MenuStyle | null>(null);
-  const displayStyleRef = useRef<MenuStyle | null>(null);
-  const rafLoopRef = useRef<number | null>(null);
-  const useScrollLag = compact && alignBottomToCard;
+  const scrollAnchorRef = useRef<ScrollAnchor | null>(null);
+  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const useScrollAmplitudeCap = compact && alignBottomToCard;
 
   const canRenderMenu = hasMenuChildren(children);
+
+  const getCardBottom = () =>
+    buttonRef.current?.closest("[data-agendamento-card]")?.getBoundingClientRect().bottom ?? null;
 
   const computeTargetStyle = (): MenuStyle | null => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -104,85 +96,60 @@ export function AgendamentoActionsMenu({
     };
   };
 
-  const cancelScrollLoop = () => {
-    if (rafLoopRef.current !== null) {
-      cancelAnimationFrame(rafLoopRef.current);
-      rafLoopRef.current = null;
+  const clearScrollEndTimer = () => {
+    if (scrollEndTimerRef.current !== null) {
+      clearTimeout(scrollEndTimerRef.current);
+      scrollEndTimerRef.current = null;
     }
   };
 
-  const applyStyle = (style: MenuStyle) => {
-    displayStyleRef.current = style;
-    setMenuStyle(style);
-  };
+  const updatePosition = (resetAnchor = false) => {
+    const trueStyle = computeTargetStyle();
+    if (!trueStyle) return;
 
-  const runScrollLoop = () => {
-    const target = targetStyleRef.current;
-    const prev = displayStyleRef.current;
-    if (!target || !prev) {
-      rafLoopRef.current = null;
+    if (!useScrollAmplitudeCap || resetAnchor) {
+      const cardBottom = getCardBottom();
+      if (useScrollAmplitudeCap && cardBottom !== null) {
+        scrollAnchorRef.current = { cardBottom, style: trueStyle };
+      }
+      setMenuStyle(trueStyle);
       return;
     }
 
-    if (stylesMatch(prev, target)) {
-      rafLoopRef.current = null;
+    const anchor = scrollAnchorRef.current;
+    const cardBottom = getCardBottom();
+    if (!anchor || cardBottom === null) {
+      scrollAnchorRef.current = cardBottom !== null ? { cardBottom, style: trueStyle } : null;
+      setMenuStyle(trueStyle);
       return;
     }
 
-    const next: MenuStyle = {
-      top:
-        prev.top !== undefined && target.top !== undefined
-          ? smoothToward(prev.top, target.top)
-          : target.top,
-      bottom:
-        prev.bottom !== undefined && target.bottom !== undefined
-          ? smoothToward(prev.bottom, target.bottom)
-          : target.bottom,
-      left: smoothToward(prev.left, target.left),
-    };
+    const offsetY = clampVerticalOffset(cardBottom - anchor.cardBottom);
 
-    const settled = stylesMatch(next, target);
-    applyStyle(settled ? target : next);
-
-    if (settled) {
-      rafLoopRef.current = null;
-      return;
-    }
-
-    rafLoopRef.current = requestAnimationFrame(runScrollLoop);
-  };
-
-  const scheduleScrollLoop = () => {
-    if (rafLoopRef.current === null) {
-      rafLoopRef.current = requestAnimationFrame(runScrollLoop);
-    }
-  };
-
-  const updatePosition = (instant = false) => {
-    const target = computeTargetStyle();
-    if (!target) return;
-    targetStyleRef.current = target;
-
-    if (useScrollLag && !instant) {
-      scheduleScrollLoop();
-      return;
-    }
-
-    cancelScrollLoop();
-    applyStyle(target);
+    setMenuStyle({
+      top: anchor.style.top !== undefined ? anchor.style.top + offsetY : trueStyle.top,
+      bottom: anchor.style.bottom !== undefined ? anchor.style.bottom - offsetY : trueStyle.bottom,
+      left: trueStyle.left,
+    });
   };
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
       setMenuStyle(null);
-      targetStyleRef.current = null;
-      displayStyleRef.current = null;
-      cancelScrollLoop();
+      scrollAnchorRef.current = null;
+      clearScrollEndTimer();
       return;
     }
 
     const onResize = () => updatePosition(true);
-    const onScroll = () => updatePosition(false);
+    const onScroll = () => {
+      updatePosition(false);
+      clearScrollEndTimer();
+      scrollEndTimerRef.current = setTimeout(() => {
+        scrollEndTimerRef.current = null;
+        updatePosition(true);
+      }, 80);
+    };
 
     updatePosition(true);
     const raf = requestAnimationFrame(() => updatePosition(true));
@@ -190,7 +157,7 @@ export function AgendamentoActionsMenu({
     window.addEventListener("scroll", onScroll, true);
     return () => {
       cancelAnimationFrame(raf);
-      cancelScrollLoop();
+      clearScrollEndTimer();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll, true);
     };
