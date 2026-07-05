@@ -1392,7 +1392,8 @@ const PublicBooking = ({
           {!bookingConfirmed && paymentCheckout && (
             <div className="mt-6">
               <PublicBookingPaymentCheckout
-                amountCentavos={paymentCheckout.amount_centavos}
+                amountPixCentavos={paymentCheckout.amount_pix_centavos}
+                amountCardCentavos={paymentCheckout.amount_card_centavos}
                 passFeeCard={paymentCheckout.payment_pass_fee_card === true}
                 passFeePix={paymentCheckout.payment_pass_fee_pix === true}
                 remainingCentavos={paymentCheckout.remaining_centavos}

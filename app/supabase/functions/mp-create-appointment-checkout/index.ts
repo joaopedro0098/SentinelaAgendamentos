@@ -52,24 +52,70 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Pagamento não exigido para este agendamento." }, 400);
     }
 
-    const amount = appointment.valor_pago_centavos ?? 0;
-    if (amount < 50) {
+    const passFeeCard = settings.payment_pass_fee_card === true;
+    const passFeePix = settings.payment_pass_fee_pix === true;
+
+    const chargeBase =
+      appointment.valor_cobranca_base_centavos ??
+      appointment.valor_pago_centavos ??
+      0;
+
+    if (chargeBase < 50) {
+      return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
+    }
+
+    const feeRpcParams = {
+      p_charge_centavos: chargeBase,
+      p_installments: 1,
+      p_pass_fee_card: passFeeCard,
+      p_pass_fee_pix: passFeePix,
+    };
+
+    const [pixRes, cardRes] = await Promise.all([
+      supabase.rpc("apply_mp_pass_fee_centavos", {
+        ...feeRpcParams,
+        p_method: "pix",
+      }),
+      supabase.rpc("apply_mp_pass_fee_centavos", {
+        ...feeRpcParams,
+        p_method: "card",
+      }),
+    ]);
+
+    if (pixRes.error) {
+      console.error("apply_mp_pass_fee_centavos (pix):", pixRes.error);
+      return jsonResponse({ error: "Não foi possível calcular valor Pix." }, 500);
+    }
+    if (cardRes.error) {
+      console.error("apply_mp_pass_fee_centavos (card):", cardRes.error);
+      return jsonResponse({ error: "Não foi possível calcular valor cartão." }, 500);
+    }
+
+    const amountPixCentavos = Number(pixRes.data);
+    const amountCardCentavos = Number(cardRes.data);
+
+    if (
+      !Number.isFinite(amountPixCentavos) ||
+      !Number.isFinite(amountCardCentavos) ||
+      amountPixCentavos < 50 ||
+      amountCardCentavos < 50
+    ) {
       return jsonResponse({ error: "Valor de pagamento inválido." }, 400);
     }
 
     return jsonResponse({
       ok: true,
       agendamento_id: appointment.id,
-      amount_centavos: amount,
-      charge_base_centavos:
-        appointment.valor_cobranca_base_centavos ?? appointment.valor_pago_centavos ?? amount,
-      total_centavos: appointment.valor_base_centavos ?? amount,
+      charge_base_centavos: chargeBase,
+      amount_pix_centavos: amountPixCentavos,
+      amount_card_centavos: amountCardCentavos,
+      total_centavos: appointment.valor_base_centavos ?? chargeBase,
       remaining_centavos: appointment.valor_restante_centavos ?? 0,
       expires_at: appointment.payment_expires_at,
       payment_enable_card: settings.payment_enable_card !== false,
       payment_enable_pix: settings.payment_enable_pix !== false,
-      payment_pass_fee_card: settings.payment_pass_fee_card === true,
-      payment_pass_fee_pix: settings.payment_pass_fee_pix === true,
+      payment_pass_fee_card: passFeeCard,
+      payment_pass_fee_pix: passFeePix,
       payment_max_installments: Number(settings.payment_max_installments ?? 1),
       mp_live_mode: settings.mp_live_mode ?? null,
     });

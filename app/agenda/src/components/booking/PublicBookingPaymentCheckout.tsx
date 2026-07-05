@@ -15,8 +15,11 @@ import {
   verifyAppointmentPayment,
 } from "@/lib/appointmentPaymentApi";
 
+type CheckoutPaymentMethod = "pix" | "card";
+
 type Props = {
-  amountCentavos: number;
+  amountPixCentavos: number;
+  amountCardCentavos: number;
   passFeeCard: boolean;
   passFeePix: boolean;
   remainingCentavos: number;
@@ -138,7 +141,8 @@ function MpPaymentBrick({
 }
 
 export function PublicBookingPaymentCheckout({
-  amountCentavos,
+  amountPixCentavos,
+  amountCardCentavos,
   passFeeCard,
   passFeePix,
   remainingCentavos,
@@ -155,11 +159,17 @@ export function PublicBookingPaymentCheckout({
   const [processing, setProcessing] = useState(false);
   const [verifyingPix, setVerifyingPix] = useState(false);
   const [brickRetryKey, setBrickRetryKey] = useState(0);
+  const [activeMethod, setActiveMethod] = useState<CheckoutPaymentMethod>(() =>
+    enablePix ? "pix" : "card",
+  );
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
   const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
 
-  const hasPassFee = passFeeCard || passFeePix;
+  const canSwitchMethod = enablePix && enableCard;
+  const displayAmountCentavos = activeMethod === "pix" ? amountPixCentavos : amountCardCentavos;
+  const activePassFee =
+    (activeMethod === "pix" && passFeePix) || (activeMethod === "card" && passFeeCard);
 
   const onExpiredRef = useRef(onExpired);
   const onPaidRef = useRef(onPaid);
@@ -228,14 +238,26 @@ export function PublicBookingPaymentCheckout({
     }
   }, [verifyPixPayment]);
 
+  const switchPaymentMethod = useCallback(
+    (next: CheckoutPaymentMethod) => {
+      if (next === activeMethod) return;
+      setPixQr(null);
+      setPixQrBase64(null);
+      setLastPaymentError(null);
+      setActiveMethod(next);
+      setBrickRetryKey((key) => key + 1);
+    },
+    [activeMethod],
+  );
+
   const initialization = useMemo(
     () => ({
       // Checkout Transparente + OAuth: public_key do integrador no front,
       // access_token do vendedor no backend. NÃO usar marketplace:true aqui
       // (isso exige preferenceId — ver doc wallet-credits / split Bricks).
-      amount: Math.max(1, amountCentavos / 100),
+      amount: Math.max(1, displayAmountCentavos / 100),
     }),
-    [amountCentavos],
+    [displayAmountCentavos],
   );
 
   const customization = useMemo(() => {
@@ -246,10 +268,10 @@ export function PublicBookingPaymentCheckout({
     } = {
       maxInstallments: Math.max(1, maxInstallments),
     };
-    if (enableCard) paymentMethods.creditCard = "all";
-    if (enablePix) paymentMethods.bankTransfer = "all";
+    if (activeMethod === "card") paymentMethods.creditCard = "all";
+    if (activeMethod === "pix") paymentMethods.bankTransfer = "all";
     return { paymentMethods };
-  }, [enableCard, enablePix, maxInstallments]);
+  }, [activeMethod, maxInstallments]);
 
   const handleBrickError = useCallback((message: string) => {
     const normalized = message.toLowerCase();
@@ -352,9 +374,23 @@ export function PublicBookingPaymentCheckout({
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
         <p className="text-xs text-muted-foreground">Valor a pagar agora</p>
-        <p className="font-display text-2xl font-bold">{formatServicePrice(amountCentavos)}</p>
-        {hasPassFee && (
-          <p className="mt-1 text-[11px] text-muted-foreground">inclui repasse estimado da taxa MP</p>
+        <p className="font-display text-2xl font-bold">{formatServicePrice(displayAmountCentavos)}</p>
+        {activePassFee && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            inclui repasse estimado da taxa MP
+            {activeMethod === "pix" ? " (Pix)" : " (cartão)"}
+          </p>
+        )}
+        {canSwitchMethod && (
+          <Button
+            type="button"
+            variant="link"
+            className="mt-1 h-auto p-0 text-xs text-muted-foreground"
+            disabled={processing || verifyingPix}
+            onClick={() => switchPaymentMethod(activeMethod === "pix" ? "card" : "pix")}
+          >
+            {activeMethod === "pix" ? "Pagar com cartão" : "Voltar para Pix"}
+          </Button>
         )}
         {remainingCentavos > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
