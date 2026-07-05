@@ -34,16 +34,43 @@ function hasMenuChildren(children: ReactNode) {
 
 const CompactMenuContext = createContext(false);
 
+/** Velocidade do acompanhamento suave durante o scroll (mobile). */
+const SCROLL_FOLLOW_FACTOR = 0.2;
 /** Deslocamento vertical máximo do menu durante o scroll (mobile). */
-const MAX_VERTICAL_SCROLL_OFFSET = 5;
+const MAX_SCROLL_OFFSET = 18;
 
 type ScrollAnchor = {
-  cardBottom: number;
   style: MenuStyle;
 };
 
 function clampVerticalOffset(delta: number) {
-  return Math.max(-MAX_VERTICAL_SCROLL_OFFSET, Math.min(MAX_VERTICAL_SCROLL_OFFSET, delta));
+  return Math.max(-MAX_SCROLL_OFFSET, Math.min(MAX_SCROLL_OFFSET, delta));
+}
+
+function applyScrollOffsetCap(anchor: MenuStyle, trueStyle: MenuStyle): MenuStyle {
+  const anchorTop = anchor.top ?? 0;
+  const trueTop = trueStyle.top ?? anchorTop;
+  const offsetY = clampVerticalOffset(trueTop - anchorTop);
+
+  return {
+    top: anchor.top !== undefined ? anchorTop + offsetY : trueStyle.top,
+    bottom: anchor.bottom !== undefined ? anchor.bottom - offsetY : trueStyle.bottom,
+    left: trueStyle.left,
+  };
+}
+
+function smoothToward(current: number, target: number) {
+  const delta = target - current;
+  if (Math.abs(delta) < 0.5) return target;
+  return current + delta * SCROLL_FOLLOW_FACTOR;
+}
+
+function stylesMatch(a: MenuStyle, b: MenuStyle) {
+  return (
+    Math.abs((a.top ?? 0) - (b.top ?? 0)) < 0.5 &&
+    Math.abs((a.bottom ?? 0) - (b.bottom ?? 0)) < 0.5 &&
+    Math.abs(a.left - b.left) < 0.5
+  );
 }
 
 export function AgendamentoActionsMenu({
@@ -58,13 +85,25 @@ export function AgendamentoActionsMenu({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuStyle, setMenuStyle] = useState<MenuStyle | null>(null);
   const scrollAnchorRef = useRef<ScrollAnchor | null>(null);
+  const targetStyleRef = useRef<MenuStyle | null>(null);
+  const displayStyleRef = useRef<MenuStyle | null>(null);
+  const rafLoopRef = useRef<number | null>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const useScrollAmplitudeCap = compact && alignBottomToCard;
+  const useScrollLag = compact && alignBottomToCard;
 
   const canRenderMenu = hasMenuChildren(children);
 
-  const getCardBottom = () =>
-    buttonRef.current?.closest("[data-agendamento-card]")?.getBoundingClientRect().bottom ?? null;
+  const cancelScrollLoop = () => {
+    if (rafLoopRef.current !== null) {
+      cancelAnimationFrame(rafLoopRef.current);
+      rafLoopRef.current = null;
+    }
+  };
+
+  const applyStyle = (style: MenuStyle) => {
+    displayStyleRef.current = style;
+    setMenuStyle(style);
+  };
 
   const computeTargetStyle = (): MenuStyle | null => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -103,40 +142,79 @@ export function AgendamentoActionsMenu({
     }
   };
 
+  const runScrollLoop = () => {
+    const target = targetStyleRef.current;
+    const prev = displayStyleRef.current;
+    if (!target || !prev) {
+      rafLoopRef.current = null;
+      return;
+    }
+
+    if (stylesMatch(prev, target)) {
+      rafLoopRef.current = null;
+      return;
+    }
+
+    const next: MenuStyle = {
+      top:
+        prev.top !== undefined && target.top !== undefined
+          ? smoothToward(prev.top, target.top)
+          : target.top,
+      bottom:
+        prev.bottom !== undefined && target.bottom !== undefined
+          ? smoothToward(prev.bottom, target.bottom)
+          : target.bottom,
+      left: smoothToward(prev.left, target.left),
+    };
+
+    const settled = stylesMatch(next, target);
+    applyStyle(settled ? target : next);
+
+    if (settled) {
+      rafLoopRef.current = null;
+      return;
+    }
+
+    rafLoopRef.current = requestAnimationFrame(runScrollLoop);
+  };
+
+  const scheduleScrollLoop = () => {
+    if (rafLoopRef.current === null) {
+      rafLoopRef.current = requestAnimationFrame(runScrollLoop);
+    }
+  };
+
   const updatePosition = (resetAnchor = false) => {
     const trueStyle = computeTargetStyle();
     if (!trueStyle) return;
 
-    if (!useScrollAmplitudeCap || resetAnchor) {
-      const cardBottom = getCardBottom();
-      if (useScrollAmplitudeCap && cardBottom !== null) {
-        scrollAnchorRef.current = { cardBottom, style: trueStyle };
+    if (!useScrollLag || resetAnchor) {
+      if (useScrollLag) {
+        scrollAnchorRef.current = { style: trueStyle };
       }
-      setMenuStyle(trueStyle);
+      cancelScrollLoop();
+      applyStyle(trueStyle);
       return;
     }
 
     const anchor = scrollAnchorRef.current;
-    const cardBottom = getCardBottom();
-    if (!anchor || cardBottom === null) {
-      scrollAnchorRef.current = cardBottom !== null ? { cardBottom, style: trueStyle } : null;
-      setMenuStyle(trueStyle);
+    if (!anchor) {
+      scrollAnchorRef.current = { style: trueStyle };
+      applyStyle(trueStyle);
       return;
     }
 
-    const offsetY = clampVerticalOffset(cardBottom - anchor.cardBottom);
-
-    setMenuStyle({
-      top: anchor.style.top !== undefined ? anchor.style.top + offsetY : trueStyle.top,
-      bottom: anchor.style.bottom !== undefined ? anchor.style.bottom - offsetY : trueStyle.bottom,
-      left: trueStyle.left,
-    });
+    targetStyleRef.current = applyScrollOffsetCap(anchor.style, trueStyle);
+    scheduleScrollLoop();
   };
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
       setMenuStyle(null);
       scrollAnchorRef.current = null;
+      targetStyleRef.current = null;
+      displayStyleRef.current = null;
+      cancelScrollLoop();
       clearScrollEndTimer();
       return;
     }
@@ -157,6 +235,7 @@ export function AgendamentoActionsMenu({
     window.addEventListener("scroll", onScroll, true);
     return () => {
       cancelAnimationFrame(raf);
+      cancelScrollLoop();
       clearScrollEndTimer();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll, true);
