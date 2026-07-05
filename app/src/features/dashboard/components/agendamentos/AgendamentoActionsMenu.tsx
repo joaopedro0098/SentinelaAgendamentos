@@ -34,48 +34,6 @@ function hasMenuChildren(children: ReactNode) {
 
 const CompactMenuContext = createContext(false);
 
-/** Velocidade do acompanhamento suave durante o scroll (mobile). */
-const SCROLL_FOLLOW_FACTOR = 0.2;
-/** Máximo que a borda inferior do menu pode se afastar da borda inferior do card (mobile). */
-const MAX_SCROLL_OFFSET = 10;
-
-function getMenuBottomEdge(style: MenuStyle) {
-  return window.innerHeight - (style.bottom ?? 0);
-}
-
-function clampDrift(drift: number) {
-  return Math.max(-MAX_SCROLL_OFFSET, Math.min(MAX_SCROLL_OFFSET, drift));
-}
-
-function getMenuHeight(trueStyle: MenuStyle) {
-  return getMenuBottomEdge(trueStyle) - (trueStyle.top ?? 0);
-}
-
-/** Posiciona o menu ancorado na borda inferior do card, com deslocamento opcional. */
-function buildStyleFromDrift(trueStyle: MenuStyle, cardBottom: number, drift: number): MenuStyle {
-  const menuBottomEdge = cardBottom + drift;
-  const menuHeight = getMenuHeight(trueStyle);
-  return {
-    top: menuBottomEdge - menuHeight,
-    bottom: window.innerHeight - menuBottomEdge,
-    left: trueStyle.left,
-  };
-}
-
-function smoothToward(current: number, target: number) {
-  const delta = target - current;
-  if (Math.abs(delta) < 0.5) return target;
-  return current + delta * SCROLL_FOLLOW_FACTOR;
-}
-
-function stylesMatch(a: MenuStyle, b: MenuStyle) {
-  return (
-    Math.abs((a.top ?? 0) - (b.top ?? 0)) < 0.5 &&
-    Math.abs((a.bottom ?? 0) - (b.bottom ?? 0)) < 0.5 &&
-    Math.abs(a.left - b.left) < 0.5
-  );
-}
-
 export function AgendamentoActionsMenu({
   children,
   disabled,
@@ -87,27 +45,8 @@ export function AgendamentoActionsMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuStyle, setMenuStyle] = useState<MenuStyle | null>(null);
-  const displayStyleRef = useRef<MenuStyle | null>(null);
-  const rafLoopRef = useRef<number | null>(null);
-  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const useScrollLag = compact && alignBottomToCard;
 
   const canRenderMenu = hasMenuChildren(children);
-
-  const getCardBottom = () =>
-    buttonRef.current?.closest("[data-agendamento-card]")?.getBoundingClientRect().bottom ?? null;
-
-  const cancelScrollLoop = () => {
-    if (rafLoopRef.current !== null) {
-      cancelAnimationFrame(rafLoopRef.current);
-      rafLoopRef.current = null;
-    }
-  };
-
-  const applyStyle = (style: MenuStyle) => {
-    displayStyleRef.current = style;
-    setMenuStyle(style);
-  };
 
   const computeTargetStyle = (): MenuStyle | null => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -139,90 +78,26 @@ export function AgendamentoActionsMenu({
     };
   };
 
-  const clearScrollEndTimer = () => {
-    if (scrollEndTimerRef.current !== null) {
-      clearTimeout(scrollEndTimerRef.current);
-      scrollEndTimerRef.current = null;
-    }
-  };
-
-  const computeLagStyle = (trueStyle: MenuStyle, cardBottom: number): MenuStyle => {
-    const prev = displayStyleRef.current;
-    const currentDrift = prev ? getMenuBottomEdge(prev) - cardBottom : 0;
-    const drift = clampDrift(smoothToward(currentDrift, 0));
-    return buildStyleFromDrift(trueStyle, cardBottom, drift);
-  };
-
-  const runScrollLoop = () => {
-    const trueStyle = computeTargetStyle();
-    const cardBottom = getCardBottom();
-    if (!trueStyle || cardBottom === null) {
-      rafLoopRef.current = null;
-      return;
-    }
-
-    const aligned = buildStyleFromDrift(trueStyle, cardBottom, 0);
-    const next = computeLagStyle(trueStyle, cardBottom);
-    const drift = getMenuBottomEdge(next) - cardBottom;
-    const settled = Math.abs(drift) < 0.5 && stylesMatch(next, aligned);
-
-    applyStyle(settled ? aligned : next);
-
-    if (settled) {
-      rafLoopRef.current = null;
-      return;
-    }
-
-    rafLoopRef.current = requestAnimationFrame(runScrollLoop);
-  };
-
-  const scheduleScrollLoop = () => {
-    if (rafLoopRef.current === null) {
-      rafLoopRef.current = requestAnimationFrame(runScrollLoop);
-    }
-  };
-
-  const updatePosition = (snapToCard = false) => {
-    const trueStyle = computeTargetStyle();
-    const cardBottom = getCardBottom();
-    if (!trueStyle || cardBottom === null) return;
-
-    if (!useScrollLag || snapToCard) {
-      cancelScrollLoop();
-      applyStyle(buildStyleFromDrift(trueStyle, cardBottom, 0));
-      return;
-    }
-
-    scheduleScrollLoop();
+  const updatePosition = () => {
+    const style = computeTargetStyle();
+    if (style) setMenuStyle(style);
   };
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
       setMenuStyle(null);
-      displayStyleRef.current = null;
-      cancelScrollLoop();
-      clearScrollEndTimer();
       return;
     }
 
-    const onResize = () => updatePosition(true);
-    const onScroll = () => {
-      updatePosition(false);
-      clearScrollEndTimer();
-      scrollEndTimerRef.current = setTimeout(() => {
-        scrollEndTimerRef.current = null;
-        updatePosition(true);
-      }, 80);
-    };
+    const onResize = () => updatePosition();
+    const onScroll = () => updatePosition();
 
-    updatePosition(true);
-    const raf = requestAnimationFrame(() => updatePosition(true));
+    updatePosition();
+    const raf = requestAnimationFrame(updatePosition);
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onScroll, true);
     return () => {
       cancelAnimationFrame(raf);
-      cancelScrollLoop();
-      clearScrollEndTimer();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll, true);
     };
@@ -261,7 +136,7 @@ export function AgendamentoActionsMenu({
               <div
                 ref={menuRef}
                 className={cn(
-                  "fixed z-[200] rounded-xl border border-border/80 bg-popover shadow-lg animate-in fade-in-0 zoom-in-95 duration-150",
+                  "fixed z-[200] rounded-xl border border-border/80 bg-popover shadow-lg",
                   compact
                     ? "flex w-[8.25rem] flex-col p-1"
                     : "min-w-[11rem] p-1",
