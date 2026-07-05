@@ -36,25 +36,28 @@ const CompactMenuContext = createContext(false);
 
 /** Velocidade do acompanhamento suave durante o scroll (mobile). */
 const SCROLL_FOLLOW_FACTOR = 0.2;
-/** Deslocamento vertical máximo do menu durante o scroll (mobile). */
-const MAX_SCROLL_OFFSET = 18;
+/** Máximo que a borda inferior do menu pode se afastar da borda inferior do card (mobile). */
+const MAX_SCROLL_OFFSET = 10;
 
-type ScrollAnchor = {
-  style: MenuStyle;
-};
-
-function clampVerticalOffset(delta: number) {
-  return Math.max(-MAX_SCROLL_OFFSET, Math.min(MAX_SCROLL_OFFSET, delta));
+function getMenuBottomEdge(style: MenuStyle) {
+  return window.innerHeight - (style.bottom ?? 0);
 }
 
-function applyScrollOffsetCap(anchor: MenuStyle, trueStyle: MenuStyle): MenuStyle {
-  const anchorTop = anchor.top ?? 0;
-  const trueTop = trueStyle.top ?? anchorTop;
-  const offsetY = clampVerticalOffset(trueTop - anchorTop);
+function clampDrift(drift: number) {
+  return Math.max(-MAX_SCROLL_OFFSET, Math.min(MAX_SCROLL_OFFSET, drift));
+}
 
+function getMenuHeight(trueStyle: MenuStyle) {
+  return getMenuBottomEdge(trueStyle) - (trueStyle.top ?? 0);
+}
+
+/** Posiciona o menu ancorado na borda inferior do card, com deslocamento opcional. */
+function buildStyleFromDrift(trueStyle: MenuStyle, cardBottom: number, drift: number): MenuStyle {
+  const menuBottomEdge = cardBottom + drift;
+  const menuHeight = getMenuHeight(trueStyle);
   return {
-    top: anchor.top !== undefined ? anchorTop + offsetY : trueStyle.top,
-    bottom: anchor.bottom !== undefined ? anchor.bottom - offsetY : trueStyle.bottom,
+    top: menuBottomEdge - menuHeight,
+    bottom: window.innerHeight - menuBottomEdge,
     left: trueStyle.left,
   };
 }
@@ -84,14 +87,15 @@ export function AgendamentoActionsMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuStyle, setMenuStyle] = useState<MenuStyle | null>(null);
-  const scrollAnchorRef = useRef<ScrollAnchor | null>(null);
-  const targetStyleRef = useRef<MenuStyle | null>(null);
   const displayStyleRef = useRef<MenuStyle | null>(null);
   const rafLoopRef = useRef<number | null>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const useScrollLag = compact && alignBottomToCard;
 
   const canRenderMenu = hasMenuChildren(children);
+
+  const getCardBottom = () =>
+    buttonRef.current?.closest("[data-agendamento-card]")?.getBoundingClientRect().bottom ?? null;
 
   const cancelScrollLoop = () => {
     if (rafLoopRef.current !== null) {
@@ -142,33 +146,27 @@ export function AgendamentoActionsMenu({
     }
   };
 
-  const runScrollLoop = () => {
-    const target = targetStyleRef.current;
+  const computeLagStyle = (trueStyle: MenuStyle, cardBottom: number): MenuStyle => {
     const prev = displayStyleRef.current;
-    if (!target || !prev) {
+    const currentDrift = prev ? getMenuBottomEdge(prev) - cardBottom : 0;
+    const drift = clampDrift(smoothToward(currentDrift, 0));
+    return buildStyleFromDrift(trueStyle, cardBottom, drift);
+  };
+
+  const runScrollLoop = () => {
+    const trueStyle = computeTargetStyle();
+    const cardBottom = getCardBottom();
+    if (!trueStyle || cardBottom === null) {
       rafLoopRef.current = null;
       return;
     }
 
-    if (stylesMatch(prev, target)) {
-      rafLoopRef.current = null;
-      return;
-    }
+    const aligned = buildStyleFromDrift(trueStyle, cardBottom, 0);
+    const next = computeLagStyle(trueStyle, cardBottom);
+    const drift = getMenuBottomEdge(next) - cardBottom;
+    const settled = Math.abs(drift) < 0.5 && stylesMatch(next, aligned);
 
-    const next: MenuStyle = {
-      top:
-        prev.top !== undefined && target.top !== undefined
-          ? smoothToward(prev.top, target.top)
-          : target.top,
-      bottom:
-        prev.bottom !== undefined && target.bottom !== undefined
-          ? smoothToward(prev.bottom, target.bottom)
-          : target.bottom,
-      left: smoothToward(prev.left, target.left),
-    };
-
-    const settled = stylesMatch(next, target);
-    applyStyle(settled ? target : next);
+    applyStyle(settled ? aligned : next);
 
     if (settled) {
       rafLoopRef.current = null;
@@ -184,35 +182,23 @@ export function AgendamentoActionsMenu({
     }
   };
 
-  const updatePosition = (resetAnchor = false) => {
+  const updatePosition = (snapToCard = false) => {
     const trueStyle = computeTargetStyle();
-    if (!trueStyle) return;
+    const cardBottom = getCardBottom();
+    if (!trueStyle || cardBottom === null) return;
 
-    if (!useScrollLag || resetAnchor) {
-      if (useScrollLag) {
-        scrollAnchorRef.current = { style: trueStyle };
-      }
+    if (!useScrollLag || snapToCard) {
       cancelScrollLoop();
-      applyStyle(trueStyle);
+      applyStyle(buildStyleFromDrift(trueStyle, cardBottom, 0));
       return;
     }
 
-    const anchor = scrollAnchorRef.current;
-    if (!anchor) {
-      scrollAnchorRef.current = { style: trueStyle };
-      applyStyle(trueStyle);
-      return;
-    }
-
-    targetStyleRef.current = applyScrollOffsetCap(anchor.style, trueStyle);
     scheduleScrollLoop();
   };
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
       setMenuStyle(null);
-      scrollAnchorRef.current = null;
-      targetStyleRef.current = null;
       displayStyleRef.current = null;
       cancelScrollLoop();
       clearScrollEndTimer();
