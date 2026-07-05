@@ -30,7 +30,6 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   buildAppointmentConfirmationMessage,
-  buildClientWhatsAppUrl,
 } from "@/lib/appointmentConfirmationMessage";
 import {
   filterAgendamentos,
@@ -539,19 +538,9 @@ export default function AgendamentosDesktopPanel({
   function handleCopyConfirmationMessage(a: AgendamentoPainelItem) {
     const text = buildMessage(a);
     void navigator.clipboard.writeText(text).then(
-      () => toast({ title: "Mensagem copiada" }),
+      () => toast({ title: "Link de confirmação copiado" }),
       () => toast({ title: "Não foi possível copiar", variant: "destructive" }),
     );
-  }
-
-  function handleWhatsApp(a: AgendamentoPainelItem) {
-    const message = buildMessage(a);
-    const url = buildClientWhatsAppUrl(a.cliente_whatsapp, message);
-    if (!url) {
-      toast({ title: "WhatsApp inválido", description: "Verifique o número do cliente.", variant: "destructive" });
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function handleStatusAction(
@@ -638,9 +627,8 @@ export default function AgendamentosDesktopPanel({
           <>
             {!isNoShow && (
               <>
-                <AgendamentoMenuAction label="WhatsApp" onClick={() => handleWhatsApp(a)} />
-                <AgendamentoMenuAction label="Copiar mensagem" onClick={() => handleCopyConfirmationMessage(a)} />
                 <AgendamentoMenuAction label="Alterar" onClick={() => handleAlterar(a)} />
+                <AgendamentoMenuAction label="Link de confirmação" onClick={() => handleCopyConfirmationMessage(a)} />
                 <AgendamentoMenuAction label="Excluir" destructive onClick={() => setDeleteTarget(a)} />
               </>
             )}

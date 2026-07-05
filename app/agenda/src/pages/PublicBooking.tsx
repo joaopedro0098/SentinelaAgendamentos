@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
 import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
-import { notifyPanelAgendamentosChanged } from "@/lib/panelAgendamentosRefresh";
+import { notifyPanelAgendamentosChanged, PANEL_AGENDAMENTOS_CHANGED } from "@/lib/panelAgendamentosRefresh";
 import {
   checkBarbeariaCanBook,
   getClientBookingBlockMessage,
@@ -465,6 +465,29 @@ const PublicBooking = ({
   >(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
   const [cancellingPayment, setCancellingPayment] = useState(false);
+  const wasAgendarTabInactiveRef = useRef(false);
+
+  const bumpOccupancyRefresh = useCallback(() => {
+    setInternalSlotGridRevision((r) => r + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!ownerPanel) return;
+
+    const onAgendamentosChanged = () => {
+      bumpOccupancyRefresh();
+    };
+    window.addEventListener(PANEL_AGENDAMENTOS_CHANGED, onAgendamentosChanged);
+    return () => window.removeEventListener(PANEL_AGENDAMENTOS_CHANGED, onAgendamentosChanged);
+  }, [ownerPanel, bumpOccupancyRefresh]);
+
+  useEffect(() => {
+    if (!ownerPanel) return;
+    if (ownerPanelActive && wasAgendarTabInactiveRef.current) {
+      bumpOccupancyRefresh();
+    }
+    wasAgendarTabInactiveRef.current = !ownerPanelActive;
+  }, [ownerPanel, ownerPanelActive, bumpOccupancyRefresh]);
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -595,28 +618,40 @@ const PublicBooking = ({
 
       const bbIds = rawPros.map((x) => x.id);
       if (bbIds.length) {
-        const { data: ag } = await supabase
+        const { data: ag, error: agErr } = await supabase
           .from("agendamentos")
           .select("id, barbeiro_id, data, hora, duracao_minutos, status, payment_expires_at")
           .in("barbeiro_id", bbIds)
           .in("status", ["confirmado", "aguardando_pagamento"])
           .gte("data", fromYmd)
           .lte("data", toYmd);
-        const map = new Map<string, Map<string, number>>();
-        const nowMs = Date.now();
-        ((ag ?? []) as AgendamentoOcupado[]).forEach((a) => {
-          if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
-          if (a.status === "aguardando_pagamento") {
-            const expiresMs = a.payment_expires_at
-              ? new Date(a.payment_expires_at).getTime()
-              : 0;
-            if (!expiresMs || expiresMs < nowMs) return;
-          }
-          const k = `${a.barbeiro_id}|${a.data}`;
-          if (!map.has(k)) map.set(k, new Map());
-          map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
-        });
-        setAgOcupados(map);
+
+        if (agErr) {
+          console.error("[PublicBooking] agendamentos ocupados:", agErr.message);
+          toast.error(
+            ownerPanel
+              ? "Não foi possível carregar horários ocupados. Os horários exibidos podem estar desatualizados."
+              : "Não foi possível verificar horários ocupados. Tente novamente.",
+          );
+        } else {
+          const map = new Map<string, Map<string, number>>();
+          const nowMs = Date.now();
+          ((ag ?? []) as AgendamentoOcupado[]).forEach((a) => {
+            if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
+            if (a.status === "aguardando_pagamento") {
+              const expiresMs = a.payment_expires_at
+                ? new Date(a.payment_expires_at).getTime()
+                : 0;
+              if (!expiresMs || expiresMs < nowMs) return;
+            }
+            const k = `${a.barbeiro_id}|${a.data}`;
+            if (!map.has(k)) map.set(k, new Map());
+            map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
+          });
+          setAgOcupados(map);
+        }
+      } else {
+        setAgOcupados(new Map());
       }
       setLoading(false);
     };

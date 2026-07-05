@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, Clock, Copy, Loader2, MessageSquare, Pencil, Phone, Scissors, Trash2, User } from "lucide-react";
+import { CalendarDays, Check, Clock, Loader2, MessageSquare, Phone, Scissors, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -15,8 +15,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AgendamentoActionsMenu,
+  AgendamentoMenuAction,
+  AgendamentoMenuActionLoading,
+} from "@/features/dashboard/components/agendamentos/AgendamentoActionsMenu";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -35,7 +39,16 @@ import {
 } from "@agenda/lib/panelClienteNomeSync";
 import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
-import { getAppointmentStatusMenuActions, canManageAgendamento, canOpenAnotacaoConcluido, canWriteAnotacao, formatPaymentSummary, parsePainelRpc, ymd, type PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
+import {
+  getAppointmentStatusMenuActions,
+  canManageAgendamento,
+  canOpenAnotacaoConcluido,
+  formatPaymentSummary,
+  parsePainelRpc,
+  ymd,
+  type AgendamentoProfissional,
+  type PastDayStatusKey,
+} from "@/features/dashboard/lib/agendamentosPanel";
 import {
   AgendamentoAnotacaoButton,
   AgendamentoAnotacaoModal,
@@ -110,7 +123,7 @@ export default function AgendamentosMobilePanel({
   const deepLinkApplied = useRef(false);
   const [loadingList, setLoadingList] = useState(false);
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
-  const [panelProfissionais, setPanelProfissionais] = useState<{ id: string; nome: string }[]>([]);
+  const [profissionais, setProfissionais] = useState<AgendamentoProfissional[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -182,9 +195,7 @@ export default function AgendamentosMobilePanel({
     });
     if (!error) {
       const parsed = parsePainelRpc(data);
-      setPanelProfissionais(
-        (parsed?.profissionais ?? []).map((p) => ({ id: p.id, nome: p.nome })),
-      );
+      setProfissionais(parsed?.profissionais ?? []);
       setAgendamentos(
         (parsed?.items ?? []).map((item) => ({
           id: item.id,
@@ -287,26 +298,26 @@ export default function AgendamentosMobilePanel({
   }, [agendamentos]);
 
   const colaboradoresFiltro = useMemo(() => {
-    if (isCA) return panelProfissionais;
+    if (isCA) return profissionais;
     return barbeirosNoDia;
-  }, [isCA, panelProfissionais, barbeirosNoDia]);
+  }, [isCA, profissionais, barbeirosNoDia]);
 
   useEffect(() => {
-    if (!isCA || panelProfissionais.length === 0) return;
+    if (!isCA || profissionais.length === 0) return;
     setSelectedBarbeiroId((cur) =>
-      cur && panelProfissionais.some((p) => p.id === cur) ? cur : panelProfissionais[0].id,
+      cur && profissionais.some((p) => p.id === cur) ? cur : profissionais[0].id,
     );
-  }, [isCA, panelProfissionais]);
+  }, [isCA, profissionais]);
 
   const listaFiltrada = useMemo(() => {
     if (isCA) {
-      const id = selectedBarbeiroId ?? panelProfissionais[0]?.id;
+      const id = selectedBarbeiroId ?? profissionais[0]?.id;
       if (!id) return agendamentos;
       return agendamentos.filter((a) => a.barbeiro_id === id);
     }
     if (!selectedBarbeiroId) return agendamentos;
     return agendamentos.filter((a) => a.barbeiro_id === selectedBarbeiroId);
-  }, [agendamentos, selectedBarbeiroId, isCA, panelProfissionais]);
+  }, [agendamentos, selectedBarbeiroId, isCA, profissionais]);
 
   useEffect(() => {
     if (!highlightedId || loadingList) return;
@@ -339,8 +350,8 @@ export default function AgendamentosMobilePanel({
       setSelectedDate(key);
       if (!isCA) {
         setSelectedBarbeiroId(null);
-      } else if (panelProfissionais[0]) {
-        setSelectedBarbeiroId(panelProfissionais[0].id);
+      } else if (profissionais[0]) {
+        setSelectedBarbeiroId(profissionais[0].id);
       }
     }
   }
@@ -386,7 +397,7 @@ export default function AgendamentosMobilePanel({
   function handleCopyConfirmationMessage(a: AgendamentoRow) {
     const text = buildMessage(a);
     void navigator.clipboard.writeText(text).then(
-      () => toast({ title: "Mensagem copiada" }),
+      () => toast({ title: "Link copiado" }),
       () => toast({ title: "Não foi possível copiar", variant: "destructive" }),
     );
   }
@@ -629,9 +640,13 @@ export default function AgendamentosMobilePanel({
                 a.status === "cancelado" ||
                 a.status === "aguardando_pagamento";
               const paymentSummary = formatPaymentSummary(a);
+              const showCardActions =
+                !appointmentPast && manageable && a.status !== "concluido" && !isNoShow;
+              const cardActionsBusy = markingNoShowId === a.id || statusChangingId === a.id;
               return (
               <li key={a.id} id={`agendamento-${a.id}`}>
                 <Card
+                  data-agendamento-card
                   className={cn(
                     "overflow-hidden border-border/80 transition-shadow",
                     highlightedId === a.id && "ring-2 ring-primary shadow-glow border-primary/40",
@@ -681,6 +696,36 @@ export default function AgendamentosMobilePanel({
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
+                        {showCardActions ? (
+                          <AgendamentoActionsMenu
+                            disabled={cardActionsBusy}
+                            compact
+                            alignBottomToCard
+                          >
+                            {cardActionsBusy ? (
+                              <AgendamentoMenuActionLoading />
+                            ) : (
+                              <>
+                                <AgendamentoMenuAction
+                                  label="Enviar link"
+                                  onClick={() => handleWhatsApp(a)}
+                                />
+                                <AgendamentoMenuAction
+                                  label="Copiar link"
+                                  onClick={() => handleCopyConfirmationMessage(a)}
+                                />
+                                <AgendamentoMenuAction
+                                  label="Alterar"
+                                  onClick={() => handleAlterar(a)}
+                                />
+                                <AgendamentoMenuAction
+                                  label="Excluir"
+                                  onClick={() => setDeleteTarget(a)}
+                                />
+                              </>
+                            )}
+                          </AgendamentoActionsMenu>
+                        ) : null}
                         {a.status === "concluido" && canOpenAnotacaoConcluido(a, barbeariaId, caBarbeariaIds, profissionais) ? (
                           <AgendamentoAnotacaoButton
                             disabled={markingNoShowId === a.id}
@@ -738,58 +783,6 @@ export default function AgendamentosMobilePanel({
                         </p>
                       )}
                     </div>
-                    {!appointmentPast && manageable && a.status !== "concluido" && !isNoShow && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 rounded-full border-available/40 text-available hover:bg-available/10 hover:text-available"
-                          onClick={() => handleWhatsApp(a)}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          WhatsApp
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 rounded-full"
-                          onClick={() => handleCopyConfirmationMessage(a)}
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copiar
-                        </Button>
-                      </div>
-                      <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 rounded-full"
-                        onClick={() => handleAlterar(a)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Alterar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          "flex-1 rounded-full text-foreground",
-                          "hover:bg-unavailable hover:text-unavailable-foreground hover:border-unavailable",
-                          "active:bg-unavailable active:text-unavailable-foreground active:border-unavailable",
-                        )}
-                        onClick={() => setDeleteTarget(a)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Excluir
-                      </Button>
-                      </div>
-                    </div>
-                    )}
                   </CardContent>
                 </Card>
               </li>
