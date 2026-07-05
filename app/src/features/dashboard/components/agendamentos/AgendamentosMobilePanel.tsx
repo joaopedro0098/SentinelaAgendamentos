@@ -68,21 +68,28 @@ import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanel
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-function defaultSelectedDateForMonth(month: Date) {
+function defaultSelectedDateForMonth(month: Date, preferLastDay = false) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
-  if (month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth()) {
+  if (
+    !preferLastDay &&
+    month.getFullYear() === today.getFullYear() &&
+    month.getMonth() === today.getMonth()
+  ) {
     return ymd(today);
+  }
+  if (preferLastDay) {
+    return ymd(new Date(month.getFullYear(), month.getMonth() + 1, 0, 12, 0, 0));
   }
   return ymd(new Date(month.getFullYear(), month.getMonth(), 1, 12, 0, 0));
 }
 
-function ensureSelectedInMonth(selectedDate: string, month: Date) {
+function ensureSelectedInMonth(selectedDate: string, month: Date, preferLastDay = false) {
   const selected = new Date(`${selectedDate}T12:00:00`);
   if (selected.getFullYear() === month.getFullYear() && selected.getMonth() === month.getMonth()) {
     return selectedDate;
   }
-  return defaultSelectedDateForMonth(month);
+  return defaultSelectedDateForMonth(month, preferLastDay);
 }
 
 type AgendamentoRow = {
@@ -169,7 +176,7 @@ export default function AgendamentosMobilePanel({
   const shiftViewMonth = useCallback((delta: number) => {
     setViewMonth((prev) => {
       const next = monthStart(new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-      setSelectedDate((current) => ensureSelectedInMonth(current, next));
+      setSelectedDate((current) => ensureSelectedInMonth(current, next, delta < 0));
       return next;
     });
   }, []);
