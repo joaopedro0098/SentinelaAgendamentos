@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/PacienteCadastroTab";
