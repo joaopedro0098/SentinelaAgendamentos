@@ -381,17 +381,6 @@ export function PublicBookingPaymentCheckout({
             {activeMethod === "pix" ? " (Pix)" : " (cartão)"}
           </p>
         )}
-        {canSwitchMethod && (
-          <Button
-            type="button"
-            variant="link"
-            className="mt-1 h-auto p-0 text-xs text-muted-foreground"
-            disabled={processing || verifyingPix}
-            onClick={() => switchPaymentMethod(activeMethod === "pix" ? "card" : "pix")}
-          >
-            {activeMethod === "pix" ? "Pagar com cartão" : "Voltar para Pix"}
-          </Button>
-        )}
         {remainingCentavos > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
             Restante presencial: {formatServicePrice(remainingCentavos)}
@@ -460,6 +449,18 @@ export function PublicBookingPaymentCheckout({
         <div className="flex justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      )}
+
+      {canSwitchMethod && (
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto w-full py-1 text-sm text-primary underline-offset-4"
+          disabled={processing || verifyingPix}
+          onClick={() => switchPaymentMethod(activeMethod === "pix" ? "card" : "pix")}
+        >
+          {activeMethod === "pix" ? "Pagar com cartão" : "Voltar para Pix"}
+        </Button>
       )}
     </div>
   );
