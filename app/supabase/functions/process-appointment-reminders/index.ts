@@ -77,13 +77,11 @@ Deno.serve(async (req) => {
 
     const pushResult = await sendDueClientConfirmationPushes(supabase, { force });
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");
-    const { data: purgedCount } = await supabase.rpc("purge_old_agendamentos");
 
     return jsonResponse({
       ok: true,
       confirmation_pushes: pushResult,
       canceled: canceledCount ?? 0,
-      purged: purgedCount ?? 0,
     });
   } catch (error) {
     console.error("process-appointment-reminders:", error);

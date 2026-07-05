@@ -12,18 +12,14 @@ export function todayYmdSaoPaulo(now = new Date()) {
   }).format(now);
 }
 
-/** Data mais antiga ainda dentro da retenção (2 meses), alinhada ao purge do banco. */
-export function getAppointmentRetentionStartYmd(now = new Date()) {
-  const todaySp = todayYmdSaoPaulo(now);
-  const [y, m, d] = todaySp.split("-").map(Number);
-  const date = new Date(y, m - 1, d, 12, 0, 0);
-  date.setMonth(date.getMonth() - 2);
-  return todayYmd(date);
+/** Agendamentos são preservados por tempo ilimitado. */
+export function getAppointmentRetentionStartYmd(_now = new Date()) {
+  return "1970-01-01";
 }
 
-/** Agendamento ainda consultável (não passou de 2 meses desde a data do corte). */
-export function isWithinAppointmentRetention(dateYmd: string, now = new Date()) {
-  return dateYmd >= getAppointmentRetentionStartYmd(now);
+/** Sempre true — retenção ilimitada. */
+export function isWithinAppointmentRetention(_dateYmd: string, _now = new Date()) {
+  return true;
 }
 
 /** Data estritamente anterior a hoje (calendário local). */

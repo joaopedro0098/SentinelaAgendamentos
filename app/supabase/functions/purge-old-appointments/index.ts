@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -23,18 +21,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Não autorizado." }, 401);
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const { data, error } = await supabase.rpc("purge_old_agendamentos");
-    if (error) {
-      console.error("[purge-old-appointments]", error.message);
-      return jsonResponse({ error: error.message }, 500);
-    }
-
-    return jsonResponse({ deleted: data ?? 0 });
+    return jsonResponse({ deleted: 0, note: "Retenção ilimitada — purge desativado." });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro inesperado";
     console.error("[purge-old-appointments]", message);

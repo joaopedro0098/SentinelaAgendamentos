@@ -28,7 +28,7 @@ import {
   buildClientWhatsAppUrl,
   getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
-import { isPastCalendarDate, isWithinAppointmentRetention } from "@agenda/lib/appointmentDates";
+import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
 import {
   patchClienteNomeInList,
@@ -61,13 +61,29 @@ import {
   rpcConfirmarPresenca,
   rpcExcluirAgendamento,
 } from "@/features/dashboard/lib/agendamentosPanelActions";
+import { AgendamentosMobileMonthNav, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMobileMonthNav";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-const DAYS_BACK = 7;
-const DAYS_AHEAD = 14;
+
+function defaultSelectedDateForMonth(month: Date) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  if (month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth()) {
+    return ymd(today);
+  }
+  return ymd(new Date(month.getFullYear(), month.getMonth(), 1, 12, 0, 0));
+}
+
+function ensureSelectedInMonth(selectedDate: string, month: Date) {
+  const selected = new Date(`${selectedDate}T12:00:00`);
+  if (selected.getFullYear() === month.getFullYear() && selected.getMonth() === month.getMonth()) {
+    return selectedDate;
+  }
+  return defaultSelectedDateForMonth(month);
+}
 
 type AgendamentoRow = {
   id: string;
@@ -125,9 +141,9 @@ export default function AgendamentosMobilePanel({
   const [agendamentos, setAgendamentos] = useState<AgendamentoRow[]>([]);
   const [profissionais, setProfissionais] = useState<AgendamentoProfissional[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
+  const [viewMonth, setViewMonth] = useState(() => monthStart(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [focusDate, setFocusDate] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
@@ -141,25 +157,28 @@ export default function AgendamentosMobilePanel({
   );
 
   const dias = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const total = DAYS_BACK + DAYS_AHEAD + 1;
-    const list = Array.from({ length: total }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - DAYS_BACK + i);
-      return d;
+    const year = viewMonth.getFullYear();
+    const month = viewMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return Array.from(
+      { length: daysInMonth },
+      (_, i) => new Date(year, month, i + 1, 12, 0, 0),
+    );
+  }, [viewMonth]);
+
+  const shiftViewMonth = useCallback((delta: number) => {
+    setViewMonth((prev) => {
+      const next = monthStart(new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+      setSelectedDate((current) => ensureSelectedInMonth(current, next));
+      return next;
     });
+  }, []);
 
-    if (focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate) && isWithinAppointmentRetention(focusDate)) {
-      const exists = list.some((d) => ymd(d) === focusDate);
-      if (!exists) {
-        list.push(new Date(`${focusDate}T12:00:00`));
-        list.sort((a, b) => a.getTime() - b.getTime());
-      }
-    }
-
-    return list;
-  }, [focusDate]);
+  const pickViewMonth = useCallback((year: number, monthIndex: number) => {
+    const next = monthStart(new Date(year, monthIndex, 1));
+    setViewMonth(next);
+    setSelectedDate((current) => ensureSelectedInMonth(current, next));
+  }, []);
 
   useEffect(() => {
     if (deepLinkApplied.current) return;
@@ -169,9 +188,10 @@ export default function AgendamentosMobilePanel({
     const agendamento = searchParams.get("agendamento");
     if (!data && !barbeiro && !agendamento) return;
 
-    if (data && /^\d{4}-\d{2}-\d{2}$/.test(data) && isWithinAppointmentRetention(data)) {
+    if (data && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      const linked = new Date(`${data}T12:00:00`);
+      setViewMonth(monthStart(linked));
       setSelectedDate(data);
-      setFocusDate(data);
     }
     if (barbeiro) setSelectedBarbeiroId(barbeiro);
     if (agendamento) setHighlightedId(agendamento);
@@ -181,11 +201,6 @@ export default function AgendamentosMobilePanel({
   }, [searchParams, setSearchParams]);
 
   const loadAgendamentos = useCallback(async (options?: { preserveUi?: boolean }) => {
-    if (!isWithinAppointmentRetention(selectedDate)) {
-      setAgendamentos([]);
-      setLoadingList(false);
-      return;
-    }
     if (!options?.preserveUi) {
       setLoadingList(true);
     }
@@ -502,6 +517,11 @@ export default function AgendamentosMobilePanel({
 
       <section>
         <h2 className="text-sm font-semibold mb-2.5">Selecione o dia</h2>
+        <AgendamentosMobileMonthNav
+          viewMonth={viewMonth}
+          onMonthShift={shiftViewMonth}
+          onPickMonth={pickViewMonth}
+        />
         <HorizontalScrollStrip centerOn={`[data-day="${selectedDate}"]`}>
           {dias.map((d) => {
             const key = ymd(d);
