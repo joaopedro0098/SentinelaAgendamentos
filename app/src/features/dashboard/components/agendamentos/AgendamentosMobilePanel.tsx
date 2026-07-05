@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, Clock, Loader2, MessageSquare, Phone, Scissors, User } from "lucide-react";
+import { CalendarDays, Check, ClipboardList, Clock, Loader2, MessageSquare, Phone, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -758,7 +758,7 @@ export default function AgendamentosMobilePanel({
                       {a.servicos_nomes?.length > 0 && (
                         <div className="space-y-1 min-w-0">
                           <p className="flex items-center gap-2 text-foreground min-w-0">
-                            <Scissors className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span
                               className="min-w-0 truncate"
                               title={a.servicos_nomes.join(" · ")}
