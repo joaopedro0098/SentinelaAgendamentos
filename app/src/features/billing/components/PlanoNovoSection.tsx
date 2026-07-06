@@ -8,7 +8,6 @@ import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -108,10 +107,7 @@ export function PlanoNovoSection({ info, loading, onRefresh }: Props) {
               {PLAN_TIERS.map((tier) => (
                 <div
                   key={tier.id}
-                  className={cn(
-                    "rounded-xl border p-4 flex flex-col gap-3",
-                    tier.highlight ? "border-[hsl(var(--brand-green))]/50 bg-[hsl(var(--brand-green))]/5" : "border-border",
-                  )}
+                  className="rounded-xl border border-border p-4 flex flex-col gap-3"
                 >
                   <div>
                     <p className="font-display font-bold text-lg">{tier.name}</p>

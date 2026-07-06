@@ -6,7 +6,6 @@ export type PlanTierDefinition = {
   priceLabel: string;
   priceShort: string;
   amount: number;
-  highlight?: boolean;
   features: string[];
 };
 
@@ -18,10 +17,9 @@ export const PLAN_TIERS: PlanTierDefinition[] = [
     priceShort: "R$ 39,90",
     amount: 39.9,
     features: [
-      "Agendamento completo no painel",
+      "Agendamentos e gerenciamento de equipe",
       "Link público para clientes agendarem",
       "Colaboradores e serviços ilimitados",
-      "Confirmação automática 1 dia antes",
       "Suporte via WhatsApp",
     ],
   },
@@ -31,12 +29,9 @@ export const PLAN_TIERS: PlanTierDefinition[] = [
     priceLabel: "R$ 49,90/mês",
     priceShort: "R$ 49,90",
     amount: 49.9,
-    highlight: true,
     features: [
       "Tudo do plano Start",
-      "Cobrança no link público (Pix e cartão)",
-      "Aba Pagamentos no painel",
-      "Conexão Mercado Pago para receber consultas",
+      "Link de pagamento: o cliente pode pagar o valor integral ou parcial antecipadamente para confirmar o agendamento",
     ],
   },
 ];
