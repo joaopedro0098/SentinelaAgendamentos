@@ -14,6 +14,8 @@ import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/P
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 import { formatSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
+import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
+import { PlanoNovoSection } from "@/features/billing/components/PlanoNovoSection";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -250,6 +252,8 @@ export default function PerfilPage() {
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>
       </div>
 
+      <BillingProgressNotice info={info} loading={loading} />
+
       {isCaAccount && (
         <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
           <p className="font-bold">
@@ -358,6 +362,8 @@ export default function PerfilPage() {
           )}
         </CardContent>
       </Card>
+
+      <PlanoNovoSection info={info} loading={loading} onRefresh={() => refresh({ force: true })} />
 
       <Card>
         <CardHeader className="pb-3">

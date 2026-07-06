@@ -52,7 +52,7 @@ export default function AgendamentosPage() {
   }
 
   if (isDesktop) {
-    return (
+  return (
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <AgendamentosDesktopPanel
           slug={slug}
@@ -62,9 +62,9 @@ export default function AgendamentosPage() {
           allBarbeariaIds={visibleBarbeariaIds}
           isCA={isCA}
         />
-      </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <AgendamentosMobilePanel

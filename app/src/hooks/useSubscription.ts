@@ -14,6 +14,10 @@ export type SubscriptionInfo = {
   trial_already_used?: boolean;
   facial_trial_used?: boolean;
   plan_price_label?: string;
+  /** Plano ativo: start | pro (Mercado Pago). */
+  subscription_tier?: "start" | "pro" | null;
+  /** Pro ativo libera aba Pagamentos e cobrança no link. */
+  can_use_appointment_payments?: boolean;
   label?: string;
   mp_subscription_id?: string | null;
   stripe_subscription_id?: string | null;

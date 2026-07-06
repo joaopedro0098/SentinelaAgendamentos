@@ -8,6 +8,11 @@ import ProfissionaisPage from "@/features/dashboard/pages/ProfissionaisPage";
 import SettingsPage from "@/features/dashboard/pages/Settings";
 import PerfilPage from "@/features/dashboard/pages/PerfilPage";
 import AssinarCartaoPage from "@/features/billing/pages/AssinarCartaoPage";
+import {
+  AssinarPlanoCartaoPage,
+  AssinarPlanoPixPage,
+} from "@/features/billing/pages/AssinarPlanoPage";
+import AssinaturaRetornoPage from "@/features/billing/pages/AssinaturaRetornoPage";
 import SupportPage from "@/features/dashboard/pages/SupportPage";
 import RelatoriosPage from "@/features/dashboard/pages/RelatoriosPage";
 import PagamentosPage from "@/features/dashboard/pages/PagamentosPage";
@@ -19,6 +24,9 @@ const ROUTES = [
   { path: "/app/pacientes", Component: PacientesPage },
   { path: "/app/profissionais", Component: ProfissionaisPage },
   { path: "/app/settings", Component: SettingsPage },
+  { path: "/app/perfil/assinatura/retorno", Component: AssinaturaRetornoPage },
+  { path: "/app/perfil/assinar-plano/cartao", Component: AssinarPlanoCartaoPage },
+  { path: "/app/perfil/assinar-plano/pix", Component: AssinarPlanoPixPage },
   { path: "/app/perfil/assinar-cartao", Component: AssinarCartaoPage },
   { path: "/app/perfil", Component: PerfilPage, exact: true },
   { path: "/app/pagamentos", Component: PagamentosPage },

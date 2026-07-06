@@ -11,7 +11,8 @@ export function usePanelProfissionaisScrollTop() {
 
   useEffect(() => {
     if (isProfissionaisPath(pathname)) {
-      window.scrollTo(0, 0);
+      document.querySelector("main")?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
     }
   }, [pathname]);
 }

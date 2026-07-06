@@ -16,13 +16,14 @@ import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { useSubscription } from "@/hooks/useSubscription";
+import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { usePanelSettingsScrollTop } from "@/features/dashboard/hooks/usePanelSettingsScrollTop";
 
 export default function Settings() {
   usePanelSettingsScrollTop();
   const { user } = useAuth();
   const { shop: contextShop, loading, refresh, patchShop, bumpSlotGridRevision } = useDashboardShop();
-  const { info: subscriptionInfo, refresh: refreshSubscription } = useSubscription();
+  const { info: subscriptionInfo, loading: subscriptionLoading, refresh: refreshSubscription } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
   const ownerCanViewAppointments = subscriptionInfo?.owner_can_view_appointments ?? true;
   const ownerCanEditAppointments = subscriptionInfo?.owner_can_edit_appointments ?? false;
@@ -346,7 +347,7 @@ export default function Settings() {
         onConfirm={handleCropConfirm}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full overflow-x-hidden">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full">
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
@@ -358,6 +359,8 @@ export default function Settings() {
             <DashboardThemeToggle />
           </div>
         </header>
+
+        <BillingProgressNotice info={subscriptionInfo} loading={subscriptionLoading} />
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6">

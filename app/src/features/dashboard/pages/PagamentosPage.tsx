@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ExternalLink, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { maskPhone } from "@agenda/lib/phone";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -95,6 +96,7 @@ function buildExceptionDescription(ex: MpPaymentException) {
 
 export default function PagamentosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -311,10 +313,34 @@ export default function PagamentosPage() {
     }
   }
 
-  if (loading) {
+  if (loading || subscriptionLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!subscriptionInfo?.is_admin && !subscriptionInfo?.can_use_appointment_payments) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8 space-y-4">
+        <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+          <Wallet className="h-6 w-6" />
+          Pagamentos
+        </h1>
+        <Card>
+          <CardContent className="pt-6 space-y-3 text-sm text-muted-foreground leading-relaxed">
+            <p>
+              A cobrança no link público está disponível apenas no plano <strong>Pro</strong> (R$ 49,90/mês).
+            </p>
+            <p>
+              Assine ou faça upgrade em Conta para conectar o Mercado Pago e receber pagamentos de agendamentos.
+            </p>
+            <Button asChild className="rounded-full bg-gradient-brand text-white border-0">
+              <Link to="/app/perfil">Ver planos em Conta</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
