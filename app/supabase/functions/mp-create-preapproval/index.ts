@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
         external_reference: buildPreapprovalExternalReference(shop.id, tier),
         payer_email: user.email.trim(),
         back_url: backUrl,
+        status: "pending",
         auto_recurring: {
           free_trial: buildPreapprovalFreeTrial(),
         },
