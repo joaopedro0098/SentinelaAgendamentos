@@ -148,7 +148,7 @@ export default function AssinarPlanoPage({ method }: Props) {
       .then((data) => {
         if (!active) return;
         if (!data.qr_code) throw new Error(data.error ?? "Não foi possível gerar o Pix.");
-        setPaymentId(data.payment_id ?? null);
+        setPaymentId(data.payment_id != null ? String(data.payment_id) : null);
         setPixQr(data.qr_code);
         setPixQrBase64(data.qr_code_base64 ?? null);
       })

@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       ok: true,
-      payment_id: data.id,
+      payment_id: data.id != null ? String(data.id) : undefined,
       qr_code: transactionData.qr_code,
       qr_code_base64: transactionData.qr_code_base64 ?? null,
       tier,

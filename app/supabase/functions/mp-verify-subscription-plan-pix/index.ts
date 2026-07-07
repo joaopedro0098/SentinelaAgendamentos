@@ -37,9 +37,14 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData.user) return jsonResponse({ error: "Sessão inválida" }, 401);
 
-    const body = (await req.json().catch(() => ({}))) as { tier?: string; payment_id?: string };
+    const body = (await req.json().catch(() => ({}))) as { tier?: string; payment_id?: string | number };
     const tier = normalizeSubscriptionTier(body.tier);
     if (!tier) return jsonResponse({ error: "Plano inválido." }, 400);
+
+    const paymentId =
+      body.payment_id != null && String(body.payment_id).trim() !== ""
+        ? String(body.payment_id).trim()
+        : "";
 
     const { data: shop } = await supabase
       .from("barbershops")
@@ -54,8 +59,8 @@ Deno.serve(async (req) => {
 
     let paymentStatus: string | null = null;
 
-    if (body.payment_id?.trim()) {
-      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${body.payment_id.trim()}`, {
+    if (paymentId) {
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${mpToken}` },
       });
       const payment = await mpRes.json().catch(() => ({}));
