@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
+import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
@@ -113,6 +114,11 @@ export default function AppLayout() {
     };
   }, [shop, subscriptionInfo]);
 
+  const showPagamentosNav = Boolean(
+    subscriptionInfo?.is_admin ||
+      (subscriptionInfo != null && !accountUsesExternalPlan(subscriptionInfo)),
+  );
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
       <PwaColdStartRedirect />
@@ -190,7 +196,7 @@ export default function AppLayout() {
                 label="Conta"
                 onNavigate={closeMenu}
               />
-              {(subscriptionInfo?.can_use_appointment_payments || subscriptionInfo?.is_admin) && (
+              {showPagamentosNav && (
                 <MobileNavItem
                   to="/app/pagamentos"
                   icon={<Wallet className="h-4 w-4" />}
@@ -273,7 +279,7 @@ export default function AppLayout() {
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/profissionais" icon={<UserCog className="h-5 w-5" />} label="Profissionais" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/perfil" icon={<User className="h-5 w-5" />} label="Conta" />
-            {(subscriptionInfo?.can_use_appointment_payments || subscriptionInfo?.is_admin) && (
+            {showPagamentosNav && (
               <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pagamentos" icon={<Wallet className="h-5 w-5" />} label="Pagamentos" />
             )}
             {subscriptionInfo?.is_admin && (

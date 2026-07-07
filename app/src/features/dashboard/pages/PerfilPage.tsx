@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ function formatDateBr(iso: string | null | undefined) {
 export default function PerfilPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { info, loading, refresh } = useSubscription();
 
@@ -38,6 +39,19 @@ export default function PerfilPage() {
   const [creatingPix, setCreatingPix] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [highlightPro, setHighlightPro] = useState(() => searchParams.get("destaque") === "pro");
+
+  useEffect(() => {
+    if (location.pathname !== "/app/perfil") return;
+    setHighlightPro(searchParams.get("destaque") === "pro");
+  }, [location.pathname, searchParams]);
+
+  function dismissProHighlight() {
+    setHighlightPro(false);
+    if (searchParams.get("destaque")) {
+      setSearchParams({}, { replace: true });
+    }
+  }
 
   useEffect(() => {
     document.title = "Conta — Sentinela Agendamentos";
@@ -363,7 +377,13 @@ export default function PerfilPage() {
         </CardContent>
       </Card>
 
-      <PlanoNovoSection info={info} loading={loading} onRefresh={() => refresh({ force: true })} />
+      <PlanoNovoSection
+        info={info}
+        loading={loading}
+        onRefresh={() => refresh({ force: true })}
+        highlightPro={highlightPro}
+        onDismissProHighlight={dismissProHighlight}
+      />
 
       <Card>
         <CardHeader className="pb-3">

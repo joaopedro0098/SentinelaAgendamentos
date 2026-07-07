@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
-import { PLAN_TIERS, planTierLabel, type PlanTier } from "@/lib/planTiers";
+import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
 import { cancelMpPreapproval } from "@/lib/subscriptionPlanApi";
 import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 function formatDateBr(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -20,17 +21,106 @@ type Props = {
   info: SubscriptionInfo | null;
   loading: boolean;
   onRefresh: () => Promise<void>;
+  highlightPro?: boolean;
+  onDismissProHighlight?: () => void;
 };
 
-export function PlanoNovoSection({ info, loading, onRefresh }: Props) {
+function PlanTierCard({
+  tier,
+  highlighted,
+  cardRef,
+  showActions,
+  onCheckout,
+}: {
+  tier: PlanTierDefinition;
+  highlighted?: boolean;
+  cardRef?: RefObject<HTMLDivElement | null>;
+  showActions: boolean;
+  onCheckout: (tier: PlanTier, method: "cartao" | "pix") => void;
+}) {
+  return (
+    <div
+      ref={cardRef}
+      className={cn(
+        "rounded-xl border border-border p-4 flex flex-col gap-3 transition-all duration-300",
+        highlighted &&
+          "relative z-10 mt-2 border-[hsl(var(--brand-green))] bg-[hsl(var(--brand-green))]/[0.07] ring-[3px] ring-[hsl(var(--brand-green))] ring-offset-4 ring-offset-background shadow-[0_0_28px_-6px_hsl(var(--brand-green)/0.5)]",
+      )}
+    >
+      {highlighted && (
+        <span className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[hsl(var(--brand-green))] px-3 py-0.5 text-[11px] font-semibold text-white shadow-md">
+          Assine este plano
+        </span>
+      )}
+      <div>
+        <p className="font-display font-bold text-lg">{tier.name}</p>
+        <p className="text-sm font-medium text-[hsl(var(--brand-green))]">{tier.priceLabel}</p>
+      </div>
+      <ul className="space-y-1.5 flex-1">
+        {tier.features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[hsl(var(--brand-green))]" aria-hidden />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      {showActions && (
+        <div className="space-y-2 pt-1">
+          <Button
+            className="w-full rounded-full bg-gradient-brand text-white border-0"
+            onClick={() => onCheckout(tier.id, "cartao")}
+          >
+            <CreditCard className="h-4 w-4" /> Cartão
+          </Button>
+          <Button variant="outline" className="w-full rounded-full" onClick={() => onCheckout(tier.id, "pix")}>
+            Pix
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = false, onDismissProHighlight }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cancelling, setCancelling] = useState(false);
+  const proCardRef = useRef<HTMLDivElement>(null);
 
   const usesExternalPlan = accountUsesExternalPlan(info);
   const isActive = info?.subscription_status === "active";
   const activeTier = (info?.subscription_tier as PlanTier | null | undefined) ?? null;
-  const canSubscribe = !info?.is_admin && !loading && !usesExternalPlan && !isActive;
   const canCancel = !info?.is_admin && !usesExternalPlan && isActive;
+  const proTier = PLAN_TIERS.find((tier) => tier.id === "pro");
+
+  function canSubscribeTier(tier: PlanTier) {
+    if (info?.is_admin || usesExternalPlan || loading) return false;
+    if (!isActive) return true;
+    return activeTier === "start" && tier === "pro";
+  }
+
+  useEffect(() => {
+    if (!highlightPro || loading) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      proCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [highlightPro, loading, isActive, activeTier]);
+
+  useEffect(() => {
+    if (!highlightPro || !onDismissProHighlight || location.pathname !== "/app/perfil") return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (proCardRef.current?.contains(target)) return;
+      onDismissProHighlight();
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [highlightPro, onDismissProHighlight, location.pathname]);
 
   async function handleCancel() {
     if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago.")) return;
@@ -55,10 +145,12 @@ export function PlanoNovoSection({ info, loading, onRefresh }: Props) {
   }
 
   function goCheckout(tier: PlanTier, method: "cartao" | "pix") {
+    onDismissProHighlight?.();
     navigate(`/app/perfil/assinar-plano/${method}?tier=${tier}`);
   }
 
   if (usesExternalPlan) return null;
+  if (!proTier) return null;
 
   return (
     <Card>
@@ -70,23 +162,43 @@ export function PlanoNovoSection({ info, loading, onRefresh }: Props) {
       <CardContent className="space-y-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Carregando planos…</p>
-        ) : isActive && activeTier ? (
+        ) : isActive && activeTier === "pro" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10 px-4 py-3 text-sm">
-              <p className="font-semibold">
-                Plano {planTierLabel(activeTier)} ativo
-              </p>
+              <p className="font-semibold">Plano {planTierLabel(activeTier)} ativo</p>
               {info?.current_period_end && (
-                <p className="text-muted-foreground mt-1">
-                  Vencimento: {formatDateBr(info.current_period_end)}
-                </p>
-              )}
-              {activeTier === "start" && (
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Para cobrar consultas no link público, faça upgrade para o plano Pro.
-                </p>
+                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
               )}
             </div>
+            {canCancel && (
+              <Button
+                variant="outline"
+                className="w-full rounded-full"
+                onClick={() => void handleCancel()}
+                disabled={cancelling}
+              >
+                {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar assinatura"}
+              </Button>
+            )}
+          </div>
+        ) : isActive && activeTier === "start" ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
+              <p className="font-semibold">Plano Start ativo</p>
+              {info?.current_period_end && (
+                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
+              )}
+              <p className="text-muted-foreground mt-1 text-xs">
+                Faça upgrade para o Pro para cobrar no link público.
+              </p>
+            </div>
+            <PlanTierCard
+              tier={proTier}
+              highlighted={highlightPro}
+              cardRef={proCardRef}
+              showActions={canSubscribeTier("pro")}
+              onCheckout={goCheckout}
+            />
             {canCancel && (
               <Button
                 variant="outline"
@@ -105,40 +217,14 @@ export function PlanoNovoSection({ info, loading, onRefresh }: Props) {
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {PLAN_TIERS.map((tier) => (
-                <div
+                <PlanTierCard
                   key={tier.id}
-                  className="rounded-xl border border-border p-4 flex flex-col gap-3"
-                >
-                  <div>
-                    <p className="font-display font-bold text-lg">{tier.name}</p>
-                    <p className="text-sm font-medium text-[hsl(var(--brand-green))]">{tier.priceLabel}</p>
-                  </div>
-                  <ul className="space-y-1.5 flex-1">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
-                        <Check className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[hsl(var(--brand-green))]" aria-hidden />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {canSubscribe && (
-                    <div className="space-y-2 pt-1">
-                      <Button
-                        className="w-full rounded-full bg-gradient-brand text-white border-0"
-                        onClick={() => goCheckout(tier.id, "cartao")}
-                      >
-                        <CreditCard className="h-4 w-4" /> Cartão
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full rounded-full"
-                        onClick={() => goCheckout(tier.id, "pix")}
-                      >
-                        Pix
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                  tier={tier}
+                  highlighted={highlightPro && tier.id === "pro"}
+                  cardRef={tier.id === "pro" ? proCardRef : undefined}
+                  showActions={canSubscribeTier(tier.id)}
+                  onCheckout={goCheckout}
+                />
               ))}
             </div>
           </>

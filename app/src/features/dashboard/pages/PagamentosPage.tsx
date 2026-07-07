@@ -328,16 +328,17 @@ export default function PagamentosPage() {
           <Wallet className="h-6 w-6" />
           Pagamentos
         </h1>
-        <Card>
-          <CardContent className="pt-6 space-y-3 text-sm text-muted-foreground leading-relaxed">
-            <p>
-              A cobrança no link público está disponível apenas no plano <strong>Pro</strong> (R$ 49,90/mês).
+        <Card className="border-primary/20">
+          <CardContent className="px-6 py-8 space-y-5">
+            <p className="text-base md:text-lg text-foreground leading-relaxed">
+              Trabalhe com mais praticidade permitindo que seus pacientes paguem ao agendar e diminua os
+              cancelamentos de última hora.
             </p>
-            <p>
-              Assine ou faça upgrade em Conta para conectar o Mercado Pago e receber pagamentos de agendamentos.
+            <p className="text-sm md:text-base text-muted-foreground">
+              Disponível apenas para o plano <strong className="font-semibold text-foreground">Pro</strong>.
             </p>
-            <Button asChild className="rounded-full bg-gradient-brand text-white border-0">
-              <Link to="/app/perfil">Ver planos em Conta</Link>
+            <Button asChild className="w-full sm:w-auto rounded-full bg-gradient-brand text-white border-0 px-8">
+              <Link to="/app/perfil?destaque=pro">Assinar</Link>
             </Button>
           </CardContent>
         </Card>
