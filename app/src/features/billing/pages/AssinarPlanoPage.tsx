@@ -108,7 +108,7 @@ export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { refresh } = useSubscription();
+  const { info, loading: subscriptionLoading, refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
   const tierDef = getPlanTier(tierParam);
@@ -125,6 +125,12 @@ export default function AssinarPlanoPage({ method }: Props) {
   const [brickRetryKey, setBrickRetryKey] = useState(0);
 
   const verifyInFlightRef = useRef(false);
+
+  const hasActiveMpSubscription =
+    info?.subscription_status === "active" && Boolean(info?.mp_subscription_id?.trim());
+
+  const proCardBlockedByActiveMpSub =
+    method === "cartao" && tier === "pro" && hasActiveMpSubscription;
 
   useEffect(() => {
     document.title =
@@ -192,7 +198,17 @@ export default function AssinarPlanoPage({ method }: Props) {
         throw new Error("Mercado Pago não retornou a confirmação da assinatura.");
       } catch (e) {
         const message = e instanceof Error ? e.message : "Verifique os dados e tente novamente.";
-        const explained = explainMpPlanBrickError(message);
+        const isActiveMpSub =
+          message.toLowerCase().includes("já possui uma assinatura") ||
+          message.toLowerCase().includes("assinatura ativa com mercado pago");
+        const explained = isActiveMpSub
+          ? {
+              title: "Assinatura ativa no Mercado Pago",
+              description:
+                "Você já tem o plano Start (ou outra assinatura) no cartão. Cancele em Conta antes de assinar o Pro com cartão. Outro cartão não resolve.",
+              hint: "Para subir ao Pro sem cancelar, use Pix em Conta → Plano Pro.",
+            }
+          : explainMpPlanBrickError(message);
         toast({
           title: explained.title,
           description: explained.hint
@@ -370,7 +386,29 @@ export default function AssinarPlanoPage({ method }: Props) {
           <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {MP_PLATFORM_TEST_MODE ? (
+          {subscriptionLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : proCardBlockedByActiveMpSub ? (
+            <div className="space-y-4">
+              <p className="text-sm text-amber-950 dark:text-amber-100 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3 leading-relaxed">
+                Você já possui assinatura ativa no Mercado Pago
+                {info?.subscription_tier === "start" ? " (plano Start no cartão)" : ""}. Para assinar o{" "}
+                <strong>Pro com cartão</strong>, cancele o plano atual em <strong>Conta</strong> primeiro. Usar outro
+                cartão não adianta — o bloqueio é pela conta, não pelo cartão.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Quer subir ao Pro sem cancelar? Use <strong>Pix</strong> em Conta → Plano Pro.
+              </p>
+              <Button asChild className="w-full rounded-full bg-gradient-brand text-white border-0">
+                <Link to="/app/perfil">Ir para Conta e cancelar Start</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full rounded-full">
+                <Link to="/app/perfil/assinar-plano/pix?tier=pro">Assinar Pro com Pix</Link>
+              </Button>
+            </div>
+          ) : MP_PLATFORM_TEST_MODE ? (
             <>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 No modo teste, o Mercado Pago costuma não aceitar cartão digitado aqui para assinatura. Continue no

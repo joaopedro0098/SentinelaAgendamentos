@@ -90,7 +90,11 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
   const usesExternalPlan = accountUsesExternalPlan(info);
   const isActive = info?.subscription_status === "active";
   const activeTier = (info?.subscription_tier as PlanTier | null | undefined) ?? null;
-  const canCancel = !info?.is_admin && !usesExternalPlan && isActive;
+  const canCancel =
+    !info?.is_admin &&
+    !usesExternalPlan &&
+    isActive &&
+    Boolean(info?.mp_subscription_id?.trim());
   const proTier = PLAN_TIERS.find((tier) => tier.id === "pro");
 
   function canSubscribeTier(tier: PlanTier) {
