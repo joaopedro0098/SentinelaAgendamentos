@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
+import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
-import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
 import { MP_PUBLIC_KEY } from "@/lib/paymentsApi";
@@ -30,10 +29,67 @@ type Props = {
   method: CheckoutMethod;
 };
 
+type MpPlanCardBrickProps = {
+  tier: PlanTier;
+  amount: number;
+  brickRetryKey: number;
+  onSubmit: (formData: unknown) => Promise<void>;
+  onBrickError: (message: string) => void;
+};
+
+/** Evita remount do Brick a cada render (callbacks estáveis + refs). */
+function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }: MpPlanCardBrickProps) {
+  const submitRef = useRef(onSubmit);
+  submitRef.current = onSubmit;
+
+  const onBrickErrorRef = useRef(onBrickError);
+  onBrickErrorRef.current = onBrickError;
+
+  const stableSubmit = useCallback(async (formData: unknown) => {
+    await submitRef.current(formData);
+  }, []);
+
+  const stableOnError = useCallback((error: unknown) => {
+    const message =
+      typeof error === "object" && error && "message" in error
+        ? String((error as { message?: string }).message)
+        : "Erro no formulário de pagamento.";
+    onBrickErrorRef.current(message);
+  }, []);
+
+  const initialization = useMemo(() => ({ amount: Math.max(1, amount) }), [amount]);
+
+  const customization = useMemo(
+    () => ({
+      paymentMethods: {
+        creditCard: "all" as const,
+        maxInstallments: 1,
+      },
+      visual: {
+        hideFormTitle: true,
+        defaultPaymentOption: {
+          creditCardForm: true,
+        },
+      },
+    }),
+    [],
+  );
+
+  return (
+    <Payment
+      id={`mp-plan-card-${tier}-${brickRetryKey}`}
+      locale="pt-BR"
+      initialization={initialization}
+      customization={customization}
+      onSubmit={stableSubmit}
+      onError={stableOnError}
+    />
+  );
+}
+
 export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
   const { refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
@@ -90,45 +146,6 @@ export default function AssinarPlanoPage({ method }: Props) {
     };
   }, [method, tier]);
 
-  const initialization = useMemo(
-    () => ({
-      amount: Math.max(1, tierDef?.amount ?? 1),
-      payer: user?.email ? { email: user.email } : undefined,
-    }),
-    [tierDef?.amount, user?.email],
-  );
-
-  /** Card Payment Brick: só cartão, sem etapa Pix/carteira; visual alinhado ao painel. */
-  const customization = useMemo(
-    () => ({
-      paymentMethods: {
-        maxInstallments: 1,
-        minInstallments: 1,
-        types: {
-          excluded: ["debit_card", "prepaid_card"] as ("debit_card" | "prepaid_card")[],
-        },
-      },
-      visual: {
-        hideFormTitle: true,
-        style: {
-          theme: "flat" as const,
-          customVariables: {
-            baseColor: "#2e9b56",
-            baseColorFirstVariant: "#247a44",
-            baseColorSecondVariant: "#3bc06a",
-            borderRadius: "12px",
-            formBackgroundColor: "transparent",
-            inputBackgroundColor: "transparent",
-          },
-        },
-        texts: {
-          formSubmit: tierDef ? `Confirmar assinatura — ${tierDef.priceLabel}` : "Confirmar assinatura",
-        },
-      },
-    }),
-    [tierDef],
-  );
-
   const handleCardSubmit = useCallback(
     async (formData: unknown) => {
       if (!tier) return;
@@ -167,6 +184,10 @@ export default function AssinarPlanoPage({ method }: Props) {
     },
     [tier, navigate, refresh],
   );
+
+  const handleBrickError = useCallback((message: string) => {
+    toast({ title: "Erro no Mercado Pago", description: message, variant: "destructive" });
+  }, []);
 
   const verifyPix = useCallback(async () => {
     if (!tier || verifyInFlightRef.current) return;
@@ -300,24 +321,13 @@ export default function AssinarPlanoPage({ method }: Props) {
           <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-4 [&_.mp-card-payment-brick]:space-y-4">
-            <CardPayment
-              id={`mp-plan-card-${tier}-${brickRetryKey}`}
-              locale="pt-BR"
-              initialization={initialization}
-              customization={customization}
-              onSubmit={async (formData) => {
-                await handleCardSubmit(formData as unknown as Record<string, unknown>);
-              }}
-              onError={(error) => {
-                const message =
-                  typeof error === "object" && error && "message" in error
-                    ? String((error as { message?: string }).message)
-                    : "Erro no formulário de pagamento.";
-                toast({ title: "Erro no Mercado Pago", description: message, variant: "destructive" });
-              }}
-            />
-          </div>
+          <MpPlanCardBrick
+            tier={tier}
+            amount={tierDef.amount}
+            brickRetryKey={brickRetryKey}
+            onSubmit={handleCardSubmit}
+            onBrickError={handleBrickError}
+          />
 
           {processingCard && (
             <div className="flex justify-center">
