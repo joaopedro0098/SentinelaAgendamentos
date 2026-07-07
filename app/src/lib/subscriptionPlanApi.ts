@@ -36,6 +36,17 @@ export type CancelPreapprovalResponse = {
   error?: string;
 };
 
+export type PreapprovalRedirectResponse = {
+  preapproval_id?: string;
+  init_point?: string;
+  back_url?: string;
+  error?: string;
+};
+
+export function createPreapprovalRedirect(tier: PlanTier) {
+  return invokeBillingFunction<PreapprovalRedirectResponse>("mp-create-preapproval", { tier });
+}
+
 export function createPreapprovalCard(tier: PlanTier, formData: Record<string, unknown>) {
   return invokeBillingFunction<PreapprovalCardResponse>("mp-create-preapproval-card", { tier, formData });
 }

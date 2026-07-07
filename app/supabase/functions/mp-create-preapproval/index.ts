@@ -101,7 +101,11 @@ Deno.serve(async (req) => {
     }
 
     const preapprovalId = String((mpData as { id?: string }).id ?? "").trim();
-    const initPoint = String((mpData as { init_point?: string }).init_point ?? "").trim();
+    const initPoint = String(
+      (mpData as { sandbox_init_point?: string }).sandbox_init_point ??
+        (mpData as { init_point?: string }).init_point ??
+        "",
+    ).trim();
 
     if (!preapprovalId || !initPoint) {
       return jsonResponse({ error: "Mercado Pago não retornou dados para concluir a assinatura." }, 502);

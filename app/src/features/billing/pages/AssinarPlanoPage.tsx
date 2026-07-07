@@ -12,6 +12,7 @@ import { getMpCardBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
 import { useDashboardTheme } from "@/hooks/useDashboardTheme";
 import {
   createPreapprovalCard,
+  createPreapprovalRedirect,
   createSubscriptionPlanPix,
   verifySubscriptionPlanPix,
 } from "@/lib/subscriptionPlanApi";
@@ -119,6 +120,7 @@ export default function AssinarPlanoPage({ method }: Props) {
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
   const [processingCard, setProcessingCard] = useState(false);
+  const [redirectingMp, setRedirectingMp] = useState(false);
   const [verifyingPix, setVerifyingPix] = useState(false);
   const [brickRetryKey, setBrickRetryKey] = useState(0);
 
@@ -214,6 +216,25 @@ export default function AssinarPlanoPage({ method }: Props) {
       variant: "destructive",
     });
   }, []);
+
+  const handleMpRedirect = useCallback(async () => {
+    if (!tier) return;
+    setRedirectingMp(true);
+    try {
+      const result = await createPreapprovalRedirect(tier);
+      if (result.error || !result.init_point) {
+        throw new Error(result.error ?? "Mercado Pago não retornou o link de assinatura.");
+      }
+      window.location.href = result.init_point;
+    } catch (e) {
+      toast({
+        title: "Não foi possível abrir o Mercado Pago",
+        description: e instanceof Error ? e.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+      setRedirectingMp(false);
+    }
+  }, [tier]);
 
   const verifyPix = useCallback(async () => {
     if (!tier || verifyInFlightRef.current) return;
@@ -350,39 +371,58 @@ export default function AssinarPlanoPage({ method }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {MP_PLATFORM_TEST_MODE ? (
-            <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/30 px-3 py-2 leading-relaxed">
-              Modo teste Mercado Pago. Cartão: <strong>5031 4332 1540 6351</strong> · CVV <strong>123</strong> · validade{" "}
-              <strong>11/30</strong> · titular <strong>APRO</strong> · CPF <strong>12345678909</strong>.
-            </p>
-          ) : import.meta.env.DEV ? (
-            <p className="text-xs text-amber-800 dark:text-amber-200 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 leading-relaxed">
-              Chave pública de <strong>produção</strong> (APP_USR). Cartões de teste do Mercado Pago{" "}
-              <strong>não funcionam</strong> — use cartão real ou configure{" "}
-              <code className="text-[11px]">VITE_MP_PLATFORM_PUBLIC_KEY</code> com a chave TEST- da mesma conta do{" "}
-              <code className="text-[11px]">MP_ACCESS_TOKEN</code>.
-            </p>
-          ) : null}
+            <>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                No modo teste, o Mercado Pago costuma não aceitar cartão digitado aqui para assinatura. Continue no
+                checkout do Mercado Pago e use o cartão teste lá.
+              </p>
+              <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/30 px-3 py-2 leading-relaxed">
+                Cartão teste: <strong>5031 4332 1540 6351</strong> · CVV <strong>123</strong> · validade{" "}
+                <strong>11/30</strong> · titular <strong>APRO</strong> · CPF <strong>12345678909</strong>
+              </p>
+              <Button
+                type="button"
+                className="w-full rounded-full bg-gradient-brand text-white border-0"
+                disabled={redirectingMp}
+                onClick={() => void handleMpRedirect()}
+              >
+                {redirectingMp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continuar no Mercado Pago"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <MpPlanCardBrick
+                tier={tier}
+                amount={tierDef.amount}
+                payerEmail={user?.email}
+                brickRetryKey={brickRetryKey}
+                onSubmit={handleCardSubmit}
+                onBrickError={handleBrickError}
+              />
 
-          <MpPlanCardBrick
-            tier={tier}
-            amount={tierDef.amount}
-            payerEmail={user?.email}
-            brickRetryKey={brickRetryKey}
-            onSubmit={handleCardSubmit}
-            onBrickError={handleBrickError}
-          />
+              {processingCard && (
+                <div className="flex justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
 
-          {processingCard && (
-            <div className="flex justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-full"
+                disabled={processingCard || redirectingMp}
+                onClick={() => void handleMpRedirect()}
+              >
+                {redirectingMp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ou assinar no site do Mercado Pago"}
+              </Button>
+            </>
           )}
 
           <Button
             type="button"
             variant="ghost"
             className="w-full rounded-full"
-            disabled={processingCard}
+            disabled={processingCard || redirectingMp}
             onClick={() => navigate("/app/perfil")}
           >
             Voltar
