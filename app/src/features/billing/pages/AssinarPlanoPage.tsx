@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
+import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
 import { MP_PUBLIC_KEY } from "@/lib/paymentsApi";
@@ -32,6 +33,7 @@ type Props = {
 export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const { refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
@@ -89,18 +91,42 @@ export default function AssinarPlanoPage({ method }: Props) {
   }, [method, tier]);
 
   const initialization = useMemo(
-    () => ({ amount: Math.max(1, tierDef?.amount ?? 1) }),
-    [tierDef?.amount],
+    () => ({
+      amount: Math.max(1, tierDef?.amount ?? 1),
+      payer: user?.email ? { email: user.email } : undefined,
+    }),
+    [tierDef?.amount, user?.email],
   );
 
+  /** Card Payment Brick: só cartão, sem etapa Pix/carteira; visual alinhado ao painel. */
   const customization = useMemo(
     () => ({
       paymentMethods: {
-        creditCard: "all" as const,
         maxInstallments: 1,
+        minInstallments: 1,
+        types: {
+          excluded: ["debit_card", "prepaid_card"] as ("debit_card" | "prepaid_card")[],
+        },
+      },
+      visual: {
+        hideFormTitle: true,
+        style: {
+          theme: "flat" as const,
+          customVariables: {
+            baseColor: "#2e9b56",
+            baseColorFirstVariant: "#247a44",
+            baseColorSecondVariant: "#3bc06a",
+            borderRadius: "12px",
+            formBackgroundColor: "transparent",
+            inputBackgroundColor: "transparent",
+          },
+        },
+        texts: {
+          formSubmit: tierDef ? `Confirmar assinatura — ${tierDef.priceLabel}` : "Confirmar assinatura",
+        },
       },
     }),
-    [],
+    [tierDef],
   );
 
   const handleCardSubmit = useCallback(
@@ -254,40 +280,44 @@ export default function AssinarPlanoPage({ method }: Props) {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-lg mx-auto space-y-4">
-      <Button asChild variant="ghost" size="sm" className="rounded-full -ml-2">
-        <Link to="/app/perfil">
-          <ArrowLeft className="h-4 w-4" /> Conta
-        </Link>
-      </Button>
+    <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
+      <div>
+        <Button asChild variant="ghost" size="sm" className="rounded-full -ml-2 mb-2">
+          <Link to="/app/perfil">
+            <ArrowLeft className="h-4 w-4" /> Conta
+          </Link>
+        </Button>
+        <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+          <CreditCard className="h-6 w-6" /> Assinar plano {tierDef.name}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          14 dias grátis no cartão, depois {tierDef.priceLabel}. Cancele quando quiser em Conta.
+        </p>
+      </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            Plano {tierDef.name} — Cartão
-          </CardTitle>
+          <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
-            <p className="text-xs text-muted-foreground">Valor mensal após 14 dias grátis</p>
-            <p className="font-display text-2xl font-bold">{tierDef.priceShort}</p>
+          <div className="space-y-4 [&_.mp-card-payment-brick]:space-y-4">
+            <CardPayment
+              id={`mp-plan-card-${tier}-${brickRetryKey}`}
+              locale="pt-BR"
+              initialization={initialization}
+              customization={customization}
+              onSubmit={async (formData) => {
+                await handleCardSubmit(formData as unknown as Record<string, unknown>);
+              }}
+              onError={(error) => {
+                const message =
+                  typeof error === "object" && error && "message" in error
+                    ? String((error as { message?: string }).message)
+                    : "Erro no formulário de pagamento.";
+                toast({ title: "Erro no Mercado Pago", description: message, variant: "destructive" });
+              }}
+            />
           </div>
-
-          <Payment
-            id={`mp-plan-card-${tier}-${brickRetryKey}`}
-            initialization={initialization}
-            customization={customization}
-            onSubmit={async (formData) => {
-              await handleCardSubmit(formData);
-            }}
-            onError={(error) => {
-              const message =
-                typeof error === "object" && error && "message" in error
-                  ? String((error as { message?: string }).message)
-                  : "Erro no formulário de pagamento.";
-              toast({ title: "Erro no Mercado Pago", description: message, variant: "destructive" });
-            }}
-          />
 
           {processingCard && (
             <div className="flex justify-center">
@@ -295,9 +325,15 @@ export default function AssinarPlanoPage({ method }: Props) {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Cobrança mensal recorrente via Mercado Pago. Você pode cancelar a qualquer momento em Conta.
-          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full rounded-full"
+            disabled={processingCard}
+            onClick={() => navigate("/app/perfil")}
+          >
+            Voltar
+          </Button>
         </CardContent>
       </Card>
     </div>

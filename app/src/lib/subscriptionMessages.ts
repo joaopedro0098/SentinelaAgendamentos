@@ -17,6 +17,19 @@ export const AGGREGATED_BOOKING_BLOCK_MESSAGE =
 const LEGACY_SUBSCRIPTION_NOTICE_EXPIRED =
   "Assinatura inativa. Assine novamente em Conta para liberar agendamentos.";
 
+/** Avisos de checkout iniciado mas não concluído (Pix/cartão MP). */
+const CHECKOUT_PENDING_NOTICE_PREFIXES = [
+  "Pague o Pix do plano",
+  "Finalize o pagamento Pix",
+  "Finalize a assinatura no Mercado Pago",
+  "Finalize o pagamento no Mercado Pago",
+  "Estamos confirmando sua assinatura",
+] as const;
+
+function isCheckoutPendingNotice(notice: string): boolean {
+  return CHECKOUT_PENDING_NOTICE_PREFIXES.some((prefix) => notice.startsWith(prefix));
+}
+
 export function formatSubscriptionNotice(notice: string | null | undefined): string | null {
   if (!notice) return null;
   if (notice === LEGACY_SUBSCRIPTION_NOTICE_EXPIRED) return SUBSCRIPTION_NOTICE_EXPIRED;
@@ -24,6 +37,17 @@ export function formatSubscriptionNotice(notice: string | null | undefined): str
     return notice.slice("Assinatura inativa. ".length);
   }
   return notice;
+}
+
+/** Exibe aviso na Conta; oculta lembretes de Pix/checkout abandonado quando a assinatura não está ativa. */
+export function shouldShowSubscriptionNotice(
+  info: SubscriptionInfo | null | undefined,
+  notice: string | null | undefined,
+): boolean {
+  const formatted = formatSubscriptionNotice(notice);
+  if (!formatted || accountUsesExternalPlan(info) || !info) return false;
+  if (isCheckoutPendingNotice(formatted) && !info.can_book) return false;
+  return true;
 }
 
 /** CA/AA/admin agregado: não exibir avisos de assinatura própria do CT. */

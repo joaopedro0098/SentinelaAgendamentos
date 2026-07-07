@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
-import { formatSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
+import { formatSubscriptionNotice, shouldShowSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { PlanoNovoSection } from "@/features/billing/components/PlanoNovoSection";
 
@@ -243,7 +243,7 @@ export default function PerfilPage() {
     info?.subscription_status !== "grace";
 
   const subscriptionNotice = formatSubscriptionNotice(info?.subscription_notice);
-  const showSubscriptionNotice = Boolean(subscriptionNotice && !usesExternalPlan);
+  const showSubscriptionNotice = shouldShowSubscriptionNotice(info, info?.subscription_notice);
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
