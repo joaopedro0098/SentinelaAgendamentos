@@ -8,7 +8,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
 import { explainMpPlanBrickError } from "@/lib/mpBrickErrors";
 import { MP_PLATFORM_PUBLIC_KEY, MP_PLATFORM_TEST_MODE } from "@/lib/paymentsApi";
-import { getMpBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
+import { getMpCardBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
 import { useDashboardTheme } from "@/hooks/useDashboardTheme";
 import {
   createPreapprovalCard,
@@ -72,7 +72,7 @@ function MpPlanCardBrick({ tier, amount, payerEmail, brickRetryKey, onSubmit, on
     };
   }, [amount, payerEmail]);
 
-  const brickStyle = useMemo(() => getMpBrickStyleForDashboardTheme(mode), [mode]);
+  const brickStyle = useMemo(() => getMpCardBrickStyleForDashboardTheme(mode), [mode]);
 
   const customization = useMemo(
     () => ({
@@ -189,9 +189,13 @@ export default function AssinarPlanoPage({ method }: Props) {
 
         throw new Error("Mercado Pago não retornou a confirmação da assinatura.");
       } catch (e) {
+        const message = e instanceof Error ? e.message : "Verifique os dados e tente novamente.";
+        const explained = explainMpPlanBrickError(message);
         toast({
-          title: "Pagamento não concluído",
-          description: e instanceof Error ? e.message : "Verifique os dados e tente novamente.",
+          title: explained.title,
+          description: explained.hint
+            ? `${explained.description} ${explained.hint}`
+            : explained.description,
           variant: "destructive",
         });
         setBrickRetryKey((key) => key + 1);

@@ -1,14 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { parsePaymentBrickSubmit } from "../_shared/mpAppointment.ts";
 import {
   activateShopSubscription,
   buildPreapprovalExternalReference,
   buildPreapprovalFreeTrial,
-  fetchMpPreapproval,
+  explainPreapprovalCardMpError,
   getPlatformMpAccessToken,
   getPreapprovalPlanId,
   mapPreapprovalToUiStatus,
   normalizeSubscriptionTier,
+  parseCardPaymentBrickSubmit,
 } from "../_shared/mpPlatformBilling.ts";
 
 const corsHeaders = {
@@ -61,10 +61,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Dados do cartão incompletos." }, 400);
     }
 
-    const brick = parsePaymentBrickSubmit(rawFormData);
-    if (brick.isPix) {
-      return jsonResponse({ error: "Use o fluxo Pix para pagar com Pix." }, 400);
-    }
+    const brick = parseCardPaymentBrickSubmit(rawFormData);
     if (!brick.token) {
       return jsonResponse({ error: "Dados do cartão incompletos. Tente novamente.", retry: true }, 400);
     }
@@ -84,32 +81,42 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Você já possui uma assinatura ativa com Mercado Pago." }, 400);
     }
 
+    const preapprovalBody: Record<string, unknown> = {
+      preapproval_plan_id: planId,
+      reason: `Assinatura Sentinela Agendamentos — ${shop.display_name}`,
+      external_reference: buildPreapprovalExternalReference(shop.id, tier),
+      payer_email: user.email.trim(),
+      card_token_id: brick.token,
+      status: "authorized",
+      auto_recurring: {
+        free_trial: buildPreapprovalFreeTrial(),
+      },
+    };
+    if (brick.paymentMethodId) {
+      preapprovalBody.payment_method_id = brick.paymentMethodId;
+    }
+
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${mpToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        preapproval_plan_id: planId,
-        reason: `Assinatura Sentinela Agendamentos — ${shop.display_name}`,
-        external_reference: buildPreapprovalExternalReference(shop.id, tier),
-        payer_email: user.email.trim(),
-        card_token_id: brick.token,
-        auto_recurring: {
-          free_trial: buildPreapprovalFreeTrial(),
-        },
-      }),
+      body: JSON.stringify(preapprovalBody),
     });
 
     const mpData = await mpRes.json().catch(() => ({}));
     if (!mpRes.ok) {
       console.error("mp-create-preapproval-card:", mpData);
-      const message =
+      const rawMessage =
         typeof mpData === "object" && mpData !== null && "message" in mpData
           ? String((mpData as { message?: string }).message)
           : "Mercado Pago recusou a criação da assinatura.";
-      return jsonResponse({ error: message, retry: true }, 502);
+      const explained = explainPreapprovalCardMpError(rawMessage);
+      return jsonResponse(
+        { error: explained.error, error_hint: explained.hint, retry: true },
+        502,
+      );
     }
 
     const preapprovalId = String((mpData as { id?: string }).id ?? "").trim();

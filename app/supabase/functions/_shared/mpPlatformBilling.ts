@@ -33,6 +33,35 @@ export function normalizeSubscriptionTier(tier?: string | null): SubscriptionTie
   return null;
 }
 
+/** Card Payment Brick envia o token na raiz ou em formData. */
+export function parseCardPaymentBrickSubmit(raw: Record<string, unknown>) {
+  const inner =
+    raw.formData && typeof raw.formData === "object"
+      ? (raw.formData as Record<string, unknown>)
+      : raw;
+
+  const token = inner.token ? String(inner.token).trim() : undefined;
+  const paymentMethodId = inner.payment_method_id
+    ? String(inner.payment_method_id).trim()
+    : undefined;
+  const issuerId = inner.issuer_id != null ? String(inner.issuer_id).trim() : undefined;
+
+  return { token, paymentMethodId, issuerId };
+}
+
+export function explainPreapprovalCardMpError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("card token")) {
+    return {
+      error:
+        "O Mercado Pago não reconheceu o token do cartão. Verifique se VITE_MP_PUBLIC_KEY e MP_ACCESS_TOKEN são da mesma aplicação (Credenciais de teste) e se os planos de assinatura foram criados nessa conta.",
+      hint:
+        "Painel MP → aplicação da plataforma → Credenciais de teste: copie Public Key (front) e Access Token (Supabase) do mesmo bloco.",
+    };
+  }
+  return { error: message, hint: null as string | null };
+}
+
 export function getTierMonthlyAmount(tier: SubscriptionTier): number {
   return tier === "pro" ? 49.9 : 39.9;
 }

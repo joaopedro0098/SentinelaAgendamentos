@@ -27,7 +27,17 @@ export function explainMpPlanBrickError(message: string): MpBrickErrorExplanatio
     return {
       title: "Conta teste × produção",
       description: "Há mistura entre credenciais ou usuários de teste e produção no Mercado Pago.",
-      hint: "Confira se VITE_MP_PLATFORM_PUBLIC_KEY e MP_ACCESS_TOKEN são ambos TEST- (ou ambos produção) da mesma aplicação.",
+      hint: "Confira se VITE_MP_PUBLIC_KEY e MP_ACCESS_TOKEN são ambos TEST- (ou ambos produção) da mesma aplicação.",
+    };
+  }
+
+  if (normalized.includes("card token")) {
+    return {
+      title: "Token do cartão não encontrado",
+      description:
+        "O Mercado Pago gerou o token no navegador, mas o servidor não conseguiu usá-lo. Quase sempre é porque VITE_MP_PUBLIC_KEY e MP_ACCESS_TOKEN são de aplicações diferentes no painel MP.",
+      hint:
+        "Abra Mercado Pago Developers → sua aplicação da PLATAFORMA → Credenciais de teste → copie Public Key e Access Token do mesmo lugar. Os planos MP_PREAPPROVAL_PLAN_ID_39/_49 também precisam ser dessa conta.",
     };
   }
 
