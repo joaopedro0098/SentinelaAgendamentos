@@ -20,6 +20,8 @@ export type SubscriptionInfo = {
   can_use_appointment_payments?: boolean;
   label?: string;
   mp_subscription_id?: string | null;
+  /** Último meio de pagamento: mp_sub (cartão recorrente MP), pix ou card (Stripe legado). */
+  last_payment_method?: "card" | "pix" | "mp_sub" | null;
   stripe_subscription_id?: string | null;
   is_aggregated_account?: boolean;
   aggregated_by_email?: string | null;

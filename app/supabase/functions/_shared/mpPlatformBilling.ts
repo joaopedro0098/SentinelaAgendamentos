@@ -158,7 +158,9 @@ export async function activateShopSubscription(
     grace_until: null,
     subscription_notice: null,
   };
-  if (params.mpSubscriptionId) {
+  if (params.lastPaymentMethod === "pix") {
+    update.mp_subscription_id = null;
+  } else if (params.mpSubscriptionId) {
     update.mp_subscription_id = params.mpSubscriptionId;
   }
 

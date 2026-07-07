@@ -127,7 +127,9 @@ export default function AssinarPlanoPage({ method }: Props) {
   const verifyInFlightRef = useRef(false);
 
   const hasActiveMpSubscription =
-    info?.subscription_status === "active" && Boolean(info?.mp_subscription_id?.trim());
+    info?.subscription_status === "active" &&
+    info?.last_payment_method === "mp_sub" &&
+    Boolean(info?.mp_subscription_id?.trim());
 
   const proCardBlockedByActiveMpSub =
     method === "cartao" && tier === "pro" && hasActiveMpSubscription;

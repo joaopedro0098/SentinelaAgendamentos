@@ -17,6 +17,19 @@ function formatDateBr(iso: string | null | undefined) {
   return `${d}/${m}/${y}`;
 }
 
+function formatActivePlanPeriodEnd(info: SubscriptionInfo | null) {
+  const date = formatDateBr(info?.current_period_end);
+  if (!date || date === "—") return null;
+
+  const paidWithPix =
+    info?.subscription_status === "active" &&
+    info?.last_payment_method === "pix" &&
+    (info?.subscription_tier === "start" || info?.subscription_tier === "pro");
+
+  if (paidWithPix) return `${date} — você pagou com Pix`;
+  return date;
+}
+
 type Props = {
   info: SubscriptionInfo | null;
   loading: boolean;
@@ -94,8 +107,10 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     !info?.is_admin &&
     !usesExternalPlan &&
     isActive &&
+    info?.last_payment_method === "mp_sub" &&
     Boolean(info?.mp_subscription_id?.trim());
   const proTier = PLAN_TIERS.find((tier) => tier.id === "pro");
+  const activePlanPeriodEndLabel = formatActivePlanPeriodEnd(info);
 
   function canSubscribeTier(tier: PlanTier) {
     if (info?.is_admin || usesExternalPlan || loading) return false;
@@ -170,8 +185,8 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
           <div className="space-y-3">
             <div className="rounded-xl border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10 px-4 py-3 text-sm">
               <p className="font-semibold">Plano {planTierLabel(activeTier)} ativo</p>
-              {info?.current_period_end && (
-                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
+              {activePlanPeriodEndLabel && (
+                <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
             </div>
             {canCancel && (
@@ -189,8 +204,8 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
           <div className="space-y-4">
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
               <p className="font-semibold">Plano Start ativo</p>
-              {info?.current_period_end && (
-                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
+              {activePlanPeriodEndLabel && (
+                <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
               <p className="text-muted-foreground mt-1 text-xs">
                 Faça upgrade para o Pro para cobrar no link público.
