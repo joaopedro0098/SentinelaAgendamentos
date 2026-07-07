@@ -1,28 +1,19 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { CreditCard, Loader2, Mail, Shield, Trash2 } from "lucide-react";
+import { Loader2, Mail, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
-import { invokeBillingFunction } from "@/lib/billingApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
-import { PLAN_PRICE_LABEL, PLAN_PRICE_SHORT } from "@/lib/planPricing";
 import { formatSubscriptionNotice, shouldShowSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { PlanoNovoSection } from "@/features/billing/components/PlanoNovoSection";
-
-function formatDateBr(iso: string | null | undefined) {
-  if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
-}
 
 export default function PerfilPage() {
   const { user, signOut } = useAuth();
@@ -36,8 +27,6 @@ export default function PerfilPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [creatingPix, setCreatingPix] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [highlightPro, setHighlightPro] = useState(() => searchParams.get("destaque") === "pro");
 
@@ -62,90 +51,6 @@ export default function PerfilPage() {
   useEffect(() => {
     if (user?.email) setNewEmail(user.email);
   }, [user?.email]);
-
-  useEffect(() => {
-    const stripeReturn = searchParams.get("stripe") === "return";
-    const paymentSuccess = searchParams.get("payment") === "success";
-    if (!stripeReturn && !paymentSuccess) return;
-
-    const syncFn = stripeReturn ? "stripe-sync-subscription" : "mp-sync-subscription";
-
-    void invokeBillingFunction<{ subscription?: { subscription_status?: string } }>(syncFn)
-      .then(async (data) => {
-        await refresh({ force: true });
-        const status = data.subscription?.subscription_status;
-        if (status === "active") {
-          toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
-        } else if (stripeReturn) {
-          toast({
-            title: "Pagamento em processamento",
-            description: "Se o status não atualizar em instantes, recarregue esta página.",
-          });
-        } else {
-          toast({
-            title: "Pagamento recebido?",
-            description: "Se o status não atualizar em instantes, recarregue esta página.",
-          });
-        }
-      })
-      .catch(() => {
-        toast({
-          title: "Não foi possível verificar o pagamento",
-          description: "Recarregue a página ou tente novamente em instantes.",
-          variant: "destructive",
-        });
-      })
-      .finally(() => {
-        setSearchParams({}, { replace: true });
-      });
-  }, [searchParams, setSearchParams, refresh]);
-
-  async function handlePixPayment() {
-    setCreatingPix(true);
-    try {
-      const data = await invokeBillingFunction<{ init_point?: string; error?: string }>("mp-create-pix-payment");
-      const initPoint = data.init_point;
-      if (initPoint) {
-        window.location.href = initPoint;
-        return;
-      }
-      throw new Error(data.error ?? "Não foi possível gerar o pagamento Pix.");
-    } catch (e) {
-      toast({
-        title: "Pix indisponível",
-        description: e instanceof Error ? e.message : "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingPix(false);
-    }
-  }
-
-  async function handleCancelPlan() {
-    if (!info?.stripe_subscription_id) {
-      toast({
-        title: "Cancelamento indisponível",
-        description: "Só assinaturas com cartão (Stripe) podem ser canceladas aqui. Pix é pagamento avulso por mês.",
-      });
-      return;
-    }
-    if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago.")) return;
-    setCancelling(true);
-    try {
-      const data = await invokeBillingFunction<{ ok?: boolean; error?: string }>("stripe-cancel-subscription");
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-      toast({ title: "Assinatura cancelada", description: "O acesso continua até a data de vencimento." });
-      await refresh({ force: true });
-    } catch (e) {
-      toast({
-        title: "Não foi possível cancelar",
-        description: e instanceof Error ? e.message : "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setCancelling(false);
-    }
-  }
 
   async function handleChangeEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -218,36 +123,8 @@ export default function PerfilPage() {
   const accountType = info?.account_type;
   const isCaAccount = accountType === "ca" || Boolean(info?.is_aggregated_account);
   const isAaAccount = accountType === "aa" || Boolean(info?.is_admin_aggregated);
-  /** Banner “Conta agregada por …” (CA com titular identificado). */
   const isAggregated = isCaAccount && Boolean(info?.aggregated_by_email);
-  /** CA/AA não assinam plano próprio — ocultar avisos de “Assine novamente…”. */
   const usesExternalPlan = accountUsesExternalPlan(info);
-
-  const statusLabel = (() => {
-    if (loading) return "Carregando…";
-    if (info?.is_admin) return info.label ?? "Administrador";
-    if (isAaAccount) return info?.label ?? "Conta especial — acesso garantido pelo administrador";
-    if (isAggregated) {
-      return info?.can_book ? "Incluso no plano do titular" : "Plano do titular inativo";
-    }
-    if (info?.subscription_status === "active") return "Assinatura ativa";
-    if (info?.subscription_status === "grace") return "Pagamento pendente — tolerância";
-    if (info?.subscription_status === "cancelled") return "Cancelada (acesso até o vencimento)";
-    if (info?.subscription_status === "expired") return "Assinatura inativa";
-    return "—";
-  })();
-
-  const showPay =
-    !info?.is_admin &&
-    !loading &&
-    !usesExternalPlan &&
-    info?.subscription_status !== "active";
-  const hasStripeCard = Boolean(info?.stripe_subscription_id);
-  const showCancel =
-    !info?.is_admin && !usesExternalPlan && info?.subscription_status === "active" && hasStripeCard;
-
-  const showPlanStatus =
-    loading || info?.is_admin || isAggregated || isAaAccount || info?.subscription_status !== "trial";
 
   const showBookingBlockedMessage =
     !info?.is_admin &&
@@ -298,84 +175,11 @@ export default function PerfilPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CreditCard className="h-4 w-4" /> Plano
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {showPlanStatus && (
-            <div className="text-sm">
-              <p className="font-medium">{statusLabel}</p>
-              {!info?.is_admin && info?.current_period_end && (
-                <p className="text-muted-foreground mt-1">Vencimento: {formatDateBr(info.current_period_end)}</p>
-              )}
-              {!info?.is_admin && info?.grace_until && (
-                <p className="text-muted-foreground mt-1">Tolerância até: {formatDateBr(info.grace_until)}</p>
-              )}
-            </div>
-          )}
-
-          {isCaAccount && !info?.can_book && (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Você também pode assinar um plano próprio para deixar de depender do titular.
-              </p>
-              <Button
-                className="w-full rounded-full bg-gradient-brand text-white border-0"
-                onClick={() => navigate("/app/perfil/assinar-cartao")}
-                disabled={creatingPix}
-              >
-                Assinar com cartão — {PLAN_PRICE_LABEL}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={handlePixPayment}
-                disabled={creatingPix}
-              >
-                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
-              </Button>
-            </div>
-          )}
-
-          {showPay && (
-            <div className="space-y-2">
-              <Button
-                className="w-full rounded-full bg-gradient-brand text-white border-0"
-                onClick={() => navigate("/app/perfil/assinar-cartao")}
-                disabled={creatingPix}
-              >
-                Assinar com cartão — {PLAN_PRICE_LABEL}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={handlePixPayment}
-                disabled={creatingPix}
-              >
-                {creatingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pagar este mês com Pix — ${PLAN_PRICE_SHORT}`}
-              </Button>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Ao escolher cartão, você será cobrado mensalmente e poderá cancelar aqui mesmo a qualquer momento.
-              </p>
-            </div>
-          )}
-
-          {showCancel && (
-            <Button variant="outline" className="w-full rounded-full" onClick={handleCancelPlan} disabled={cancelling}>
-              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar assinatura"}
-            </Button>
-          )}
-
-          {showBookingBlockedMessage && (
-            <p className="text-xs text-destructive font-medium">
-              Novos agendamentos estão bloqueados. Assine para liberar o painel e o link do cliente.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {showBookingBlockedMessage && (
+        <p className="text-xs text-destructive font-medium">
+          Novos agendamentos estão bloqueados. Assine um plano abaixo para liberar o painel e o link do cliente.
+        </p>
+      )}
 
       <PlanoNovoSection
         info={info}

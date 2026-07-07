@@ -175,7 +175,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <Sparkles className="h-4 w-4" /> Plano Novo
+          <Sparkles className="h-4 w-4" /> Plano
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -323,15 +323,7 @@ export default function AdminPage() {
         return;
       }
 
-      try {
-        const syncResult = await invokeFunction<{ subscription?: unknown }>("mp-sync-subscription", {
-          email: trimmed,
-        });
-        const synced = parseLookupPayload(syncResult.subscription);
-        setUserInfo(synced ?? lookup);
-      } catch {
-        setUserInfo(lookup);
-      }
+      setUserInfo(lookup);
     } catch (err) {
       toast({
         title: "Erro na busca",

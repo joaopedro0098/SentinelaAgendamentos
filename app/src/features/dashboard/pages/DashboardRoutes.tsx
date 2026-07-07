@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { KeepAliveRoutes } from "@/components/layout/KeepAliveRoutes";
 import { RequireAdmin } from "@/components/guards/RequireAdmin";
 import AgendarPage from "@/features/dashboard/pages/AgendarPage";
@@ -7,7 +7,6 @@ import PacientesPage from "@/features/dashboard/pages/PacientesPage";
 import ProfissionaisPage from "@/features/dashboard/pages/ProfissionaisPage";
 import SettingsPage from "@/features/dashboard/pages/Settings";
 import PerfilPage from "@/features/dashboard/pages/PerfilPage";
-import AssinarCartaoPage from "@/features/billing/pages/AssinarCartaoPage";
 import {
   AssinarPlanoCartaoPage,
   AssinarPlanoPixPage,
@@ -18,6 +17,10 @@ import RelatoriosPage from "@/features/dashboard/pages/RelatoriosPage";
 import PagamentosPage from "@/features/dashboard/pages/PagamentosPage";
 import AdminPage from "@/features/dashboard/pages/AdminPage";
 
+function LegacyAssinarCartaoRedirect() {
+  return <Navigate to="/app/perfil" replace />;
+}
+
 const ROUTES = [
   { path: "/app/agendar", Component: AgendarPage },
   { path: "/app/agendamentos", Component: AgendamentosPage },
@@ -27,7 +30,7 @@ const ROUTES = [
   { path: "/app/perfil/assinatura/retorno", Component: AssinaturaRetornoPage },
   { path: "/app/perfil/assinar-plano/cartao", Component: AssinarPlanoCartaoPage },
   { path: "/app/perfil/assinar-plano/pix", Component: AssinarPlanoPixPage },
-  { path: "/app/perfil/assinar-cartao", Component: AssinarCartaoPage },
+  { path: "/app/perfil/assinar-cartao", Component: LegacyAssinarCartaoRedirect },
   { path: "/app/perfil", Component: PerfilPage, exact: true },
   { path: "/app/pagamentos", Component: PagamentosPage },
   { path: "/app/relatorios", Component: RelatoriosPage },
