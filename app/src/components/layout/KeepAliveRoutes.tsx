@@ -44,7 +44,7 @@ export function KeepAliveRoutes({
         if (route.wrap) element = route.wrap(element) as ReactElement;
 
         return (
-          <div key={route.path} hidden={!isActive} aria-hidden={!isActive} className={isActive ? "contents" : undefined}>
+          <div key={route.path} hidden={!isActive} className={isActive ? "contents" : undefined}>
             {element}
           </div>
         );

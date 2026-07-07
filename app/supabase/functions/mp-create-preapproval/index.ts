@@ -3,7 +3,7 @@ import {
   buildPreapprovalExternalReference,
   buildPreapprovalFreeTrial,
   getPlatformMpAccessToken,
-  getPreapprovalPlanId,
+  getTierMonthlyAmount,
   normalizeSubscriptionTier,
 } from "../_shared/mpPlatformBilling.ts";
 
@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json().catch(() => ({}))) as { tier?: string };
-    const planId = getPreapprovalPlanId(body.tier);
     const tier = normalizeSubscriptionTier(body.tier);
     if (!tier) {
       return jsonResponse({ error: "Plano inválido. Escolha Start ou Pro." }, 400);
@@ -79,13 +78,16 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        preapproval_plan_id: planId,
         reason: `Assinatura Sentinela Agendamentos — ${shop.display_name}`,
         external_reference: buildPreapprovalExternalReference(shop.id, tier),
         payer_email: user.email.trim(),
         back_url: backUrl,
         status: "pending",
         auto_recurring: {
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: getTierMonthlyAmount(tier),
+          currency_id: "BRL",
           free_trial: buildPreapprovalFreeTrial(),
         },
       }),
