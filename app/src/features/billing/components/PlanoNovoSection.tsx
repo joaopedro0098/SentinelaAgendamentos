@@ -207,9 +207,6 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
               {activePlanPeriodEndLabel && (
                 <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
-              <p className="text-muted-foreground mt-1 text-xs">
-                Faça upgrade para o Pro para cobrar no link público.
-              </p>
             </div>
             <PlanTierCard
               tier={proTier}
