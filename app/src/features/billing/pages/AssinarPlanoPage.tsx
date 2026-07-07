@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
+import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
 import { MP_PUBLIC_KEY } from "@/lib/paymentsApi";
+import { getMpBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
+import { useDashboardTheme } from "@/hooks/useDashboardTheme";
 import {
   createPreapprovalCard,
   createSubscriptionPlanPix,
@@ -39,6 +41,8 @@ type MpPlanCardBrickProps = {
 
 /** Evita remount do Brick a cada render (callbacks estáveis + refs). */
 function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }: MpPlanCardBrickProps) {
+  const { mode } = useDashboardTheme();
+
   const submitRef = useRef(onSubmit);
   submitRef.current = onSubmit;
 
@@ -59,24 +63,27 @@ function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }
 
   const initialization = useMemo(() => ({ amount: Math.max(1, amount) }), [amount]);
 
+  const brickStyle = useMemo(() => getMpBrickStyleForDashboardTheme(mode), [mode]);
+
   const customization = useMemo(
     () => ({
       paymentMethods: {
-        creditCard: "all" as const,
         maxInstallments: 1,
+        minInstallments: 1,
+        types: {
+          excluded: ["debit_card", "prepaid_card"] as ("debit_card" | "prepaid_card")[],
+        },
       },
       visual: {
         hideFormTitle: true,
-        defaultPaymentOption: {
-          creditCardForm: true,
-        },
+        style: brickStyle,
       },
     }),
-    [],
+    [brickStyle],
   );
 
   return (
-    <Payment
+    <CardPayment
       id={`mp-plan-card-${tier}-${brickRetryKey}`}
       locale="pt-BR"
       initialization={initialization}
