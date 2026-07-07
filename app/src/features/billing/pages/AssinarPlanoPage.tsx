@@ -3,9 +3,11 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
-import { MP_PUBLIC_KEY } from "@/lib/paymentsApi";
+import { explainMpPlanBrickError } from "@/lib/mpBrickErrors";
+import { MP_PLATFORM_PUBLIC_KEY, MP_PLATFORM_TEST_MODE } from "@/lib/paymentsApi";
 import { getMpBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
 import { useDashboardTheme } from "@/hooks/useDashboardTheme";
 import {
@@ -20,8 +22,8 @@ import { toast } from "@/hooks/use-toast";
 let mpInitialized = false;
 
 function ensureMpInit() {
-  if (!MP_PUBLIC_KEY || mpInitialized) return;
-  initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
+  if (!MP_PLATFORM_PUBLIC_KEY || mpInitialized) return;
+  initMercadoPago(MP_PLATFORM_PUBLIC_KEY, { locale: "pt-BR" });
   mpInitialized = true;
 }
 
@@ -34,13 +36,14 @@ type Props = {
 type MpPlanCardBrickProps = {
   tier: PlanTier;
   amount: number;
+  payerEmail?: string | null;
   brickRetryKey: number;
   onSubmit: (formData: unknown) => Promise<void>;
   onBrickError: (message: string) => void;
 };
 
 /** Evita remount do Brick a cada render (callbacks estáveis + refs). */
-function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }: MpPlanCardBrickProps) {
+function MpPlanCardBrick({ tier, amount, payerEmail, brickRetryKey, onSubmit, onBrickError }: MpPlanCardBrickProps) {
   const { mode } = useDashboardTheme();
 
   const submitRef = useRef(onSubmit);
@@ -61,7 +64,13 @@ function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }
     onBrickErrorRef.current(message);
   }, []);
 
-  const initialization = useMemo(() => ({ amount: Math.max(1, amount) }), [amount]);
+  const initialization = useMemo(() => {
+    const email = payerEmail?.trim();
+    return {
+      amount: Math.max(1, amount),
+      ...(email ? { payer: { email } } : {}),
+    };
+  }, [amount, payerEmail]);
 
   const brickStyle = useMemo(() => getMpBrickStyleForDashboardTheme(mode), [mode]);
 
@@ -71,7 +80,7 @@ function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }
         maxInstallments: 1,
         minInstallments: 1,
         types: {
-          excluded: ["debit_card", "prepaid_card"] as ("debit_card" | "prepaid_card")[],
+          included: ["credit_card"] as ("credit_card" | "debit_card" | "prepaid-card")[],
         },
       },
       visual: {
@@ -97,6 +106,7 @@ function MpPlanCardBrick({ tier, amount, brickRetryKey, onSubmit, onBrickError }
 export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const { refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
@@ -193,7 +203,12 @@ export default function AssinarPlanoPage({ method }: Props) {
   );
 
   const handleBrickError = useCallback((message: string) => {
-    toast({ title: "Erro no Mercado Pago", description: message, variant: "destructive" });
+    const explained = explainMpPlanBrickError(message);
+    toast({
+      title: explained.title,
+      description: explained.hint ? `${explained.description} ${explained.hint}` : explained.description,
+      variant: "destructive",
+    });
   }, []);
 
   const verifyPix = useCallback(async () => {
@@ -294,10 +309,12 @@ export default function AssinarPlanoPage({ method }: Props) {
     );
   }
 
-  if (!MP_PUBLIC_KEY) {
+  if (!MP_PLATFORM_PUBLIC_KEY) {
     return (
       <div className="p-4 md:p-8 max-w-lg mx-auto space-y-4">
-        <p className="text-sm text-destructive">Pagamento com cartão não configurado (VITE_MP_PUBLIC_KEY).</p>
+        <p className="text-sm text-destructive">
+          Pagamento com cartão não configurado (VITE_MP_PLATFORM_PUBLIC_KEY ou VITE_MP_PUBLIC_KEY).
+        </p>
         <Button asChild variant="outline" className="rounded-full">
           <Link to="/app/perfil">
             <ArrowLeft className="h-4 w-4" /> Voltar para Conta
@@ -328,9 +345,24 @@ export default function AssinarPlanoPage({ method }: Props) {
           <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {MP_PLATFORM_TEST_MODE ? (
+            <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/30 px-3 py-2 leading-relaxed">
+              Modo teste Mercado Pago. Cartão: <strong>5031 4332 1540 6351</strong> · CVV <strong>123</strong> · validade{" "}
+              <strong>11/30</strong> · titular <strong>APRO</strong> · CPF <strong>12345678909</strong>.
+            </p>
+          ) : import.meta.env.DEV ? (
+            <p className="text-xs text-amber-800 dark:text-amber-200 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 leading-relaxed">
+              Chave pública de <strong>produção</strong> (APP_USR). Cartões de teste do Mercado Pago{" "}
+              <strong>não funcionam</strong> — use cartão real ou configure{" "}
+              <code className="text-[11px]">VITE_MP_PLATFORM_PUBLIC_KEY</code> com a chave TEST- da mesma conta do{" "}
+              <code className="text-[11px]">MP_ACCESS_TOKEN</code>.
+            </p>
+          ) : null}
+
           <MpPlanCardBrick
             tier={tier}
             amount={tierDef.amount}
+            payerEmail={user?.email}
             brickRetryKey={brickRetryKey}
             onSubmit={handleCardSubmit}
             onBrickError={handleBrickError}
