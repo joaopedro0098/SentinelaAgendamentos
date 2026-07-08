@@ -67,7 +67,7 @@ const Navbar = () => {
       )}
 
       <div className="container flex items-center justify-between gap-4 h-16 md:h-[4.5rem]">
-        <BrandLogo linkTo="/" showName showFullName size="md" className="shrink-0" />
+        <BrandLogo linkTo="/" showName size="md" className="shrink-0 min-w-0" />
 
         <div className="hidden md:flex items-center gap-1">
           {!isPlanosPage && (
@@ -87,13 +87,7 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
-          <PwaInstallButton
-            label="Baixar"
-            helpVariant="landing"
-            className="shrink-0"
-            buttonClassName="rounded-full border-border bg-background/80 hover:bg-secondary text-xs px-3 h-8"
-          />
+        <div className="flex items-center md:hidden">
           <button
             type="button"
             aria-label={open ? "Fechar menu" : "Abrir menu"}
@@ -123,6 +117,13 @@ const Navbar = () => {
               Entrar
             </Link>
           )}
+          <PwaInstallButton
+            label="Baixar"
+            helpVariant="landing"
+            className="w-full"
+            buttonClassName="w-full rounded-xl border-border bg-background/80 hover:bg-secondary text-sm h-10 justify-center gap-2"
+            onNavigate={closeMenu}
+          />
           {showMobileSignupLink && (
             <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 w-full mt-1">
               <Link to="/signup" onClick={closeMenu}>

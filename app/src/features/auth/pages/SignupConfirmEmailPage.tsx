@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
-import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 import { SignupEmailOtpForm } from "@/features/auth/components/SignupEmailOtpForm";
 import { PageReveal } from "@/components/layout/PageReveal";
 import { completeSignupSession } from "@/features/auth/lib/completeSignupSession";
@@ -47,7 +46,6 @@ export default function SignupConfirmEmailPage() {
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
       <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
         <PageReveal className="flex flex-col gap-4">
-          <AuthBrandHeader className="mb-1" />
           <div className="text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Confirme seu e-mail</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">

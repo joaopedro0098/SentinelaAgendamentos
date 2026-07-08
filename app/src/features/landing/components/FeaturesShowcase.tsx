@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/layout/PageReveal";
+import { LandingPanelPreview } from "@/features/landing/components/LandingPanelPreview";
 
 const FEATURES = [
   {
@@ -49,16 +50,7 @@ export function FeaturesShowcase() {
           </div>
 
           <Reveal index={10}>
-            <div className="relative mx-auto max-w-xl lg:max-w-none">
-              <div className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden">
-                <img
-                  src="/landing-dashboard-preview.png"
-                  alt="Visual ilustrativo de um painel de agendamentos"
-                  className="w-full h-auto object-cover object-left-top"
-                  loading="lazy"
-                />
-              </div>
-            </div>
+            <LandingPanelPreview />
           </Reveal>
         </div>
       </div>

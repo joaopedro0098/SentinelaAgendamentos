@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { PASSWORD_MIN_LENGTH, PasswordInput } from "@/features/auth/components/PasswordInput";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import { bootstrapPasswordRecoverySession } from "@/features/auth/lib/passwordReset";
-import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 
 const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
 
@@ -116,7 +115,6 @@ export default function ResetPassword() {
   return (
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16 bg-background">
       <div className="w-full max-w-[420px] rounded-2xl border border-[hsl(var(--brand-green)/0.2)] bg-white p-6 sm:p-8 shadow-soft">
-        <AuthBrandHeader className="mb-6" />
         <div className="mb-2 text-center">
           <h1 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
             Recuperação de senha

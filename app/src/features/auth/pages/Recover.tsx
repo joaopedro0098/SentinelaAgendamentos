@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { passwordResetRedirectUrl } from "@/features/auth/lib/passwordReset";
-import { AuthBrandHeader } from "@/features/auth/components/AuthBrandHeader";
 
 export default function Recover() {
   const [email, setEmail] = useState("");
@@ -33,8 +32,6 @@ export default function Recover() {
     return (
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 pt-24 sm:pt-28 pb-12 sm:pb-16 min-h-[calc(100vh-4rem)]">
         <div className="w-full max-w-lg mx-auto text-center space-y-6 sm:space-y-8">
-          <AuthBrandHeader />
-
           <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-secondary/60 border border-border/60">
             <Mail className="h-7 w-7 sm:h-8 sm:w-8 text-[hsl(var(--brand-green))]" aria-hidden />
           </div>
@@ -69,7 +66,6 @@ export default function Recover() {
   return (
     <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
       <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
-        <AuthBrandHeader className="mb-4" />
         <div className="mb-6 text-center sm:text-left">
           <h1 className="font-display text-2xl font-semibold tracking-tight">Recuperar senha</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Enviaremos um link para redefinir sua senha.</p>
