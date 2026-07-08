@@ -9,39 +9,39 @@
    ========================================================== */
 @layer base {
   [data-theme="landing"] {
-    --background: 0 0% 100%;
-    --foreground: 155 18% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 155 18% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 155 18% 9%;
-    --primary: 152 55% 42%;
+    --background: 50 12% 98%;
+    --foreground: 155 14% 12%;
+    --card: 50 12% 98%;
+    --card-foreground: 155 14% 12%;
+    --popover: 50 12% 98%;
+    --popover-foreground: 155 14% 12%;
+    --primary: 146 25% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 150 35% 95%;
-    --secondary-foreground: 155 18% 9%;
-    --muted: 150 24% 96%;
-    --muted-foreground: 150 8% 38%;
-    --accent: 142 76% 45%;
+    --secondary: 146 18% 94%;
+    --secondary-foreground: 155 14% 12%;
+    --muted: 50 10% 94%;
+    --muted-foreground: 150 8% 42%;
+    --accent: 146 25% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 18% 88%;
-    --input: 150 18% 92%;
-    --ring: 152 55% 42%;
+    --border: 146 12% 88%;
+    --input: 146 10% 92%;
+    --ring: 146 25% 45%;
     --radius: 1rem;
-    --brand-green: 152 55% 42%;
-    --brand-mint: 142 76% 45%;
-    --brand-black: 155 18% 9%;
+    --brand-green: 146 25% 45%;
+    --brand-mint: 146 25% 45%;
+    --brand-black: 155 14% 12%;
     --brand-blue: var(--brand-green);
     --brand-violet: var(--brand-green);
-    --brand-pink: var(--brand-mint);
+    --brand-pink: var(--brand-green);
     --brand-cyan: var(--brand-green);
-    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-green)) 0%, hsl(var(--brand-mint)) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(var(--brand-green) / 0.14) 0%, hsl(var(--brand-mint) / 0.1) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(152 55% 30%), hsl(var(--brand-mint)));
-    --glow-primary: 0 0 52px hsl(var(--brand-green) / 0.28);
-    --glow-soft: 0 12px 50px -18px hsl(var(--brand-green) / 0.28);
-    --shadow-elevated: 0 20px 60px -24px hsl(155 18% 9% / 0.18);
+    --gradient-brand: hsl(var(--brand-green));
+    --gradient-brand-soft: hsl(var(--brand-green) / 0.08);
+    --gradient-text: hsl(var(--brand-green));
+    --glow-primary: 0 0 40px hsl(var(--brand-green) / 0.18);
+    --glow-soft: 0 12px 40px -18px hsl(var(--brand-green) / 0.14);
+    --shadow-elevated: 0 20px 60px -24px hsl(155 14% 12% / 0.1);
   }
 
   /* ==========================================================
@@ -49,79 +49,34 @@
      Vermelho não é usado aqui (só em booking / indisponível).
      ========================================================== */
   [data-theme="dashboard"] {
-    --background: 150 12% 10%;
-    --foreground: 0 0% 98%;
-    --card: 150 10% 13%;
-    --card-foreground: 0 0% 98%;
-    --popover: 150 10% 13%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 152 55% 42%;
+    --background: 50 12% 98%;
+    --foreground: 155 14% 12%;
+    --card: 50 12% 98%;
+    --card-foreground: 155 14% 12%;
+    --popover: 50 12% 98%;
+    --popover-foreground: 155 14% 12%;
+    --primary: 146 25% 45%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 152 55% 48%;
-    --secondary: 150 12% 16%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 150 10% 18%;
-    --muted-foreground: 150 8% 65%;
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 150 8% 32%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 150 10% 20%;
-    --input: 150 10% 18%;
-    --ring: 152 55% 42%;
-    --radius: 0.75rem;
-    --brand: 152 55% 42%;
-    --brand-foreground: 0 0% 100%;
-    --surface: 150 12% 12%;
-    --surface-2: 150 10% 16%;
-    --available: 152 55% 45%;
-    --available-foreground: 0 0% 100%;
-    --available-soft: 152 35% 18%;
-    --unavailable: 0 65% 55%;
-    --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 45% 22%;
-    --completed: 217 65% 55%;
-    --completed-foreground: 0 0% 100%;
-    --completed-soft: 217 45% 22%;
-    --absent: 0 0% 46%;
-    --absent-foreground: 0 0% 96%;
-    --absent-soft: 0 0% 32%;
-    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.18) 0%, hsl(142 76% 45% / 0.12) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(152 55% 48%), hsl(142 76% 50%));
-    --glow-primary: 0 0 48px hsl(152 55% 42% / 0.35);
-    --glow-soft: 0 10px 40px -10px hsl(152 55% 42% / 0.25);
-    --shadow-elevated: 0 20px 50px -20px hsl(150 20% 5% / 0.5);
-  }
-
-  [data-theme="dashboard"].light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 152 55% 42%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 152 55% 48%;
-    --secondary: 152 40% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 142 76% 45%;
+    --primary-glow: 146 25% 50%;
+    --secondary: 146 18% 94%;
+    --secondary-foreground: 155 14% 12%;
+    --muted: 50 10% 94%;
+    --muted-foreground: 150 8% 42%;
+    --accent: 146 25% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 15% 90%;
-    --input: 150 10% 92%;
-    --ring: 152 55% 42%;
-    --brand: 152 55% 42%;
+    --border: 146 12% 88%;
+    --input: 146 10% 92%;
+    --ring: 146 25% 45%;
+    --radius: 0.75rem;
+    --brand: 146 25% 45%;
     --brand-foreground: 0 0% 100%;
-    --surface: 0 0% 98%;
-    --surface-2: 0 0% 94%;
-    --available: 152 55% 42%;
+    --surface: 50 12% 98%;
+    --surface-2: 50 10% 94%;
+    --available: 146 25% 45%;
     --available-foreground: 0 0% 100%;
-    --available-soft: 152 55% 95%;
+    --available-soft: 146 25% 94%;
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
@@ -131,6 +86,57 @@
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
+    --gradient-brand: hsl(var(--brand));
+    --gradient-brand-soft: hsl(var(--brand) / 0.08);
+    --gradient-text: hsl(var(--brand));
+    --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
+    --glow-soft: 0 10px 36px -12px hsl(var(--brand) / 0.14);
+    --shadow-elevated: 0 20px 50px -20px hsl(155 14% 12% / 0.1);
+  }
+
+  [data-theme="dashboard"].light {
+    --background: 50 12% 98%;
+    --foreground: 155 14% 12%;
+    --card: 50 12% 98%;
+    --card-foreground: 155 14% 12%;
+    --popover: 50 12% 98%;
+    --popover-foreground: 155 14% 12%;
+    --primary: 146 25% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 146 25% 50%;
+    --secondary: 146 18% 94%;
+    --secondary-foreground: 155 14% 12%;
+    --muted: 50 10% 94%;
+    --muted-foreground: 150 8% 42%;
+    --accent: 146 25% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 0% 25%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 146 12% 88%;
+    --input: 146 10% 92%;
+    --ring: 146 25% 45%;
+    --brand: 146 25% 45%;
+    --brand-foreground: 0 0% 100%;
+    --surface: 50 12% 98%;
+    --surface-2: 50 10% 94%;
+    --available: 146 25% 45%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 146 25% 94%;
+    --unavailable: 0 65% 55%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 65% 96%;
+    --completed: 217 65% 50%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 65% 95%;
+    --absent: 0 0% 45%;
+    --absent-foreground: 0 0% 100%;
+    --absent-soft: 0 0% 90%;
+    --gradient-brand: hsl(var(--brand));
+    --gradient-brand-soft: hsl(var(--brand) / 0.08);
+    --gradient-text: hsl(var(--brand));
+    --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
+    --glow-soft: 0 10px 36px -12px hsl(var(--brand) / 0.14);
+    --shadow-elevated: 0 20px 50px -20px hsl(155 14% 12% / 0.1);
   }
 
   /* ==========================================================
@@ -139,34 +145,34 @@
      ========================================================== */
   [data-theme="booking"] {
     color-scheme: light;
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 152 55% 42%;
+    --background: 50 12% 98%;
+    --foreground: 155 14% 12%;
+    --card: 50 12% 98%;
+    --card-foreground: 155 14% 12%;
+    --popover: 50 12% 98%;
+    --popover-foreground: 155 14% 12%;
+    --primary: 146 25% 45%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 152 55% 48%;
-    --secondary: 152 40% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 7%;
+    --primary-glow: 146 25% 50%;
+    --secondary: 146 18% 94%;
+    --secondary-foreground: 155 14% 12%;
+    --muted: 50 10% 94%;
+    --muted-foreground: 150 8% 42%;
+    --accent: 146 25% 45%;
+    --accent-foreground: 155 14% 12%;
     --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 15% 90%;
-    --input: 150 10% 92%;
-    --ring: 152 55% 42%;
+    --border: 146 12% 88%;
+    --input: 146 10% 92%;
+    --ring: 146 25% 45%;
     --radius: 0.5rem;
-    --brand: 142 76% 45%;
-    --brand-foreground: 0 0% 7%;
-    --surface: 0 0% 98%;
-    --surface-2: 0 0% 94%;
-    --available: 152 55% 42%;
+    --brand: 146 25% 45%;
+    --brand-foreground: 155 14% 12%;
+    --surface: 50 12% 98%;
+    --surface-2: 50 10% 94%;
+    --available: 146 25% 45%;
     --available-foreground: 0 0% 100%;
-    --available-soft: 152 55% 95%;
+    --available-soft: 146 25% 94%;
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
@@ -176,12 +182,12 @@
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
-    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
-    --glow-primary: 0 0 40px hsl(152 55% 42% / 0.3);
-    --glow-soft: 0 8px 32px -8px hsl(152 55% 42% / 0.2);
-    --shadow-elevated: 0 16px 40px -16px hsl(150 15% 20% / 0.12);
+    --gradient-brand: hsl(var(--brand));
+    --gradient-brand-soft: hsl(var(--brand) / 0.08);
+    --gradient-text: hsl(var(--brand));
+    --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
+    --glow-soft: 0 8px 32px -8px hsl(var(--brand) / 0.14);
+    --shadow-elevated: 0 16px 40px -16px hsl(155 14% 12% / 0.1);
   }
 }
 
@@ -236,11 +242,7 @@
 
   html[data-theme="landing"] body {
     font-family: 'Inter', system-ui, sans-serif;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--brand-green) / 0.12), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(var(--brand-mint) / 0.1), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 10% 60%, hsl(var(--brand-green) / 0.06), transparent 60%);
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
   }
   [data-theme="landing"] h1,
   [data-theme="landing"] h2,
@@ -270,10 +272,7 @@
   }
   html[data-theme="dashboard"] body {
     font-family: 'Inter', system-ui, sans-serif;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(152 55% 42% / 0.08), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 90% 20%, hsl(142 76% 45% / 0.06), transparent 60%);
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
   }
   html[data-theme="booking"] body {
     font-family: 'Inter', system-ui, sans-serif;
@@ -288,17 +287,12 @@
     font-family: 'Space Grotesk', sans-serif;
     letter-spacing: -0.02em;
   }
-  [data-theme="dashboard"].light .glass-panel {
-    background: hsl(0 0% 100% / 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--border));
-  }
-  [data-theme="dashboard"]:not(.light) .glass-panel {
-    background: hsl(150 12% 11% / 0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--border));
+  [data-theme="dashboard"].light .glass-panel,
+  [data-theme="dashboard"] .glass-panel {
+    background: hsl(var(--card) / 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.7);
   }
   [data-theme="booking"] .glass-panel {
     background: hsl(0 0% 100% / 0.85);
@@ -359,76 +353,23 @@
 }
 
 @layer utilities {
-  .text-gradient {
-    background: var(--gradient-text);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
   .bg-gradient-brand {
-    background: var(--gradient-brand);
+    background: hsl(var(--primary));
   }
   .bg-gradient-soft {
-    background: var(--gradient-brand-soft);
+    background: hsl(var(--primary) / 0.08);
   }
   .glass {
-    background: hsl(var(--card) / 0.76);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card) / 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.65);
   }
-  .glow-border {
-    position: relative;
-  }
-  .glow-border::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: var(--gradient-brand);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-  .animate-pulse-glow {
-    animation: pulseGlow 3s ease-in-out infinite;
-  }
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 8s ease infinite;
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-12px);
-  }
-}
-@keyframes pulseGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 40px hsl(152 55% 42% / 0.35);
-  }
-  50% {
-    box-shadow: 0 0 64px hsl(152 55% 42% / 0.5);
-  }
-}
-@keyframes gradient {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
+  .marketing-nav {
+    background: hsl(var(--background) / 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid hsl(var(--border) / 0.55);
   }
 }
 

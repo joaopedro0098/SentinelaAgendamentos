@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
-import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
@@ -354,9 +353,6 @@ export default function Settings() {
             <p className="text-sm text-muted-foreground">
               Perfil da empresa, link de agendamento e preferências do painel.
             </p>
-          </div>
-          <div className="relative z-10 flex items-center gap-2 shrink-0">
-            <DashboardThemeToggle />
           </div>
         </header>
 

@@ -1,22 +1,20 @@
-import Hero from "@/features/landing/components/Hero";
-import { LandingIntro } from "@/features/landing/components/LandingIntro";
-import VideoDemo from "@/features/landing/components/VideoDemo";
-import HowItWorks from "@/features/landing/components/HowItWorks";
-import Benefits from "@/features/landing/components/Benefits";
+import { LandingHero } from "@/features/landing/components/LandingHero";
+import { SpecialtiesShowcase } from "@/features/landing/components/SpecialtiesShowcase";
+import { FeaturesShowcase } from "@/features/landing/components/FeaturesShowcase";
+import { LandingCta } from "@/features/landing/components/LandingCta";
 import LandingFooter from "@/features/landing/components/LandingFooter";
-import { PageReveal } from "@/components/layout/PageReveal";
 
 const HomePage = () => {
   return (
-    <PageReveal>
-      <LandingIntro>
-        <Hero />
-        <VideoDemo />
-      </LandingIntro>
-      <HowItWorks />
-      <Benefits />
+    <>
+      <main>
+        <LandingHero />
+        <SpecialtiesShowcase />
+        <FeaturesShowcase />
+        <LandingCta />
+      </main>
       <LandingFooter />
-    </PageReveal>
+    </>
   );
 };
 

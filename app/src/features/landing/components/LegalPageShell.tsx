@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
+import LandingFooter from "@/features/landing/components/LandingFooter";
 
 type LegalPageShellProps = {
   title: string;
@@ -11,7 +12,7 @@ type LegalPageShellProps = {
 export function LegalPageShell({ title, subtitle, children }: LegalPageShellProps) {
   return (
     <div className="flex-1 flex flex-col">
-      <main className="flex-1 pt-28 pb-16 px-4">
+      <main className="flex-1 pt-28 md:pt-32 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
           <Link
             to="/"
@@ -31,6 +32,7 @@ export function LegalPageShell({ title, subtitle, children }: LegalPageShellProp
           </div>
         </div>
       </main>
+      <LandingFooter />
     </div>
   );
 }

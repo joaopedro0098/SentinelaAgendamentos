@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { applyDashboardThemeClass, type DashboardThemeMode } from "@/hooks/useDashboardTheme";
+import { applyDashboardThemeClass } from "@/hooks/useDashboardTheme";
 
 const LANDING_PATHS = new Set([
   "/",
@@ -15,13 +15,6 @@ const LANDING_PATHS = new Set([
   "/termos-de-servico",
 ]);
 
-const STORAGE_KEY = "sentinela-dashboard-theme";
-
-function readDashboardMode(): DashboardThemeMode {
-  const v = localStorage.getItem(STORAGE_KEY);
-  return v === "light" || v === "dark" ? v : "light";
-}
-
 function resolveTheme(pathname: string): "landing" | "dashboard" | "booking" {
   if (LANDING_PATHS.has(pathname)) return "landing";
   if (pathname.startsWith("/app")) return "dashboard";
@@ -29,6 +22,7 @@ function resolveTheme(pathname: string): "landing" | "dashboard" | "booking" {
   return "landing";
 }
 
+/** Tema claro fixo em todo o app (off-white + verde sage). */
 export function ThemeFromRoute() {
   const { pathname } = useLocation();
 
@@ -36,9 +30,10 @@ export function ThemeFromRoute() {
     const theme = resolveTheme(pathname);
     const root = document.documentElement;
     root.dataset.theme = theme;
-    root.classList.remove("light", "dark");
+    root.classList.remove("dark");
+    root.classList.add("light");
     if (theme === "dashboard") {
-      applyDashboardThemeClass(readDashboardMode());
+      applyDashboardThemeClass("light");
     }
   }, [pathname]);
 

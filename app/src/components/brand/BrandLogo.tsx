@@ -1,9 +1,6 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
-import { BRAND_ASSET_VERSION } from "@/lib/marketingSeo";
-
-const LOGO_SRC = `/brand-logo.png?v=${BRAND_ASSET_VERSION}`;
+import { BrandLogoMark } from "@/components/brand/BrandLogoMark";
 
 const sizeClasses = {
   xs: "h-7 w-7",
@@ -36,11 +33,7 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const content = (
     <>
-      <img
-        src={LOGO_SRC}
-        alt="Sentinela Agendamentos"
-        className={cn("shrink-0 rounded-[22%] object-cover shadow-glow", sizeClasses[size], imageClassName)}
-      />
+      <BrandLogoMark className={cn(sizeClasses[size], imageClassName)} />
       {showName ? (
         <span className={cn("font-display font-bold text-base sm:text-lg whitespace-nowrap", nameClassName)}>
           Sentinela{" "}

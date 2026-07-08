@@ -6,9 +6,7 @@ type Props = {
   className?: string;
 };
 
-/**
- * Outlet de marketing — scroll ao topo; animação por blocos via PageReveal/Reveal.
- */
+/** Outlet de marketing — scroll ao topo; entrada suave por página. */
 export function AnimatedMarketingOutlet({ className }: Props) {
   const location = useLocation();
   const outlet = useOutlet();
@@ -18,7 +16,10 @@ export function AnimatedMarketingOutlet({ className }: Props) {
   }, [location.pathname]);
 
   return (
-    <div key={location.pathname} className={cn("flex-1 flex flex-col", className)}>
+    <div
+      key={location.pathname}
+      className={cn("flex-1 flex flex-col animate-reveal-up motion-reduce:animate-none", className)}
+    >
       {outlet}
     </div>
   );
