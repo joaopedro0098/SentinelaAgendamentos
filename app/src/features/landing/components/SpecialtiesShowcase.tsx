@@ -1,4 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Reveal } from "@/components/layout/PageReveal";
+import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { cn } from "@/lib/utils";
 
 type Specialty = {
@@ -35,33 +38,78 @@ const SPECIALTIES: Specialty[] = [
 ];
 
 export function SpecialtiesShowcase() {
+  const isMdUp = useMediaMdUp();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isMdUp) setActiveId(null);
+  }, [isMdUp]);
+
+  useEffect(() => {
+    if (isMdUp) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!sectionRef.current?.contains(event.target as Node)) {
+        setActiveId(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isMdUp]);
+
+  function handleCardClick(id: string) {
+    if (isMdUp) return;
+    setActiveId((current) => (current === id ? null : id));
+  }
+
   return (
-    <section className="pb-14 md:pb-20">
+    <section ref={sectionRef} className="pb-14 md:pb-20">
       <div className="container">
         <Reveal index={4}>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {SPECIALTIES.map((item) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "group relative rounded-2xl border p-4 md:p-5 min-h-[11rem] md:min-h-[13rem] flex flex-col transition-all duration-300 ease-out cursor-default",
-                  "bg-card border-border",
-                  "md:hover:border-accent md:hover:bg-accent md:hover:text-accent-foreground md:hover:shadow-elevated md:hover:scale-[1.02] md:hover:-translate-y-0.5",
-                )}
-              >
-                <p className="font-display font-bold text-sm md:text-lg">{item.label}</p>
-                <p
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-4">
+            {SPECIALTIES.map((item) => {
+              const isOpen = !isMdUp && activeId === item.id;
+
+              return (
+                <div
+                  key={item.id}
                   className={cn(
-                    "mt-2 md:mt-3 text-sm md:text-base leading-relaxed transition-all duration-300",
-                    "opacity-0 max-h-0 overflow-hidden",
-                    "md:group-hover:opacity-100 md:group-hover:max-h-48 md:group-hover:text-accent-foreground/90",
+                    "overflow-hidden rounded-2xl border border-primary/30 bg-primary text-primary-foreground transition-all duration-300 ease-out",
+                    "md:hover:scale-[1.03] md:hover:-translate-y-0.5 md:hover:shadow-elevated",
                   )}
                 >
-                  {item.description}
-                </p>
-                <div className="flex-1 min-h-0" aria-hidden />
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => handleCardClick(item.id)}
+                    className="flex w-full items-center justify-between gap-3 p-4 text-left md:hidden"
+                  >
+                    <p className="font-display text-sm font-bold">{item.label}</p>
+                    <ChevronDown
+                      aria-hidden
+                      className={cn("h-4 w-4 shrink-0 transition-transform duration-300", isOpen && "rotate-180")}
+                    />
+                  </button>
+
+                  <p className="hidden font-display text-lg font-bold md:block md:p-5 md:pb-0">{item.label}</p>
+
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows] duration-300 ease-out md:grid-rows-[1fr]",
+                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    )}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <p className="px-4 pb-4 text-sm leading-relaxed text-primary-foreground/90 md:px-5 md:pb-5 md:pt-3 md:text-base">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Reveal>
       </div>

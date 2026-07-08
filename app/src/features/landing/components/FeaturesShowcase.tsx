@@ -21,27 +21,29 @@ const FEATURES = [
 export function FeaturesShowcase() {
   return (
     <section className="py-16 md:py-24 border-t border-border/60">
-      <div className="container">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-          <div>
+      <div className="container min-w-0 max-w-full">
+        <div className="grid min-w-0 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div className="min-w-0 w-full">
             <Reveal index={5}>
-              <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+              <h2 className="font-display text-[1.65rem] sm:text-3xl md:text-4xl font-bold tracking-tight leading-snug sm:leading-tight text-balance break-words">
                 Tudo o que você precisa em uma única aba.
               </h2>
             </Reveal>
             <Reveal index={6}>
-              <p className="mt-4 text-muted-foreground text-base md:text-lg leading-relaxed">
+              <p className="mt-4 text-muted-foreground text-[15px] sm:text-base md:text-lg leading-relaxed break-words">
                 Eliminamos a complexidade para você focar no que importa: o cuidado com o paciente.
               </p>
             </Reveal>
-            <ul className="mt-8 space-y-6">
+            <ul className="mt-8 space-y-6 min-w-0">
               {FEATURES.map((feature, i) => (
                 <Reveal key={feature.title} index={7 + i}>
-                  <li className="flex gap-3">
+                  <li className="flex gap-3 min-w-0">
                     <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent/70" aria-hidden />
-                    <div>
-                      <p className="font-semibold text-foreground">{feature.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground break-words">{feature.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed break-words [overflow-wrap:anywhere]">
+                        {feature.description}
+                      </p>
                     </div>
                   </li>
                 </Reveal>
@@ -49,7 +51,7 @@ export function FeaturesShowcase() {
             </ul>
           </div>
 
-          <Reveal index={10}>
+          <Reveal index={10} className="min-w-0 w-full">
             <LandingPanelPreview />
           </Reveal>
         </div>

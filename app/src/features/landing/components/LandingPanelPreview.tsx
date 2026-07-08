@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Ban,
   BarChart2,
@@ -19,16 +19,22 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { cn } from "@/lib/utils";
 
-type SlideId = "agendar" | "agendamentos" | "pacientes" | "bloqueios" | "link-publico";
+type SlideId = "nav" | "agendar" | "agendamentos" | "pacientes" | "bloqueios" | "link-publico";
 
-const SLIDES: { id: SlideId; label: string }[] = [
+const DESKTOP_SLIDES: { id: Exclude<SlideId, "nav">; label: string }[] = [
   { id: "agendar", label: "Agendar" },
   { id: "agendamentos", label: "Agendamentos" },
   { id: "pacientes", label: "Pacientes" },
   { id: "bloqueios", label: "Bloqueios" },
   { id: "link-publico", label: "Link e cobrança" },
+];
+
+const MOBILE_SLIDES: { id: SlideId; label: string }[] = [
+  { id: "nav", label: "Menu" },
+  ...DESKTOP_SLIDES,
 ];
 
 const PREVIEW_NAV_ITEMS = [
@@ -45,6 +51,62 @@ const PREVIEW_NAV_ITEMS = [
 
 type PreviewNavId = (typeof PREVIEW_NAV_ITEMS)[number]["id"];
 
+function PreviewSidebar({
+  activeNav,
+  className,
+}: {
+  activeNav: PreviewNavId;
+  className?: string;
+}) {
+  return (
+    <aside
+      className={cn(
+        "flex shrink-0 flex-col border-r border-border/60 bg-background min-h-0",
+        className ?? "w-[9.25rem] sm:w-44 md:w-52",
+      )}
+    >
+      <div className="px-2.5 py-3 border-b border-border/60 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
+            <User className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground leading-none">Painel</p>
+            <p className="mt-1 text-xs font-semibold truncate leading-tight">Seu nome</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {PREVIEW_NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = item.id === activeNav;
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                "flex items-center gap-2 rounded-xl px-2 py-2 text-[11px] sm:text-xs font-medium transition-colors",
+                active ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="truncate leading-tight">{item.label}</span>
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="shrink-0 border-t border-border/60 p-2 space-y-1.5">
+        <p className="text-[10px] text-muted-foreground truncate px-1">profissional@email.com</p>
+        <div className="flex w-full items-center justify-center gap-1.5 rounded-full border border-border px-2 py-1.5 text-[10px] font-medium text-muted-foreground">
+          <LogOut className="h-3 w-3" aria-hidden />
+          Sair
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function PreviewShell({
   activeNav,
   children,
@@ -54,49 +116,16 @@ function PreviewShell({
 }) {
   return (
     <div className="flex h-full min-h-[22rem] md:min-h-[26rem] bg-background text-foreground">
-      <aside className="flex w-[9.25rem] sm:w-44 md:w-52 shrink-0 flex-col border-r border-border/60 bg-background min-h-0">
-        <div className="px-2.5 py-3 border-b border-border/60 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
-              <User className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground leading-none">Painel</p>
-              <p className="mt-1 text-xs font-semibold truncate leading-tight">Seu nome</p>
-            </div>
-          </div>
-        </div>
+      <PreviewSidebar activeNav={activeNav} className="hidden md:flex w-52 shrink-0" />
+      <div className="flex-1 min-w-0 p-3 sm:p-4 overflow-hidden">{children}</div>
+    </div>
+  );
+}
 
-        <nav className="flex flex-1 min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {PREVIEW_NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = item.id === activeNav;
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl px-2 py-2 text-[11px] sm:text-xs font-medium transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "text-muted-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="truncate leading-tight">{item.label}</span>
-              </div>
-            );
-          })}
-        </nav>
-
-        <div className="shrink-0 border-t border-border/60 p-2 space-y-1.5">
-          <p className="text-[10px] text-muted-foreground truncate px-1">profissional@email.com</p>
-          <div className="flex w-full items-center justify-center gap-1.5 rounded-full border border-border px-2 py-1.5 text-[10px] font-medium text-muted-foreground">
-            <LogOut className="h-3 w-3" aria-hidden />
-            Sair
-          </div>
-        </div>
-      </aside>
-      <div className="flex-1 min-w-0 p-3 md:p-4 overflow-hidden">{children}</div>
+function NavOnlySlide() {
+  return (
+    <div className="flex h-full min-h-[22rem] bg-background text-foreground md:hidden">
+      <PreviewSidebar activeNav="agendar" className="w-full max-w-none flex-1 border-r-0" />
     </div>
   );
 }
@@ -127,7 +156,7 @@ function AgendamentosSlide() {
 
   return (
     <PreviewShell activeNav="agendamentos">
-      <div className="flex min-h-[18rem] md:min-h-[22rem] -m-3 md:-m-4">
+      <div className="flex min-h-[18rem] md:min-h-[22rem] md:-m-4">
         <aside className="hidden sm:flex w-[7.5rem] md:w-[8.75rem] shrink-0 flex-col border-r border-border/60 bg-background overflow-hidden">
           <div className="shrink-0 space-y-2 border-b border-border/60 p-2">
             <div className="rounded-xl border border-border/70 bg-card/50 p-2">
@@ -235,7 +264,7 @@ function PacientesSlide() {
 
   return (
     <PreviewShell activeNav="pacientes">
-      <div className="flex min-h-[18rem] md:min-h-[22rem] -m-3 md:-m-4">
+      <div className="flex min-h-[18rem] md:min-h-[22rem] md:-m-4">
         <aside className="flex w-[6.5rem] sm:w-[7.5rem] shrink-0 flex-col border-r border-border/60 bg-background min-h-0">
           <div className="shrink-0 border-b border-border/60 p-2 space-y-2">
             <div className="flex h-8 items-center gap-1.5 rounded-lg border border-border/70 bg-card/40 px-2 text-muted-foreground">
@@ -501,6 +530,7 @@ function LinkPublicoSlide() {
 }
 
 function SlideContent({ id }: { id: SlideId }) {
+  if (id === "nav") return <NavOnlySlide />;
   if (id === "agendar") return <AgendarSlide />;
   if (id === "agendamentos") return <AgendamentosSlide />;
   if (id === "pacientes") return <PacientesSlide />;
@@ -509,23 +539,33 @@ function SlideContent({ id }: { id: SlideId }) {
 }
 
 export function LandingPanelPreview() {
+  const isMdUp = useMediaMdUp();
+  const slides = isMdUp ? DESKTOP_SLIDES : MOBILE_SLIDES;
   const [index, setIndex] = useState(0);
 
+  useEffect(() => {
+    setIndex(0);
+  }, [isMdUp]);
+
+  useEffect(() => {
+    setIndex((current) => Math.min(current, slides.length - 1));
+  }, [slides.length]);
+
   function goPrev() {
-    setIndex((i) => (i === 0 ? SLIDES.length - 1 : i - 1));
+    setIndex((i) => (i === 0 ? slides.length - 1 : i - 1));
   }
 
   function goNext() {
-    setIndex((i) => (i === SLIDES.length - 1 ? 0 : i + 1));
+    setIndex((i) => (i === slides.length - 1 ? 0 : i + 1));
   }
 
   const navButtonClass =
     "h-11 w-11 rounded-full border-0 bg-primary text-primary-foreground shadow-elevated hover:bg-primary/90";
 
   return (
-    <div className="mx-auto max-w-xl lg:max-w-none">
+    <div className="mx-auto w-full min-w-0 max-w-xl lg:max-w-none">
       <div className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden">
-        <SlideContent id={SLIDES[index].id} />
+        <SlideContent id={slides[index].id} />
       </div>
 
       <div className="mt-3 flex items-center justify-center gap-2">

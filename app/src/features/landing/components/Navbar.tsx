@@ -6,27 +6,14 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { cn } from "@/lib/utils";
 
+const navLinkClass =
+  "text-sm font-medium text-muted-foreground hover:text-accent transition-colors px-3 py-2 rounded-lg";
+
 const Navbar = () => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuEntered, setMenuEntered] = useState(false);
-
-  const isAuthPage =
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname === "/signup/confirmar-codigo" ||
-    pathname === "/recover" ||
-    pathname === "/reset-password" ||
-    pathname === "/reset-password/success";
-  const isPlanosPage = pathname === "/planos";
-  const isSignupPage = pathname === "/signup" || pathname === "/signup/confirmar-codigo";
-  const isLoginPage = pathname === "/login";
-  const showMobileLoginLink = !isAuthPage || isSignupPage;
-  const showMobileSignupLink = !isAuthPage || isLoginPage;
-
-  const navLinkClass =
-    "text-sm font-medium text-muted-foreground hover:text-accent transition-colors px-3 py-2 rounded-lg";
 
   useEffect(() => {
     setOpen(false);
@@ -70,21 +57,15 @@ const Navbar = () => {
         <BrandLogo linkTo="/" showName size="md" className="shrink-0 min-w-0" />
 
         <div className="hidden md:flex items-center gap-1">
-          {!isPlanosPage && (
-            <Link to="/planos" className={navLinkClass}>
-              Planos
-            </Link>
-          )}
-          {!isAuthPage && (
-            <Link to="/login" className={navLinkClass}>
-              Entrar
-            </Link>
-          )}
-          {!isAuthPage && (
-            <Button asChild size="sm" className="ml-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5">
-              <Link to="/signup">Teste Grátis</Link>
-            </Button>
-          )}
+          <Link to="/planos" className={navLinkClass}>
+            Planos
+          </Link>
+          <Link to="/login" className={navLinkClass}>
+            Entrar
+          </Link>
+          <Button asChild size="sm" className="ml-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5">
+            <Link to="/signup">Teste Grátis</Link>
+          </Button>
         </div>
 
         <div className="flex items-center md:hidden">
@@ -107,16 +88,12 @@ const Navbar = () => {
             menuEntered ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-2",
           )}
         >
-          {!isPlanosPage && (
-            <Link to="/planos" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
-              Planos
-            </Link>
-          )}
-          {showMobileLoginLink && (
-            <Link to="/login" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
-              Entrar
-            </Link>
-          )}
+          <Link to="/planos" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
+            Planos
+          </Link>
+          <Link to="/login" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
+            Entrar
+          </Link>
           <PwaInstallButton
             label="Baixar"
             helpVariant="landing"
@@ -124,13 +101,11 @@ const Navbar = () => {
             buttonClassName="w-full rounded-xl border-border bg-background/80 hover:bg-secondary text-sm h-10 justify-center gap-2"
             onNavigate={closeMenu}
           />
-          {showMobileSignupLink && (
-            <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 w-full mt-1">
-              <Link to="/signup" onClick={closeMenu}>
-                Teste Grátis
-              </Link>
-            </Button>
-          )}
+          <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 w-full mt-1">
+            <Link to="/signup" onClick={closeMenu}>
+              Teste Grátis
+            </Link>
+          </Button>
         </div>
       )}
     </header>

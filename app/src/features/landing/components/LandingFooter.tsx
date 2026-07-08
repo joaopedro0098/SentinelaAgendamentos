@@ -15,7 +15,7 @@ const LandingFooter = () => (
         <div className="space-y-4">
           <BrandLogo linkTo="/" showName showFullName size="md" />
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            Humanizando a tecnologia para profissionais de saúde modernos.
+            Humanizando a tecnologia para profissionais da área da saúde e bem estar.
           </p>
         </div>
 
