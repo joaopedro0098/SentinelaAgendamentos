@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type DashboardThemeMode = "light" | "dark";
 
@@ -9,6 +9,10 @@ function readStored(): DashboardThemeMode {
   return v === "light" || v === "dark" ? v : "light";
 }
 
+export function getDashboardThemeMode(): DashboardThemeMode {
+  return readStored();
+}
+
 export function applyDashboardThemeClass(mode: DashboardThemeMode) {
   const root = document.documentElement;
   root.classList.toggle("light", mode === "light");
@@ -16,7 +20,19 @@ export function applyDashboardThemeClass(mode: DashboardThemeMode) {
 }
 
 export function useDashboardTheme() {
-  const [mode] = useState<DashboardThemeMode>(readStored);
+  const [mode, setModeState] = useState<DashboardThemeMode>(readStored);
+
+  const setMode = useCallback((next: DashboardThemeMode) => {
+    setModeState(next);
+    localStorage.setItem(STORAGE_KEY, next);
+    if (document.documentElement.dataset.theme === "dashboard") {
+      applyDashboardThemeClass(next);
+    }
+  }, []);
+
+  const toggle = useCallback(() => {
+    setMode(mode === "dark" ? "light" : "dark");
+  }, [mode, setMode]);
 
   useEffect(() => {
     if (document.documentElement.dataset.theme === "dashboard") {
@@ -24,5 +40,5 @@ export function useDashboardTheme() {
     }
   }, [mode]);
 
-  return { mode };
+  return { mode, setMode, toggle };
 }

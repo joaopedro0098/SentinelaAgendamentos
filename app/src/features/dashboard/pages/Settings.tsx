@@ -17,6 +17,7 @@ import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { useSubscription } from "@/hooks/useSubscription";
 import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { usePanelSettingsScrollTop } from "@/features/dashboard/hooks/usePanelSettingsScrollTop";
+import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
 
 export default function Settings() {
   usePanelSettingsScrollTop();
@@ -491,6 +492,12 @@ export default function Settings() {
                 </div>
               )}
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-panel border-border/80">
+          <CardContent className="pt-6">
+            <DashboardThemeToggle />
           </CardContent>
         </Card>
 

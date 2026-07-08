@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { applyDashboardThemeClass } from "@/hooks/useDashboardTheme";
+import { applyDashboardThemeClass, getDashboardThemeMode } from "@/hooks/useDashboardTheme";
 
 const LANDING_PATHS = new Set([
   "/",
@@ -22,7 +22,7 @@ function resolveTheme(pathname: string): "landing" | "dashboard" | "booking" {
   return "landing";
 }
 
-/** Tema claro fixo em todo o app (off-white + verde sage). */
+/** Landing e booking sempre claros; painel (/app) respeita preferência salva. */
 export function ThemeFromRoute() {
   const { pathname } = useLocation();
 
@@ -30,10 +30,11 @@ export function ThemeFromRoute() {
     const theme = resolveTheme(pathname);
     const root = document.documentElement;
     root.dataset.theme = theme;
-    root.classList.remove("dark");
-    root.classList.add("light");
     if (theme === "dashboard") {
-      applyDashboardThemeClass("light");
+      applyDashboardThemeClass(getDashboardThemeMode());
+    } else {
+      root.classList.remove("dark");
+      root.classList.add("light");
     }
   }, [pathname]);
 

@@ -139,6 +139,52 @@
     --shadow-elevated: 0 20px 50px -20px hsl(155 14% 12% / 0.1);
   }
 
+  [data-theme="dashboard"].dark {
+    color-scheme: dark;
+    --background: 135 9% 9%;
+    --foreground: 50 10% 92%;
+    --card: 140 9% 13%;
+    --card-foreground: 50 10% 92%;
+    --popover: 140 9% 13%;
+    --popover-foreground: 50 10% 92%;
+    --primary: 146 25% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 146 28% 52%;
+    --secondary: 144 8% 16%;
+    --secondary-foreground: 50 10% 92%;
+    --muted: 144 8% 14%;
+    --muted-foreground: 144 6% 58%;
+    --accent: 146 25% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 0% 38%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 144 8% 20%;
+    --input: 144 8% 16%;
+    --ring: 146 25% 45%;
+    --brand: 146 25% 45%;
+    --brand-foreground: 0 0% 100%;
+    --surface: 135 9% 9%;
+    --surface-2: 140 9% 13%;
+    --available: 146 30% 48%;
+    --available-foreground: 0 0% 100%;
+    --available-soft: 146 18% 18%;
+    --unavailable: 0 55% 52%;
+    --unavailable-foreground: 0 0% 100%;
+    --unavailable-soft: 0 40% 18%;
+    --completed: 217 55% 58%;
+    --completed-foreground: 0 0% 100%;
+    --completed-soft: 217 35% 18%;
+    --absent: 0 0% 55%;
+    --absent-foreground: 0 0% 100%;
+    --absent-soft: 0 0% 20%;
+    --gradient-brand: hsl(var(--brand));
+    --gradient-brand-soft: hsl(var(--brand) / 0.12);
+    --gradient-text: hsl(var(--brand));
+    --glow-primary: 0 0 40px hsl(var(--brand) / 0.22);
+    --glow-soft: 0 10px 36px -12px hsl(0 0% 0% / 0.35);
+    --shadow-elevated: 0 20px 50px -20px hsl(0 0% 0% / 0.4);
+  }
+
   /* ==========================================================
      Tema agendamento público (/agendar/:slug) — fixo, sem claro/escuro
      Vermelho só para indisponibilidade.
@@ -294,60 +340,22 @@
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid hsl(var(--border) / 0.7);
   }
+  [data-theme="dashboard"].dark .glass-panel {
+    background: hsl(var(--card) / 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.85);
+  }
   [data-theme="booking"] .glass-panel {
-    background: hsl(0 0% 100% / 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card) / 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.7);
   }
 
-  /* Link público de agendamento: cores fixas do booking (não segue claro/escuro do painel) */
+  /* Link público: herda tokens de [data-theme="booking"] (verde sage + off-white). */
   .booking-surface {
-    color-scheme: light;
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 152 55% 42%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 152 55% 48%;
-    --secondary: 152 40% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 7%;
-    --destructive: 0 0% 25%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 150 15% 90%;
-    --input: 150 10% 92%;
-    --ring: 152 55% 42%;
-    --radius: 0.5rem;
-    --brand: 142 76% 45%;
-    --brand-foreground: 0 0% 7%;
-    --surface: 0 0% 98%;
-    --surface-2: 0 0% 94%;
-    --available: 152 55% 42%;
-    --available-foreground: 0 0% 100%;
-    --available-soft: 152 55% 95%;
-    --unavailable: 0 65% 55%;
-    --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 65% 96%;
-    --completed: 217 65% 50%;
-    --completed-foreground: 0 0% 100%;
-    --completed-soft: 217 65% 95%;
-    --absent: 0 0% 45%;
-    --absent-foreground: 0 0% 100%;
-    --absent-soft: 0 0% 90%;
-    --gradient-brand: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
-    --gradient-brand-soft: linear-gradient(135deg, hsl(152 55% 42% / 0.12) 0%, hsl(142 76% 45% / 0.08) 100%);
-    --gradient-text: linear-gradient(135deg, hsl(152 55% 38%), hsl(142 76% 40%));
-    --glow-primary: 0 0 40px hsl(152 55% 42% / 0.3);
-    --glow-soft: 0 8px 32px -8px hsl(152 55% 42% / 0.2);
-    --shadow-elevated: 0 16px 40px -16px hsl(150 15% 20% / 0.12);
-    background-color: hsl(var(--surface));
+    background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
 }

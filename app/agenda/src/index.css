@@ -1,4 +1,4 @@
-/* Utilitários do fluxo de agendamento (tokens vêm de booking-surface / data-theme=booking). */
+/* Utilitários do fluxo de agendamento (tokens vêm de data-theme=booking / dashboard). */
 
 .container-tight {
   margin-left: auto;
@@ -24,18 +24,15 @@
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, hsl(152 55% 30%), hsl(142 76% 45%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: hsl(var(--primary));
 }
 
 .bg-gradient-brand {
-  background: linear-gradient(135deg, hsl(152 55% 42%) 0%, hsl(142 76% 45%) 100%);
+  background: hsl(var(--primary));
 }
 
 .shadow-glow {
-  box-shadow: 0 0 52px hsl(152 55% 42% / 0.28);
+  box-shadow: 0 0 52px hsl(var(--primary) / 0.28);
 }
 
 .booking-split-divider::before {
@@ -55,7 +52,7 @@
     bottom: calc(-2.5rem - 20px);
     width: 4px;
     border-radius: 9999px;
-    background: linear-gradient(180deg, hsl(152 55% 30%), hsl(142 76% 45%));
-    box-shadow: 0 0 14px hsl(142 76% 45% / 0.45);
+    background: hsl(var(--primary));
+    box-shadow: 0 0 14px hsl(var(--primary) / 0.45);
   }
 }
