@@ -20,7 +20,8 @@ export function LandingHero() {
         </Reveal>
         <Reveal index={2}>
           <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Agendamento, gestão de pacientes e cobrança automática — tudo em um só lugar, para quem cuida de gente.
+            Agendamento, gestão de pacientes, cobrança automática, gestão de equipe, relatórios e mais! Tudo em um
+            só lugar, para quem cuida de gente.
           </p>
         </Reveal>
         <Reveal index={3}>
