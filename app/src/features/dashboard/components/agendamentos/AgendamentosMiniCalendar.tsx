@@ -82,7 +82,7 @@ export function AgendamentosMiniCalendar({
               onClick={() => onAnchorChange(key)}
               className={cn(
                 "h-8 w-8 mx-auto rounded-lg text-xs font-medium transition-colors",
-                selected ? "bg-primary text-primary-foreground" : "hover:bg-secondary/60",
+                selected ? "bg-accent text-accent-foreground" : "hover:bg-secondary/60",
                 today && !selected && "ring-1 ring-primary/40",
               )}
             >

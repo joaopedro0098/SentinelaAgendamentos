@@ -135,7 +135,7 @@ function PacienteMobileList({
               className={cn(
                 "shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors border",
                 profFilter === opt.id
-                  ? "bg-primary text-primary-foreground border-primary"
+                  ? "bg-accent text-accent-foreground border-accent"
                   : "bg-card/60 text-muted-foreground border-border/70 hover:bg-secondary/50",
                 isCA && profFilterOptions.length === 1 && "cursor-default",
               )}

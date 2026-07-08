@@ -45,27 +45,27 @@ const SPECIALTIES: Specialty[] = [
 function SpecialtyIcon({ type, active }: { type: Specialty["icon"]; active: boolean }) {
   const box = cn(
     "w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-300",
-    active ? "bg-primary-foreground/15" : "bg-primary/10",
+    active ? "bg-accent-foreground/15" : "bg-accent/10",
   );
 
   if (type === "ring") {
     return (
       <div className={box}>
-        <span className={cn("w-4 h-4 rounded-full border-2", active ? "border-primary-foreground" : "border-primary")} />
+        <span className={cn("w-4 h-4 rounded-full border-2", active ? "border-accent-foreground" : "border-accent")} />
       </div>
     );
   }
   if (type === "dash") {
     return (
       <div className={box}>
-        <span className={cn("w-4 h-0.5 rounded-full", active ? "bg-primary-foreground" : "bg-primary")} />
+        <span className={cn("w-4 h-0.5 rounded-full", active ? "bg-accent-foreground" : "bg-accent")} />
       </div>
     );
   }
   if (type === "dot") {
     return (
       <div className={box}>
-        <span className={cn("w-3 h-3 rounded-full", active ? "bg-primary-foreground" : "bg-primary")} />
+        <span className={cn("w-3 h-3 rounded-full", active ? "bg-accent-foreground" : "bg-accent")} />
       </div>
     );
   }
@@ -75,7 +75,7 @@ function SpecialtyIcon({ type, active }: { type: Specialty["icon"]; active: bool
         <span
           className={cn(
             "w-4 h-4 rounded-full border-2 border-dashed",
-            active ? "border-primary-foreground" : "border-primary",
+            active ? "border-accent-foreground" : "border-accent",
           )}
         />
       </div>
@@ -85,7 +85,7 @@ function SpecialtyIcon({ type, active }: { type: Specialty["icon"]; active: bool
     <div className={box}>
       <span className="grid grid-cols-2 gap-0.5">
         {Array.from({ length: 4 }).map((_, i) => (
-          <span key={i} className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-primary-foreground" : "bg-primary")} />
+          <span key={i} className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-accent-foreground" : "bg-accent")} />
         ))}
       </span>
     </div>
@@ -110,8 +110,8 @@ export function SpecialtiesShowcase() {
                   className={cn(
                     "group relative rounded-2xl border p-4 md:p-5 min-h-[11rem] md:min-h-[13rem] flex flex-col justify-between transition-all duration-300 ease-out cursor-default",
                     isActive
-                      ? "bg-primary border-primary text-primary-foreground shadow-elevated scale-[1.02] md:scale-[1.03]"
-                      : "bg-card border-border hover:border-primary/30 hover:-translate-y-0.5",
+                      ? "bg-accent border-accent text-accent-foreground shadow-elevated scale-[1.02] md:scale-[1.03]"
+                      : "bg-card border-border hover:border-accent/30 hover:-translate-y-0.5",
                   )}
                 >
                   <SpecialtyIcon type={item.icon} active={isActive} />
@@ -121,7 +121,7 @@ export function SpecialtiesShowcase() {
                       className={cn(
                         "mt-2 text-xs leading-relaxed transition-all duration-300",
                         isActive
-                          ? "text-primary-foreground/90 opacity-100 max-h-28"
+                          ? "text-accent-foreground/90 opacity-100 max-h-28"
                           : "text-muted-foreground opacity-0 max-h-0 overflow-hidden",
                       )}
                     >

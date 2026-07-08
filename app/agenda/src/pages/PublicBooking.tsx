@@ -1741,7 +1741,7 @@ const PublicBooking = ({
           </div>
 
           {isReschedule && (
-            <Card className="p-3.5 bg-primary/10 border-primary/25 text-sm md:p-3 md:mb-3">
+            <Card className="p-3.5 bg-accent/10 border-accent/25 text-sm md:p-3 md:mb-3">
               <p className="font-semibold text-foreground">Alterar horário</p>
               <p className="text-muted-foreground mt-1">
                 Cliente: <span className="text-foreground font-medium">{nome}</span>

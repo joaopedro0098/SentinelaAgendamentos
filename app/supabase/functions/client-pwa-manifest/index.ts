@@ -23,7 +23,7 @@ function buildManifest(slug: string, nome: string) {
     display_override: ["standalone", "fullscreen"],
     handle_links: "preferred",
     background_color: "#fafafa",
-    theme_color: "#2fa66a",
+    theme_color: "#3B8F6E",
     icons: buildClientPwaManifestIcons(slug),
   };
 }

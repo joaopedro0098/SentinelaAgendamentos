@@ -33,7 +33,7 @@ export function MinimalFilterSelect({ label, value, options, onChange, className
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm transition-colors hover:bg-secondary/40",
-          isActive && "border-primary/40 bg-primary/5",
+          isActive && "border-accent/40 bg-accent/5",
         )}
         aria-expanded={open}
         aria-label={`Filtrar por ${label.toLowerCase()}`}

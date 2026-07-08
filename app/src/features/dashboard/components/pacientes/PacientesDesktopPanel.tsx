@@ -158,7 +158,7 @@ export default function PacientesDesktopPanel({
                         className={cn(
                           "flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors border-b border-border/30",
                           active
-                            ? "bg-primary/10 text-foreground font-medium"
+                            ? "bg-accent/10 text-foreground font-medium"
                             : "text-foreground/90 hover:bg-secondary/40",
                         )}
                       >

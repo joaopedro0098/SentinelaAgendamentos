@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, UserCog, Users, Wallet, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,9 +43,9 @@ export default function AppLayout() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuEntered, setMenuEntered] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
-  const prevPanelPathRef = useRef(location.pathname);
-
-  useBarberPushRegistration();
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (menuOpen) {
@@ -71,19 +71,6 @@ export default function AppLayout() {
       document.body.style.overflow = prev;
     };
   }, [menuMounted]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-
-    if (prevPanelPathRef.current === location.pathname) return;
-    prevPanelPathRef.current = location.pathname;
-
-    setSidebarCollapsed((prev) => {
-      if (prev) return prev;
-      writeSidebarCollapsed(true);
-      return true;
-    });
-  }, [location.pathname]);
 
   async function handleLogout() {
     setMenuOpen(false);
@@ -302,12 +289,6 @@ export default function AppLayout() {
             </div>
           ) : (
             <div className="mt-auto shrink-0 flex flex-col gap-2 p-3">
-              <PwaInstallButton
-                label="Instalar"
-                helpVariant="app"
-                buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-                variant="default"
-              />
               <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Sair
@@ -339,7 +320,7 @@ function SidebarExpandToggle({
       title={collapsed ? "Expandir menu" : "Recolher menu"}
       aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
       className={cn(
-        "flex w-full items-center rounded-xl py-2.5 font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "flex w-full items-center rounded-xl py-2.5 font-medium text-accent transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
         collapsed ? "justify-center" : "justify-center gap-2 px-2 text-sm",
       )}
     >
@@ -402,7 +383,7 @@ function DesktopNavItem({
           "flex items-center rounded-xl text-sm font-medium transition",
           collapsed ? "justify-center px-1.5 py-2.5" : "gap-2 px-2.5 py-2.5 justify-start",
           isActive
-            ? "bg-primary text-primary-foreground shadow-glow"
+            ? "bg-accent text-accent-foreground shadow-sm"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
         )
       }
@@ -435,7 +416,7 @@ function MobileNavItem({
         cn(
           "flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition",
           isActive
-            ? "bg-primary text-primary-foreground shadow-glow"
+            ? "bg-accent text-accent-foreground shadow-sm"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
         )
       }

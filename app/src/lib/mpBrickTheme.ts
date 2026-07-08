@@ -5,6 +5,10 @@ type MpBrickStyle = {
   customVariables: Record<string, string>;
 };
 
+const BRAND_GREEN = "#3B8F6E";
+const BRAND_GREEN_DARK = "#307458";
+const BRAND_GREEN_LIGHT = "#47AD85";
+
 /** Estilo do Card Payment Brick (assinatura). Sem borderRadius — não suportado neste Brick. */
 export function getMpCardBrickStyleForDashboardTheme(mode: DashboardThemeMode): MpBrickStyle {
   if (mode === "light") {
@@ -15,12 +19,12 @@ export function getMpCardBrickStyleForDashboardTheme(mode: DashboardThemeMode): 
         inputBackgroundColor: "#eef3f0",
         textPrimaryColor: "#121212",
         textSecondaryColor: "#666666",
-        outlinePrimaryColor: "#d4e5dc",
-        outlineSecondaryColor: "#e8efeb",
+        outlinePrimaryColor: "#c8ddd2",
+        outlineSecondaryColor: "#e4efea",
         secondaryColor: "#f5f8f6",
-        baseColor: "#2e9b56",
-        baseColorFirstVariant: "#247a44",
-        baseColorSecondVariant: "#3bc06a",
+        baseColor: BRAND_GREEN,
+        baseColorFirstVariant: BRAND_GREEN_DARK,
+        baseColorSecondVariant: BRAND_GREEN_LIGHT,
       },
     };
   }
@@ -35,9 +39,9 @@ export function getMpCardBrickStyleForDashboardTheme(mode: DashboardThemeMode): 
       outlinePrimaryColor: "#2f3a35",
       outlineSecondaryColor: "#29302c",
       secondaryColor: "#252b28",
-      baseColor: "#2e9b56",
-      baseColorFirstVariant: "#3bc06a",
-      baseColorSecondVariant: "#247a44",
+      baseColor: BRAND_GREEN,
+      baseColorFirstVariant: BRAND_GREEN_LIGHT,
+      baseColorSecondVariant: BRAND_GREEN_DARK,
     },
   };
 }

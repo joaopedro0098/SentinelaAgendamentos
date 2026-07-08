@@ -26,7 +26,7 @@ const Navbar = () => {
   const showMobileSignupLink = !isAuthPage || isLoginPage;
 
   const navLinkClass =
-    "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg";
+    "text-sm font-medium text-muted-foreground hover:text-accent transition-colors px-3 py-2 rounded-lg";
 
   useEffect(() => {
     setOpen(false);

@@ -514,7 +514,7 @@ export default function AgendamentosMobilePanel({
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <CalendarDays className="h-6 w-6 text-primary" />
+          <CalendarDays className="h-6 w-6 text-accent" />
           Agendamentos
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -543,7 +543,7 @@ export default function AgendamentosMobilePanel({
                 className={cn(
                   "snap-start shrink-0 w-[68px] h-20 rounded-2xl flex flex-col items-center justify-center font-semibold transition-all active:scale-95",
                   sel
-                    ? "bg-primary text-primary-foreground shadow-glow ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    ? "bg-accent text-accent-foreground shadow-sm ring-2 ring-accent ring-offset-2 ring-offset-background"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                 )}
               >
@@ -551,7 +551,7 @@ export default function AgendamentosMobilePanel({
                 <span className="font-display text-xl leading-none my-0.5">{d.getDate()}</span>
                 <span className="text-[10px] opacity-80">{MESES[d.getMonth()]}</span>
                 {isToday && !sel && (
-                  <span className="text-[9px] mt-0.5 font-medium text-primary">Hoje</span>
+                  <span className="text-[9px] mt-0.5 font-medium text-accent">Hoje</span>
                 )}
               </button>
             );
@@ -577,7 +577,7 @@ export default function AgendamentosMobilePanel({
                 className={cn(
                   "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
                   selectedBarbeiroId === null
-                    ? "bg-primary text-primary-foreground shadow-glow"
+                    ? "bg-accent text-accent-foreground shadow-sm"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                 )}
               >
@@ -602,7 +602,7 @@ export default function AgendamentosMobilePanel({
                   className={cn(
                     "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
                     sel
-                      ? "bg-primary text-primary-foreground shadow-glow"
+                      ? "bg-accent text-accent-foreground shadow-sm"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                   )}
                 >
@@ -717,7 +717,7 @@ export default function AgendamentosMobilePanel({
                             )}
                           </div>
                         ) : null}
-                        <div className="flex items-center gap-2 text-primary font-semibold tabular-nums">
+                        <div className="flex items-center gap-2 text-accent font-semibold tabular-nums">
                           <Clock className="h-4 w-4 shrink-0" />
                           <span className="text-lg">{formatHora(a.hora)}</span>
                         </div>
@@ -760,7 +760,7 @@ export default function AgendamentosMobilePanel({
                           />
                         ) : null}
                         {!selectedBarbeiroId && a.barbeiros?.nome && (
-                          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-accent/10 text-accent">
                             {a.barbeiros.nome}
                           </span>
                         )}

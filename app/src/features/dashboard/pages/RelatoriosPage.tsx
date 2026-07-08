@@ -598,7 +598,7 @@ export default function RelatoriosPage() {
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <BarChart2 className="h-6 w-6 text-primary" />
+          <BarChart2 className="h-6 w-6 text-accent" />
           Relatórios
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -647,7 +647,7 @@ export default function RelatoriosPage() {
                 className={cn(
                   "snap-start shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all",
                   selectedBarbeiroId === null
-                    ? "bg-primary text-primary-foreground shadow-glow"
+                    ? "bg-accent text-accent-foreground shadow-sm"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                 )}
               >
@@ -668,7 +668,7 @@ export default function RelatoriosPage() {
                     className={cn(
                       "snap-start shrink-0 min-w-[7rem] px-4 h-11 rounded-full text-sm font-semibold transition-all",
                       sel
-                        ? "bg-primary text-primary-foreground shadow-glow"
+                        ? "bg-accent text-accent-foreground shadow-sm"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                     )}
                   >

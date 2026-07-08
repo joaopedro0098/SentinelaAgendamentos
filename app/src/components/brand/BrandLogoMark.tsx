@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Ícone da marca — quadrado verde com recorte circular (tom sage dos prints). */
+/** Ícone da marca — quadrado verde com recorte circular. */
 export function BrandLogoMark({ className }: { className?: string }) {
   return (
     <svg

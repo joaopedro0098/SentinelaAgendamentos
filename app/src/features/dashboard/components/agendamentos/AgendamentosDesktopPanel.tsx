@@ -651,7 +651,7 @@ export default function AgendamentosDesktopPanel({
         key={a.id}
         className={cn(LIST_ROW_GRID, "py-2.5 border-b border-border/60 hover:bg-secondary/20 transition-colors")}
       >
-        <span className="min-w-0 text-sm font-semibold tabular-nums text-primary">
+        <span className="min-w-0 text-sm font-semibold tabular-nums text-accent">
           {showDate ? (
             <>
               {parseYmd(a.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -683,7 +683,7 @@ export default function AgendamentosDesktopPanel({
           onMenuAction={(key) => void handlePastDayStatus(a, key)}
         />
         <div className="min-w-0 flex flex-col items-start gap-0.5">
-          <span className="text-xs font-medium truncate text-primary/90">{a.barbeiro_nome}</span>
+          <span className="text-xs font-medium truncate text-accent/90">{a.barbeiro_nome}</span>
           {!isCA && caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground truncate max-w-full">
               {caLabel(a.barbearia_id)}
@@ -729,7 +729,7 @@ export default function AgendamentosDesktopPanel({
                 className={cn(
                   "flex-1 rounded-lg py-2 text-xs font-semibold capitalize transition-colors",
                   viewMode === mode
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-accent text-accent-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-secondary/50",
                 )}
               >
@@ -747,7 +747,7 @@ export default function AgendamentosDesktopPanel({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-semibold capitalize text-center flex-1 leading-tight">
+            <p className="text-sm font-semibold capitalize text-center flex-1 leading-tight text-accent">
               {formatPeriodTitle(viewMode, anchorYmd)}
             </p>
             <button

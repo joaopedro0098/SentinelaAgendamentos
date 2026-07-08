@@ -28,7 +28,7 @@ const Planos = () => {
               <Reveal key={tier.id} index={2 + i}>
                 <div className="rounded-2xl border border-border bg-card p-6 md:p-8 flex flex-col h-full shadow-soft">
                   <div className="mb-6">
-                    <p className="text-sm font-medium text-primary">{tier.name}</p>
+                    <p className="text-sm font-medium text-accent">{tier.name}</p>
                     <p className="mt-2 font-display text-3xl font-bold">{tier.priceShort}</p>
                     <p className="text-sm text-muted-foreground">/mês após o teste</p>
                   </div>

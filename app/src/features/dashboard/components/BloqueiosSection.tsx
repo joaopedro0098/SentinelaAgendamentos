@@ -235,7 +235,7 @@ function ModeToggle({
           className={cn(
             "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
             value === opt.id
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? "bg-accent text-accent-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -575,7 +575,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
               ? "bg-unavailable text-unavailable-foreground ring-2 ring-unavailable/60 ring-offset-2 ring-offset-background"
               : "bg-unavailable text-unavailable-foreground opacity-90"
             : sel
-              ? "bg-primary text-primary-foreground shadow-glow h-10"
+              ? "bg-accent text-accent-foreground shadow-sm h-10"
               : "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10",
         )}
       >
@@ -787,7 +787,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                             sel && dayTotalBlock
                               ? "bg-unavailable text-unavailable-foreground ring-2 ring-unavailable/60 ring-offset-2 ring-offset-background"
                               : sel
-                                ? "bg-primary text-primary-foreground shadow-glow ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                ? "bg-accent text-accent-foreground shadow-sm ring-2 ring-accent ring-offset-2 ring-offset-background"
                                 : dayTotalBlock
                                   ? "bg-unavailable/80 text-unavailable-foreground opacity-90"
                                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -797,7 +797,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                           <span className="font-display text-lg leading-none my-0.5">{d.getDate()}</span>
                           <span className="text-[9px] opacity-80">{MESES[d.getMonth()]}</span>
                           {isToday && !sel && (
-                            <span className="text-[8px] mt-0.5 font-medium text-primary">Hoje</span>
+                            <span className="text-[8px] mt-0.5 font-medium text-accent">Hoje</span>
                           )}
                         </button>
                       );

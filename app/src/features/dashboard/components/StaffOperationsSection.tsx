@@ -461,7 +461,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
     <Card className="glass-panel border-border/80">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <CalendarCheck className="h-4 w-4 text-primary" />
+          <CalendarCheck className="h-4 w-4 text-accent" />
           Equipe de atendimento
         </CardTitle>
         <CardDescription>

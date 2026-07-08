@@ -199,7 +199,7 @@ export default function MeusAgendamentosPage() {
                     )}
                     <p className="font-semibold">{formatDateBr(item.data)}</p>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-primary">{formatTime(item.hora)}</span>
+                  <span className="text-sm font-semibold tabular-nums text-accent">{formatTime(item.hora)}</span>
                 </div>
 
                 <dl className="grid gap-2 text-sm">

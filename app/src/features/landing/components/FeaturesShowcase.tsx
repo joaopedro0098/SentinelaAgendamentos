@@ -37,7 +37,7 @@ export function FeaturesShowcase() {
               {FEATURES.map((feature, i) => (
                 <Reveal key={feature.title} index={7 + i}>
                   <li className="flex gap-3">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary/70" aria-hidden />
+                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent/70" aria-hidden />
                     <div>
                       <p className="font-semibold text-foreground">{feature.title}</p>
                       <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{feature.description}</p>

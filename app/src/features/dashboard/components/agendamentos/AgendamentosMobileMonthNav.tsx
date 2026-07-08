@@ -129,7 +129,7 @@ export function AgendamentosMobileMonthNav({ viewMonth, onMonthShift, onPickMont
                   className={cn(
                     "rounded-lg px-2 py-2 text-xs font-medium transition-colors",
                     selected
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-accent text-accent-foreground"
                       : "text-foreground hover:bg-secondary/60",
                   )}
                 >
