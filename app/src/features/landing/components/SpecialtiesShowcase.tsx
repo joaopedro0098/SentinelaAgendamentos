@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 type Specialty = {
   id: string;
   label: string;
+  iconSrc: string;
   description: string;
 };
 
@@ -14,28 +15,48 @@ const SPECIALTIES: Specialty[] = [
   {
     id: "psicologos",
     label: "Psicólogos",
+    iconSrc: "/landing-specialty-psicologos.png",
     description:
       "Sessões recorrentes na agenda, ficha do paciente com anotações e link para marcar horário online.",
   },
   {
     id: "medicos",
     label: "Médicos",
+    iconSrc: "/landing-specialty-medicos.png",
     description:
       "Consultas, retornos e encaixes no painel — com equipe, serviços e link para o paciente agendar sozinho.",
   },
   {
     id: "nutricionistas",
     label: "Nutricionistas",
+    iconSrc: "/landing-specialty-nutricionistas.png",
     description:
       "Acompanhe cada paciente com anotações, retornos programados e horários organizados em um só lugar.",
   },
   {
     id: "dentistas",
     label: "Dentistas",
+    iconSrc: "/landing-specialty-dentistas.png",
     description:
       "Procedimentos e revisões na agenda, com serviços e duração definidos para cada tipo de atendimento.",
   },
 ];
+
+function SpecialtyTitle({ label, iconSrc, className }: { label: string; iconSrc: string; className?: string }) {
+  return (
+    <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
+      <img
+        src={iconSrc}
+        alt=""
+        aria-hidden
+        className="h-7 w-7 shrink-0 object-contain md:h-8 md:w-8"
+        loading="lazy"
+        decoding="async"
+      />
+      <span className="font-display font-bold leading-tight">{label}</span>
+    </span>
+  );
+}
 
 export function SpecialtiesShowcase() {
   const isMdUp = useMediaMdUp();
@@ -86,14 +107,16 @@ export function SpecialtiesShowcase() {
                     onClick={() => handleCardClick(item.id)}
                     className="flex w-full items-center justify-between gap-3 p-4 text-left md:hidden"
                   >
-                    <p className="font-display text-sm font-bold">{item.label}</p>
+                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-sm" />
                     <ChevronDown
                       aria-hidden
                       className={cn("h-4 w-4 shrink-0 transition-transform duration-300", isOpen && "rotate-180")}
                     />
                   </button>
 
-                  <p className="hidden font-display text-lg font-bold md:block md:p-5 md:pb-0">{item.label}</p>
+                  <div className="hidden md:block md:p-5 md:pb-0">
+                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-lg" />
+                  </div>
 
                   <div
                     className={cn(
