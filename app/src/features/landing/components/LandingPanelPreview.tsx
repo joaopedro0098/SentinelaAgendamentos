@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CreditCard,
   Headphones,
   Link2,
@@ -19,6 +20,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useHorizontalSwipe } from "@/hooks/useHorizontalSwipe";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { cn } from "@/lib/utils";
 
@@ -110,14 +112,16 @@ function PreviewSidebar({
 function PreviewShell({
   activeNav,
   children,
+  isMobile = false,
 }: {
   activeNav: PreviewNavId;
   children: ReactNode;
+  isMobile?: boolean;
 }) {
   return (
     <div className="flex h-full min-h-[22rem] md:min-h-[26rem] bg-background text-foreground">
       <PreviewSidebar activeNav={activeNav} className="hidden md:flex w-52 shrink-0" />
-      <div className="flex-1 min-w-0 p-3 sm:p-4 overflow-hidden">{children}</div>
+      <div className={cn("flex-1 min-w-0 overflow-hidden", isMobile ? "p-4" : "p-3 sm:p-4")}>{children}</div>
     </div>
   );
 }
@@ -145,14 +149,70 @@ function PreviewStatusBadge({ label, tone }: { label: string; tone: "confirmado"
   );
 }
 
-function AgendamentosSlide() {
+function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
   const calendarDays = ["D", "S", "T", "Q", "Q", "S", "S"];
   const monthCells = [null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
   const rows = [
-    { time: "09:00", client: "Ana Silva", services: "Atendimento Clínico", status: "Confirmado" as const, tone: "confirmado" as const, prof: "Você" },
-    { time: "10:30", client: "Carlos Mendes", services: "Atendimento Clínico", status: "Concluído" as const, tone: "concluido" as const, prof: "Você" },
-    { time: "14:00", client: "Mariana Costa", services: "Atendimento Clínico", status: "Não confirmado" as const, tone: "nao_confirmado" as const, prof: "Você" },
+    { time: "09:00", client: "Ana Silva", services: "Atendimento Clínico", status: "Confirmado" as const, tone: "confirmado" as const },
+    { time: "10:30", client: "Carlos Mendes", services: "Atendimento Clínico", status: "Concluído" as const, tone: "concluido" as const },
+    { time: "14:00", client: "Mariana Costa", services: "Atendimento Clínico", status: "Não confirmado" as const, tone: "nao_confirmado" as const },
   ];
+  const mobileDays = [
+    { label: "Ter", day: "7", month: "Jul", active: false },
+    { label: "Qua", day: "8", month: "Jul", active: true },
+    { label: "Qui", day: "9", month: "Jul", active: false },
+    { label: "Sex", day: "10", month: "Jul", active: false },
+  ];
+
+  if (isMobile) {
+    return (
+      <PreviewShell activeNav="agendamentos" isMobile>
+        <div className="space-y-4 min-h-[18rem]">
+          <header className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">Agendamentos</h2>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium">
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Novo
+            </span>
+          </header>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {mobileDays.map((d) => (
+              <span
+                key={d.day}
+                className={cn(
+                  "shrink-0 w-16 h-[4.5rem] rounded-2xl flex flex-col items-center justify-center font-semibold",
+                  d.active
+                    ? "bg-accent text-accent-foreground ring-2 ring-accent ring-offset-2 ring-offset-background"
+                    : "bg-secondary text-secondary-foreground",
+                )}
+              >
+                <span className="text-[10px] opacity-90">{d.label}</span>
+                <span className="text-lg leading-none my-0.5">{d.day}</span>
+                <span className="text-[10px] opacity-80">{d.month}</span>
+              </span>
+            ))}
+          </div>
+
+          <p className="text-sm text-muted-foreground capitalize">Quarta, 8 de julho</p>
+
+          <ul className="space-y-3">
+            {rows.map((row) => (
+              <li key={row.time} className="rounded-xl border border-border/80 bg-card/40 p-3 space-y-2">
+                <PreviewStatusBadge label={row.status} tone={row.tone} />
+                <div className="flex items-center gap-2 text-accent font-semibold tabular-nums">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="text-base">{row.time}</span>
+                </div>
+                <p className="font-medium text-sm">{row.client}</p>
+                <p className="text-xs text-muted-foreground">{row.services}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </PreviewShell>
+    );
+  }
 
   return (
     <PreviewShell activeNav="agendamentos">
@@ -255,12 +315,71 @@ function AgendamentosSlide() {
   );
 }
 
-function PacientesSlide() {
+function PacientesSlide({ isMobile }: { isMobile: boolean }) {
   const pacientes = [
     { nome: "Ana Silva", active: true },
     { nome: "Carlos Mendes", active: false },
     { nome: "Mariana Costa", active: false },
   ];
+
+  if (isMobile) {
+    return (
+      <PreviewShell activeNav="pacientes" isMobile>
+        <div className="flex flex-col min-h-[18rem] -mx-1">
+          <header className="space-y-3 border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground">
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">
+                  AS
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold tracking-tight truncate">Ana Silva</h2>
+                  <p className="text-xs text-muted-foreground truncate">32a | 12/04/1994 | (11) 91234-5678</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {["Histórico", "Documentos", "Dados cadastrais"].map((tab, i) => (
+                <span
+                  key={tab}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5 text-sm font-medium border-b-2",
+                    i === 0 ? "border-foreground text-foreground" : "border-transparent text-muted-foreground",
+                  )}
+                >
+                  {tab}
+                </span>
+              ))}
+            </div>
+          </header>
+
+          <div className="pt-3 space-y-3">
+            <div className="rounded-xl border border-border/70 bg-card/40 p-3">
+              <p className="text-sm font-semibold">
+                05/07/2026 · <span className="tabular-nums">09:00</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Você</p>
+              <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+                Paciente relatou melhora nos sintomas. Retorno em 15 dias.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-card/40 p-3">
+              <p className="text-sm font-semibold">
+                20/06/2026 · <span className="tabular-nums">14:30</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Você</p>
+              <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+                Primeira consulta. Anamnese completa registrada.
+              </p>
+            </div>
+          </div>
+        </div>
+      </PreviewShell>
+    );
+  }
 
   return (
     <PreviewShell activeNav="pacientes">
@@ -359,17 +478,16 @@ function PreviewSlotLegend({ className }: { className?: string }) {
   );
 }
 
-function previewHorarioChipClass(livre: boolean, selected: boolean) {
+function previewHorarioChipClass(livre: boolean, selected: boolean, compact = false) {
   return cn(
-    "shrink-0 w-[4.25rem] h-10 rounded-xl flex items-center justify-center font-semibold text-xs transition-all",
-    livre
-      ? "bg-[hsl(156_42%_40%)] text-white"
-      : "bg-[hsl(0_65%_55%)] text-white opacity-90",
+    "shrink-0 rounded-xl flex items-center justify-center font-semibold transition-all",
+    compact ? "w-14 h-9 text-[11px]" : "w-[4.25rem] h-10 text-xs",
+    livre ? "bg-[hsl(156_42%_40%)] text-white" : "bg-[hsl(0_65%_55%)] text-white opacity-90",
     selected && livre && "ring-2 ring-foreground ring-offset-1 ring-offset-background",
   );
 }
 
-function AgendarSlide() {
+function AgendarSlide({ isMobile }: { isMobile: boolean }) {
   const slots: { time: string; livre: boolean; selected?: boolean }[] = [
     { time: "09:00", livre: true },
     { time: "09:30", livre: true },
@@ -384,11 +502,13 @@ function AgendarSlide() {
   ];
 
   return (
-    <PreviewShell activeNav="agendar">
+    <PreviewShell activeNav="agendar" isMobile={isMobile}>
       <div className="space-y-3">
         <div>
-          <p className="text-base md:text-lg font-semibold tracking-tight">Agendar</p>
-          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">Escolha serviço e horário</p>
+          <p className={cn("font-semibold tracking-tight", isMobile ? "text-lg" : "text-base md:text-lg")}>Agendar</p>
+          <p className={cn("text-muted-foreground mt-0.5", isMobile ? "text-sm" : "text-xs md:text-sm")}>
+            Escolha serviço e horário
+          </p>
         </div>
         <div className="rounded-xl border border-border/70 p-3 space-y-3">
           <div>
@@ -399,9 +519,15 @@ function AgendarSlide() {
           </div>
           <div>
             <p className="text-xs font-semibold mb-2">Selecione o horário</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              className={cn(
+                isMobile
+                  ? "flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "flex flex-wrap gap-1.5",
+              )}
+            >
               {slots.map((slot) => (
-                <span key={slot.time} className={previewHorarioChipClass(slot.livre, Boolean(slot.selected))}>
+                <span key={slot.time} className={previewHorarioChipClass(slot.livre, Boolean(slot.selected), isMobile)}>
                   {slot.time}
                 </span>
               ))}
@@ -417,7 +543,7 @@ function AgendarSlide() {
   );
 }
 
-function BloqueiosSlide() {
+function BloqueiosSlide({ isMobile }: { isMobile: boolean }) {
   const days = [
     { label: "Seg", day: "7", month: "Jul", active: false },
     { label: "Ter", day: "8", month: "Jul", active: true },
@@ -428,8 +554,8 @@ function BloqueiosSlide() {
   const blocked = new Set(["10:00", "10:30"]);
 
   return (
-    <PreviewShell activeNav="profissionais">
-      <div className="space-y-3 overflow-y-auto max-h-[18rem] md:max-h-[22rem] pr-1">
+    <PreviewShell activeNav="profissionais" isMobile={isMobile}>
+      <div className={cn("space-y-3 overflow-y-auto pr-1", isMobile ? "max-h-[18rem]" : "max-h-[18rem] md:max-h-[22rem]")}>
         <div className="rounded-xl border border-border/80 bg-card/40 p-3 space-y-3">
           <div>
             <p className="text-xs md:text-sm font-semibold tracking-tight flex items-center gap-1.5">
@@ -474,12 +600,19 @@ function BloqueiosSlide() {
 
           <div>
             <p className="text-[10px] font-semibold mb-2">Horários bloqueados</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              className={cn(
+                isMobile
+                  ? "flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "flex flex-wrap gap-1.5",
+              )}
+            >
               {slots.map((slot) => (
                 <span
                   key={slot}
                   className={cn(
-                    "min-w-[3rem] px-2 h-8 rounded-lg flex items-center justify-center text-[10px] font-semibold tabular-nums",
+                    "shrink-0 rounded-lg flex items-center justify-center font-semibold tabular-nums",
+                    isMobile ? "min-w-[3.25rem] px-2 h-8 text-[10px]" : "min-w-[3rem] px-2 h-8 text-[10px]",
                     blocked.has(slot)
                       ? "bg-[hsl(0_65%_55%)] text-white"
                       : "bg-secondary text-secondary-foreground",
@@ -529,12 +662,12 @@ function LinkPublicoSlide() {
   );
 }
 
-function SlideContent({ id }: { id: SlideId }) {
+function SlideContent({ id, isMobile }: { id: SlideId; isMobile: boolean }) {
   if (id === "nav") return <NavOnlySlide />;
-  if (id === "agendar") return <AgendarSlide />;
-  if (id === "agendamentos") return <AgendamentosSlide />;
-  if (id === "pacientes") return <PacientesSlide />;
-  if (id === "bloqueios") return <BloqueiosSlide />;
+  if (id === "agendar") return <AgendarSlide isMobile={isMobile} />;
+  if (id === "agendamentos") return <AgendamentosSlide isMobile={isMobile} />;
+  if (id === "pacientes") return <PacientesSlide isMobile={isMobile} />;
+  if (id === "bloqueios") return <BloqueiosSlide isMobile={isMobile} />;
   return <LinkPublicoSlide />;
 }
 
@@ -559,13 +692,18 @@ export function LandingPanelPreview() {
     setIndex((i) => (i === slides.length - 1 ? 0 : i + 1));
   }
 
+  const swipeHandlers = useHorizontalSwipe(goNext, goPrev);
+
   const navButtonClass =
     "h-11 w-11 rounded-full border-0 bg-primary text-primary-foreground shadow-elevated hover:bg-primary/90";
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-xl lg:max-w-none">
-      <div className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden">
-        <SlideContent id={slides[index].id} />
+      <div
+        className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden touch-pan-y"
+        {...swipeHandlers}
+      >
+        <SlideContent id={slides[index].id} isMobile={!isMdUp} />
       </div>
 
       <div className="mt-3 flex items-center justify-center gap-2">
