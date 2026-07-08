@@ -112,7 +112,7 @@ export class AppointmentPaymentError extends Error {
   }
 }
 
-export async function invokePublicPaymentFunction<T>(
+async function invokePublicPaymentFunction<T>(
   functionName: string,
   body: Record<string, unknown>,
 ): Promise<T> {
@@ -200,7 +200,7 @@ export async function verifyAppointmentPayment(input: {
 export const MP_PUBLIC_KEY = String(import.meta.env.VITE_MP_PUBLIC_KEY ?? "").trim();
 export const MP_TEST_MODE = MP_PUBLIC_KEY.startsWith("TEST-");
 
-export function formatAppointmentPaymentError(message: string): string {
+function formatAppointmentPaymentError(message: string): string {
   return explainPaymentErrorLocally(message).message;
 }
 

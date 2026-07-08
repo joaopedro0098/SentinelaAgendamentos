@@ -4,11 +4,11 @@ export type ClientPwaShopWithLogo = {
   logoUrl?: string | null;
 };
 
-export function getClientPwaManifestUrl(slug: string) {
+function getClientPwaManifestUrl(slug: string) {
   return `/manifest/agendar/${encodeURIComponent(slug)}.webmanifest`;
 }
 
-export function getClientPwaIconUrl(slug: string, size: 192 | 512 = 192) {
+function getClientPwaIconUrl(slug: string, size: 192 | 512 = 192) {
   return `/manifest/agendar/${encodeURIComponent(slug)}/icon-${size}.png`;
 }
 

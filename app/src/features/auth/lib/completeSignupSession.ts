@@ -1,9 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
+import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 import {
   clearPendingFaceEmbedding,
   loadPendingFaceEmbedding,

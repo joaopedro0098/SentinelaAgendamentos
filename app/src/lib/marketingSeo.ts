@@ -1,4 +1,4 @@
-export const HOME_TITLE = "Sentinela Agendamentos - Teste agora 14 dias grátis!";
+const HOME_TITLE = "Sentinela Agendamentos - Teste agora 14 dias grátis!";
 
 export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/": HOME_TITLE,

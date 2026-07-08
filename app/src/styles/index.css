@@ -49,7 +49,7 @@
     --shadow-elevated: 0 20px 60px -24px hsl(155 14% 12% / 0.1);
   }
 
-  /* Painel claro: verde = ação/marca; petróleo = navegação/tempo/dados */
+  /* Painel claro: verde #3B8F6E (marca e UI interna) */
   [data-theme="dashboard"] {
     --background: 50 12% 98%;
     --foreground: 155 14% 12%;
@@ -60,13 +60,12 @@
     --primary: 156 42% 40%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 156 42% 45%;
-    --secondary: 177 22% 93%;
-    --secondary-foreground: 177 51% 25%;
+    --secondary: 156 18% 94%;
+    --secondary-foreground: 155 14% 12%;
     --muted: 50 10% 94%;
     --muted-foreground: 150 8% 42%;
-    --accent: 177 51% 25%;
+    --accent: 156 42% 40%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 177 28% 93%;
     --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
     --border: 156 12% 88%;
@@ -83,9 +82,9 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
-    --completed: 177 51% 25%;
+    --completed: 156 42% 40%;
     --completed-foreground: 0 0% 100%;
-    --completed-soft: 177 28% 93%;
+    --completed-soft: 156 42% 94%;
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
@@ -107,13 +106,12 @@
     --primary: 156 42% 40%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 156 42% 45%;
-    --secondary: 177 22% 93%;
-    --secondary-foreground: 177 51% 25%;
+    --secondary: 156 18% 94%;
+    --secondary-foreground: 155 14% 12%;
     --muted: 50 10% 94%;
     --muted-foreground: 150 8% 42%;
-    --accent: 177 51% 25%;
+    --accent: 156 42% 40%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 177 28% 93%;
     --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
     --border: 156 12% 88%;
@@ -129,9 +127,9 @@
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 65% 96%;
-    --completed: 177 51% 25%;
+    --completed: 156 42% 40%;
     --completed-foreground: 0 0% 100%;
-    --completed-soft: 177 28% 93%;
+    --completed-soft: 156 42% 94%;
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;

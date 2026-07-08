@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import {
-  FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
+import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 import { userNeedsFaceVerification, markFaceVerificationComplete, canSkipFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";

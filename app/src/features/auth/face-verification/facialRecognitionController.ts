@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 
 export type FacialVerificationResult = {
   embedding: number[];
@@ -54,5 +53,3 @@ export async function buildEmbeddingFromSnapshot(
   const { computeFaceEmbedding } = await import("./faceEmbeddingService");
   return computeFaceEmbedding(canvas);
 }
-
-export { FACIAL_TRIAL_BLOCKED_MESSAGE };

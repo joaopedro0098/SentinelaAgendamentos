@@ -81,8 +81,6 @@ export async function startMpOAuth(): Promise<{ url: string }> {
   return { url: payload.url };
 }
 
-export const MP_PUBLIC_KEY = String(import.meta.env.VITE_MP_PUBLIC_KEY ?? "").trim();
-
 /** Conta MP da plataforma (assinatura). Deve ser par do MP_ACCESS_TOKEN no Supabase. */
 export const MP_PLATFORM_PUBLIC_KEY = String(
   import.meta.env.VITE_MP_PLATFORM_PUBLIC_KEY ?? import.meta.env.VITE_MP_PUBLIC_KEY ?? "",

@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
 import {
-  FACIAL_TRIAL_BLOCKED_MESSAGE,
   registerUserFacialEmbedding,
 } from "@/features/auth/face-verification/facialRecognitionController";
+import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import {
   clearPendingFaceEmbedding,
