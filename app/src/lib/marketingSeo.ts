@@ -1,11 +1,5 @@
 export const HOME_TITLE = "Sentinela Agendamentos - Teste agora 14 dias grátis!";
 
-export const HOME_DESCRIPTION =
-  "Link de agendamento fácil para quem marca horário; painel simples para quem gerencia equipe, serviços e agenda.";
-
-/** Cache-bust de favicons/logo após troca de marca. */
-export const BRAND_ASSET_VERSION = "20260602";
-
 export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/": HOME_TITLE,
   "/planos": "Planos — Sentinela Agendamentos",

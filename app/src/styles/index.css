@@ -356,9 +356,6 @@
   .bg-gradient-brand {
     background: hsl(var(--primary));
   }
-  .bg-gradient-soft {
-    background: hsl(var(--primary) / 0.08);
-  }
   .glass {
     background: hsl(var(--card) / 0.72);
     backdrop-filter: blur(14px);
