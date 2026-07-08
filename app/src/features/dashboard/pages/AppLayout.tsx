@@ -257,12 +257,12 @@ export default function AppLayout() {
       <aside
         className={cn(
           "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen transition-[width] duration-200 ease-out border-r border-border/60 flex-col bg-background",
-          sidebarCollapsed ? "w-[5rem]" : "w-64",
+          sidebarCollapsed ? "w-16" : "w-56",
         )}
       >
         <div className="flex flex-col flex-1 min-h-0 h-full w-full overflow-hidden">
           {!sidebarCollapsed && (
-            <div className="px-4 py-4 shrink-0">
+            <div className="px-3 py-4 shrink-0">
               <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-12 w-12" />
             </div>
           )}
@@ -270,7 +270,7 @@ export default function AppLayout() {
           <nav
             className={cn(
               "flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              sidebarCollapsed ? "p-1.5 pt-3" : "p-2",
+              sidebarCollapsed ? "p-1 pt-3" : "p-2",
             )}
           >
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendar" icon={<Calendar className="h-5 w-5" />} label="Agendar" end />
@@ -297,7 +297,7 @@ export default function AppLayout() {
           </nav>
 
           {sidebarCollapsed ? (
-            <div className="mt-auto shrink-0 p-1.5">
+            <div className="mt-auto shrink-0 p-1">
               <SidebarExpandToggle collapsed={sidebarCollapsed} onToggle={toggleSidebarCollapsed} />
             </div>
           ) : (
@@ -400,7 +400,7 @@ function DesktopNavItem({
       className={({ isActive }) =>
         cn(
           "flex items-center rounded-xl text-sm font-medium transition",
-          collapsed ? "justify-center px-2 py-2.5" : "gap-2 px-3 py-2.5 justify-start",
+          collapsed ? "justify-center px-1.5 py-2.5" : "gap-2 px-2.5 py-2.5 justify-start",
           isActive
             ? "bg-primary text-primary-foreground shadow-glow"
             : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
