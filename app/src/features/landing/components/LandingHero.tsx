@@ -1,6 +1,4 @@
-import { Link } from "react-router-dom";
 import { Reveal } from "@/components/layout/PageReveal";
-import { Button } from "@/components/ui/button";
 
 export function LandingHero() {
   return (
@@ -23,16 +21,6 @@ export function LandingHero() {
             Agendamento, gestão de pacientes, cobrança automática, gestão de equipe, relatórios e mais! Tudo em um
             só lugar, para quem cuida de gente.
           </p>
-        </Reveal>
-        <Reveal index={3}>
-          <div className="mt-8 flex justify-center">
-            <Button
-              asChild
-              className="h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-8 text-base font-medium"
-            >
-              <Link to="/signup">Testar 14 dias Grátis</Link>
-            </Button>
-          </div>
         </Reveal>
       </div>
     </section>

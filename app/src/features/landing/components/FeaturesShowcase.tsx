@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { Reveal } from "@/components/layout/PageReveal";
+import { Button } from "@/components/ui/button";
 import { LandingPanelPreview } from "@/features/landing/components/LandingPanelPreview";
 
 const FEATURES = [
@@ -20,10 +22,26 @@ const FEATURES = [
 
 export function FeaturesShowcase() {
   return (
-    <section className="py-16 md:py-24 border-t border-border/60">
+    <section className="pt-4 md:pt-6 pb-16 md:pb-24 border-t border-border/60">
       <div className="container min-w-0 max-w-full">
-        <div className="grid min-w-0 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-          <div className="min-w-0 w-full">
+        <div className="grid min-w-0 lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+          <div className="min-w-0 w-full order-1 lg:order-2 space-y-5">
+            <Reveal index={10} className="min-w-0 w-full">
+              <LandingPanelPreview />
+            </Reveal>
+            <Reveal index={11}>
+              <div className="flex justify-center lg:justify-start">
+                <Button
+                  asChild
+                  className="h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-8 text-base font-medium"
+                >
+                  <Link to="/signup">Testar 14 dias Grátis</Link>
+                </Button>
+              </div>
+            </Reveal>
+          </div>
+
+          <div className="min-w-0 w-full order-2 lg:order-1">
             <Reveal index={5}>
               <h2 className="font-display text-[1.65rem] sm:text-3xl md:text-4xl font-bold tracking-tight leading-snug sm:leading-tight text-balance break-words">
                 Tudo o que você precisa em uma única aba.
@@ -50,10 +68,6 @@ export function FeaturesShowcase() {
               ))}
             </ul>
           </div>
-
-          <Reveal index={10} className="min-w-0 w-full">
-            <LandingPanelPreview />
-          </Reveal>
         </div>
       </div>
     </section>

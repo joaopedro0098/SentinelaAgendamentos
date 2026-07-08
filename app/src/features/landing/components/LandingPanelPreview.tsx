@@ -53,12 +53,17 @@ const PREVIEW_NAV_ITEMS = [
 
 type PreviewNavId = (typeof PREVIEW_NAV_ITEMS)[number]["id"];
 
+const PREVIEW_FRAME_MIN_H = "min-h-[18rem] md:min-h-[22rem]";
+const PREVIEW_MOBILE_FRAME_H = "h-[18rem]";
+
 function PreviewSidebar({
   activeNav,
   className,
+  compact = false,
 }: {
   activeNav: PreviewNavId;
   className?: string;
+  compact?: boolean;
 }) {
   return (
     <aside
@@ -79,7 +84,12 @@ function PreviewSidebar({
         </div>
       </div>
 
-      <nav className="flex flex-1 min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav
+        className={cn(
+          "flex flex-1 min-h-0 flex-col overflow-hidden",
+          compact ? "gap-0.5 p-1.5" : "gap-1 p-2",
+        )}
+      >
         {PREVIEW_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = item.id === activeNav;
@@ -87,11 +97,12 @@ function PreviewSidebar({
             <div
               key={item.id}
               className={cn(
-                "flex items-center gap-2 rounded-xl px-2 py-2 text-[11px] sm:text-xs font-medium transition-colors",
+                "flex items-center gap-2 rounded-xl font-medium transition-colors",
+                compact ? "px-2 py-1.5 text-[10px]" : "px-2 py-2 text-[11px] sm:text-xs",
                 active ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground",
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden />
+              <Icon className={cn("shrink-0", compact ? "h-3.5 w-3.5" : "h-4 w-4")} aria-hidden />
               <span className="truncate leading-tight">{item.label}</span>
             </div>
           );
@@ -119,17 +130,21 @@ function PreviewShell({
   isMobile?: boolean;
 }) {
   return (
-    <div className="flex h-full min-h-[22rem] md:min-h-[26rem] bg-background text-foreground">
+    <div className="flex h-full min-h-0 bg-background text-foreground">
       <PreviewSidebar activeNav={activeNav} className="hidden md:flex w-52 shrink-0" />
-      <div className={cn("flex-1 min-w-0 overflow-hidden", isMobile ? "p-4" : "p-3 sm:p-4")}>{children}</div>
+      <div className={cn("flex-1 min-w-0 overflow-hidden", isMobile ? "p-3" : "p-2.5 sm:p-3")}>
+        <div className={cn("h-full", isMobile ? "origin-top scale-[0.94]" : "origin-top md:scale-[0.98]")}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
 function NavOnlySlide() {
   return (
-    <div className="flex h-full min-h-[22rem] bg-background text-foreground md:hidden">
-      <PreviewSidebar activeNav="agendar" className="w-full max-w-none flex-1 border-r-0" />
+    <div className="flex h-full min-h-0 bg-background text-foreground md:hidden">
+      <PreviewSidebar activeNav="agendar" compact className="w-full max-w-none flex-1 border-r-0" />
     </div>
   );
 }
@@ -167,45 +182,45 @@ function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
   if (isMobile) {
     return (
       <PreviewShell activeNav="agendamentos" isMobile>
-        <div className="space-y-4 min-h-[18rem]">
+        <div className="space-y-3">
           <header className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold tracking-tight">Agendamentos</h2>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium">
-              <Plus className="h-3.5 w-3.5" aria-hidden />
+            <h2 className="text-base font-semibold tracking-tight">Agendamentos</h2>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-medium">
+              <Plus className="h-3 w-3" aria-hidden />
               Novo
             </span>
           </header>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mobileDays.map((d) => (
               <span
                 key={d.day}
                 className={cn(
-                  "shrink-0 w-16 h-[4.5rem] rounded-2xl flex flex-col items-center justify-center font-semibold",
+                  "shrink-0 w-14 h-16 rounded-2xl flex flex-col items-center justify-center font-semibold",
                   d.active
-                    ? "bg-accent text-accent-foreground ring-2 ring-accent ring-offset-2 ring-offset-background"
+                    ? "bg-accent text-accent-foreground ring-2 ring-accent ring-offset-1 ring-offset-background"
                     : "bg-secondary text-secondary-foreground",
                 )}
               >
-                <span className="text-[10px] opacity-90">{d.label}</span>
-                <span className="text-lg leading-none my-0.5">{d.day}</span>
-                <span className="text-[10px] opacity-80">{d.month}</span>
+                <span className="text-[9px] opacity-90">{d.label}</span>
+                <span className="text-base leading-none my-0.5">{d.day}</span>
+                <span className="text-[9px] opacity-80">{d.month}</span>
               </span>
             ))}
           </div>
 
-          <p className="text-sm text-muted-foreground capitalize">Quarta, 8 de julho</p>
+          <p className="text-xs text-muted-foreground capitalize">Quarta, 8 de julho</p>
 
-          <ul className="space-y-3">
-            {rows.map((row) => (
-              <li key={row.time} className="rounded-xl border border-border/80 bg-card/40 p-3 space-y-2">
+          <ul className="space-y-2">
+            {rows.slice(0, 2).map((row) => (
+              <li key={row.time} className="rounded-xl border border-border/80 bg-card/40 p-2.5 space-y-1.5">
                 <PreviewStatusBadge label={row.status} tone={row.tone} />
-                <div className="flex items-center gap-2 text-accent font-semibold tabular-nums">
-                  <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="text-base">{row.time}</span>
+                <div className="flex items-center gap-1.5 text-accent font-semibold tabular-nums">
+                  <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="text-sm">{row.time}</span>
                 </div>
-                <p className="font-medium text-sm">{row.client}</p>
-                <p className="text-xs text-muted-foreground">{row.services}</p>
+                <p className="font-medium text-xs">{row.client}</p>
+                <p className="text-[11px] text-muted-foreground">{row.services}</p>
               </li>
             ))}
           </ul>
@@ -216,7 +231,7 @@ function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
 
   return (
     <PreviewShell activeNav="agendamentos">
-      <div className="flex min-h-[18rem] md:min-h-[22rem] md:-m-4">
+      <div className="flex md:-m-3">
         <aside className="hidden sm:flex w-[7.5rem] md:w-[8.75rem] shrink-0 flex-col border-r border-border/60 bg-background overflow-hidden">
           <div className="shrink-0 space-y-2 border-b border-border/60 p-2">
             <div className="rounded-xl border border-border/70 bg-card/50 p-2">
@@ -296,11 +311,11 @@ function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
             <span>Serviços</span>
             <span>Status</span>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="shrink-0">
             {rows.map((row) => (
               <div
                 key={row.time}
-                className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-x-1.5 items-center px-2 md:px-3 py-2 border-b border-border/50 text-[10px] md:text-xs hover:bg-secondary/20"
+                className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-x-1.5 items-center px-2 md:px-3 py-1.5 border-b border-border/50 text-[10px] md:text-xs"
               >
                 <span className="font-semibold tabular-nums text-accent">{row.time}</span>
                 <span className="font-medium truncate">{row.client}</span>
@@ -325,28 +340,28 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
   if (isMobile) {
     return (
       <PreviewShell activeNav="pacientes" isMobile>
-        <div className="flex flex-col min-h-[18rem] -mx-1">
-          <header className="space-y-3 border-b border-border/60 pb-3">
+        <div className="flex flex-col -mx-0.5">
+          <header className="space-y-2 border-b border-border/60 pb-2.5">
             <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground">
-                <ChevronLeft className="h-5 w-5" aria-hidden />
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground">
+                <ChevronLeft className="h-4 w-4" aria-hidden />
               </span>
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-muted-foreground">
                   AS
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-semibold tracking-tight truncate">Ana Silva</h2>
-                  <p className="text-xs text-muted-foreground truncate">32a | 12/04/1994 | (11) 91234-5678</p>
+                  <h2 className="text-base font-semibold tracking-tight truncate">Ana Silva</h2>
+                  <p className="text-[11px] text-muted-foreground truncate">32a | 12/04/1994 | (11) 91234-5678</p>
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {["Histórico", "Documentos", "Dados cadastrais"].map((tab, i) => (
                 <span
                   key={tab}
                   className={cn(
-                    "shrink-0 px-3 py-1.5 text-sm font-medium border-b-2",
+                    "shrink-0 px-2.5 py-1 text-xs font-medium border-b-2",
                     i === 0 ? "border-foreground text-foreground" : "border-transparent text-muted-foreground",
                   )}
                 >
@@ -356,22 +371,22 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
             </div>
           </header>
 
-          <div className="pt-3 space-y-3">
-            <div className="rounded-xl border border-border/70 bg-card/40 p-3">
-              <p className="text-sm font-semibold">
+          <div className="pt-2.5 space-y-2">
+            <div className="rounded-xl border border-border/70 bg-card/40 p-2.5">
+              <p className="text-xs font-semibold">
                 05/07/2026 · <span className="tabular-nums">09:00</span>
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Você</p>
-              <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Você</p>
+              <p className="mt-1.5 text-xs text-foreground/85 leading-snug line-clamp-2">
                 Paciente relatou melhora nos sintomas. Retorno em 15 dias.
               </p>
             </div>
-            <div className="rounded-xl border border-border/70 bg-card/40 p-3">
-              <p className="text-sm font-semibold">
+            <div className="rounded-xl border border-border/70 bg-card/40 p-2.5">
+              <p className="text-xs font-semibold">
                 20/06/2026 · <span className="tabular-nums">14:30</span>
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Você</p>
-              <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Você</p>
+              <p className="mt-1.5 text-xs text-foreground/85 leading-snug line-clamp-2">
                 Primeira consulta. Anamnese completa registrada.
               </p>
             </div>
@@ -383,20 +398,20 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
 
   return (
     <PreviewShell activeNav="pacientes">
-      <div className="flex min-h-[18rem] md:min-h-[22rem] md:-m-4">
-        <aside className="flex w-[6.5rem] sm:w-[7.5rem] shrink-0 flex-col border-r border-border/60 bg-background min-h-0">
+      <div className="flex md:-m-3">
+        <aside className="flex w-[6.5rem] sm:w-[7.5rem] shrink-0 flex-col border-r border-border/60 bg-background">
           <div className="shrink-0 border-b border-border/60 p-2 space-y-2">
             <div className="flex h-8 items-center gap-1.5 rounded-lg border border-border/70 bg-card/40 px-2 text-muted-foreground">
               <Search className="h-3 w-3 shrink-0" aria-hidden />
               <span className="text-[9px]">Pesquisar</span>
             </div>
           </div>
-          <ul className="min-h-0 flex-1 overflow-y-auto">
+          <ul className="shrink-0">
             {pacientes.map((p) => (
               <li key={p.nome}>
                 <div
                   className={cn(
-                    "flex items-center gap-2 px-2 py-2 border-b border-border/30 text-[10px]",
+                    "flex items-center gap-2 px-2 py-1.5 border-b border-border/30 text-[10px]",
                     p.active ? "bg-accent/10 font-medium" : "text-foreground/90",
                   )}
                 >
@@ -410,8 +425,8 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
           </ul>
         </aside>
 
-        <section className="flex min-w-0 flex-1 flex-col min-h-0 overflow-hidden">
-          <header className="shrink-0 border-b border-border/60 px-3 py-3">
+        <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/60 px-2.5 py-2">
             <div className="flex items-start gap-2">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">
                 AS
@@ -421,7 +436,7 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
                 <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">32a | 12/04/1994 | (11) 91234-5678</p>
               </div>
             </div>
-            <nav className="mt-3 flex gap-3 border-b border-transparent">
+            <nav className="mt-2 flex gap-2 border-b border-transparent">
               {["Histórico", "Documentos", "Dados cadastrais"].map((tab, i) => (
                 <span
                   key={tab}
@@ -435,24 +450,24 @@ function PacientesSlide({ isMobile }: { isMobile: boolean }) {
               ))}
             </nav>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-            <div className="py-2 border-b border-border/50">
+          <div className="px-2.5 py-2">
+            <div className="py-1.5 border-b border-border/50">
               <p className="text-[11px] font-semibold">
                 05/07/2026
                 <span className="font-normal text-muted-foreground ml-1.5 tabular-nums">09:00</span>
               </p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">Você (Atendimento Clínico)</p>
-              <p className="mt-1.5 text-[10px] text-foreground/85 leading-relaxed">
+              <p className="mt-1 text-[10px] text-foreground/85 leading-snug line-clamp-2">
                 Paciente relatou melhora nos sintomas. Retorno em 15 dias.
               </p>
             </div>
-            <div className="py-2 border-b border-border/50">
+            <div className="py-1.5 border-b border-border/50">
               <p className="text-[11px] font-semibold">
                 20/06/2026
                 <span className="font-normal text-muted-foreground ml-1.5 tabular-nums">14:30</span>
               </p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">Você (Atendimento Clínico)</p>
-              <p className="mt-1.5 text-[10px] text-foreground/85 leading-relaxed">
+              <p className="mt-1 text-[10px] text-foreground/85 leading-snug line-clamp-2">
                 Primeira consulta. Anamnese completa registrada.
               </p>
             </div>
@@ -503,38 +518,36 @@ function AgendarSlide({ isMobile }: { isMobile: boolean }) {
 
   return (
     <PreviewShell activeNav="agendar" isMobile={isMobile}>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div>
-          <p className={cn("font-semibold tracking-tight", isMobile ? "text-lg" : "text-base md:text-lg")}>Agendar</p>
-          <p className={cn("text-muted-foreground mt-0.5", isMobile ? "text-sm" : "text-xs md:text-sm")}>
-            Escolha serviço e horário
-          </p>
+          <p className={cn("font-semibold tracking-tight", isMobile ? "text-base" : "text-sm md:text-base")}>Agendar</p>
+          <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5">Escolha serviço e horário</p>
         </div>
-        <div className="rounded-xl border border-border/70 p-3 space-y-3">
+        <div className="rounded-xl border border-border/70 p-2.5 space-y-2.5">
           <div>
-            <p className="text-xs font-semibold mb-2">Serviços</p>
-            <span className="inline-flex min-w-[8.5rem] min-h-12 px-3 py-2 rounded-2xl flex-col items-center justify-center font-semibold bg-background border border-border text-foreground shadow-sm">
-              <span className="text-sm leading-snug text-center">Atendimento Clínico</span>
+            <p className="text-[11px] font-semibold mb-1.5">Serviços</p>
+            <span className="inline-flex min-w-[7.5rem] min-h-10 px-2.5 py-1.5 rounded-2xl flex-col items-center justify-center font-semibold bg-background border border-border text-foreground shadow-sm">
+              <span className="text-xs leading-snug text-center">Atendimento Clínico</span>
             </span>
           </div>
           <div>
-            <p className="text-xs font-semibold mb-2">Selecione o horário</p>
+            <p className="text-[11px] font-semibold mb-1.5">Selecione o horário</p>
             <div
               className={cn(
                 isMobile
-                  ? "flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  ? "flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   : "flex flex-wrap gap-1.5",
               )}
             >
-              {slots.map((slot) => (
+              {slots.slice(0, isMobile ? 10 : 8).map((slot) => (
                 <span key={slot.time} className={previewHorarioChipClass(slot.livre, Boolean(slot.selected), isMobile)}>
                   {slot.time}
                 </span>
               ))}
             </div>
-            <PreviewSlotLegend className="mt-2.5" />
+            <PreviewSlotLegend className="mt-2" />
           </div>
-          <Button type="button" size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-9 text-xs">
+          <Button type="button" size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-8 text-[11px]">
             Confirmar agendamento
           </Button>
         </div>
@@ -555,14 +568,14 @@ function BloqueiosSlide({ isMobile }: { isMobile: boolean }) {
 
   return (
     <PreviewShell activeNav="profissionais" isMobile={isMobile}>
-      <div className={cn("space-y-3 overflow-y-auto pr-1", isMobile ? "max-h-[18rem]" : "max-h-[18rem] md:max-h-[22rem]")}>
-        <div className="rounded-xl border border-border/80 bg-card/40 p-3 space-y-3">
+      <div className="space-y-2">
+        <div className="rounded-xl border border-border/80 bg-card/40 p-2.5 space-y-2">
           <div>
             <p className="text-xs md:text-sm font-semibold tracking-tight flex items-center gap-1.5">
               <Ban className="h-3.5 w-3.5 text-primary" aria-hidden />
               Bloqueios
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
               Bloqueie horários ou registre férias. Reflete no link de agendamento.
             </p>
           </div>
@@ -574,7 +587,7 @@ function BloqueiosSlide({ isMobile }: { isMobile: boolean }) {
 
           <div>
             <p className="text-[10px] font-semibold mb-2">Dia</p>
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {days.map((d) => (
                 <span
                   key={d.day}
@@ -635,19 +648,23 @@ function BloqueiosSlide({ isMobile }: { isMobile: boolean }) {
 
 function LinkPublicoSlide() {
   return (
-    <div className="flex h-full min-h-[22rem] md:min-h-[26rem] items-center justify-center p-4 md:p-8 bg-gradient-to-br from-primary/5 via-background to-secondary/30">
-      <div className="max-w-sm text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-          <Link2 className="h-7 w-7" aria-hidden />
+    <div
+      className={cn(
+        "flex h-full min-h-0 items-center justify-center p-3 md:p-5 bg-gradient-to-br from-primary/5 via-background to-secondary/30",
+      )}
+    >
+      <div className="max-w-sm text-center space-y-3 origin-top scale-[0.94] md:scale-[0.98]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+          <Link2 className="h-6 w-6" aria-hidden />
         </div>
-        <div className="space-y-2">
-          <p className="text-lg md:text-xl font-display font-bold tracking-tight">Link público e cobrança</p>
-          <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+        <div className="space-y-1.5">
+          <p className="text-base md:text-lg font-display font-bold tracking-tight">Link público e cobrança</p>
+          <p className="text-xs md:text-sm text-muted-foreground leading-snug">
             Compartilhe um link para o cliente agendar sozinho — e, no plano Pro, receba pagamentos direto pelo
             sistema.
           </p>
         </div>
-        <div className="flex flex-col gap-2 text-left rounded-xl border border-border/70 bg-card/80 p-4 text-sm">
+        <div className="flex flex-col gap-1.5 text-left rounded-xl border border-border/70 bg-card/80 p-3 text-xs md:text-sm">
           <p className="flex items-center gap-2 font-medium">
             <Link2 className="h-4 w-4 text-primary shrink-0" aria-hidden />
             Link personalizado 24h
@@ -694,25 +711,55 @@ export function LandingPanelPreview() {
 
   const swipeHandlers = useHorizontalSwipe(goNext, goPrev);
 
-  const navButtonClass =
+  const desktopNavButtonClass =
     "h-11 w-11 rounded-full border-0 bg-primary text-primary-foreground shadow-elevated hover:bg-primary/90";
+
+  const mobileNavButtonClass =
+    "pointer-events-auto h-9 w-9 rounded-full border border-primary/15 bg-primary/5 text-primary shadow-none backdrop-blur-[2px] hover:bg-primary/10";
+
+  const mobileNavIconClass = "h-5 w-5 text-primary";
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-xl lg:max-w-none">
       <div
-        className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden touch-pan-y"
+        className={cn(
+          "relative rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden touch-pan-y",
+          !isMdUp ? PREVIEW_MOBILE_FRAME_H : PREVIEW_FRAME_MIN_H,
+        )}
         {...swipeHandlers}
       >
         <SlideContent id={slides[index].id} isMobile={!isMdUp} />
+
+        <div className="md:hidden absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+          <Button
+            type="button"
+            size="icon"
+            onClick={goPrev}
+            aria-label="Visual anterior"
+            className={mobileNavButtonClass}
+          >
+            <ChevronLeft className={mobileNavIconClass} />
+          </Button>
+
+          <Button
+            type="button"
+            size="icon"
+            onClick={goNext}
+            aria-label="Próxima visual"
+            className={mobileNavButtonClass}
+          >
+            <ChevronRight className={mobileNavIconClass} />
+          </Button>
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-2">
+      <div className="mt-3 hidden md:flex items-center justify-center gap-2">
         <Button
           type="button"
           size="icon"
           onClick={goPrev}
           aria-label="Visual anterior"
-          className={navButtonClass}
+          className={desktopNavButtonClass}
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
@@ -722,7 +769,7 @@ export function LandingPanelPreview() {
           size="icon"
           onClick={goNext}
           aria-label="Próxima visual"
-          className={navButtonClass}
+          className={desktopNavButtonClass}
         >
           <ChevronRight className="h-6 w-6" />
         </Button>

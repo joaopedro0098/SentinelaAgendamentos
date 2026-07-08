@@ -86,7 +86,7 @@ export function SpecialtiesShowcase() {
   }
 
   return (
-    <section ref={sectionRef} className="pb-14 md:pb-20">
+    <section ref={sectionRef} className="pb-4 md:pb-6">
       <div className="container">
         <Reveal index={4}>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-4">
