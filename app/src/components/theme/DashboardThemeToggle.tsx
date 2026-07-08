@@ -9,8 +9,8 @@ export function DashboardThemeToggle() {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-none">Tema</p>
-        <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+        <p className="text-base font-semibold tracking-tight">Tema</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           {isDark ? "Modo escuro — toque no sol para claro" : "Modo claro — toque na lua para escuro"}
         </p>
       </div>

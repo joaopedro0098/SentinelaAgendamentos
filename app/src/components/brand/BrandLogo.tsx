@@ -2,8 +2,6 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export const BRAND_LOGO_SRC = "/landing-logo.png";
-/** @deprecated Use {@link BRAND_LOGO_SRC} */
-export const LANDING_LOGO_SRC = BRAND_LOGO_SRC;
 
 const brandMarkClassName = "object-contain rounded-[6px]";
 

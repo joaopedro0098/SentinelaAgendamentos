@@ -361,6 +361,12 @@ export default function Settings() {
 
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6">
+            <DashboardThemeToggle />
+          </CardContent>
+        </Card>
+
+        <Card className="glass-panel border-border/80">
+          <CardContent className="pt-6">
             <form onSubmit={isCA ? (e) => e.preventDefault() : handleSave} className="space-y-5">
               {isCA && (
                 <p className="text-sm text-muted-foreground">
@@ -492,12 +498,6 @@ export default function Settings() {
                 </div>
               )}
             </form>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-panel border-border/80">
-          <CardContent className="pt-6">
-            <DashboardThemeToggle />
           </CardContent>
         </Card>
 

@@ -70,9 +70,6 @@ const Navbar = () => {
         <BrandLogo linkTo="/" showName showFullName size="md" className="shrink-0" />
 
         <div className="hidden md:flex items-center gap-1">
-          <button type="button" className={cn(navLinkClass, "cursor-default opacity-70")} disabled>
-            Especialidades
-          </button>
           {!isPlanosPage && (
             <Link to="/planos" className={navLinkClass}>
               Planos
@@ -116,13 +113,6 @@ const Navbar = () => {
             menuEntered ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-2",
           )}
         >
-          <button
-            type="button"
-            className="text-left text-sm font-medium text-muted-foreground px-3 py-2.5 rounded-xl opacity-70"
-            disabled
-          >
-            Especialidades
-          </button>
           {!isPlanosPage && (
             <Link to="/planos" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
               Planos

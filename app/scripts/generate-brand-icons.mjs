@@ -17,9 +17,7 @@ if (!existsSync(source)) {
 }
 
 const outputs = [
-  { file: "brand-logo.png", size: 512 },
   { file: "icon-512.png", size: 512 },
-  { file: "favicon-512.png", size: 512 },
   { file: "icon-192.png", size: 192 },
   { file: "apple-touch-icon.png", size: 180 },
   { file: "favicon-48.png", size: 48 },
