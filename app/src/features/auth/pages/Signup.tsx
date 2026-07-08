@@ -247,7 +247,7 @@ export default function Signup() {
             <div className="text-center sm:text-left">
               <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Crie sua conta e comece a receber agendamentos online. Sem cartão neste período.
+                Crie sua conta e comece a receber agendamentos online hoje mesmo. Não pedimos cartão.
               </p>
             </div>
 
@@ -256,9 +256,6 @@ export default function Signup() {
               authFlow="signup"
               className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
             />
-            <p className="text-[11px] text-center text-muted-foreground">
-              Após o Google, faremos uma verificação facial rápida (poucos segundos).
-            </p>
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <div className="flex-1 h-px bg-border/80" />
