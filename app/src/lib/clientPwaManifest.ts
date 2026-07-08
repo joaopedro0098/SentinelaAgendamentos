@@ -55,7 +55,7 @@ export function applyClientPwaHead(shop: ClientPwaShopWithLogo) {
     if (previousAppleIconHref) {
       appleIcon.href = previousAppleIconHref;
     } else {
-      appleIcon.href = "/apple-touch-icon.png?v=20260602";
+      appleIcon.href = "/apple-touch-icon.png?v=2026070815";
     }
   };
 }

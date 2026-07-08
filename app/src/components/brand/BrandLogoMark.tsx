@@ -1,17 +1,18 @@
 import { cn } from "@/lib/utils";
+import { BRAND_LOGO_SRC } from "@/components/brand/BrandLogo";
 
-/** Ícone da marca — quadrado verde com recorte circular. */
+/** Marca Sentinela — PNG com cantos levemente arredondados. */
 export function BrandLogoMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={cn("shrink-0", className)}
+    <img
+      src={BRAND_LOGO_SRC}
+      alt=""
+      className={cn("shrink-0 object-contain rounded-[6px]", className)}
+      width={64}
+      height={64}
+      decoding="async"
+      draggable={false}
       aria-hidden
-    >
-      <rect width="32" height="32" rx="8" fill="hsl(var(--brand-green))" />
-      <circle cx="16" cy="16" r="6.5" fill="hsl(var(--background))" />
-    </svg>
+    />
   );
 }

@@ -67,7 +67,7 @@ const Navbar = () => {
       )}
 
       <div className="container flex items-center justify-between gap-4 h-16 md:h-[4.5rem]">
-        <BrandLogo linkTo="/" showName showFullName size="sm" className="shrink-0" />
+        <BrandLogo linkTo="/" showName showFullName size="md" className="shrink-0" />
 
         <div className="hidden md:flex items-center gap-1">
           <button type="button" className={cn(navLinkClass, "cursor-default opacity-70")} disabled>

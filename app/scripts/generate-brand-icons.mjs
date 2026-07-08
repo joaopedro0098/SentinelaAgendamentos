@@ -1,6 +1,6 @@
 /**
- * Gera PNGs de marca a partir de favicon-source.png (512×512 recomendado).
- * Uso: node scripts/generate-brand-icons.mjs
+ * Gera favicon/PWA a partir de public/favicon-source.png (512×512 recomendado).
+ * Atualize landing-logo.png e favicon-source.png juntos, depois: node scripts/generate-brand-icons.mjs
  */
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
