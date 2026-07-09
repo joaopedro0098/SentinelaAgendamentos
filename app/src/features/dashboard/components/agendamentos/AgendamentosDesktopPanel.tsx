@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
@@ -105,6 +105,14 @@ const LIST_HEADER_ROW = cn(
   "py-2 border-b border-border/40 bg-secondary/10 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
 );
 
+/** Divisórias da grade diária (Todos + Dia): mais escuras no claro, mais claras no escuro. */
+const DAY_GRID_RULE = cn("border-[hsl(156_10%_68%)] dark:border-[hsl(144_8%_32%)]");
+
+const DAY_GRID_TIME_COL = "4.75rem";
+const DAY_GRID_COL_WIDTH_DEFAULT = 192;
+const DAY_GRID_COL_WIDTH_MIN = 128;
+const DAY_GRID_COL_WIDTH_MAX = 280;
+
 function formatHora(hora: string) {
   return String(hora).slice(0, 5);
 }
@@ -210,12 +218,12 @@ type DayGridRow = {
   cells: Record<string, DayGridCell>;
 };
 
-function dayGridColumnsStyle(count: number): CSSProperties {
-  return { gridTemplateColumns: `5.5rem repeat(${count}, minmax(7.5rem, 1fr))` };
+function dayGridColumnsStyle(count: number, colWidthPx: number): CSSProperties {
+  return { gridTemplateColumns: `${DAY_GRID_TIME_COL} repeat(${count}, ${colWidthPx}px)` };
 }
 
 function dayGridProfPad(colIndex: number) {
-  return colIndex === 0 ? "pl-4 pr-3" : "px-3";
+  return colIndex === 0 ? "pl-3.5 pr-2.5" : "px-2.5";
 }
 
 function buildDayGrid(
@@ -369,6 +377,9 @@ export default function AgendamentosDesktopPanel({
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoPainelItem | null>(null);
   const [profSchedules, setProfSchedules] = useState<BookingProfSchedule[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [dayGridColWidth, setDayGridColWidth] = useState(DAY_GRID_COL_WIDTH_DEFAULT);
+  const [dayGridResizing, setDayGridResizing] = useState(false);
+  const dayGridResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const period = useMemo(() => getPeriodRange(viewMode, anchorYmd), [viewMode, anchorYmd]);
   const statusFilterOptions = useMemo(
@@ -570,6 +581,44 @@ export default function AgendamentosDesktopPanel({
     !loadingSchedule &&
     (showDayGrid ? (dayGrid?.rows.length ?? 0) === 0 : listRows.length === 0);
 
+  const handleDayGridResizeStart = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      dayGridResizeRef.current = { startX: e.clientX, startWidth: dayGridColWidth };
+      setDayGridResizing(true);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [dayGridColWidth],
+  );
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dayGridResizeRef.current) return;
+      const delta = e.clientX - dayGridResizeRef.current.startX;
+      const next = Math.min(
+        DAY_GRID_COL_WIDTH_MAX,
+        Math.max(DAY_GRID_COL_WIDTH_MIN, dayGridResizeRef.current.startWidth + delta),
+      );
+      setDayGridColWidth(next);
+    };
+    const onUp = () => {
+      if (!dayGridResizeRef.current) return;
+      dayGridResizeRef.current = null;
+      setDayGridResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, []);
+
   function goAgendar(prefill?: { data: string; hora?: string; barbeiroId?: string }) {
     navigate("/app/agendar", { state: prefill ? { prefill } : undefined });
   }
@@ -722,23 +771,26 @@ export default function AgendamentosDesktopPanel({
     const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
     const paymentSummary = formatPaymentSummary(a);
 
+    const actions = renderActionsMenu(a);
+
     return (
-      <div className="flex min-h-[3.25rem] flex-col gap-1 py-2">
-        <p className="min-w-0 truncate text-sm font-medium" title={a.cliente_nome}>
-          {a.cliente_nome}
-        </p>
-        <p
-          className="min-w-0 truncate text-[11px] text-muted-foreground"
-          title={a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : undefined}
-        >
-          {a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : "—"}
-        </p>
-        {paymentSummary && (
-          <p className="min-w-0 truncate text-[10px] text-orange-700/90 dark:text-orange-300/90">
-            {paymentSummary}
+      <div className="relative min-h-[3.25rem] py-2">
+        {actions ? <div className="absolute top-0 -right-1 z-[1]">{actions}</div> : null}
+        <div className="flex min-w-0 flex-col gap-1 overflow-hidden pr-8">
+          <p className="min-w-0 truncate text-sm font-medium" title={a.cliente_nome}>
+            {a.cliente_nome}
           </p>
-        )}
-        <div className="mt-auto flex items-center justify-between gap-1">
+          <p
+            className="min-w-0 truncate text-[11px] text-muted-foreground"
+            title={a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : undefined}
+          >
+            {a.servicos_nomes?.length ? a.servicos_nomes.join(" · ") : "—"}
+          </p>
+          {paymentSummary && (
+            <p className="min-w-0 truncate text-[10px] text-orange-700/90 dark:text-orange-300/90">
+              {paymentSummary}
+            </p>
+          )}
           <AgendamentoStatusBadge
             item={a}
             busy={rowBusy}
@@ -747,7 +799,6 @@ export default function AgendamentosDesktopPanel({
             onAction={(action) => void handleStatusAction(a, action)}
             onMenuAction={(key) => void handlePastDayStatus(a, key)}
           />
-          {renderActionsMenu(a)}
         </div>
       </div>
     );
@@ -988,20 +1039,42 @@ export default function AgendamentosDesktopPanel({
         </header>
 
         {showDayGrid && dayGrid ? (
-          <div
-            className="grid w-full min-w-max shrink-0 items-center border-b border-border/40 bg-secondary/10 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0 z-10"
-            style={dayGridColumnsStyle(dayGrid.columns.length)}
-          >
-            <span className="min-w-0 truncate pl-4 pr-2">Horário</span>
-            {dayGrid.columns.map((col, colIdx) => (
-              <span
-                key={col.id}
-                className={cn("min-w-0 truncate text-left normal-case", dayGridProfPad(colIdx))}
-                title={col.nome}
-              >
-                {col.nome}
-              </span>
-            ))}
+          <div className="relative sticky top-0 z-10 shrink-0">
+            <button
+              type="button"
+              aria-label="Ajustar largura das colunas da grade"
+              className={cn(
+                "absolute top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border bg-background shadow-sm cursor-col-resize",
+                DAY_GRID_RULE,
+                "hover:scale-110 hover:bg-secondary/80",
+                dayGridResizing && "scale-110 bg-secondary",
+              )}
+              style={{ left: `calc(${DAY_GRID_TIME_COL} + ${dayGridColWidth}px)` }}
+              onMouseDown={handleDayGridResizeStart}
+            />
+            <div
+              className={cn(
+                "grid w-full min-w-max items-center border-b bg-secondary/10 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+                DAY_GRID_RULE,
+              )}
+              style={dayGridColumnsStyle(dayGrid.columns.length, dayGridColWidth)}
+            >
+              <span className="min-w-0 truncate pl-3.5 pr-1.5">Horário</span>
+              {dayGrid.columns.map((col, colIdx) => (
+                <span
+                  key={col.id}
+                  className={cn(
+                    "min-w-0 truncate border-l text-left normal-case",
+                    DAY_GRID_RULE,
+                    dayGridProfPad(colIdx),
+                    colIdx === dayGrid.columns.length - 1 && "border-r",
+                  )}
+                  title={col.nome}
+                >
+                  {col.nome}
+                </span>
+              ))}
+            </div>
           </div>
         ) : (
           <div className={cn(LIST_HEADER_ROW, "sticky top-0 z-10 shrink-0")}>
@@ -1032,16 +1105,24 @@ export default function AgendamentosDesktopPanel({
                 {dayGrid.rows.map((row) => (
                   <div
                     key={`grid-${row.sortMin}`}
-                    className="grid w-full items-stretch border-b border-border/40 transition-colors hover:bg-secondary/10"
-                    style={dayGridColumnsStyle(dayGrid.columns.length)}
+                    className={cn(
+                      "grid w-full items-stretch border-b transition-colors hover:bg-secondary/10",
+                      DAY_GRID_RULE,
+                    )}
+                    style={dayGridColumnsStyle(dayGrid.columns.length, dayGridColWidth)}
                   >
-                    <span className="self-center py-2 pl-4 pr-2 text-sm font-semibold tabular-nums text-accent">
+                    <span className="self-center py-2 pl-3.5 pr-1.5 text-sm font-semibold tabular-nums text-accent">
                       {row.timeLabel}
                     </span>
                     {dayGrid.columns.map((col, colIdx) => (
                       <div
                         key={`${row.sortMin}-${col.id}`}
-                        className={cn("border-l border-border/40", dayGridProfPad(colIdx))}
+                        className={cn(
+                          "border-l",
+                          DAY_GRID_RULE,
+                          dayGridProfPad(colIdx),
+                          colIdx === dayGrid.columns.length - 1 && "border-r",
+                        )}
                       >
                         {renderGridCell(row.cells[col.id])}
                       </div>
