@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, ClipboardList, Clock, Loader2, MessageSquare, Phone, User } from "lucide-react";
+import { CalendarDays, ClipboardList, Clock, Loader2, MessageSquare, Phone, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -26,7 +26,6 @@ import { cn } from "@/lib/utils";
 import {
   buildAppointmentConfirmationMessage,
   buildClientWhatsAppUrl,
-  getClientConfirmationBadgeForPanel,
 } from "@/lib/appointmentConfirmationMessage";
 import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
@@ -58,10 +57,10 @@ import {
   parsePanelStatusRow,
   rpcAlterarAgendamentoPainel,
   rpcAlterarStatusPassado,
-  rpcConfirmarPresenca,
   rpcExcluirAgendamento,
 } from "@/features/dashboard/lib/agendamentosPanelActions";
 import { AgendamentosMobileMonthNav, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMobileMonthNav";
+import { AgendamentosGridDesktopOnlyNotice } from "@/features/dashboard/components/agendamentos/AgendamentosGridDesktopOnlyNotice";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
 
@@ -153,7 +152,6 @@ export default function AgendamentosMobilePanel({
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgendamentoRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [confirmingPresenceId, setConfirmingPresenceId] = useState<string | null>(null);
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
@@ -341,6 +339,8 @@ export default function AgendamentosMobilePanel({
     return agendamentos.filter((a) => a.barbeiro_id === selectedBarbeiroId);
   }, [agendamentos, selectedBarbeiroId, isCA, profissionais]);
 
+  const showTodosGridView = !isCA && selectedBarbeiroId === null && colaboradoresFiltro.length > 0;
+
   useEffect(() => {
     if (!highlightedId || loadingList) return;
 
@@ -430,21 +430,6 @@ export default function AgendamentosMobilePanel({
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  async function handleConfirmPresence(a: AgendamentoRow) {
-    if (confirmingPresenceId) return;
-    setConfirmingPresenceId(a.id);
-    const { data, error } = await rpcConfirmarPresenca(a.id);
-    setConfirmingPresenceId(null);
-    if (error) {
-      toast({ title: "Não foi possível confirmar", description: error.message, variant: "destructive" });
-      return;
-    }
-    const confirmedAt = typeof data === "string" ? data : new Date().toISOString();
-    setAgendamentos((prev) =>
-      prev.map((row) => (row.id === a.id ? { ...row, client_confirmed_at: confirmedAt } : row)),
-    );
   }
 
   async function handlePastDayStatus(a: AgendamentoRow, novoStatus: PastDayStatusKey) {
@@ -614,15 +599,19 @@ export default function AgendamentosMobilePanel({
       <section className="relative space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">
-            {isCA && colaboradoresFiltro.length === 1
-              ? `Horários — ${colaboradoresFiltro[0].nome}`
-              : selectedBarbeiroId
-                ? `Horários — ${colaboradoresFiltro.find((b) => b.id === selectedBarbeiroId)?.nome ?? ""}`
-                : "Todos os agendamentos do dia"}
+            {showTodosGridView
+              ? "Grade do dia"
+              : isCA && colaboradoresFiltro.length === 1
+                ? `Horários — ${colaboradoresFiltro[0].nome}`
+                : selectedBarbeiroId
+                  ? `Horários — ${colaboradoresFiltro.find((b) => b.id === selectedBarbeiroId)?.nome ?? ""}`
+                  : "Todos os agendamentos do dia"}
           </h2>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {listaFiltrada.length} {listaFiltrada.length === 1 ? "agendamento" : "agendamentos"}
-          </span>
+          {!showTodosGridView && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {listaFiltrada.length} {listaFiltrada.length === 1 ? "agendamento" : "agendamentos"}
+            </span>
+          )}
         </div>
 
         {(loadingList || syncingAgenda) && agendamentos.length === 0 ? (
@@ -632,6 +621,8 @@ export default function AgendamentosMobilePanel({
               <p className="text-xs text-muted-foreground">Preparando agenda…</p>
             ) : null}
           </div>
+        ) : showTodosGridView ? (
+          <AgendamentosGridDesktopOnlyNotice />
         ) : listaFiltrada.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -648,13 +639,11 @@ export default function AgendamentosMobilePanel({
             )}
             <ul className="space-y-3">
             {listaFiltrada.map((a) => {
-              const isCancelled = a.status === "cancelado";
               const isNoShow = a.status === "nao_veio";
               const manageable = canManageAgendamento(
                 { barbearia_id: a.barbearia_id, can_manage: a.can_manage },
                 barbeariaId,
               );
-              const confirmationBadge = !isCancelled && !isNoShow ? getClientConfirmationBadgeForPanel(a) : null;
               const appointmentPast = isPastCalendarDate(a.data);
               const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
               const paymentSummary = formatPaymentSummary(a);
@@ -686,25 +675,6 @@ export default function AgendamentosMobilePanel({
                               onAction={(action) => void handleStatusAction(a, action)}
                               onMenuAction={(key) => void handlePastDayStatus(a, key)}
                             />
-                            {!appointmentPast && confirmationBadge === "pending" && manageable && (
-                              <button
-                                type="button"
-                                aria-label="Confirmar presença"
-                                disabled={confirmingPresenceId === a.id}
-                                onClick={() => void handleConfirmPresence(a)}
-                                className={cn(
-                                  "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                                  "border-available/90 text-available hover:bg-available/15 active:bg-available/25",
-                                  "disabled:opacity-50 disabled:pointer-events-none",
-                                )}
-                              >
-                                {confirmingPresenceId === a.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                                )}
-                              </button>
-                            )}
                           </div>
                         <div className="flex items-center gap-2 text-accent font-semibold tabular-nums">
                           <Clock className="h-4 w-4 shrink-0" />
