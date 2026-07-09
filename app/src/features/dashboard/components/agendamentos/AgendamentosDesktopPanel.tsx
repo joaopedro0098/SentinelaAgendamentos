@@ -507,7 +507,9 @@ export default function AgendamentosDesktopPanel({
       p_slug: slug,
       p_from: anchorYmd,
       p_to: anchorYmd,
-      p_hub_only: !isCA,
+      p_hub_only: isCA,
+      p_editable_cas_only: false,
+      p_painel_visiveis: !isCA,
     });
     if (error) {
       setProfSchedules([]);
@@ -555,6 +557,7 @@ export default function AgendamentosDesktopPanel({
   );
 
   const showDayGrid = viewMode === "dia" && profFilter === "todos" && profissionais.length > 0;
+  const showDayListTimeline = viewMode === "dia" && profFilter !== "todos" && !!profissionalId;
 
   const dayGrid = useMemo(() => {
     if (!showDayGrid) return null;
@@ -563,7 +566,25 @@ export default function AgendamentosDesktopPanel({
     return buildDayGrid(anchorYmd, profSchedules, profissionais, dayItemsAll, dayItemsVisible);
   }, [showDayGrid, profSchedules, profissionais, filteredList, items, anchorYmd]);
 
-  const listRows = useMemo(() => {
+  const listRows = useMemo((): TimelineEntry[] => {
+    if (showDayListTimeline && profissionalId) {
+      const dayItemsAll = items.filter((a) => a.data === anchorYmd);
+      const dayItemsVisible = filteredList.filter((a) => a.data === anchorYmd);
+      const prof = profSchedules.find((p) => p.id === profissionalId);
+      if (prof) {
+        const visible = dayItemsVisible.filter((a) => a.barbeiro_id === profissionalId);
+        const occupancy = dayItemsAll.filter((a) => a.barbeiro_id === profissionalId);
+        return buildDayTimeline(anchorYmd, visible, occupancy, prof, profissionalId);
+      }
+      return dayItemsVisible
+        .filter((a) => a.barbeiro_id === profissionalId)
+        .map((item) => ({
+          kind: "appointment" as const,
+          item,
+          sortMin: toMin(formatHora(item.hora)),
+          barbeiroId: profissionalId,
+        }));
+    }
     const sorted = [...filteredList].sort((a, b) => {
       const cmp = a.data.localeCompare(b.data);
       if (cmp !== 0) return cmp;
@@ -574,7 +595,14 @@ export default function AgendamentosDesktopPanel({
       item,
       sortMin: toMin(formatHora(item.hora)),
     }));
-  }, [filteredList]);
+  }, [
+    showDayListTimeline,
+    profissionalId,
+    profSchedules,
+    filteredList,
+    items,
+    anchorYmd,
+  ]);
 
   const listIsEmpty =
     !loading &&
@@ -1093,7 +1121,7 @@ export default function AgendamentosDesktopPanel({
             showDayGrid ? "overflow-auto" : "overflow-y-auto",
           )}
         >
-          {(loading || (showDayGrid && loadingSchedule)) && (
+          {(loading || ((showDayGrid || showDayListTimeline) && loadingSchedule)) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
@@ -1132,7 +1160,43 @@ export default function AgendamentosDesktopPanel({
               </div>
             ) : (
             <div>
-              {listRows.map((row) => renderAppointmentRow(row.item))}
+              {listRows.map((row, idx) => {
+                if (row.kind === "gap") {
+                  return (
+                    <div
+                      key={`gap-${row.barbeiroId}-${row.horaInicio}-${idx}`}
+                      className={cn(LIST_ROW_GRID, "py-1 border-b border-border/40 bg-muted/15 text-[11px] text-muted-foreground/80")}
+                    >
+                      <span className="min-w-0 tabular-nums">
+                        {row.horaInicio}
+                        <span className="mx-1">–</span>
+                        {row.horaFim}
+                      </span>
+                      <span className="min-w-0 italic">intervalo</span>
+                      <span aria-hidden />
+                      <span aria-hidden />
+                      <span aria-hidden />
+                      <span aria-hidden />
+                    </div>
+                  );
+                }
+                if (row.kind === "empty") {
+                  return (
+                    <div
+                      key={`empty-${row.barbeiroId}-${row.hora}-${idx}`}
+                      className={cn(LIST_ROW_GRID, "py-1 border-b border-border/40")}
+                    >
+                      <span className="min-w-0 text-sm tabular-nums text-muted-foreground">{row.hora}</span>
+                      <span className="min-w-0 text-[11px] text-muted-foreground/70 italic">vazio</span>
+                      <span aria-hidden />
+                      <span aria-hidden />
+                      <span aria-hidden />
+                      <span aria-hidden />
+                    </div>
+                  );
+                }
+                return renderAppointmentRow(row.item);
+              })}
             </div>
             )
           ) : (

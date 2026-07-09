@@ -382,6 +382,7 @@ export type Database = {
           p_to?: string
           p_hub_only?: boolean
           p_editable_cas_only?: boolean
+          p_painel_visiveis?: boolean
         }
         Returns: Json
       }
