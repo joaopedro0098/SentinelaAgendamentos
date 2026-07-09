@@ -1,59 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Reveal } from "@/components/layout/PageReveal";
+import { SPECIALTIES } from "@/features/landing/content/landingContent";
+import { LandingSection } from "@/features/landing/components/LandingSection";
+import { LandingSectionHeader } from "@/features/landing/components/LandingSectionHeader";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { cn } from "@/lib/utils";
-
-type Specialty = {
-  id: string;
-  label: string;
-  iconSrc: string;
-  description: string;
-};
-
-const SPECIALTIES: Specialty[] = [
-  {
-    id: "psicologos",
-    label: "Psicólogos",
-    iconSrc: "/landing-specialty-psicologos.png",
-    description:
-      "Sessões recorrentes na agenda, ficha do paciente com anotações e link para marcar horário online.",
-  },
-  {
-    id: "medicos",
-    label: "Médicos",
-    iconSrc: "/landing-specialty-medicos.png",
-    description:
-      "Consultas, retornos e encaixes no painel — com equipe, serviços e link para o paciente agendar sozinho.",
-  },
-  {
-    id: "nutricionistas",
-    label: "Nutricionistas",
-    iconSrc: "/landing-specialty-nutricionistas.png",
-    description:
-      "Acompanhe cada paciente com anotações, retornos programados e horários organizados em um só lugar.",
-  },
-  {
-    id: "dentistas",
-    label: "Dentistas",
-    iconSrc: "/landing-specialty-dentistas.png",
-    description:
-      "Procedimentos e revisões na agenda, com serviços e duração definidos para cada tipo de atendimento.",
-  },
-];
 
 function SpecialtyTitle({ label, iconSrc, className }: { label: string; iconSrc: string; className?: string }) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
       <img
         src={iconSrc}
-        alt=""
-        aria-hidden
-        className="h-7 w-7 shrink-0 object-contain md:h-8 md:w-8"
+        alt={`Ícone ${label}`}
+        className="h-8 w-8 shrink-0 object-contain"
         loading="lazy"
         decoding="async"
+        width={32}
+        height={32}
       />
-      <span className="font-display font-bold leading-tight">{label}</span>
+      <span className="font-display font-semibold leading-tight">{label}</span>
     </span>
   );
 }
@@ -61,7 +27,7 @@ function SpecialtyTitle({ label, iconSrc, className }: { label: string; iconSrc:
 export function SpecialtiesShowcase() {
   const isMdUp = useMediaMdUp();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const sectionRef = useRef<HTMLElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isMdUp) setActiveId(null);
@@ -86,37 +52,43 @@ export function SpecialtiesShowcase() {
   }
 
   return (
-    <section ref={sectionRef} className="pb-4 md:pb-6">
-      <div className="container">
-        <Reveal index={4}>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-4">
+    <LandingSection id="especialidades">
+      <LandingSectionHeader
+        eyebrow="Para sua área"
+        title="Feito para quem cuida de pessoas"
+        description="Psicólogos, médicos, nutricionistas, dentistas e outras especialidades com atendimento por hora marcada."
+        align="center"
+      />
+
+      <div ref={sectionRef}>
+        <Reveal index={0}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
             {SPECIALTIES.map((item) => {
               const isOpen = !isMdUp && activeId === item.id;
 
               return (
-                <div
+                <article
                   key={item.id}
                   className={cn(
-                    "overflow-hidden rounded-2xl border border-primary/30 bg-primary text-primary-foreground transition-all duration-300 ease-out",
-                    "md:hover:scale-[1.03] md:hover:-translate-y-0.5 md:hover:shadow-elevated",
+                    "overflow-hidden rounded-2xl border border-border/70 bg-card shadow-soft transition-shadow",
+                    "md:hover:shadow-elevated md:hover:border-primary/20",
                   )}
                 >
                   <button
                     type="button"
                     aria-expanded={isOpen}
                     onClick={() => handleCardClick(item.id)}
-                    className="flex w-full items-center justify-between gap-3 p-4 text-left md:hidden"
+                    className="flex w-full items-center justify-between gap-3 p-4 text-left md:cursor-default"
                   >
-                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-sm" />
+                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-sm md:text-base" />
                     <ChevronDown
                       aria-hidden
-                      className={cn("h-4 w-4 shrink-0 transition-transform duration-300", isOpen && "rotate-180")}
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-muted-foreground md:hidden transition-transform duration-300",
+                        isOpen && "rotate-180",
+                      )}
                     />
                   </button>
-
-                  <div className="hidden md:block md:p-5 md:pb-0">
-                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-lg" />
-                  </div>
 
                   <div
                     className={cn(
@@ -125,17 +97,17 @@ export function SpecialtiesShowcase() {
                     )}
                   >
                     <div className="min-h-0 overflow-hidden">
-                      <p className="px-4 pb-4 text-sm leading-relaxed text-primary-foreground/90 md:px-5 md:pb-5 md:pt-3 md:text-base">
+                      <p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground md:px-4 md:pb-5 md:-mt-1">
                         {item.description}
                       </p>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
         </Reveal>
       </div>
-    </section>
+    </LandingSection>
   );
 }

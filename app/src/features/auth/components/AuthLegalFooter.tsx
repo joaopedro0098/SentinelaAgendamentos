@@ -15,8 +15,8 @@ export function AuthLegalFooter() {
     <footer className="border-t border-border/40 bg-background/60 backdrop-blur-sm mt-auto">
       <div className="container py-6 flex flex-col items-center gap-3 text-center text-xs text-muted-foreground">
         <p>
-          <strong className="font-medium text-foreground">Sentinela Agendamentos</strong> — plataforma de agendamento
-          online para barbearias
+          <strong className="font-medium text-foreground">Sentinela Agendamentos</strong> — gestão de agenda e
+          consultório para profissionais de saúde e bem-estar
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           <LegalLink to="/termos-de-servico">Termos de serviço</LegalLink>

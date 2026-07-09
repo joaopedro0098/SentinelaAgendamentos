@@ -6,8 +6,14 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { cn } from "@/lib/utils";
 
+const NAV_LINKS = [
+  { label: "Funcionalidades", to: "/#funcionalidades" },
+  { label: "Planos", to: "/planos" },
+  { label: "Dúvidas", to: "/#faq" },
+] as const;
+
 const navLinkClass =
-  "text-sm font-medium text-muted-foreground hover:text-accent transition-colors px-3 py-2 rounded-lg";
+  "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg";
 
 const Navbar = () => {
   const { pathname } = useLocation();
@@ -53,20 +59,26 @@ const Navbar = () => {
         />
       )}
 
-      <div className="container flex items-center justify-between gap-4 h-16 md:h-[4.5rem]">
+      <div className="container flex items-center justify-between gap-4 h-16 md:h-[4.25rem]">
         <BrandLogo linkTo="/" showName size="md" className="shrink-0 min-w-0" />
 
-        <div className="hidden md:flex items-center gap-1">
-          <Link to="/planos" className={navLinkClass}>
-            Planos
-          </Link>
+        <nav className="hidden md:flex items-center gap-0.5" aria-label="Principal">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className={navLinkClass}>
+              {link.label}
+            </Link>
+          ))}
           <Link to="/login" className={navLinkClass}>
             Entrar
           </Link>
-          <Button asChild size="sm" className="ml-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5">
-            <Link to="/signup">Teste Grátis</Link>
+          <Button
+            asChild
+            size="sm"
+            className="ml-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5 font-medium"
+          >
+            <Link to="/signup">Teste grátis</Link>
           </Button>
-        </div>
+        </nav>
 
         <div className="flex items-center md:hidden">
           <button
@@ -82,20 +94,28 @@ const Navbar = () => {
       </div>
 
       {menuMounted && (
-        <div
+        <nav
+          aria-label="Menu mobile"
           className={cn(
-            "md:hidden absolute top-full inset-x-0 border-b border-border/60 bg-background/95 backdrop-blur-md px-4 pb-4 pt-2 flex flex-col gap-2 transition-all duration-300 ease-out motion-reduce:transition-none",
+            "md:hidden absolute top-full inset-x-0 border-b border-border/60 bg-background/95 backdrop-blur-md px-4 pb-4 pt-2 flex flex-col gap-1 transition-all duration-300 ease-out motion-reduce:transition-none",
             menuEntered ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-2",
           )}
         >
-          <Link to="/planos" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
-            Planos
-          </Link>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              onClick={closeMenu}
+              className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60"
+            >
+              {link.label}
+            </Link>
+          ))}
           <Link to="/login" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
             Entrar
           </Link>
           <PwaInstallButton
-            label="Baixar"
+            label="Baixar app"
             helpVariant="landing"
             className="w-full"
             buttonClassName="w-full rounded-xl border-border bg-background/80 hover:bg-secondary text-sm h-10 justify-center gap-2"
@@ -103,10 +123,10 @@ const Navbar = () => {
           />
           <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 w-full mt-1">
             <Link to="/signup" onClick={closeMenu}>
-              Teste Grátis
+              Teste grátis
             </Link>
           </Button>
-        </div>
+        </nav>
       )}
     </header>
   );

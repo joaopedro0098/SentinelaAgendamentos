@@ -9,44 +9,32 @@
    ========================================================== */
 @layer base {
   [data-theme="landing"] {
-    --background: 50 12% 98%;
-    --foreground: 155 14% 12%;
-    --card: 50 12% 98%;
-    --card-foreground: 155 14% 12%;
-    --popover: 50 12% 98%;
-    --popover-foreground: 155 14% 12%;
-    --primary: 156 42% 40%;
+    --background: 40 25% 98%;
+    --foreground: 215 22% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 22% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 22% 14%;
+    --primary: 162 36% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 156 18% 94%;
-    --secondary-foreground: 155 14% 12%;
-    --muted: 50 10% 94%;
-    --muted-foreground: 150 8% 42%;
-    --accent: 156 42% 40%;
+    --secondary: 155 18% 95%;
+    --secondary-foreground: 215 22% 14%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 215 10% 42%;
+    --accent: 162 36% 30%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 156 42% 94%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 156 12% 88%;
-    --input: 156 10% 92%;
-    --ring: 156 42% 40%;
-    --radius: 1rem;
-    --brand-green: 156 42% 40%;
-    --brand-teal: 156 42% 40%;
-    --brand-mint: 156 42% 40%;
-    --brand-black: 155 14% 12%;
-    --brand-blue: var(--brand-green);
+    --border: 215 14% 90%;
+    --input: 215 12% 92%;
+    --ring: 162 36% 30%;
+    --radius: 0.875rem;
+    --brand-green: 162 36% 30%;
     --brand-violet: var(--brand-green);
-    --brand-pink: var(--brand-green);
-    --brand-cyan: var(--brand-green);
-    --completed: 156 42% 40%;
-    --completed-foreground: 0 0% 100%;
-    --completed-soft: 156 42% 94%;
     --gradient-brand: hsl(var(--brand-green));
-    --gradient-brand-soft: hsl(var(--brand-green) / 0.08);
-    --gradient-text: hsl(var(--brand-green));
-    --glow-primary: 0 0 40px hsl(var(--brand-green) / 0.18);
-    --glow-soft: 0 12px 40px -18px hsl(var(--brand-green) / 0.14);
-    --shadow-elevated: 0 20px 60px -24px hsl(155 14% 12% / 0.1);
+    --glow-primary: 0 0 40px hsl(var(--brand-green) / 0.16);
+    --glow-soft: 0 12px 40px -18px hsl(var(--brand-green) / 0.12);
+    --shadow-elevated: 0 20px 60px -24px hsl(215 22% 14% / 0.1);
   }
 
   /* Painel claro: verde #3B8F6E (marca e UI interna) */
@@ -89,8 +77,6 @@
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
     --gradient-brand: hsl(var(--brand));
-    --gradient-brand-soft: hsl(var(--brand) / 0.08);
-    --gradient-text: hsl(var(--brand));
     --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
     --glow-soft: 0 10px 36px -12px hsl(var(--brand) / 0.14);
     --shadow-elevated: 0 20px 50px -20px hsl(155 14% 12% / 0.1);
@@ -134,8 +120,6 @@
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
     --gradient-brand: hsl(var(--brand));
-    --gradient-brand-soft: hsl(var(--brand) / 0.08);
-    --gradient-text: hsl(var(--brand));
     --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
     --glow-soft: 0 10px 36px -12px hsl(var(--brand) / 0.14);
     --shadow-elevated: 0 20px 50px -20px hsl(155 14% 12% / 0.1);
@@ -180,8 +164,6 @@
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 20%;
     --gradient-brand: hsl(var(--brand));
-    --gradient-brand-soft: hsl(var(--brand) / 0.12);
-    --gradient-text: hsl(var(--brand));
     --glow-primary: 0 0 40px hsl(var(--brand) / 0.22);
     --glow-soft: 0 10px 36px -12px hsl(0 0% 0% / 0.35);
     --shadow-elevated: 0 20px 50px -20px hsl(0 0% 0% / 0.4);
@@ -208,7 +190,6 @@
     --muted-foreground: 150 8% 42%;
     --accent: 177 51% 25%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 177 28% 93%;
     --destructive: 0 0% 25%;
     --destructive-foreground: 0 0% 100%;
     --border: 156 12% 88%;
@@ -232,8 +213,6 @@
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
     --gradient-brand: hsl(var(--brand));
-    --gradient-brand-soft: hsl(var(--brand) / 0.08);
-    --gradient-text: hsl(var(--brand));
     --glow-primary: 0 0 40px hsl(var(--brand) / 0.18);
     --glow-soft: 0 8px 32px -8px hsl(var(--brand) / 0.14);
     --shadow-elevated: 0 16px 40px -16px hsl(155 14% 12% / 0.1);
@@ -374,10 +353,20 @@
     border: 1px solid hsl(var(--border) / 0.65);
   }
   .marketing-nav {
-    background: hsl(var(--background) / 0.78);
+    background: hsl(var(--background) / 0.88);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid hsl(var(--border) / 0.55);
+    border-bottom: 1px solid hsl(var(--border) / 0.6);
+  }
+  .landing-eyebrow {
+    @apply text-[11px] md:text-xs font-semibold tracking-[0.18em] uppercase;
+  }
+  .landing-hero-glow {
+    background: radial-gradient(
+      ellipse 80% 60% at 50% -10%,
+      hsl(var(--primary) / 0.08),
+      transparent 70%
+    );
   }
 }
 

@@ -87,7 +87,6 @@ export default {
       },
       backgroundImage: {
         "gradient-brand": "var(--gradient-brand)",
-        "gradient-text": "var(--gradient-text)",
       },
       boxShadow: {
         glow: "var(--glow-primary)",

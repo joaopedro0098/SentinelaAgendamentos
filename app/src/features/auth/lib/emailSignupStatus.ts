@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isInvalidApiKeyError } from "@/features/auth/lib/authErrors";
 
-export type EmailSignupStatus = "registered" | "pending_confirmation" | "not_registered";
+type EmailSignupStatus = "registered" | "pending_confirmation" | "not_registered";
 
-export type EmailSignupStatusResult =
+type EmailSignupStatusResult =
   | { status: EmailSignupStatus }
   | { status: "api_key_error" }
   | { status: "unknown_error" };

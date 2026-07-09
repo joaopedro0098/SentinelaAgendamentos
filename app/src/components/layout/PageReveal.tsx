@@ -28,17 +28,16 @@ export function Reveal({ children, index = 0, className }: RevealProps) {
 type PageRevealProps = {
   children: ReactNode;
   className?: string;
-  startIndex?: number;
 };
 
 /** Agrupa filhos diretos e aplica entrada escalonada (por partes). */
-export function PageReveal({ children, className, startIndex = 0 }: PageRevealProps) {
+export function PageReveal({ children, className }: PageRevealProps) {
   const items = Children.toArray(children).filter(Boolean);
 
   return (
     <div className={className}>
       {items.map((child, i) => (
-        <Reveal key={startIndex + i} index={startIndex + i}>
+        <Reveal key={i} index={i}>
           {child}
         </Reveal>
       ))}

@@ -5,6 +5,7 @@ import { AnimatedMarketingOutlet } from "@/components/layout/PageTransition";
 import { AuthLegalFooter } from "@/features/auth/components/AuthLegalFooter";
 import {
   MARKETING_PAGE_TITLES,
+  MARKETING_PAGE_DESCRIPTIONS,
   NOINDEX_MARKETING_PATHS,
 } from "@/lib/marketingSeo";
 
@@ -24,6 +25,17 @@ export function MarketingLayout() {
   useEffect(() => {
     const title = MARKETING_PAGE_TITLES[pathname];
     if (title) document.title = title;
+
+    const description = MARKETING_PAGE_DESCRIPTIONS[pathname];
+    if (description) {
+      let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.name = "description";
+        document.head.appendChild(meta);
+      }
+      meta.content = description;
+    }
 
     let robots = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
 

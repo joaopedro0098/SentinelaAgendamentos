@@ -10,12 +10,13 @@ const FooterLink = ({ to, children }: { to: string; children: ReactNode }) => (
 
 const LandingFooter = () => (
   <footer className="border-t border-border/60 bg-background">
-    <div className="container py-12 md:py-14">
-      <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div className="space-y-4">
+    <div className="container py-12 md:py-16">
+      <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+        <div className="sm:col-span-2 space-y-4">
           <BrandLogo linkTo="/" showName showFullName size="md" />
-          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            Humanizando a tecnologia para profissionais da área da saúde e bem estar.
+          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+            Gestão de agenda e consultório para profissionais de saúde e bem-estar. Simples, confiável e com suporte
+            humanizado.
           </p>
         </div>
 
@@ -23,7 +24,13 @@ const LandingFooter = () => (
           <p className="text-sm font-semibold text-foreground mb-3">Produto</p>
           <ul className="space-y-2">
             <li>
-              <FooterLink to="/planos">Preços</FooterLink>
+              <FooterLink to="/#funcionalidades">Funcionalidades</FooterLink>
+            </li>
+            <li>
+              <FooterLink to="/planos">Planos e preços</FooterLink>
+            </li>
+            <li>
+              <FooterLink to="/#faq">Dúvidas frequentes</FooterLink>
             </li>
           </ul>
         </div>
@@ -35,14 +42,14 @@ const LandingFooter = () => (
               <FooterLink to="/politica-de-privacidade">Privacidade</FooterLink>
             </li>
             <li>
-              <FooterLink to="/termos-de-servico">Termos</FooterLink>
+              <FooterLink to="/termos-de-servico">Termos de serviço</FooterLink>
             </li>
           </ul>
         </div>
       </div>
 
       <p className="mt-10 pt-6 border-t border-border/50 text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Sentinela Agendamentos
+        © {new Date().getFullYear()} Sentinela Agendamentos — sentinelagendamentos.com
       </p>
     </div>
   </footer>

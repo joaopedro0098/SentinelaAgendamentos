@@ -1,13 +1,8 @@
 import { useEffect } from "react";
 import { useLocation, useOutlet } from "react-router-dom";
-import { cn } from "@/lib/utils";
-
-type Props = {
-  className?: string;
-};
 
 /** Outlet de marketing — scroll ao topo; entrada suave por página. */
-export function AnimatedMarketingOutlet({ className }: Props) {
+export function AnimatedMarketingOutlet() {
   const location = useLocation();
   const outlet = useOutlet();
 
@@ -18,7 +13,7 @@ export function AnimatedMarketingOutlet({ className }: Props) {
   return (
     <div
       key={location.pathname}
-      className={cn("flex-1 flex flex-col animate-reveal-up motion-reduce:animate-none", className)}
+      className="flex-1 flex flex-col animate-reveal-up motion-reduce:animate-none"
     >
       {outlet}
     </div>
