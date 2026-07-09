@@ -10,7 +10,7 @@ export const LANDING_HERO = {
   eyebrow: "Gestão para consultórios e clínicas",
   headline: "Menos tempo organizando agenda. Mais tempo com seus pacientes.",
   subheadline:
-    "Agendamento online, prontuário simples e visão do consultório em um só lugar — feito para quem atende, não para quem programa software.",
+    "Agendamento online, prontuário simples e visão do consultório em um só lugar.",
   ctaPrimary: "Começar teste grátis",
   ctaSecondary: "Ver como funciona",
 } as const;
@@ -18,9 +18,9 @@ export const LANDING_HERO = {
 export const PAIN_POINTS = [
   {
     id: "whatsapp",
-    title: "Confirmações no WhatsApp o dia inteiro",
+    title: "Confirmação pelo WhatsApp",
     description:
-      "Cada mensagem de horário tira você do atendimento. Pacientes esperam resposta rápida, mas você não pode parar a cada notificação.",
+      "Tenha acesso a um link de confirmação personalizado para evitar faltas de última hora.",
   },
   {
     id: "agenda",
@@ -95,7 +95,7 @@ export const HOW_IT_WORKS_STEPS = [
   {
     step: "3",
     title: "Compartilhe com pacientes",
-    description: "Envie o link no Instagram, WhatsApp ou site. Eles agendam; você recebe tudo organizado.",
+    description: "Envie o link no instagram, WhatsApp ou site. Eles agendam; você recebe tudo organizado.",
   },
 ] as const;
 
@@ -166,6 +166,12 @@ export const TESTIMONIALS = [
 
 export const FAQ_ITEMS = [
   {
+    id: "autonomo",
+    question: "Não tenho clínica ou consultório, posso usar o Sentinela como autônomo(a)?",
+    answer:
+      "Sim. O Sentinela funciona para profissionais autônomos que atendem em consultório próprio, coworking ou teleconsulta. Você configura sua agenda, serviços e link personalizado sem precisar de clínica ou equipe.",
+  },
+  {
     id: "trial",
     question: "O teste grátis de 14 dias é realmente sem compromisso?",
     answer:
@@ -176,12 +182,6 @@ export const FAQ_ITEMS = [
     question: "Funciona para a minha especialidade?",
     answer:
       "O Sentinela foi pensado para profissionais de saúde e bem-estar: psicólogos, médicos, nutricionistas, dentistas e outras áreas com atendimento por hora marcada.",
-  },
-  {
-    id: "migracao",
-    question: "Preciso migrar minha agenda atual?",
-    answer:
-      "Não é obrigatório. Muitos profissionais começam configurando os horários disponíveis e compartilhando o link com novos pacientes. Com o tempo, a agenda antiga vai sendo substituída naturalmente.",
   },
   {
     id: "equipe",

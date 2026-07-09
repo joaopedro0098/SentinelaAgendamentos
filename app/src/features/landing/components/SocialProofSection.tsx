@@ -11,8 +11,7 @@ export function SocialProofSection() {
       <LandingSectionHeader
         eyebrow="Quem já usa"
         title="Profissionais que recuperaram tempo na agenda"
-        description="Depoimentos de clientes reais em breve. Enquanto isso, veja o que nossos usuários destacam no dia a dia."
-        align="center"
+        description="Veja o que nossos usuários destacam no dia a dia."
       />
 
       <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl mx-auto mb-12 md:mb-16">
@@ -54,10 +53,6 @@ export function SocialProofSection() {
           </Reveal>
         ))}
       </div>
-
-      <p className="mt-8 text-center text-xs text-muted-foreground/70">
-        * Números e depoimentos ilustrativos — substitua por dados reais quando disponíveis.
-      </p>
     </LandingSection>
   );
 }

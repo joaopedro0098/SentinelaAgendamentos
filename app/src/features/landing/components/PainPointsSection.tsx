@@ -18,7 +18,6 @@ export function PainPointsSection() {
         eyebrow="O dia a dia do consultório"
         title="Você reconhece algum desses cenários?"
         description="Profissionais de saúde perdem horas com tarefas que não são atendimento. O Sentinela existe para devolver esse tempo."
-        align="center"
       />
 
       <div className="grid sm:grid-cols-2 gap-4 md:gap-5 max-w-4xl mx-auto">

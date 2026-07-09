@@ -4,22 +4,15 @@ import { Reveal } from "@/components/layout/PageReveal";
 import { SPECIALTIES } from "@/features/landing/content/landingContent";
 import { LandingSection } from "@/features/landing/components/LandingSection";
 import { LandingSectionHeader } from "@/features/landing/components/LandingSectionHeader";
+import { SpecialtyIcon } from "@/features/landing/components/SpecialtyIcon";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { cn } from "@/lib/utils";
 
 function SpecialtyTitle({ label, iconSrc, className }: { label: string; iconSrc: string; className?: string }) {
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
-      <img
-        src={iconSrc}
-        alt={`Ícone ${label}`}
-        className="h-8 w-8 shrink-0 object-contain"
-        loading="lazy"
-        decoding="async"
-        width={32}
-        height={32}
-      />
-      <span className="font-display font-semibold leading-tight">{label}</span>
+    <span className={cn("inline-flex min-w-0 items-center gap-3", className)}>
+      <SpecialtyIcon src={iconSrc} alt="" />
+      <span className="font-display font-semibold leading-tight text-foreground">{label}</span>
     </span>
   );
 }
@@ -57,7 +50,6 @@ export function SpecialtiesShowcase() {
         eyebrow="Para sua área"
         title="Feito para quem cuida de pessoas"
         description="Psicólogos, médicos, nutricionistas, dentistas e outras especialidades com atendimento por hora marcada."
-        align="center"
       />
 
       <div ref={sectionRef}>
@@ -80,7 +72,11 @@ export function SpecialtiesShowcase() {
                     onClick={() => handleCardClick(item.id)}
                     className="flex w-full items-center justify-between gap-3 p-4 text-left md:cursor-default"
                   >
-                    <SpecialtyTitle label={item.label} iconSrc={item.iconSrc} className="text-sm md:text-base" />
+                    <SpecialtyTitle
+                      label={item.label}
+                      iconSrc={item.iconSrc}
+                      className="text-sm md:text-base"
+                    />
                     <ChevronDown
                       aria-hidden
                       className={cn(

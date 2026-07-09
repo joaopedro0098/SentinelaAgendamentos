@@ -9,8 +9,7 @@ export function HowItWorksSection() {
       <LandingSectionHeader
         eyebrow="Como funciona"
         title="Sua agenda online em três passos"
-        description="Do cadastro ao primeiro agendamento em menos de um dia — sem instalar nada no computador."
-        align="center"
+        description="Do cadastro ao primeiro agendamento em poucos minutos."
       />
 
       <ol className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-4xl mx-auto list-none">

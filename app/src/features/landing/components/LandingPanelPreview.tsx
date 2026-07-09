@@ -55,6 +55,10 @@ type PreviewNavId = (typeof PREVIEW_NAV_ITEMS)[number]["id"];
 
 const PREVIEW_FRAME_MIN_H = "min-h-[18rem] md:min-h-[22rem]";
 const PREVIEW_MOBILE_FRAME_H = "h-[18rem]";
+/** Largura da nav lateral: icon + rótulo «Agendamentos» + padding interno. */
+const PREVIEW_NAV_SIDEBAR_WIDTH = "w-[7.875rem]";
+/** Coluna calendário/filtros na aba Agendamentos (desktop). */
+const PREVIEW_AGENDAMENTOS_CALENDAR_WIDTH = "w-[8.375rem] md:w-[9.625rem]";
 
 function PreviewSidebar({
   activeNav,
@@ -69,25 +73,22 @@ function PreviewSidebar({
     <aside
       className={cn(
         "flex shrink-0 flex-col border-r border-border/60 bg-background min-h-0",
-        className ?? "w-[9.25rem] sm:w-44 md:w-52",
+        className ?? PREVIEW_NAV_SIDEBAR_WIDTH,
       )}
     >
-      <div className="px-2.5 py-3 border-b border-border/60 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
-            <User className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+      <div className="px-2 py-2 border-b border-border/60 shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
+            <User className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
           </div>
-          <div className="min-w-0">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground leading-none">Painel</p>
-            <p className="mt-1 text-xs font-semibold truncate leading-tight">Seu nome</p>
-          </div>
+          <p className="min-w-0 text-[10px] font-semibold truncate leading-tight">Seu nome</p>
         </div>
       </div>
 
       <nav
         className={cn(
           "flex flex-1 min-h-0 flex-col overflow-hidden",
-          compact ? "gap-0.5 p-1.5" : "gap-1 p-2",
+          compact ? "gap-0.5 p-1.5" : "gap-0.5 p-1.5",
         )}
       >
         {PREVIEW_NAV_ITEMS.map((item) => {
@@ -97,22 +98,22 @@ function PreviewSidebar({
             <div
               key={item.id}
               className={cn(
-                "flex items-center gap-2 rounded-xl font-medium transition-colors",
-                compact ? "px-2 py-1.5 text-[10px]" : "px-2 py-2 text-[11px] sm:text-xs",
+                "flex w-full items-center gap-1.5 rounded-xl font-medium transition-colors",
+                compact ? "px-1.5 py-1.5 text-[10px]" : "px-1.5 py-1.5 text-[10px]",
                 active ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground",
               )}
             >
-              <Icon className={cn("shrink-0", compact ? "h-3.5 w-3.5" : "h-4 w-4")} aria-hidden />
-              <span className="truncate leading-tight">{item.label}</span>
+              <Icon className={cn("shrink-0", compact ? "h-3.5 w-3.5" : "h-3.5 w-3.5")} aria-hidden />
+              <span className="min-w-0 flex-1 truncate leading-tight">{item.label}</span>
             </div>
           );
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-border/60 p-2 space-y-1.5">
-        <p className="text-[10px] text-muted-foreground truncate px-1">profissional@email.com</p>
-        <div className="flex w-full items-center justify-center gap-1.5 rounded-full border border-border px-2 py-1.5 text-[10px] font-medium text-muted-foreground">
-          <LogOut className="h-3 w-3" aria-hidden />
+      <div className="shrink-0 border-t border-border/60 p-1.5 space-y-1">
+        <p className="text-[9px] text-muted-foreground truncate px-0.5">profissional@email.com</p>
+        <div className="flex w-full items-center justify-center gap-1 rounded-full border border-border px-1.5 py-1 text-[9px] font-medium text-muted-foreground">
+          <LogOut className="h-2.5 w-2.5" aria-hidden />
           Sair
         </div>
       </div>
@@ -131,7 +132,7 @@ function PreviewShell({
 }) {
   return (
     <div className="flex h-full min-h-0 bg-background text-foreground">
-      <PreviewSidebar activeNav={activeNav} className="hidden md:flex w-52 shrink-0" />
+      <PreviewSidebar activeNav={activeNav} className={cn("hidden md:flex shrink-0", PREVIEW_NAV_SIDEBAR_WIDTH)} />
       <div className={cn("flex-1 min-w-0 overflow-hidden", isMobile ? "p-3" : "p-2.5 sm:p-3")}>
         <div className={cn("h-full", isMobile ? "origin-top scale-[0.94]" : "origin-top md:scale-[0.98]")}>
           {children}
@@ -149,6 +150,8 @@ function NavOnlySlide() {
   );
 }
 
+const PREVIEW_STATUS_REFERENCE_LABEL = "Não confirmado";
+
 function PreviewStatusBadge({ label, tone }: { label: string; tone: "confirmado" | "concluido" | "nao_confirmado" }) {
   const toneClass =
     tone === "confirmado"
@@ -157,9 +160,22 @@ function PreviewStatusBadge({ label, tone }: { label: string; tone: "confirmado"
         ? "bg-[hsl(217_91%_60%_/0.25)] text-[hsl(217_91%_45%)] border-[hsl(217_91%_60%_/0.9)]"
         : "bg-yellow-400/25 text-yellow-950 border-yellow-500/90";
 
+  const badgeTextClass = "px-1.5 py-0.5 text-[8px] font-semibold leading-tight whitespace-nowrap";
+
   return (
-    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap", toneClass)}>
-      {label}
+    <span className="inline-grid">
+      <span className={cn("invisible col-start-1 row-start-1", badgeTextClass)} aria-hidden>
+        {PREVIEW_STATUS_REFERENCE_LABEL}
+      </span>
+      <span
+        className={cn(
+          "col-start-1 row-start-1 inline-flex items-center justify-center rounded-full border text-center",
+          badgeTextClass,
+          toneClass,
+        )}
+      >
+        {label}
+      </span>
     </span>
   );
 }
@@ -232,7 +248,7 @@ function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
   return (
     <PreviewShell activeNav="agendamentos">
       <div className="flex md:-m-3">
-        <aside className="hidden sm:flex w-[7.5rem] md:w-[8.75rem] shrink-0 flex-col border-r border-border/60 bg-background overflow-hidden">
+        <aside className={cn("hidden sm:flex shrink-0 flex-col border-r border-border/60 bg-background overflow-hidden", PREVIEW_AGENDAMENTOS_CALENDAR_WIDTH)}>
           <div className="shrink-0 space-y-2 border-b border-border/60 p-2">
             <div className="rounded-xl border border-border/70 bg-card/50 p-2">
               <div className="flex items-center justify-between mb-1.5">
@@ -305,22 +321,24 @@ function AgendamentosSlide({ isMobile }: { isMobile: boolean }) {
               Novo
             </span>
           </header>
-          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-x-1.5 px-2 md:px-3 py-1.5 border-b border-border/40 bg-secondary/10 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
+          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-1.5 px-2 md:px-3 py-1.5 border-b border-border/40 bg-secondary/10 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
             <span>Hora</span>
             <span>Cliente</span>
             <span>Serviços</span>
-            <span>Status</span>
+            <span className="justify-self-center">Status</span>
           </div>
           <div className="shrink-0">
             {rows.map((row) => (
               <div
                 key={row.time}
-                className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-x-1.5 items-center px-2 md:px-3 py-1.5 border-b border-border/50 text-[10px] md:text-xs"
+                className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-1.5 items-center px-2 md:px-3 py-1.5 border-b border-border/50 text-[10px] md:text-xs"
               >
                 <span className="font-semibold tabular-nums text-accent">{row.time}</span>
                 <span className="font-medium truncate">{row.client}</span>
                 <span className="text-muted-foreground truncate">{row.services}</span>
-                <PreviewStatusBadge label={row.status} tone={row.tone} />
+                <div className="justify-self-center">
+                  <PreviewStatusBadge label={row.status} tone={row.tone} />
+                </div>
               </div>
             ))}
           </div>

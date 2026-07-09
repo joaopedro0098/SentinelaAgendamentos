@@ -15,7 +15,6 @@ export function LandingFaqSection() {
         eyebrow="Dúvidas frequentes"
         title="Perguntas que recebemos com frequência"
         description="Não encontrou sua resposta? Fale com nosso suporte via WhatsApp após criar sua conta."
-        align="center"
       />
 
       <div className="space-y-3">

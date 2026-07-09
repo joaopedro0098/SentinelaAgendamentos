@@ -21,7 +21,6 @@ export function FeaturesShowcase() {
         eyebrow="A solução"
         title="Tudo que seu consultório precisa, sem complicação"
         description="Um painel claro para quem atende pacientes — não um sistema genérico que exige treinamento."
-        align="center"
       />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 max-w-5xl mx-auto">

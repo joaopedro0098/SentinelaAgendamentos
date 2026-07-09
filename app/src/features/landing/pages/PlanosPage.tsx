@@ -6,7 +6,7 @@ const Planos = () => {
   return (
     <>
       <div className="pt-20 md:pt-24">
-        <LandingPlansSection variant="full" />
+        <LandingPlansSection />
       </div>
       <LandingFaqSection />
       <LandingFooter />

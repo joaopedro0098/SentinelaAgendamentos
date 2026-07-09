@@ -8,25 +8,13 @@ import { LandingSectionHeader } from "@/features/landing/components/LandingSecti
 import { LandingTrustBadges } from "@/features/landing/components/LandingTrustBadges";
 import { cn } from "@/lib/utils";
 
-type LandingPlansSectionProps = {
-  /** Exibe cabeçalho completo (home) ou compacto (página /planos) */
-  variant?: "preview" | "full";
-};
-
-export function LandingPlansSection({ variant = "preview" }: LandingPlansSectionProps) {
-  const isFull = variant === "full";
-
+export function LandingPlansSection() {
   return (
-    <LandingSection id="planos" variant={isFull ? "default" : "muted"}>
+    <LandingSection id="planos">
       <LandingSectionHeader
         eyebrow="Planos"
-        title={isFull ? "Planos simples, sem surpresas" : "Preços transparentes para o seu consultório"}
-        description={
-          isFull
-            ? "Teste grátis por 14 dias. Escolha o plano ideal e só pague se fizer sentido."
-            : "Teste grátis por 14 dias, sem cartão. Cancele quando quiser."
-        }
-        align="center"
+        title="Planos simples, sem surpresas"
+        description="Teste grátis por 14 dias. Escolha o plano ideal e só pague se fizer sentido."
       />
 
       <Reveal index={0}>
@@ -85,19 +73,6 @@ export function LandingPlansSection({ variant = "preview" }: LandingPlansSection
           );
         })}
       </div>
-
-      {!isFull ? (
-        <Reveal index={3}>
-          <p className="mt-8 text-center">
-            <Link
-              to="/planos"
-              className="text-sm font-medium text-primary hover:text-primary/80 underline-offset-4 hover:underline"
-            >
-              Comparar planos em detalhe →
-            </Link>
-          </p>
-        </Reveal>
-      ) : null}
     </LandingSection>
   );
 }

@@ -4,7 +4,6 @@ type LandingSectionHeaderProps = {
   eyebrow?: string;
   title: string;
   description?: string;
-  align?: "center" | "left";
   className?: string;
 };
 
@@ -12,15 +11,12 @@ export function LandingSectionHeader({
   eyebrow,
   title,
   description,
-  align = "center",
   className,
 }: LandingSectionHeaderProps) {
   return (
     <header
       className={cn(
-        "mb-10 md:mb-14",
-        align === "center" && "text-center mx-auto max-w-2xl",
-        align === "left" && "text-left max-w-xl",
+        "mb-10 md:mb-14 text-center mx-auto max-w-2xl",
         className,
       )}
     >
