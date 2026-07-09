@@ -56,24 +56,26 @@ export default {
           2: "hsl(var(--surface-2))",
         },
         available: {
-          DEFAULT: "hsl(var(--available))",
-          foreground: "hsl(var(--available-foreground))",
+          DEFAULT: "hsl(var(--available) / <alpha-value>)",
+          foreground: "hsl(var(--available-foreground) / <alpha-value>)",
           soft: "hsl(var(--available-soft))",
+          "soft-foreground": "hsl(var(--available-soft-foreground))",
         },
         completed: {
           DEFAULT: "hsl(var(--completed) / <alpha-value>)",
           foreground: "hsl(var(--completed-foreground) / <alpha-value>)",
-          soft: "hsl(var(--completed-soft) / <alpha-value>)",
+          soft: "hsl(var(--completed-soft))",
         },
         unavailable: {
           DEFAULT: "hsl(var(--unavailable) / <alpha-value>)",
           foreground: "hsl(var(--unavailable-foreground) / <alpha-value>)",
-          soft: "hsl(var(--unavailable-soft) / <alpha-value>)",
+          soft: "hsl(var(--unavailable-soft))",
+          "soft-foreground": "hsl(var(--unavailable-soft-foreground))",
         },
         absent: {
           DEFAULT: "hsl(var(--absent) / <alpha-value>)",
           foreground: "hsl(var(--absent-foreground) / <alpha-value>)",
-          soft: "hsl(var(--absent-soft) / <alpha-value>)",
+          soft: "hsl(var(--absent-soft))",
         },
       },
       borderRadius: {

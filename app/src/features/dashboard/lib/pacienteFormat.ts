@@ -6,11 +6,6 @@ export function formatWhatsAppDisplay(digits: string) {
   return digits;
 }
 
-export function formatWhatsAppParen(digits: string) {
-  const formatted = formatWhatsAppDisplay(digits);
-  return formatted ? `(${formatted})` : digits;
-}
-
 /** dd/mm/yy para exibição no cabeçalho do paciente. */
 export function formatDataNascimentoShort(ymd: string | null | undefined): string {
   if (!ymd) return "—";

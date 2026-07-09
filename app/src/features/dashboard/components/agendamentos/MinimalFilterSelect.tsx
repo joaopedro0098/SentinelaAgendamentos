@@ -10,12 +10,16 @@ type Props = {
   options: Option[];
   onChange: (value: string) => void;
   className?: string;
+  /** Exibe o rótulo da opção selecionada em vez do label fixo (ex.: nome do profissional). */
+  showSelectedLabel?: boolean;
 };
 
-export function MinimalFilterSelect({ label, value, options, onChange, className }: Props) {
+export function MinimalFilterSelect({ label, value, options, onChange, className, showSelectedLabel = false }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const isActive = value !== "todos";
+  const selectedLabel = options.find((opt) => opt.value === value)?.label;
+  const displayLabel = showSelectedLabel && selectedLabel ? selectedLabel : label;
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +42,9 @@ export function MinimalFilterSelect({ label, value, options, onChange, className
         aria-expanded={open}
         aria-label={`Filtrar por ${label.toLowerCase()}`}
       >
-        <span className={cn("font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+        <span className={cn("font-medium", isActive || showSelectedLabel ? "text-foreground" : "text-muted-foreground")}>
+          {displayLabel}
+        </span>
         <ChevronDown
           className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
         />

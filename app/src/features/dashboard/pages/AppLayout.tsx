@@ -9,7 +9,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
-import { useBarberPushRegistration } from "@/hooks/useBarberPushRegistration";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
 

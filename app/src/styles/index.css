@@ -39,11 +39,11 @@
 
   /* Painel claro: verde #3B8F6E (marca e UI interna) */
   [data-theme="dashboard"] {
-    --background: 50 12% 98%;
+    --background: 50 15% 96%;
     --foreground: 155 14% 12%;
-    --card: 50 12% 98%;
+    --card: 50 15% 96%;
     --card-foreground: 155 14% 12%;
-    --popover: 50 12% 98%;
+    --popover: 50 15% 96%;
     --popover-foreground: 155 14% 12%;
     --primary: 156 42% 40%;
     --primary-foreground: 0 0% 100%;
@@ -62,17 +62,19 @@
     --radius: 0.75rem;
     --brand: 156 42% 40%;
     --brand-foreground: 0 0% 100%;
-    --surface: 50 12% 98%;
+    --surface: 50 15% 96%;
     --surface-2: 50 10% 94%;
     --available: 156 42% 40%;
     --available-foreground: 0 0% 100%;
-    --available-soft: 156 42% 94%;
+    --available-soft: 156 50% 60%;
+    --available-soft-foreground: 156 48% 28%;
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 65% 96%;
-    --completed: 156 42% 40%;
+    --unavailable-soft: 0 55% 60%;
+    --unavailable-soft-foreground: 0 62% 38%;
+    --completed: 217 91% 60%;
     --completed-foreground: 0 0% 100%;
-    --completed-soft: 156 42% 94%;
+    --completed-soft: 217 91% 94%;
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
@@ -83,11 +85,11 @@
   }
 
   [data-theme="dashboard"].light {
-    --background: 50 12% 98%;
+    --background: 50 15% 96%;
     --foreground: 155 14% 12%;
-    --card: 50 12% 98%;
+    --card: 50 15% 96%;
     --card-foreground: 155 14% 12%;
-    --popover: 50 12% 98%;
+    --popover: 50 15% 96%;
     --popover-foreground: 155 14% 12%;
     --primary: 156 42% 40%;
     --primary-foreground: 0 0% 100%;
@@ -105,17 +107,19 @@
     --ring: 156 42% 40%;
     --brand: 156 42% 40%;
     --brand-foreground: 0 0% 100%;
-    --surface: 50 12% 98%;
+    --surface: 50 15% 96%;
     --surface-2: 50 10% 94%;
     --available: 156 42% 40%;
     --available-foreground: 0 0% 100%;
-    --available-soft: 156 42% 94%;
+    --available-soft: 156 50% 60%;
+    --available-soft-foreground: 156 48% 28%;
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 65% 96%;
-    --completed: 156 42% 40%;
+    --unavailable-soft: 0 55% 60%;
+    --unavailable-soft-foreground: 0 62% 38%;
+    --completed: 217 91% 60%;
     --completed-foreground: 0 0% 100%;
-    --completed-soft: 156 42% 94%;
+    --completed-soft: 217 91% 94%;
     --absent: 0 0% 45%;
     --absent-foreground: 0 0% 100%;
     --absent-soft: 0 0% 90%;
@@ -154,9 +158,11 @@
     --available: 156 42% 48%;
     --available-foreground: 0 0% 100%;
     --available-soft: 156 18% 18%;
+    --available-soft-foreground: 156 45% 72%;
     --unavailable: 0 55% 52%;
     --unavailable-foreground: 0 0% 100%;
     --unavailable-soft: 0 40% 18%;
+    --unavailable-soft-foreground: 0 58% 68%;
     --completed: 217 55% 58%;
     --completed-foreground: 0 0% 100%;
     --completed-soft: 217 35% 18%;
@@ -202,10 +208,12 @@
     --surface-2: 50 10% 94%;
     --available: 156 42% 40%;
     --available-foreground: 0 0% 100%;
-    --available-soft: 156 42% 94%;
+    --available-soft: 156 50% 60%;
+    --available-soft-foreground: 156 48% 28%;
     --unavailable: 0 65% 55%;
     --unavailable-foreground: 0 0% 100%;
-    --unavailable-soft: 0 65% 96%;
+    --unavailable-soft: 0 55% 60%;
+    --unavailable-soft-foreground: 0 62% 38%;
     --completed: 177 51% 25%;
     --completed-foreground: 0 0% 100%;
     --completed-soft: 177 28% 93%;

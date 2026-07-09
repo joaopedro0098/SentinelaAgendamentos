@@ -52,5 +52,3 @@ export function KeepAliveRoutes({
     </>
   );
 }
-
-export { matchRoute };
