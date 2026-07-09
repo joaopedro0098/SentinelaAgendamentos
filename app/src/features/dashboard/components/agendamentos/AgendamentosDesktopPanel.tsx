@@ -62,6 +62,8 @@ import {
 } from "@/features/dashboard/lib/agendamentosPanelActions";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { AgendamentosMiniCalendar, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
+import { AgendamentosMonthCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMonthCalendar";
+import { buildMonthDayStats } from "@/features/dashboard/lib/agendamentosSlotStats";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
 import {
@@ -320,13 +322,6 @@ function formatPeriodTitle(viewMode: ViewMode, anchorYmd: string) {
   if (viewMode === "dia") {
     return anchor.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   }
-  if (viewMode === "semana") {
-    const { start, end } = getPeriodRange("semana", anchorYmd);
-    const sameMonth = start.getMonth() === end.getMonth();
-    const startLabel = start.toLocaleDateString("pt-BR", { day: "numeric", month: sameMonth ? undefined : "short" });
-    const endLabel = end.toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" });
-    return `${startLabel} – ${endLabel}`;
-  }
   return anchor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
@@ -334,8 +329,6 @@ function shiftAnchor(viewMode: ViewMode, anchorYmd: string, delta: number) {
   const d = parseYmd(anchorYmd);
   if (viewMode === "dia") {
     d.setDate(d.getDate() + delta);
-  } else if (viewMode === "semana") {
-    d.setDate(d.getDate() + delta * 7);
   } else {
     d.setMonth(d.getMonth() + delta);
   }
@@ -498,17 +491,22 @@ export default function AgendamentosDesktopPanel({
     };
   }, [allBarbeariaIds, debouncedLoadData]);
 
-  const loadDaySchedules = useCallback(async () => {
-    if (!slug || viewMode !== "dia") {
+  const loadProfSchedules = useCallback(async () => {
+    if (!slug || (viewMode !== "dia" && viewMode !== "mes")) {
       setProfSchedules([]);
       return;
     }
+    const range =
+      viewMode === "mes"
+        ? getPeriodRange("mes", anchorYmd)
+        : { startYmd: anchorYmd, endYmd: anchorYmd };
+
     setLoadingSchedule(true);
     await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
     const { data, error } = await supabase.rpc("get_booking_professionals", {
       p_slug: slug,
-      p_from: anchorYmd,
-      p_to: anchorYmd,
+      p_from: range.startYmd,
+      p_to: range.endYmd,
       p_hub_only: isCA,
       p_editable_cas_only: false,
       p_painel_visiveis: !isCA,
@@ -523,8 +521,8 @@ export default function AgendamentosDesktopPanel({
   }, [slug, viewMode, anchorYmd, slotGridRevision, isCA]);
 
   useEffect(() => {
-    void loadDaySchedules();
-  }, [loadDaySchedules]);
+    void loadProfSchedules();
+  }, [loadProfSchedules]);
 
   useEffect(() => {
     setDisplayMonth(monthStart(parseYmd(anchorYmd)));
@@ -560,6 +558,17 @@ export default function AgendamentosDesktopPanel({
 
   const showDayGrid = viewMode === "dia" && profFilter === "todos" && profissionais.length > 0;
   const showDayListTimeline = viewMode === "dia" && profFilter !== "todos" && !!profissionalId;
+  const showMonthCalendar = viewMode === "mes";
+
+  const monthDayStats = useMemo(
+    () => buildMonthDayStats(displayMonth, profSchedules, items, profissionalId),
+    [displayMonth, profSchedules, items, profissionalId],
+  );
+
+  const handleMonthDayClick = useCallback((dayYmd: string) => {
+    setAnchorYmd(dayYmd);
+    setViewMode("dia");
+  }, []);
 
   const dayGrid = useMemo(() => {
     if (!showDayGrid) return null;
@@ -607,6 +616,7 @@ export default function AgendamentosDesktopPanel({
   ]);
 
   const listIsEmpty =
+    !showMonthCalendar &&
     !loading &&
     !loadingSchedule &&
     (showDayGrid ? (dayGrid?.rows.length ?? 0) === 0 : listRows.length === 0);
@@ -919,14 +929,18 @@ export default function AgendamentosDesktopPanel({
             viewMode={viewMode}
             anchorYmd={anchorYmd}
             onAnchorChange={setAnchorYmd}
-            onMonthChange={(delta) =>
-              setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
-            }
+            onMonthChange={(delta) => {
+              if (viewMode === "mes") {
+                setAnchorYmd((cur) => shiftAnchor("mes", cur, delta));
+              } else {
+                setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+              }
+            }}
             displayMonth={displayMonth}
           />
 
           <div className="flex rounded-xl border border-border/70 p-0.5 bg-card/40">
-            {(["dia", "semana", "mes"] as ViewMode[]).map((mode) => (
+            {(["dia", "mes"] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -938,7 +952,7 @@ export default function AgendamentosDesktopPanel({
                     : "text-muted-foreground hover:bg-secondary/50",
                 )}
               >
-                {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
+                {mode === "dia" ? "Dia" : "Mês"}
               </button>
             ))}
           </div>
@@ -1082,7 +1096,7 @@ export default function AgendamentosDesktopPanel({
                 <span
                   key={col.id}
                   className={cn(
-                    "min-w-0 truncate border-l text-left normal-case",
+                    "min-w-0 truncate border-l text-left uppercase",
                     DAY_GRID_RULE,
                     dayGridProfPad(colIdx),
                     colIdx === dayGrid.columns.length - 1 && "border-r",
@@ -1094,7 +1108,7 @@ export default function AgendamentosDesktopPanel({
               ))}
             </div>
           </div>
-        ) : (
+        ) : viewMode !== "mes" ? (
           <div className={cn(LIST_HEADER_ROW, "sticky top-0 z-10 shrink-0")}>
             <span className="min-w-0 truncate">Horário</span>
             <span className="min-w-0 truncate">Cliente</span>
@@ -1103,7 +1117,7 @@ export default function AgendamentosDesktopPanel({
             <span className="min-w-0 truncate">Profissional</span>
             <span aria-hidden />
           </div>
-        )}
+        ) : null}
 
         <div
           className={cn(
@@ -1111,13 +1125,20 @@ export default function AgendamentosDesktopPanel({
             showDayGrid ? "overflow-auto" : "overflow-y-auto",
           )}
         >
-          {(loading || ((showDayGrid || showDayListTimeline) && loadingSchedule)) && (
+          {(loading || ((showDayGrid || showDayListTimeline || showMonthCalendar) && loadingSchedule)) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           )}
 
-          {!listIsEmpty ? (
+          {showMonthCalendar ? (
+            <AgendamentosMonthCalendar
+              displayMonth={displayMonth}
+              dayStats={monthDayStats}
+              selectedDayYmd={anchorYmd}
+              onDayClick={handleMonthDayClick}
+            />
+          ) : !listIsEmpty ? (
             showDayGrid && dayGrid ? (
               <div className="min-w-max">
                 {dayGrid.rows.map((row) => (

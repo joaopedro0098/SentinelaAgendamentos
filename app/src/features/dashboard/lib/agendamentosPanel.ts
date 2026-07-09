@@ -1,6 +1,6 @@
 import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
-export type ViewMode = "dia" | "semana" | "mes";
+export type ViewMode = "dia" | "mes";
 
 export type AgendamentoPainelItem = {
   id: string;
@@ -89,10 +89,6 @@ export function getPeriodRange(viewMode: ViewMode, anchorYmd: string) {
   const anchor = parseYmd(anchorYmd);
   if (viewMode === "dia") {
     return { start: anchor, end: anchor, startYmd: anchorYmd, endYmd: anchorYmd };
-  }
-  if (viewMode === "semana") {
-    const { start, end } = getWeekRange(anchor);
-    return { start, end, startYmd: ymd(start), endYmd: ymd(end) };
   }
   const { start, end } = getMonthRange(anchor);
   return { start, end, startYmd: ymd(start), endYmd: ymd(end) };

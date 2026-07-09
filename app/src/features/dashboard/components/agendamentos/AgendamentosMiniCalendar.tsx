@@ -23,15 +23,6 @@ function isInRange(dayYmd: string, anchorYmd: string, viewMode: ViewMode) {
   if (viewMode === "dia") return dayYmd === anchorYmd;
   const anchor = parseYmd(anchorYmd);
   const day = parseYmd(dayYmd);
-  if (viewMode === "semana") {
-    const start = new Date(anchor);
-    const dow = start.getDay();
-    const diff = dow === 0 ? -6 : 1 - dow;
-    start.setDate(start.getDate() + diff);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return day >= start && day <= end;
-  }
   return day.getMonth() === anchor.getMonth() && day.getFullYear() === anchor.getFullYear();
 }
 
