@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -75,6 +76,9 @@ export function AgendamentoStatusBadge({
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
+  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const kind = getStatusKind(item);
   const statusActions: StatusAction[] =
     allowStatusChange && kind !== "faltou" && kind !== "aguardando_pagamento"
@@ -85,10 +89,48 @@ export function AgendamentoStatusBadge({
   const customActions = menuActions ?? [];
   const interactive = statusActions.length > 0 || customActions.length > 0;
 
+  const updateMenuPosition = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const menuWidth = 152;
+    const menuHeight = menuRef.current?.offsetHeight ?? 120;
+    const gap = 4;
+    let top = rect.bottom + gap;
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - menuHeight - gap);
+    }
+    setMenuStyle({
+      top,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8)),
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuStyle(null);
+      return;
+    }
+
+    updateMenuPosition();
+    const raf = requestAnimationFrame(updateMenuPosition);
+    const onResize = () => updateMenuPosition();
+    const onScroll = () => updateMenuPosition();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open, statusActions.length, customActions.length]);
+
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -106,6 +148,7 @@ export function AgendamentoStatusBadge({
         <span>{badgeLabel(kind)}</span>
         {interactive && (
           <button
+            ref={buttonRef}
             type="button"
             disabled={busy}
             aria-label="Alterar status"
@@ -127,43 +170,48 @@ export function AgendamentoStatusBadge({
           </button>
         )}
       </span>
-      {open && interactive && (
-        <ul
-          className="absolute left-0 top-full z-50 mt-1 min-w-[9.5rem] overflow-hidden rounded-xl border border-border/80 bg-popover py-1 shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
-          role="listbox"
-        >
-          {statusActions.map((action) => (
-            <li key={action}>
-              <button
-                type="button"
-                role="option"
-                className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
-                onClick={() => {
-                  setOpen(false);
-                  onAction(action);
-                }}
-              >
-                {ACTION_LABELS[action]}
-              </button>
-            </li>
-          ))}
-          {customActions.map((action) => (
-            <li key={action.key}>
-              <button
-                type="button"
-                role="option"
-                className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
-                onClick={() => {
-                  setOpen(false);
-                  onMenuAction?.(action.key);
-                }}
-              >
-                {action.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open && interactive && menuStyle && typeof document !== "undefined"
+        ? createPortal(
+            <ul
+              ref={menuRef}
+              className="fixed z-[200] min-w-[9.5rem] overflow-hidden rounded-xl border border-border/80 bg-popover py-1 shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
+              style={{ top: menuStyle.top, left: menuStyle.left }}
+              role="listbox"
+            >
+              {statusActions.map((action) => (
+                <li key={action}>
+                  <button
+                    type="button"
+                    role="option"
+                    className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
+                    onClick={() => {
+                      setOpen(false);
+                      onAction(action);
+                    }}
+                  >
+                    {ACTION_LABELS[action]}
+                  </button>
+                </li>
+              ))}
+              {customActions.map((action) => (
+                <li key={action.key}>
+                  <button
+                    type="button"
+                    role="option"
+                    className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
+                    onClick={() => {
+                      setOpen(false);
+                      onMenuAction?.(action.key);
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                </li>
+              ))}
+            </ul>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -161,12 +161,10 @@ export function AgendamentoActionsMenu({
 export function AgendamentoMenuAction({
   label,
   onClick,
-  disabled,
   destructive,
 }: {
   label: string;
   onClick: () => void;
-  disabled?: boolean;
   destructive?: boolean;
 }) {
   const compact = useContext(CompactMenuContext);
@@ -174,7 +172,6 @@ export function AgendamentoMenuAction({
   return (
     <button
       type="button"
-      disabled={disabled}
       onClick={onClick}
       className={cn(
         "flex w-full items-center rounded-lg text-left transition-colors disabled:opacity-50",
@@ -187,9 +184,8 @@ export function AgendamentoMenuAction({
   );
 }
 
-export function AgendamentoMenuActionLoading({ compact: compactProp }: { compact?: boolean }) {
-  const compactFromContext = useContext(CompactMenuContext);
-  const compact = compactProp ?? compactFromContext;
+export function AgendamentoMenuActionLoading() {
+  const compact = useContext(CompactMenuContext);
   return (
     <div
       className={cn(

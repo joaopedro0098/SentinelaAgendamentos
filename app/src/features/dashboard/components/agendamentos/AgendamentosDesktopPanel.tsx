@@ -403,7 +403,7 @@ export default function AgendamentosDesktopPanel({
     }
   }, [statusFilter, statusFilterOptions]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (options?: { preserveUi?: boolean }) => {
     if (!slug) {
       setItems([]);
       setProfissionais([]);
@@ -419,7 +419,9 @@ export default function AgendamentosDesktopPanel({
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.preserveUi) {
+      setLoading(true);
+    }
     const { data, error } = await supabase.rpc("get_agendamentos_painel", {
       p_data_inicio: period.startYmd,
       p_data_fim: period.endYmd,
@@ -453,7 +455,7 @@ export default function AgendamentosDesktopPanel({
   usePanelAgendamentosRefresh(handlePanelRefresh);
 
   const debouncedLoadData = useDebouncedCallback(() => {
-    void loadData();
+    void loadData({ preserveUi: true });
   }, 400);
 
   useClienteNomeSyncListener((payload) => {
@@ -647,8 +649,8 @@ export default function AgendamentosDesktopPanel({
     };
   }, []);
 
-  function goAgendar(prefill?: { data: string; hora?: string; barbeiroId?: string }) {
-    navigate("/app/agendar", { state: prefill ? { prefill } : undefined });
+  function goAgendar() {
+    navigate("/app/agendar");
   }
 
   function handleAlterar(a: AgendamentoPainelItem) {
@@ -679,7 +681,7 @@ export default function AgendamentosDesktopPanel({
     setDeleteTarget(null);
     setItems((prev) => prev.filter((a) => a.id !== removedId));
     toast({ title: "Agendamento excluído" });
-    void loadData();
+    void loadData({ preserveUi: true });
   }
 
   function buildMessage(a: AgendamentoPainelItem) {
@@ -723,7 +725,6 @@ export default function AgendamentosDesktopPanel({
       ),
     );
     notifyPanelPacientesChanged();
-    void loadData();
   }
 
   async function handlePastDayStatus(a: AgendamentoPainelItem, novoStatus: PastDayStatusKey) {
@@ -804,7 +805,7 @@ export default function AgendamentosDesktopPanel({
     return (
       <div className="relative min-h-[3.25rem] py-2">
         {actions ? <div className="absolute top-0 -right-1 z-[1]">{actions}</div> : null}
-        <div className="flex min-w-0 flex-col gap-1 overflow-hidden pr-8">
+        <div className="flex min-w-0 flex-col gap-1 pr-8">
           <p className="min-w-0 truncate text-sm font-medium" title={a.cliente_nome}>
             {a.cliente_nome}
           </p>
@@ -906,17 +907,6 @@ export default function AgendamentosDesktopPanel({
           )}
         </div>
         {renderActionsMenu(a)}
-      </div>
-    );
-  }
-
-  if (!slug) {
-    return (
-      <div className="p-8 max-w-4xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Agendamentos</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Configure sua empresa em Configurações para ver os agendamentos aqui.
-        </p>
       </div>
     );
   }

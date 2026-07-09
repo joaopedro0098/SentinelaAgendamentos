@@ -256,7 +256,7 @@ export default function AgendamentosMobilePanel({
     (detail?: { data?: string }) => {
       if (detail?.data) {
         setSelectedDate(detail.data);
-        setFocusDate(detail.data);
+        setViewMonth(monthStart(new Date(`${detail.data}T12:00:00`)));
         if (detail.data !== selectedDate) return;
       }
       refreshAgendamentos();
@@ -362,8 +362,6 @@ export default function AgendamentosMobilePanel({
     const d = new Date(selectedDate + "T12:00:00");
     return d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   }, [selectedDate]);
-
-  const isPastDay = isPastCalendarDate(selectedDate);
 
   function handleDayClick(key: string) {
     if (key === selectedDate) {
@@ -507,7 +505,6 @@ export default function AgendamentosMobilePanel({
       ),
     );
     notifyPanelPacientesChanged();
-    void loadAgendamentos();
   }
 
   return (
@@ -660,12 +657,6 @@ export default function AgendamentosMobilePanel({
               const confirmationBadge = !isCancelled && !isNoShow ? getClientConfirmationBadgeForPanel(a) : null;
               const appointmentPast = isPastCalendarDate(a.data);
               const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
-              const showStatusBadge =
-                a.status === "confirmado" ||
-                a.status === "concluido" ||
-                a.status === "nao_veio" ||
-                a.status === "cancelado" ||
-                a.status === "aguardando_pagamento";
               const paymentSummary = formatPaymentSummary(a);
               const showCardActions =
                 !appointmentPast && manageable && a.status !== "concluido" && !isNoShow;
@@ -682,9 +673,8 @@ export default function AgendamentosMobilePanel({
                   <CardContent className="p-4 space-y-3 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
-                        {showStatusBadge ? (
-                          <div className="flex items-center gap-1.5">
-                            <AgendamentoStatusBadge
+                        <div className="flex items-center gap-1.5">
+                          <AgendamentoStatusBadge
                               item={{
                                 ...a,
                                 barbeiro_nome: a.barbeiros?.nome ?? "",
@@ -716,7 +706,6 @@ export default function AgendamentosMobilePanel({
                               </button>
                             )}
                           </div>
-                        ) : null}
                         <div className="flex items-center gap-2 text-accent font-semibold tabular-nums">
                           <Clock className="h-4 w-4 shrink-0" />
                           <span className="text-lg">{formatHora(a.hora)}</span>
