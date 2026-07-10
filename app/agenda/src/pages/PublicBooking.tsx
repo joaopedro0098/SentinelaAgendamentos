@@ -10,7 +10,7 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Scissors, X } fro
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
-import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
+import { BookingScrollChipList } from "@/components/agenda/BookingScrollChipList";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
 import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
@@ -690,6 +690,8 @@ const PublicBooking = ({
 
   const singleProfessional = barbeiros.length === 1;
   const showProfessionalPicker = barbeiros.length > 1;
+  const useVerticalProfessionalList = ownerPanel && barbeiros.length >= 3;
+  const useSplitProfissionalServicosLayout = useVerticalProfessionalList && showProfessionalPicker;
 
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
   const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
@@ -1816,23 +1818,51 @@ const PublicBooking = ({
                 </div>
               </section>
 
-              {/* BARBEIROS — oculto quando há apenas 1 colaborador (seleção automática) */}
-              {showProfessionalPicker ? (
-                <section>
-                  <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o profissional</h2>
-                  {barbeiros.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
-                  ) : (
-                    <ResponsivePagedStrip
-                      bleedClassName={bookingScrollBleed}
-                      mobileClassName={bookingScrollPad}
-                      centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
-                    >
-                      {barbeiros.map(renderBarbeiroButton)}
-                    </ResponsivePagedStrip>
-                  )}
+              {/* BARBEIROS + SERVIÇOS (lado a lado no painel com 3+ colaboradores) */}
+              {useSplitProfissionalServicosLayout ? (
+                <section className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 items-start">
+                    <div className="min-w-0">
+                      <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">
+                        Selecione o profissional
+                      </h2>
+                      {barbeiros.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+                      ) : (
+                        <BookingScrollChipList
+                          vertical
+                          bleedClassName={bookingScrollBleed}
+                          mobileClassName={bookingScrollPad}
+                          centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
+                        >
+                          {barbeiros.map(renderBarbeiroButton)}
+                        </BookingScrollChipList>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
+                      {!barbeiroId ? (
+                        <p className="text-sm text-muted-foreground">Selecione um profissional.</p>
+                      ) : barbeiroSemDispNoDia ? (
+                        <p className="text-sm text-muted-foreground">Sem disponibilidade neste dia.</p>
+                      ) : servicosDoBarbeiro.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum serviço cadastrado.</p>
+                      ) : (
+                        <ServicosCarousel
+                          servicos={servicosDoBarbeiro}
+                          selecionados={servSel}
+                          onToggle={toggleServico}
+                          showPrices={showServicePrices}
+                          stripClassName={bookingScrollPad}
+                          bleedClassName={bookingScrollBleed}
+                          vertical={servicosDoBarbeiro.length >= 3}
+                          inSplitColumn
+                        />
+                      )}
+                    </div>
+                  </div>
                   {barbeiroSemDispNoDia && (
-                    <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:mt-2 md:p-3">
+                    <Card className="p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:p-3">
                       <p>
                         <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
                       </p>
@@ -1858,25 +1888,71 @@ const PublicBooking = ({
                     </Card>
                   )}
                 </section>
-              ) : barbeiros.length === 0 ? (
-                <section>
-                  <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
-                </section>
-              ) : null}
+              ) : (
+                <>
+                  {showProfessionalPicker ? (
+                    <section>
+                      <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Selecione o profissional</h2>
+                      {barbeiros.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+                      ) : (
+                        <BookingScrollChipList
+                          vertical={useVerticalProfessionalList}
+                          bleedClassName={bookingScrollBleed}
+                          mobileClassName={bookingScrollPad}
+                          centerOn={barbeiroId ? `[data-barbeiro="${barbeiroId}"]` : null}
+                        >
+                          {barbeiros.map(renderBarbeiroButton)}
+                        </BookingScrollChipList>
+                      )}
+                      {barbeiroSemDispNoDia && (
+                        <Card className="mt-3 p-3.5 bg-unavailable-soft border-unavailable/30 text-sm text-foreground space-y-1.5 md:mt-2 md:p-3">
+                          <p>
+                            <b className="text-unavailable">Sem disponibilidade</b> com <b>{barbeiroSel?.nome}</b> neste dia.
+                          </p>
+                          <p className="text-muted-foreground">
+                            Escolha outro dia ou outro barbeiro
+                            {waLink ? (
+                              <>
+                                , ou{" "}
+                                <a
+                                  href={waLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-foreground font-semibold underline underline-offset-2"
+                                >
+                                  entre em contato conosco
+                                </a>{" "}
+                                para ver se conseguimos um encaixe.
+                              </>
+                            ) : (
+                              "."
+                            )}
+                          </p>
+                        </Card>
+                      )}
+                    </section>
+                  ) : barbeiros.length === 0 ? (
+                    <section>
+                      <p className="text-sm text-muted-foreground">Não foi cadastrado nenhum colaborador.</p>
+                    </section>
+                  ) : null}
 
-              {/* SERVIÇOS */}
-              {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
-                <section>
-                  <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
-                  <ServicosCarousel
-                    servicos={servicosDoBarbeiro}
-                    selecionados={servSel}
-                    onToggle={toggleServico}
-                    showPrices={showServicePrices}
-                    stripClassName={bookingScrollPad}
-                    bleedClassName={bookingScrollBleed}
-                  />
-                </section>
+                  {barbeiroId && servicosDoBarbeiro.length > 0 && !barbeiroSemDispNoDia && (
+                    <section>
+                      <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
+                      <ServicosCarousel
+                        servicos={servicosDoBarbeiro}
+                        selecionados={servSel}
+                        onToggle={toggleServico}
+                        showPrices={showServicePrices}
+                        stripClassName={bookingScrollPad}
+                        bleedClassName={bookingScrollBleed}
+                        vertical={ownerPanel && servicosDoBarbeiro.length >= 3}
+                      />
+                    </section>
+                  )}
+                </>
               )}
             </div>
 
