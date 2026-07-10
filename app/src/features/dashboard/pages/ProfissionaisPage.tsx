@@ -28,7 +28,7 @@ export default function ProfissionaisPage() {
 
   if (!shop) {
     return (
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="panel-canvas-page p-4 md:p-6 max-w-3xl mx-auto">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Profissionais</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -46,7 +46,7 @@ export default function ProfissionaisPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full">
+    <div className="panel-canvas-page p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Profissionais</h1>
         <p className="text-sm text-muted-foreground mt-1">

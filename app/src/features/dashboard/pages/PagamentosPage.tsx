@@ -323,7 +323,7 @@ export default function PagamentosPage() {
 
   if (!subscriptionInfo?.is_admin && !subscriptionInfo?.can_use_appointment_payments) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8 space-y-4">
+      <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
           <Wallet className="h-6 w-6" />
           Pagamentos
@@ -348,7 +348,7 @@ export default function PagamentosPage() {
 
   if (settings?.ca_readonly) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8 space-y-4">
+      <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
           <Wallet className="h-6 w-6" />
           Pagamentos
@@ -369,7 +369,7 @@ export default function PagamentosPage() {
     !chargeEnabled || (mpConnected && (enableCard || enablePix));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
+    <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
           <Wallet className="h-6 w-6" />
@@ -497,7 +497,7 @@ export default function PagamentosPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full"
+                className="rounded-full border-available/40 bg-available-soft text-available-soft-foreground hover:bg-available-soft/80 hover:text-available-soft-foreground"
                 disabled={connecting || saving}
                 onClick={() => void handleConnect()}
               >
@@ -505,8 +505,8 @@ export default function PagamentosPage() {
               </Button>
               <Button
                 type="button"
-                variant="ghost"
-                className="rounded-full"
+                variant="outline"
+                className="rounded-full text-muted-foreground"
                 disabled={saving || connecting}
                 onClick={() => void handleDisconnect()}
               >

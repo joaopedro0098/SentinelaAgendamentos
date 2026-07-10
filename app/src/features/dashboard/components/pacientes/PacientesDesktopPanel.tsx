@@ -112,14 +112,14 @@ export default function PacientesDesktopPanel({
 
   return (
     <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-      <aside className="flex w-[240px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-background">
+      <aside className="flex w-[240px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-panel-canvas">
         <div className="shrink-0 space-y-3 border-b border-border/60 p-3">
           <Input
             type="search"
             placeholder="Pesquisar"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 rounded-lg border-border/70 bg-card/40 text-sm placeholder:text-muted-foreground/70"
+            className="h-9 rounded-lg border-border/70 bg-panel-canvas text-sm placeholder:text-muted-foreground/70"
             aria-label="Pesquisar paciente por nome"
           />
           {showProfFilter && (
@@ -191,7 +191,7 @@ export default function PacientesDesktopPanel({
           </div>
         ) : (
           <>
-            <header className="shrink-0 border-b border-border/60 px-6 py-5">
+            <header className="shrink-0 border-b border-border/60 bg-background px-6 py-5">
               <div className="flex items-start gap-4">
                 <PacienteAvatar
                   nome={selectedPaciente.cliente_nome}
@@ -310,7 +310,7 @@ function HistoricoFeed({
   }
 
   return (
-    <ul className="space-y-0 divide-y divide-border/50">
+    <ul className="space-y-0 divide-y divide-border">
       {items.map((item) => {
         const profLine = item.servicos_nomes?.length
           ? `${item.barbeiro_nome} (${item.servicos_nomes.join(", ")})`

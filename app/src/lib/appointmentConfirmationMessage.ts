@@ -1,5 +1,4 @@
 import { unmaskPhone } from "@agenda/lib/phone";
-import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
 export type AppointmentMessageInput = {
   cliente_nome: string;
@@ -14,7 +13,7 @@ const APP_ORIGIN =
     ? window.location.origin.replace(/\/+$/, "")
     : "https://www.sentinelagendamentos.com";
 
-export function getConfirmationPageUrl(token: string) {
+function getConfirmationPageUrl(token: string) {
   return `${APP_ORIGIN}/c/${token}`;
 }
 
@@ -22,8 +21,7 @@ function ymd(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Ex.: "amanhã sexta-feira 6" ou "sábado, dia 7 de junho" */
-export function formatAppointmentDayPhrase(appointmentDateYmd: string, referenceDate = new Date()) {
+function formatAppointmentDayPhrase(appointmentDateYmd: string, referenceDate = new Date()) {
   const appt = new Date(`${appointmentDateYmd}T12:00:00`);
   const ref = new Date(referenceDate);
   ref.setHours(0, 0, 0, 0);
@@ -41,7 +39,7 @@ export function formatAppointmentDayPhrase(appointmentDateYmd: string, reference
   return `${weekday}, dia ${day} de ${month}`;
 }
 
-export function formatAppointmentTime(hora: string) {
+function formatAppointmentTime(hora: string) {
   return String(hora).slice(0, 5);
 }
 
@@ -62,43 +60,4 @@ export function buildClientWhatsAppUrl(phone: string, message: string) {
   if (digits.length < 10) return null;
   const full = digits.length <= 11 && !digits.startsWith("55") ? `55${digits}` : digits;
   return `https://wa.me/${full}?text=${encodeURIComponent(message)}`;
-}
-
-/** A partir da meia-noite do dia anterior ao agendamento. */
-export function isInClientConfirmationWindow(appointmentDateYmd: string, now = new Date()) {
-  const apptDay = new Date(`${appointmentDateYmd}T00:00:00`);
-  const windowStart = new Date(apptDay);
-  windowStart.setDate(windowStart.getDate() - 1);
-
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  return today.getTime() >= windowStart.getTime();
-}
-
-export type ClientConfirmationBadge = "pending" | "confirmed" | null;
-
-export function getClientConfirmationBadge(
-  appointment: { data: string; client_confirmed_at: string | null },
-  now = new Date(),
-): ClientConfirmationBadge {
-  if (!isInClientConfirmationWindow(appointment.data, now)) return null;
-  if (appointment.client_confirmed_at) return "confirmed";
-  return "pending";
-}
-
-/** Badge fixo para dias passados (somente leitura no painel). */
-export function getHistoricalConfirmationBadge(appointment: {
-  client_confirmed_at: string | null;
-}): Exclude<ClientConfirmationBadge, null> {
-  return appointment.client_confirmed_at ? "confirmed" : "pending";
-}
-
-export function getClientConfirmationBadgeForPanel(
-  appointment: { data: string; client_confirmed_at: string | null },
-  now = new Date(),
-): ClientConfirmationBadge {
-  if (isPastCalendarDate(appointment.data, now)) {
-    return getHistoricalConfirmationBadge(appointment);
-  }
-  return getClientConfirmationBadge(appointment, now);
 }

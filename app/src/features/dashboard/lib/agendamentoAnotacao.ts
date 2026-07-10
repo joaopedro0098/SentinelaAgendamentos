@@ -5,7 +5,7 @@ import {
   emitClienteNomeUpdated,
 } from "@agenda/lib/panelClienteNomeSync";
 
-export type AgendamentoAnotacaoPayload = {
+type AgendamentoAnotacaoPayload = {
   id?: string;
   conteudo: string;
   updated_at?: string;

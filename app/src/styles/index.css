@@ -40,6 +40,7 @@
   /* Painel claro: verde #3B8F6E (marca e UI interna) */
   [data-theme="dashboard"] {
     --background: 50 15% 96%;
+    --panel-canvas: 50 10% 90%;
     --foreground: 155 14% 12%;
     --card: 50 15% 96%;
     --card-foreground: 155 14% 12%;
@@ -51,7 +52,7 @@
     --secondary: 156 18% 94%;
     --secondary-foreground: 155 14% 12%;
     --muted: 50 10% 94%;
-    --muted-foreground: 150 8% 42%;
+    --muted-foreground: 155 10% 34%;
     --accent: 156 42% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 25%;
@@ -86,6 +87,7 @@
 
   [data-theme="dashboard"].light {
     --background: 50 15% 96%;
+    --panel-canvas: 50 10% 90%;
     --foreground: 155 14% 12%;
     --card: 50 15% 96%;
     --card-foreground: 155 14% 12%;
@@ -97,7 +99,7 @@
     --secondary: 156 18% 94%;
     --secondary-foreground: 155 14% 12%;
     --muted: 50 10% 94%;
-    --muted-foreground: 150 8% 42%;
+    --muted-foreground: 155 10% 34%;
     --accent: 156 42% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 25%;
@@ -132,6 +134,7 @@
   [data-theme="dashboard"].dark {
     color-scheme: dark;
     --background: 135 9% 9%;
+    --panel-canvas: 135 9% 9%;
     --foreground: 50 10% 92%;
     --card: 140 9% 13%;
     --card-foreground: 50 10% 92%;
@@ -143,7 +146,7 @@
     --secondary: 144 8% 16%;
     --secondary-foreground: 50 10% 92%;
     --muted: 144 8% 14%;
-    --muted-foreground: 144 6% 58%;
+    --muted-foreground: 144 6% 52%;
     --accent: 156 42% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 38%;
@@ -323,18 +326,39 @@
     font-family: 'Space Grotesk', sans-serif;
     letter-spacing: -0.02em;
   }
-  [data-theme="dashboard"].light .glass-panel,
-  [data-theme="dashboard"] .glass-panel {
-    background: hsl(var(--card) / 0.82);
+  html[data-theme="dashboard"] main h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
+  }
+  html[data-theme="dashboard"] main header p,
+  html[data-theme="dashboard"] main .panel-page-subtitle {
+    line-height: 1.6;
+  }
+  /* Modo claro: área de conteúdo com cinza mais forte; cards permanecem claros */
+  html[data-theme="dashboard"]:not(.dark) main {
+    background-color: hsl(var(--panel-canvas));
+  }
+  /* Inputs nas abas com canvas: mesmo tom do fundo */
+  html[data-theme="dashboard"]:not(.dark) .panel-canvas-page {
+    --background: var(--panel-canvas);
+  }
+  html[data-theme="dashboard"]:not(.dark) .glass-panel {
+    background: hsl(var(--card));
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow:
+      0 1px 2px hsl(var(--foreground) / 0.04),
+      0 4px 16px -4px hsl(var(--foreground) / 0.07);
   }
   [data-theme="dashboard"].dark .glass-panel {
     background: hsl(var(--card) / 0.96);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid hsl(var(--border) / 0.85);
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.2),
+      0 4px 16px -4px hsl(0 0% 0% / 0.28);
   }
   [data-theme="booking"] .glass-panel {
     background: hsl(var(--card) / 0.82);

@@ -4,14 +4,14 @@ import type { SubscriptionInfo } from "@/hooks/useSubscription";
 export const FACIAL_TRIAL_BLOCKED_MESSAGE =
   "Identificamos um cadastro anterior associado a esta biometria facial. Para fazer novos agendamentos, assine o plano.";
 
-export const SUBSCRIPTION_BLOCK_OWNER = "Renove a assinatura para agendar.";
+const SUBSCRIPTION_BLOCK_OWNER = "Renove a assinatura para agendar.";
 
-export const OWNER_BOOKING_BLOCK_SIGNUP = "Assine para liberar novos agendamentos.";
+const OWNER_BOOKING_BLOCK_SIGNUP = "Assine para liberar novos agendamentos.";
 
-export const SUBSCRIPTION_NOTICE_EXPIRED =
+const SUBSCRIPTION_NOTICE_EXPIRED =
   "Assine novamente em Conta para liberar agendamentos.";
 
-export const AGGREGATED_BOOKING_BLOCK_MESSAGE =
+const AGGREGATED_BOOKING_BLOCK_MESSAGE =
   "Assinatura do titular inativa. Contate-o para realizar a renovação";
 
 const LEGACY_SUBSCRIPTION_NOTICE_EXPIRED =

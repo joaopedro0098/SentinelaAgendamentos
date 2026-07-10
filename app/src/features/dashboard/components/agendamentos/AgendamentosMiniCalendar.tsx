@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { parseYmd, ymd, type ViewMode, getWeekRange } from "@/features/dashboard/lib/agendamentosPanel";
+import { parseYmd, ymd, monthStart, type ViewMode, getWeekRange } from "@/features/dashboard/lib/agendamentosPanel";
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -10,10 +10,6 @@ type Props = {
   onMonthChange: (delta: number) => void;
   displayMonth: Date;
 };
-
-function monthStart(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -89,5 +85,3 @@ export function AgendamentosMiniCalendar({
     </div>
   );
 }
-
-export { monthStart };

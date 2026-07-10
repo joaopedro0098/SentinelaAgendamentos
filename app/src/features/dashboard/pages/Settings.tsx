@@ -347,7 +347,7 @@ export default function Settings() {
         onConfirm={handleCropConfirm}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full">
+      <div className="panel-canvas-page p-4 md:p-6 max-w-3xl mx-auto space-y-6 w-full">
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>

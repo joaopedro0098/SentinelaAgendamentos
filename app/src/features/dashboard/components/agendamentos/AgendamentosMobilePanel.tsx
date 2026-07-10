@@ -44,6 +44,7 @@ import {
   canOpenAnotacaoConcluido,
   formatPaymentSummary,
   parsePainelRpc,
+  monthStart,
   ymd,
   type AgendamentoProfissional,
   type PastDayStatusKey,
@@ -59,7 +60,7 @@ import {
   rpcAlterarStatusPassado,
   rpcExcluirAgendamento,
 } from "@/features/dashboard/lib/agendamentosPanelActions";
-import { AgendamentosMobileMonthNav, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMobileMonthNav";
+import { AgendamentosMobileMonthNav } from "@/features/dashboard/components/agendamentos/AgendamentosMobileMonthNav";
 import { AgendamentosGridDesktopOnlyNotice } from "@/features/dashboard/components/agendamentos/AgendamentosGridDesktopOnlyNotice";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";

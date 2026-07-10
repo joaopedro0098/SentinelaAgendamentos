@@ -17,10 +17,6 @@ const MESES = [
   "Dez",
 ];
 
-export function monthStart(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
 function formatMonthYearLabel(date: Date) {
   const month = date.toLocaleDateString("pt-BR", { month: "long" });
   return `${month}/${date.getFullYear()}`;

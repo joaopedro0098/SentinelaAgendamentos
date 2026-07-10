@@ -67,6 +67,10 @@ export function parseYmd(value: string) {
   return new Date(y, m - 1, d);
 }
 
+export function monthStart(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
 /** Semana domingo–sábado (padrão brasileiro). */
 export function getWeekRange(anchor: Date) {
   const d = new Date(anchor);
@@ -78,7 +82,7 @@ export function getWeekRange(anchor: Date) {
   return { start, end };
 }
 
-export function getMonthRange(anchor: Date) {
+function getMonthRange(anchor: Date) {
   const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
   return { start, end };
@@ -101,7 +105,7 @@ export function formatMoney(centavos: number) {
   return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "todos", label: "Todos" },
   { value: "confirmado", label: "Confirmado" },
   { value: "concluido", label: "Concluído" },
@@ -143,7 +147,7 @@ export function getPeriodSummaryVisibility(periodStartYmd: string, periodEndYmd:
   };
 }
 
-export function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
+function itemStatusKey(item: AgendamentoPainelItem): StatusFilter {
   if (item.status === "aguardando_pagamento") return "aguardando_pagamento";
   if (item.status === "cancelado") return "cancelado";
   if (item.status === "nao_veio") return "faltou";
@@ -161,7 +165,7 @@ export function getStatusKind(item: AgendamentoPainelItem): AgendamentoStatusKin
   return "confirmado";
 }
 
-export function matchesStatusFilter(item: AgendamentoPainelItem, filter: StatusFilter) {
+function matchesStatusFilter(item: AgendamentoPainelItem, filter: StatusFilter) {
   if (filter === "todos") return true;
   return itemStatusKey(item) === filter;
 }
@@ -210,11 +214,11 @@ export function isPastDay(dateYmd: string) {
   return isPastCalendarDate(dateYmd);
 }
 
-export function isFutureDay(dateYmd: string) {
+function isFutureDay(dateYmd: string) {
   return dateYmd > ymd(new Date());
 }
 
-export function isTodayOrPastDay(dateYmd: string) {
+function isTodayOrPastDay(dateYmd: string) {
   return dateYmd <= ymd(new Date());
 }
 
@@ -224,7 +228,7 @@ export function canManageAgendamento(item: { barbearia_id: string; can_manage?: 
 }
 
 /** Anotação: concluído na barbearia própria com profissional da mesma conta (CT nunca em CA). */
-export function canWriteAnotacao(
+function canWriteAnotacao(
   item: Pick<AgendamentoPainelItem, "status" | "barbearia_id" | "barbeiro_id">,
   ownBarbeariaId: string | null,
   caBarbeariaIds: string[] = [],

@@ -1,6 +1,6 @@
 import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
 
-export type AccountType = "admin" | "ct" | "ca" | "aa";
+type AccountType = "admin" | "ct" | "ca" | "aa";
 
 export type SubscriptionInfo = {
   is_admin: boolean;

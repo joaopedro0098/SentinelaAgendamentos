@@ -137,7 +137,7 @@ export default function PerfilPage() {
   const showSubscriptionNotice = shouldShowSubscriptionNotice(info, info?.subscription_notice);
 
   return (
-    <div className="p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
+    <div className="panel-canvas-page p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold">Conta</h1>
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>
@@ -201,7 +201,7 @@ export default function PerfilPage() {
               <Label htmlFor="email">Novo e-mail</Label>
               <Input id="email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
             </div>
-            <Button type="submit" variant="outline" size="sm" className="rounded-full" disabled={savingEmail}>
+            <Button type="submit" size="sm" className="rounded-full" disabled={savingEmail}>
               {savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar e-mail"}
             </Button>
           </form>
@@ -229,7 +229,7 @@ export default function PerfilPage() {
                 showHint={false}
               />
             </div>
-            <Button type="submit" variant="outline" size="sm" className="rounded-full" disabled={savingPassword}>
+            <Button type="submit" size="sm" className="rounded-full" disabled={savingPassword}>
               {savingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar senha"}
             </Button>
           </form>

@@ -25,7 +25,7 @@ export default function SupportPage() {
   }, [shop?.id, shop?.welcome_support_pending, patchShop]);
 
   return (
-    <div className="w-full max-w-3xl space-y-6 p-4 md:p-6 mx-auto">
+    <div className="panel-canvas-page w-full max-w-3xl space-y-6 p-4 md:p-6 mx-auto">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <Headphones className="h-6 w-6 text-primary" />

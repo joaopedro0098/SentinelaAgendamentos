@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { BarChart2, ChevronDown, Clock, Loader2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -80,19 +80,55 @@ function formatDateBr(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
-function formatServicesNames(servicos: ReportServiceDetail[]) {
+function formatServicesMetadata(servicos: ReportServiceDetail[]) {
   if (!servicos.length) return "—";
   return servicos.map((s) => s.nome).join(" · ");
 }
 
-function formatServicesLine(servicos: ReportServiceDetail[]) {
-  if (!servicos.length) return "—";
-  return servicos
-    .map((s) => {
-      const price = (s.preco_centavos ?? 0) > 0 ? ` · ${formatServicePrice(s.preco_centavos)}` : "";
-      return `${s.nome}${price}`;
-    })
-    .join(" · ");
+function formatServicesPriceTotal(servicos: ReportServiceDetail[]) {
+  const total = servicos.reduce((sum, s) => sum + (s.preco_centavos ?? 0), 0);
+  return total > 0 ? formatServicePrice(total) : null;
+}
+
+function ReportClientListItem({
+  clienteNome,
+  data,
+  hora,
+  contato,
+  servicos,
+  footer,
+}: {
+  clienteNome: string;
+  data: string;
+  hora: string;
+  contato: string;
+  servicos: ReportServiceDetail[];
+  footer?: ReactNode;
+}) {
+  const priceTotal = formatServicesPriceTotal(servicos);
+
+  return (
+    <li className="border-b border-border/40 last:border-0 pb-3 last:pb-0 pt-0.5">
+      <p className="text-sm font-semibold text-foreground leading-tight truncate" title={clienteNome}>
+        {clienteNome}
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+        {formatDateBr(data)} · {hora.slice(0, 5)}
+      </p>
+      <div className="mt-2 space-y-0.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="truncate" title={contato}>
+          <span className="opacity-75">Contato </span>
+          {contato}
+        </p>
+        <p className="truncate" title={formatServicesMetadata(servicos)}>
+          <span className="opacity-75">Serviço </span>
+          {formatServicesMetadata(servicos)}
+          {priceTotal ? <span className="tabular-nums opacity-90"> · {priceTotal}</span> : null}
+        </p>
+      </div>
+      {footer}
+    </li>
+  );
 }
 
 function buildCollaboratorSummary(
@@ -181,50 +217,28 @@ function ReportViewModeToggle({
 
 function CancellationListItem({ item }: { item: ReportCancellationDetail }) {
   return (
-    <li className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-        <span>{formatDateBr(item.data)}</span>
-        <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
-        <span className="tabular-nums">{item.hora.slice(0, 5)}</span>
-      </div>
-      <p>
-        <span className="text-muted-foreground">Cliente: </span>
-        <span className="text-foreground">{item.cliente_nome}</span>
-      </p>
-      <p>
-        <span className="text-muted-foreground">Contato: </span>
-        <span className="text-foreground">{maskPhone(item.cliente_whatsapp)}</span>
-      </p>
-      <p>
-        <span className="text-muted-foreground">Serviço: </span>
-        <span className="text-foreground">{formatServicesNames(item.servicos ?? [])}</span>
-      </p>
-      <p className="mt-1 text-unavailable/90">{cancellationSourceLabel(item.cancelado_por)}</p>
-    </li>
+    <ReportClientListItem
+      clienteNome={item.cliente_nome}
+      data={item.data}
+      hora={item.hora}
+      contato={maskPhone(item.cliente_whatsapp)}
+      servicos={item.servicos ?? []}
+      footer={
+        <p className="mt-1.5 text-[11px] text-unavailable/90">{cancellationSourceLabel(item.cancelado_por)}</p>
+      }
+    />
   );
 }
 
 function AbsenceListItem({ item }: { item: ReportAbsenceDetail }) {
   return (
-    <li className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-        <span>{formatDateBr(item.data)}</span>
-        <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
-        <span className="tabular-nums">{item.hora.slice(0, 5)}</span>
-      </div>
-      <p>
-        <span className="text-muted-foreground">Cliente: </span>
-        <span className="text-foreground">{item.cliente_nome}</span>
-      </p>
-      <p>
-        <span className="text-muted-foreground">Contato: </span>
-        <span className="text-foreground">{maskPhone(item.cliente_whatsapp)}</span>
-      </p>
-      <p>
-        <span className="text-muted-foreground">Serviço: </span>
-        <span className="text-foreground">{formatServicesNames(item.servicos ?? [])}</span>
-      </p>
-    </li>
+    <ReportClientListItem
+      clienteNome={item.cliente_nome}
+      data={item.data}
+      hora={item.hora}
+      contato={maskPhone(item.cliente_whatsapp)}
+      servicos={item.servicos ?? []}
+    />
   );
 }
 
@@ -325,7 +339,7 @@ function CollaboratorReportRow({
     viewMode === "concluidos" && items !== null ? buildCollaboratorSummary(items, summary) : null;
 
   return (
-    <li className="rounded-xl border border-border/60 bg-background/40">
+    <li className="rounded-xl border border-border/60 bg-card">
       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
         <span className="text-sm font-medium truncate">{barbeiro.barbeiro_nome}</span>
         <div className="flex items-center gap-2 shrink-0">
@@ -410,28 +424,14 @@ function CollaboratorReportRow({
                 ) : (
                   <ul className="space-y-3 py-1">
                     {items.map((item) => (
-                      <li
+                      <ReportClientListItem
                         key={item.id}
-                        className="text-xs leading-relaxed border-b border-border/40 last:border-0 pb-3 last:pb-1"
-                      >
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-                          <span>{formatDateBr(item.data)}</span>
-                          <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-current opacity-80" />
-                          <span className="tabular-nums">{item.hora.slice(0, 5)}</span>
-                        </div>
-                        <p>
-                          <span className="text-muted-foreground">Cliente: </span>
-                          <span className="text-foreground">{item.cliente_nome}</span>
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground">Contato: </span>
-                          <span className="text-foreground">{maskPhone(item.cliente_whatsapp)}</span>
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground">Serviço: </span>
-                          <span className="text-foreground">{formatServicesLine(item.servicos ?? [])}</span>
-                        </p>
-                      </li>
+                        clienteNome={item.cliente_nome}
+                        data={item.data}
+                        hora={item.hora}
+                        contato={maskPhone(item.cliente_whatsapp)}
+                        servicos={item.servicos ?? []}
+                      />
                     ))}
                   </ul>
                 )}
@@ -598,13 +598,13 @@ export default function RelatoriosPage() {
   }, [selectedBarbeiroId, reportViewMode]);
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full">
+    <div className="panel-canvas-page p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <BarChart2 className="h-6 w-6 text-accent" />
           Relatórios
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-1 panel-page-subtitle">
           Agendamentos concluídos, faltas e cancelamentos por período e colaborador.
         </p>
       </header>

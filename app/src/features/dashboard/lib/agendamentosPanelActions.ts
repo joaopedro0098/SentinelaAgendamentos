@@ -33,10 +33,6 @@ export async function rpcExcluirAgendamento(p_agendamento_id: string) {
   return supabase.rpc("excluir_agendamento_painel", { p_agendamento_id });
 }
 
-export async function rpcConfirmarPresenca(p_agendamento_id: string) {
-  return supabase.rpc("confirmar_presenca_agendamento_painel", { p_agendamento_id });
-}
-
 export async function rpcAlterarAgendamentoPainel(
   p_agendamento_id: string,
   p_acao: "confirmar" | "nao_confirmado" | "cancelar",

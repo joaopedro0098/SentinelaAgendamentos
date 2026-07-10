@@ -48,10 +48,12 @@ export default function PacientesPage() {
           <PacientesDesktopPanel {...sharedProps} />
         </div>
       ) : (
+        <div className="min-h-full">
         <PacientesMobilePanel
           {...sharedProps}
           onClearSelection={panel.clearSelection}
         />
+        </div>
       )}
 
       <AgendamentoAnotacaoModal

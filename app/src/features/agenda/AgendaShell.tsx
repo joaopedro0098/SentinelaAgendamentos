@@ -14,6 +14,7 @@ export function AgendaShell({ children, variant = "booking" }: AgendaShellProps)
       className={cn(
         "min-h-screen w-full max-w-[100vw] overflow-x-hidden",
         variant === "booking" && "booking-surface",
+        variant === "dashboard" && "min-h-full bg-background",
       )}
     >
       {children}

@@ -11,6 +11,7 @@ import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
 
@@ -44,6 +45,12 @@ export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   useEffect(() => {
     setMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/app/pacientes")) return;
+    setSidebarCollapsed(true);
+    writeSidebarCollapsed(true);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -134,7 +141,7 @@ export default function AppLayout() {
           />
           <aside
             className={cn(
-              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-background border-r border-border shadow-xl flex flex-col min-h-0 transition-transform duration-200 ease-out",
+              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-card border-r border-border shadow-xl flex flex-col min-h-0 transition-transform duration-200 ease-out",
               menuEntered ? "translate-x-0" : "-translate-x-full",
             )}
           >
@@ -231,7 +238,7 @@ export default function AppLayout() {
                 buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                 variant="default"
               />
-              <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
+              <SidebarUserEmail email={user?.email} />
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Sair
               </Button>
@@ -242,7 +249,7 @@ export default function AppLayout() {
 
       <aside
         className={cn(
-          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen transition-[width] duration-200 ease-out border-r border-border/60 flex-col bg-background",
+          "hidden md:flex shrink-0 self-start md:sticky md:top-0 md:h-screen transition-[width] duration-200 ease-out border-r border-border/60 flex-col bg-card",
           sidebarCollapsed ? "w-16" : "w-56",
         )}
       >
@@ -288,7 +295,7 @@ export default function AppLayout() {
             </div>
           ) : (
             <div className="mt-auto shrink-0 flex flex-col gap-2 p-3">
-              <p className="text-xs text-muted-foreground truncate px-1">{user?.email}</p>
+              <SidebarUserEmail email={user?.email} />
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" /> Sair
               </Button>
@@ -302,6 +309,23 @@ export default function AppLayout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+function SidebarUserEmail({ email }: { email?: string | null }) {
+  if (!email) return null;
+
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <p className="text-[11px] leading-snug text-muted-foreground truncate px-1 cursor-default select-none">
+          {email}
+        </p>
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-[min(18rem,80vw)] break-all text-xs">
+        {email}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

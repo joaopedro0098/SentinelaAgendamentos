@@ -53,7 +53,7 @@ export default function AgendamentosPage() {
 
   if (isDesktop) {
   return (
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-background">
         <AgendamentosDesktopPanel
           slug={slug}
           barbeariaId={barbeariaId}
@@ -67,6 +67,7 @@ export default function AgendamentosPage() {
 }
 
   return (
+    <div className="min-h-full bg-background">
     <AgendamentosMobilePanel
       barbeariaId={barbeariaId}
       caBarbearias={caBarbearias}
@@ -75,5 +76,6 @@ export default function AgendamentosPage() {
       isCA={isCA}
       syncingAgenda={syncingAgenda}
     />
+    </div>
   );
 }

@@ -28,7 +28,7 @@ function toMin(hhmm: string) {
   return h * 60 + m;
 }
 
-export function windowsForDay(schedule: ProfScheduleInput, dateYmd: string): Window[] {
+function windowsForDay(schedule: ProfScheduleInput, dateYmd: string): Window[] {
   const dow = new Date(`${dateYmd}T12:00:00`).getDay();
   return schedule.disponibilidades
     .filter((d) => d.dia_semana === dow)
@@ -39,15 +39,15 @@ export function windowsForDay(schedule: ProfScheduleInput, dateYmd: string): Win
     .sort((a, b) => toMin(a.hora_inicio) - toMin(b.hora_inicio));
 }
 
-export function profWorksOnDay(schedule: ProfScheduleInput, dateYmd: string) {
+function profWorksOnDay(schedule: ProfScheduleInput, dateYmd: string) {
   return windowsForDay(schedule, dateYmd).length > 0;
 }
 
-export function getDayBloqueios(schedule: ProfScheduleInput, dateYmd: string) {
+function getDayBloqueios(schedule: ProfScheduleInput, dateYmd: string) {
   return schedule.bloqueios.filter((b) => b.data === dateYmd);
 }
 
-export function buildAppointmentOccupancyMap(
+function buildAppointmentOccupancyMap(
   barbeiroId: string,
   dayAppointments: AgendamentoPainelItem[],
 ) {
@@ -100,7 +100,7 @@ function finalizeSlotStats(occupied: number, total: number): DaySlotStats {
 }
 
 /** Slots ocupados e total da grade de um profissional em um dia (bloqueios e férias incluídos). */
-export function computeProfDaySlotStats(
+function computeProfDaySlotStats(
   dateYmd: string,
   schedule: ProfScheduleInput,
   dayAppointments: AgendamentoPainelItem[],
@@ -115,7 +115,7 @@ export function computeProfDaySlotStats(
 }
 
 /** Soma slots de vários profissionais no mesmo dia (modo Todos). */
-export function computeAggregatedDaySlotStats(
+function computeAggregatedDaySlotStats(
   dateYmd: string,
   schedules: ProfScheduleInput[],
   dayAppointments: AgendamentoPainelItem[],
@@ -137,7 +137,7 @@ export function computeAggregatedDaySlotStats(
 }
 
 /** Agrega várias estatísticas diárias (ex.: mês inteiro) em um único total. */
-export function aggregateSlotStats(statsList: Iterable<DaySlotStats>): DaySlotStats {
+function aggregateSlotStats(statsList: Iterable<DaySlotStats>): DaySlotStats {
   let occupied = 0;
   let total = 0;
   for (const stats of statsList) {

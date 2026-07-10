@@ -55,6 +55,7 @@ export default {
           DEFAULT: "hsl(var(--surface))",
           2: "hsl(var(--surface-2))",
         },
+        "panel-canvas": "hsl(var(--panel-canvas))",
         available: {
           DEFAULT: "hsl(var(--available) / <alpha-value>)",
           foreground: "hsl(var(--available-foreground) / <alpha-value>)",

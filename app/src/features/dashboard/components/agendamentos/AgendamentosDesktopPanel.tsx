@@ -53,6 +53,7 @@ import {
   canOpenAnotacaoConcluido,
   parsePainelRpc,
   parseYmd,
+  monthStart,
   getAppointmentStatusMenuActions,
   servicesInPeriod,
   type AgendamentoPainelItem,
@@ -71,7 +72,7 @@ import {
   rpcExcluirAgendamento,
 } from "@/features/dashboard/lib/agendamentosPanelActions";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
-import { AgendamentosMiniCalendar, monthStart } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
+import { AgendamentosMiniCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
 import { AgendamentosMonthCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMonthCalendar";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
