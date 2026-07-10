@@ -58,6 +58,7 @@ type ReportResult = {
   total: number;
   total_faltas: number;
   total_cancelamentos: number;
+  faturamento_total_centavos: number;
   por_barbeiro: BarbeiroTotal[];
 };
 
@@ -386,7 +387,7 @@ function CollaboratorReportRow({
                         <Wallet className="h-3.5 w-3.5 shrink-0" />
                         Faturamento total
                       </div>
-                      <p className="mt-1.5 text-lg font-semibold tabular-nums text-completed leading-tight">
+                      <p className="mt-1.5 text-lg font-semibold tabular-nums text-available leading-tight">
                         {formatServicePrice(displaySummary.faturamento_total_centavos) || "R$ 0,00"}
                       </p>
                     </div>
@@ -495,6 +496,7 @@ export default function RelatoriosPage() {
       total?: number;
       total_faltas?: number;
       total_cancelamentos?: number;
+      faturamento_total_centavos?: number;
       por_barbeiro?: Array<BarbeiroTotal & { cancelamentos?: number }>;
       error?: string;
     } | null;
@@ -507,6 +509,7 @@ export default function RelatoriosPage() {
       total: payload?.total ?? 0,
       total_faltas: payload?.total_faltas ?? 0,
       total_cancelamentos: payload?.total_cancelamentos ?? 0,
+      faturamento_total_centavos: payload?.faturamento_total_centavos ?? 0,
       por_barbeiro: (Array.isArray(payload?.por_barbeiro) ? payload.por_barbeiro : []).map((b) => ({
         barbeiro_id: b.barbeiro_id,
         barbeiro_nome: b.barbeiro_nome,
@@ -595,7 +598,7 @@ export default function RelatoriosPage() {
   }, [selectedBarbeiroId, reportViewMode]);
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full overflow-x-hidden">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 pb-10 w-full">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <BarChart2 className="h-6 w-6 text-accent" />
@@ -730,6 +733,15 @@ export default function RelatoriosPage() {
                   agendamento{result.total !== 1 ? "s" : ""} concluído{result.total !== 1 ? "s" : ""}
                   {periodLabel ? ` · ${periodLabel}` : ""}
                 </p>
+                <div className="mt-4 pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
+                    <Wallet className="h-3.5 w-3.5 shrink-0" />
+                    Faturamento geral
+                  </div>
+                  <p className="text-2xl font-bold tabular-nums text-available leading-none">
+                    {formatServicePrice(result.faturamento_total_centavos) || "R$ 0,00"}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}

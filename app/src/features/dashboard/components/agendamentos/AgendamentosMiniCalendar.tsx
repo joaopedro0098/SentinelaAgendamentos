@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { parseYmd, ymd, type ViewMode } from "@/features/dashboard/lib/agendamentosPanel";
+import { parseYmd, ymd, type ViewMode, getWeekRange } from "@/features/dashboard/lib/agendamentosPanel";
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -23,6 +23,10 @@ function isInRange(dayYmd: string, anchorYmd: string, viewMode: ViewMode) {
   if (viewMode === "dia") return dayYmd === anchorYmd;
   const anchor = parseYmd(anchorYmd);
   const day = parseYmd(dayYmd);
+  if (viewMode === "semana") {
+    const { start, end } = getWeekRange(anchor);
+    return day >= start && day <= end;
+  }
   return day.getMonth() === anchor.getMonth() && day.getFullYear() === anchor.getFullYear();
 }
 

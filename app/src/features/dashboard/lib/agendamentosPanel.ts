@@ -1,6 +1,6 @@
 import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
-export type ViewMode = "dia" | "mes";
+export type ViewMode = "dia" | "semana" | "mes";
 
 export type AgendamentoPainelItem = {
   id: string;
@@ -67,13 +67,12 @@ export function parseYmd(value: string) {
   return new Date(y, m - 1, d);
 }
 
+/** Semana domingo–sábado (padrão brasileiro). */
 export function getWeekRange(anchor: Date) {
   const d = new Date(anchor);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  d.setHours(12, 0, 0, 0);
   const start = new Date(d);
-  start.setDate(d.getDate() + diff);
+  start.setDate(d.getDate() - d.getDay());
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return { start, end };
@@ -89,6 +88,10 @@ export function getPeriodRange(viewMode: ViewMode, anchorYmd: string) {
   const anchor = parseYmd(anchorYmd);
   if (viewMode === "dia") {
     return { start: anchor, end: anchor, startYmd: anchorYmd, endYmd: anchorYmd };
+  }
+  if (viewMode === "semana") {
+    const { start, end } = getWeekRange(anchor);
+    return { start, end, startYmd: ymd(start), endYmd: ymd(end) };
   }
   const { start, end } = getMonthRange(anchor);
   return { start, end, startYmd: ymd(start), endYmd: ymd(end) };
