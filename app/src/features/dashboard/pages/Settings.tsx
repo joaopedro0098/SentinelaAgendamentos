@@ -295,8 +295,8 @@ export default function Settings() {
   function copyBookingLink(url: string) {
     navigator.clipboard.writeText(url);
     setCopiedBooking(true);
-    window.setTimeout(() => setCopiedBooking(false), 1800);
-    toast({ title: "Link de agendamento copiado!", description: url });
+    window.setTimeout(() => setCopiedBooking(false), 2000);
+    toast({ title: "Link de agendamento copiado!", duration: 2000 });
   }
 
   function copyOwnerBookingLink() {
