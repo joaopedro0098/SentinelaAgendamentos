@@ -25,6 +25,7 @@ import {
 import { getBookingStaticCache, setBookingStaticCache } from "../lib/bookingStaticCache";
 import { requestClientNotificationPermission, saveClientConfirmationPushSubscription } from "../lib/clientConfirmationPush";
 import { PublicBookingPaymentCheckout } from "@/components/booking/PublicBookingPaymentCheckout";
+import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import {
   createAppointmentPaymentCheckout,
   type AppointmentPaymentCheckout,
@@ -431,6 +432,7 @@ const PublicBooking = ({
   slotGridRevision: slotGridRevisionProp = 0,
 }: PublicBookingProps = {}) => {
   const isReschedule = Boolean(reschedule);
+  const isDesktopLayout = useMediaMdUp();
   const pageBgClass = ownerPanel ? "bg-transparent" : "bg-surface";
   const minDayOffset = bookableDayOffset(ownerPanel, isReschedule);
   const { slug: slugParam } = useParams();
@@ -690,11 +692,16 @@ const PublicBooking = ({
 
   const singleProfessional = barbeiros.length === 1;
   const showProfessionalPicker = barbeiros.length > 1;
-  const useVerticalProfessionalList = ownerPanel && barbeiros.length >= 3;
+  const manyProfessionals = barbeiros.length >= 3;
+  /** Desktop + 3+ profissionais: lista vertical com scroll (mobile mantém carrossel). */
+  const useVerticalProfessionalList = manyProfessionals && isDesktopLayout;
+  /** Desktop + 3+ profissionais: profissional e serviços lado a lado. */
   const useSplitProfissionalServicosLayout = useVerticalProfessionalList && showProfessionalPicker;
 
   const barbeiroSel = barbeiros.find((b) => b.id === barbeiroId);
   const servicosDoBarbeiro = useMemo(() => barbeiroSel?.servicos ?? [], [barbeiroSel]);
+  /** Desktop + 3+ serviços: lista vertical com scroll (mobile mantém carrossel). */
+  const useVerticalServicosList = servicosDoBarbeiro.length >= 3 && isDesktopLayout;
 
   useEffect(() => {
     if (barbeiros.length !== 1) return;
@@ -1818,7 +1825,7 @@ const PublicBooking = ({
                 </div>
               </section>
 
-              {/* BARBEIROS + SERVIÇOS (lado a lado no painel com 3+ colaboradores) */}
+              {/* BARBEIROS + SERVIÇOS (lado a lado com 3+ colaboradores) */}
               {useSplitProfissionalServicosLayout ? (
                 <section className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 md:gap-4 items-start">
@@ -1840,24 +1847,26 @@ const PublicBooking = ({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
-                      {!barbeiroId ? (
-                        <p className="text-sm text-muted-foreground">Selecione um profissional.</p>
-                      ) : barbeiroSemDispNoDia ? (
-                        <p className="text-sm text-muted-foreground">Sem disponibilidade neste dia.</p>
-                      ) : servicosDoBarbeiro.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nenhum serviço cadastrado.</p>
-                      ) : (
-                        <ServicosCarousel
-                          servicos={servicosDoBarbeiro}
-                          selecionados={servSel}
-                          onToggle={toggleServico}
-                          showPrices={showServicePrices}
-                          stripClassName={bookingScrollPad}
-                          bleedClassName={bookingScrollBleed}
-                          vertical={servicosDoBarbeiro.length >= 3}
-                          inSplitColumn
-                        />
+                      {(!barbeiroId || barbeiroSemDispNoDia || servicosDoBarbeiro.length > 0) && (
+                        <>
+                          <h2 className="font-display text-base md:text-sm font-semibold mb-2.5 md:mb-1.5">Serviços</h2>
+                          {!barbeiroId ? (
+                            <p className="text-sm text-muted-foreground">Selecione um profissional.</p>
+                          ) : barbeiroSemDispNoDia ? (
+                            <p className="text-sm text-muted-foreground">Sem disponibilidade neste dia.</p>
+                          ) : (
+                            <ServicosCarousel
+                              servicos={servicosDoBarbeiro}
+                              selecionados={servSel}
+                              onToggle={toggleServico}
+                              showPrices={showServicePrices}
+                              stripClassName={bookingScrollPad}
+                              bleedClassName={bookingScrollBleed}
+                              vertical={useVerticalServicosList}
+                              inSplitColumn
+                            />
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1948,7 +1957,7 @@ const PublicBooking = ({
                         showPrices={showServicePrices}
                         stripClassName={bookingScrollPad}
                         bleedClassName={bookingScrollBleed}
-                        vertical={ownerPanel && servicosDoBarbeiro.length >= 3}
+                        vertical={useVerticalServicosList}
                       />
                     </section>
                   )}

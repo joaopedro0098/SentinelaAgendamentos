@@ -4,7 +4,7 @@ import { ResponsivePagedStrip } from "@/components/agenda/ResponsivePagedStrip";
 
 type Props = {
   children: ReactNode;
-  /** Lista vertical com scroll próprio (painel Agendar, 3+ itens). */
+  /** Lista vertical com scroll próprio (3+ itens). */
   vertical?: boolean;
   className?: string;
   mobileClassName?: string;

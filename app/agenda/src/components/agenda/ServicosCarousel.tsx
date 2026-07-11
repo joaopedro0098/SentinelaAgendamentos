@@ -17,9 +17,9 @@ interface Props {
   showPrices?: boolean;
   stripClassName?: string;
   bleedClassName?: string;
-  /** Lista vertical com scroll próprio (painel Agendar, 3+ serviços). */
+  /** Lista vertical com scroll próprio (3+ itens no painel e no link público). */
   vertical?: boolean;
-  /** Coluna direita no layout lado a lado (3+ profissionais no painel). */
+  /** Coluna direita no layout lado a lado (3+ profissionais). */
   inSplitColumn?: boolean;
 }
 
