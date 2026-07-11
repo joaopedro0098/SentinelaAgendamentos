@@ -9,6 +9,7 @@ type Props = {
   onAnchorChange: (ymd: string) => void;
   onMonthChange: (delta: number) => void;
   displayMonth: Date;
+  className?: string;
 };
 
 function isSameDay(a: Date, b: Date) {
@@ -32,6 +33,7 @@ export function AgendamentosMiniCalendar({
   onAnchorChange,
   onMonthChange,
   displayMonth,
+  className,
 }: Props) {
   const first = monthStart(displayMonth);
   const startPad = first.getDay();
@@ -45,7 +47,7 @@ export function AgendamentosMiniCalendar({
   const monthLabel = displayMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card/50 p-3">
+    <div className={cn("rounded-2xl border border-border/70 bg-card/50 p-3", className)}>
       <div className="flex items-center justify-between mb-3">
         <button type="button" className="text-sm px-2 py-1 rounded-lg hover:bg-secondary/60" onClick={() => onMonthChange(-1)}>
           ‹

@@ -12,9 +12,11 @@ type Props = {
   className?: string;
   /** Exibe o rótulo da opção selecionada em vez do label fixo (ex.: nome do profissional). */
   showSelectedLabel?: boolean;
+  /** Classes extras no botão (ex.: card da sidebar de Agendamentos). */
+  triggerClassName?: string;
 };
 
-export function MinimalFilterSelect({ label, value, options, onChange, className, showSelectedLabel = false }: Props) {
+export function MinimalFilterSelect({ label, value, options, onChange, className, showSelectedLabel = false, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const isActive = value !== "todos";
@@ -36,7 +38,8 @@ export function MinimalFilterSelect({ label, value, options, onChange, className
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm transition-colors hover:bg-secondary/40",
+          "flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors hover:bg-secondary/40",
+          triggerClassName ?? "border-border/70 bg-card/60",
           isActive && "border-accent/40 bg-accent/5",
         )}
         aria-expanded={open}

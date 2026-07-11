@@ -438,6 +438,14 @@ export type Database = {
         }
         Returns: Json
       }
+      search_clientes_cadastro_painel: {
+        Args: {
+          p_barbearia_id: string
+          p_search?: string | null
+          p_limit?: number
+        }
+        Returns: Json
+      }
       list_paciente_anotacoes: {
         Args: { p_whatsapp_digits: string; p_barbeiro_id?: string | null }
         Returns: Json

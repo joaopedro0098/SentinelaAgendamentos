@@ -24,6 +24,12 @@ export type PacientePainelItem = {
   can_rename_nome?: boolean;
 };
 
+export type ClienteCadastroPainelItem = {
+  whatsapp_digits: string;
+  cliente_nome: string;
+  barbearia_id: string;
+};
+
 export type PacienteProfissional = {
   id: string;
   nome: string;
@@ -168,4 +174,34 @@ export function parsePacienteAnotacoesRpc(data: unknown): PacienteAnotacaoItem[]
     ...(item as unknown as PacienteAnotacaoItem),
     servicos_nomes: normalizeStringArray(item.servicos_nomes),
   }));
+}
+
+export function parseClientesCadastroRpc(
+  data: unknown,
+): { clientes: ClienteCadastroPainelItem[]; total_count: number } | null {
+  if (!data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  if (row.error) return null;
+  const clientes = parseJsonArray(row.clientes) as ClienteCadastroPainelItem[];
+  const total_count = typeof row.total_count === "number" ? row.total_count : clientes.length;
+  return { clientes, total_count };
+}
+
+export async function searchClientesCadastroPainel(
+  barbeariaId: string,
+  search: string,
+  limit = 50,
+): Promise<{ clientes: ClienteCadastroPainelItem[] } | { error: string }> {
+  const { data, error } = await supabase.rpc("search_clientes_cadastro_painel", {
+    p_barbearia_id: barbeariaId,
+    p_search: search,
+    p_limit: limit,
+  });
+  if (error) return { error: error.message };
+  if (data && typeof data === "object" && "error" in data) {
+    return { error: String((data as { error?: string }).error ?? "Erro na busca") };
+  }
+  const parsed = parseClientesCadastroRpc(data);
+  if (!parsed) return { error: "Resposta inválida" };
+  return { clientes: parsed.clientes };
 }

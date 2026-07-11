@@ -1733,7 +1733,7 @@ const PublicBooking = ({
           </div>
         </header>
 
-        <form onSubmit={submit} className={cn("py-5 max-md:space-y-6 md:py-4", bookingPageX)}>
+        <form onSubmit={submit} className={cn("py-5 max-md:space-y-6 md:py-4", bookingPageX, ownerPanel && "pb-10")}>
           <div className="flex flex-col items-center gap-1.5 min-w-0 md:hidden w-full">
             <div className="flex items-center gap-2.5 min-w-0 w-full">
               <ShopAvatar logoUrl={barbearia.logo_url} name={barbearia.nome} className="h-12 w-12" />
@@ -2007,6 +2007,7 @@ const PublicBooking = ({
                     onChange={(e) => setObservacao(e.target.value)}
                     maxLength={500}
                     rows={3}
+                    placeholder="Preferência, alergia, pedido especial…"
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none md:min-h-[4.25rem] md:max-h-[4.25rem]"
                   />
                 </div>

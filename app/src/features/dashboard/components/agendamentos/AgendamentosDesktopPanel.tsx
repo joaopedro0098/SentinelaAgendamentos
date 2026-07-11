@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
@@ -86,6 +86,11 @@ import {
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { usePanelAgendamentosRefresh } from "@/features/dashboard/hooks/usePanelAgendamentosRefresh";
+import {
+  AgendamentoSlotBookingModal,
+  type SlotBookingTarget,
+} from "@/features/dashboard/components/agendamentos/AgendamentoSlotBookingModal";
+import type { SlotBookingServico } from "@/features/dashboard/lib/agendamentoSlotBooking";
 
 type Props = {
   slug: string | null;
@@ -97,6 +102,14 @@ type Props = {
 };
 
 type BookingProfSchedule = ProfScheduleInput;
+
+type BookingProfessionalFull = {
+  id: string;
+  barbearia_id: string;
+  nome: string;
+  slot_minutos: number;
+  servicos: SlotBookingServico[];
+};
 
 type TimelineEntry =
   | { kind: "appointment"; item: AgendamentoPainelItem; sortMin: number; barbeiroId?: string }
@@ -120,6 +133,60 @@ const DAY_GRID_COL_WIDTH_DEFAULT = 192;
 const DAY_GRID_COL_WIDTH_MIN = 128;
 const DAY_GRID_COL_WIDTH_MAX = 280;
 
+const DAY_GRID_TIME_STICKY_SHADOW = "shadow-[4px_0_8px_-4px_hsl(var(--foreground)/0.1)]";
+
+function hasAgendamentoObservacao(observacao: string | null | undefined) {
+  return Boolean(observacao?.trim());
+}
+
+function AgendamentoObsIndicator({
+  observacao,
+  className,
+}: {
+  observacao: string | null | undefined;
+  className?: string;
+}) {
+  if (!hasAgendamentoObservacao(observacao)) return null;
+  return (
+    <span
+      className={cn(
+        "pointer-events-none select-none text-[10px] font-extralight tracking-wide text-available",
+        className,
+      )}
+      title={observacao!.trim()}
+    >
+      OBS
+    </span>
+  );
+}
+
+const DAY_GRID_TIME_HEADER_STICKY = cn(
+  "sticky left-0 z-20 min-w-0 truncate bg-secondary/10",
+  DAY_GRID_RULE,
+  "border-r",
+  DAY_GRID_TIME_STICKY_SHADOW,
+);
+
+const DAY_GRID_TIME_CELL_STICKY = cn(
+  "sticky left-0 z-10 min-w-0 bg-background",
+  DAY_GRID_RULE,
+  "border-r",
+  DAY_GRID_TIME_STICKY_SHADOW,
+  "group-hover:bg-secondary/10",
+);
+
+/** Cards da sidebar (Agendamentos) — destaque branco + sombra só no tema claro. */
+const AGENDAMENTOS_SIDEBAR_CARD = cn(
+  "rounded-2xl border border-border/35 bg-card",
+  "shadow-[0_1px_3px_hsl(var(--foreground)/0.07),0_5px_16px_hsl(var(--foreground)/0.05)]",
+  "dark:border-border/70 dark:bg-card/50 dark:shadow-none",
+);
+
+const AGENDAMENTOS_SIDEBAR_FILTER = cn(
+  "border-border/35 bg-card shadow-[0_1px_3px_hsl(var(--foreground)/0.07),0_4px_12px_hsl(var(--foreground)/0.04)]",
+  "dark:border-border/70 dark:bg-card/60 dark:shadow-none",
+);
+
 function formatHora(hora: string) {
   return String(hora).slice(0, 5);
 }
@@ -133,26 +200,43 @@ function toHHMM(mins: number) {
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
 
-function parseBookingProfessionals(data: unknown): BookingProfSchedule[] {
-  let raw: unknown[] = [];
-  if (Array.isArray(data)) raw = data;
-  else if (typeof data === "string") {
+function parseBookingProfessionalsPayload(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) return data as Record<string, unknown>[];
+  if (typeof data === "string") {
     try {
       const parsed = JSON.parse(data) as unknown;
-      raw = Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
     } catch {
-      raw = [];
+      return [];
     }
   }
-  return raw.map((row) => {
-    const r = row as Record<string, unknown>;
-    return {
-      id: String(r.barbeiro_id ?? r.id ?? ""),
-      slot_minutos: Number(r.slot_minutos ?? 30),
-      disponibilidades: (r.disponibilidades as BookingProfSchedule["disponibilidades"]) ?? [],
-      bloqueios: (r.bloqueios as BookingProfSchedule["bloqueios"]) ?? [],
-    };
-  });
+  return [];
+}
+
+function parseBookingProfessionals(data: unknown): BookingProfSchedule[] {
+  return parseBookingProfessionalsPayload(data).map((r) => ({
+    id: String(r.barbeiro_id ?? r.id ?? ""),
+    slot_minutos: Number(r.slot_minutos ?? 30),
+    disponibilidades: (r.disponibilidades as BookingProfSchedule["disponibilidades"]) ?? [],
+    bloqueios: (r.bloqueios as BookingProfSchedule["bloqueios"]) ?? [],
+  }));
+}
+
+function parseBookingProfessionalsFull(data: unknown): BookingProfessionalFull[] {
+  return parseBookingProfessionalsPayload(data).map((r) => ({
+    id: String(r.barbeiro_id ?? r.id ?? ""),
+    barbearia_id: String(r.barbearia_id ?? ""),
+    nome: String(r.nome ?? "Profissional"),
+    slot_minutos: Number(r.slot_minutos ?? 30),
+    servicos: Array.isArray(r.servicos)
+      ? (r.servicos as SlotBookingServico[]).map((s) => ({
+          id: String(s.id),
+          nome: String(s.nome),
+          duracao_minutos: Number(s.duracao_minutos ?? 30),
+          preco_centavos: s.preco_centavos != null ? Number(s.preco_centavos) : undefined,
+        }))
+      : [],
+  }));
 }
 
 function buildDayTimeline(
@@ -305,24 +389,6 @@ function buildDayGrid(
   return { columns, rows };
 }
 
-function formatPeriodTitle(viewMode: ViewMode, anchorYmd: string) {
-  const anchor = parseYmd(anchorYmd);
-  if (viewMode === "dia") {
-    return anchor.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  }
-  if (viewMode === "semana") {
-    const { start, end } = getWeekRange(anchor);
-    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
-    const startLabel = start.toLocaleDateString("pt-BR", {
-      day: "numeric",
-      month: sameMonth ? undefined : "short",
-    });
-    const endLabel = end.toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" });
-    return `${startLabel} – ${endLabel}`;
-  }
-  return anchor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-}
-
 function shiftAnchor(viewMode: ViewMode, anchorYmd: string, delta: number) {
   const d = parseYmd(anchorYmd);
   if (viewMode === "dia") {
@@ -369,6 +435,8 @@ export default function AgendamentosDesktopPanel({
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoPainelItem | null>(null);
   const [profSchedules, setProfSchedules] = useState<BookingProfSchedule[]>([]);
+  const [bookingProfessionals, setBookingProfessionals] = useState<BookingProfessionalFull[]>([]);
+  const [slotBookingTarget, setSlotBookingTarget] = useState<SlotBookingTarget | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [dayGridColWidth, setDayGridColWidth] = useState(DAY_GRID_COL_WIDTH_DEFAULT);
   const [dayGridResizing, setDayGridResizing] = useState(false);
@@ -415,22 +483,24 @@ export default function AgendamentosDesktopPanel({
     if (!options?.preserveUi) {
       setLoading(true);
     }
-    const { data, error } = await supabase.rpc("get_agendamentos_painel", {
-      p_data_inicio: period.startYmd,
-      p_data_fim: period.endYmd,
-    });
-    if (error) {
-      toast({ title: "Não foi possível carregar", description: error.message, variant: "destructive" });
+    try {
+      const { data, error } = await supabase.rpc("get_agendamentos_painel", {
+        p_data_inicio: period.startYmd,
+        p_data_fim: period.endYmd,
+      });
+      if (error) {
+        toast({ title: "Não foi possível carregar", description: error.message, variant: "destructive" });
+        return;
+      }
+      const parsed = parsePainelRpc(data);
+      if (parsed) {
+        setItems(parsed.items);
+        setProfissionais(parsed.profissionais);
+        setSummary(parsed.summary);
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-    const parsed = parsePainelRpc(data);
-    if (parsed) {
-      setItems(parsed.items);
-      setProfissionais(parsed.profissionais);
-      setSummary(parsed.summary);
-    }
-    setLoading(false);
   }, [slug, period.startYmd, period.endYmd]);
 
   useEffect(() => {
@@ -504,22 +574,26 @@ export default function AgendamentosDesktopPanel({
           : { startYmd: anchorYmd, endYmd: anchorYmd };
 
     setLoadingSchedule(true);
-    await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
-    const { data, error } = await supabase.rpc("get_booking_professionals", {
-      p_slug: slug,
-      p_from: range.startYmd,
-      p_to: range.endYmd,
-      p_hub_only: isCA,
-      p_editable_cas_only: false,
-      p_painel_visiveis: !isCA,
-    });
-    if (error) {
-      setProfSchedules([]);
+    try {
+      await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
+      const { data, error } = await supabase.rpc("get_booking_professionals", {
+        p_slug: slug,
+        p_from: range.startYmd,
+        p_to: range.endYmd,
+        p_hub_only: isCA,
+        p_editable_cas_only: false,
+        p_painel_visiveis: !isCA,
+      });
+      if (error) {
+        setProfSchedules([]);
+        setBookingProfessionals([]);
+        return;
+      }
+      setProfSchedules(parseBookingProfessionals(data));
+      setBookingProfessionals(parseBookingProfessionalsFull(data));
+    } finally {
       setLoadingSchedule(false);
-      return;
     }
-    setProfSchedules(parseBookingProfessionals(data));
-    setLoadingSchedule(false);
   }, [slug, viewMode, anchorYmd, slotGridRevision, permissionsRevision, isCA]);
 
   useEffect(() => {
@@ -581,6 +655,7 @@ export default function AgendamentosDesktopPanel({
 
   const showDayGrid = viewMode === "dia" && profFilter === "todos" && profissionais.length > 0;
   const showDayListTimeline = viewMode === "dia" && profFilter !== "todos" && !!profissionalId;
+  const canBookEmptySlots = viewMode === "dia" && !isPastDay(anchorYmd);
   const showMonthCalendar = viewMode === "mes";
   const showWeekCalendar = viewMode === "semana";
   const showPeriodCalendar = showMonthCalendar || showWeekCalendar;
@@ -705,6 +780,44 @@ export default function AgendamentosDesktopPanel({
       document.body.style.userSelect = "";
     };
   }, []);
+
+  const handleOpenSlotBooking = useCallback(
+    (hora: string, barbeiroId: string) => {
+      if (viewMode !== "dia" || isPastDay(anchorYmd)) return;
+      const prof =
+        bookingProfessionals.find((p) => p.id === barbeiroId)
+        ?? (() => {
+          const panelProf = profissionais.find((p) => p.id === barbeiroId);
+          const schedule = profSchedules.find((p) => p.id === barbeiroId);
+          if (!panelProf) return null;
+          return {
+            id: panelProf.id,
+            barbearia_id: panelProf.barbearia_id,
+            nome: panelProf.nome,
+            slot_minutos: schedule?.slot_minutos ?? 30,
+            servicos: [] as SlotBookingServico[],
+          };
+        })();
+      if (!prof?.barbearia_id) {
+        toast({
+          title: "Não foi possível abrir o agendamento",
+          description: "Dados do profissional incompletos. Atualize a página.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSlotBookingTarget({
+        data: anchorYmd,
+        hora: formatHora(hora),
+        barbeiroId,
+        barbeiroNome: prof.nome,
+        barbeariaId: prof.barbearia_id,
+        slotMinutos: prof.slot_minutos,
+        servicos: prof.servicos,
+      });
+    },
+    [viewMode, anchorYmd, bookingProfessionals, profissionais, profSchedules],
+  );
 
   function handleAlterar(a: AgendamentoPainelItem) {
     const payload: RescheduleContext = {
@@ -857,6 +970,10 @@ export default function AgendamentosDesktopPanel({
 
     return (
       <div className="relative min-h-[3.25rem] py-2">
+        <AgendamentoObsIndicator
+          observacao={a.observacao}
+          className={cn("absolute top-1 z-[2]", actions ? "right-7" : "right-1")}
+        />
         {actions ? <div className="absolute top-0 -right-1 z-[1]">{actions}</div> : null}
         <div className="flex min-w-0 flex-col gap-1 pr-8">
           <p className="min-w-0 truncate text-sm font-medium" title={a.cliente_nome}>
@@ -899,9 +1016,31 @@ export default function AgendamentosDesktopPanel({
     }
     if (cell.kind === "empty") {
       return (
-        <div className="flex min-h-[3.25rem] items-center py-1 text-[11px] italic text-muted-foreground/70">
+        <button
+          type="button"
+          onClick={() => {
+            if (!canBookEmptySlots) {
+              toast({
+                title: "Horário indisponível",
+                description: isPastDay(anchorYmd)
+                  ? "Não é possível agendar em dias passados."
+                  : "Selecione o modo Dia para agendar por horário.",
+                variant: "destructive",
+              });
+              return;
+            }
+            handleOpenSlotBooking(cell.hora, cell.barbeiroId);
+          }}
+          title={canBookEmptySlots ? "Clique para agendar" : undefined}
+          className={cn(
+            "flex min-h-[3.25rem] w-full items-center py-1 text-[11px] italic text-muted-foreground/70",
+            canBookEmptySlots &&
+              "cursor-pointer transition-colors hover:bg-available/10 hover:text-available",
+            !canBookEmptySlots && "cursor-not-allowed opacity-60",
+          )}
+        >
           vazio
-        </div>
+        </button>
       );
     }
     return renderGridAppointmentCell(cell.item);
@@ -959,16 +1098,20 @@ export default function AgendamentosDesktopPanel({
             </span>
           )}
         </div>
-        {renderActionsMenu(a)}
+        <div className="flex min-w-0 items-center justify-end gap-1.5">
+          <AgendamentoObsIndicator observacao={a.observacao} />
+          {renderActionsMenu(a)}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-      <aside className="flex w-[280px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-background overflow-hidden">
-        <div className="shrink-0 space-y-4 border-b border-border/60 p-4">
+      <aside className="flex w-[280px] shrink-0 flex-col min-h-0 border-r border-[hsl(156_10%_55%)] dark:border-border/60 bg-panel-canvas dark:bg-background overflow-hidden">
+        <div className="shrink-0 space-y-3 border-b border-border/60 p-4">
           <AgendamentosMiniCalendar
+            className={AGENDAMENTOS_SIDEBAR_CARD}
             viewMode={viewMode}
             anchorYmd={anchorYmd}
             onAnchorChange={setAnchorYmd}
@@ -982,7 +1125,7 @@ export default function AgendamentosDesktopPanel({
             displayMonth={displayMonth}
           />
 
-          <div className="flex rounded-xl border border-border/70 p-0.5 bg-card/40">
+          <div className={cn("flex p-0.5", AGENDAMENTOS_SIDEBAR_CARD, "dark:bg-card/40")}>
             {(["dia", "semana", "mes"] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
@@ -999,34 +1142,12 @@ export default function AgendamentosDesktopPanel({
               </button>
             ))}
           </div>
-
-          <div className="flex items-center justify-between gap-1">
-            <button
-              type="button"
-              aria-label="Período anterior"
-              onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, -1))}
-              className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <p className="text-sm font-semibold capitalize text-center flex-1 leading-tight text-accent">
-              {formatPeriodTitle(viewMode, anchorYmd)}
-            </p>
-            <button
-              type="button"
-              aria-label="Próximo período"
-              onClick={() => setAnchorYmd((cur) => shiftAnchor(viewMode, cur, 1))}
-              className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
           <div className="space-y-2">
             {profissionais.length === 0 ? (
-              <div className="flex w-full items-center rounded-xl border border-border/70 bg-card/60 px-3 py-2.5 text-sm">
+              <div className={cn("flex w-full items-center px-3 py-2.5 text-sm", AGENDAMENTOS_SIDEBAR_CARD)}>
                 <span className="font-medium text-muted-foreground">Profissional</span>
               </div>
             ) : (
@@ -1036,23 +1157,28 @@ export default function AgendamentosDesktopPanel({
                 value={profFilter}
                 options={profOptions}
                 onChange={setProfFilter}
+                triggerClassName={AGENDAMENTOS_SIDEBAR_FILTER}
               />
             )}
             <MinimalFilterSelect
               label="Serviço"
+              showSelectedLabel
               value={servicoFilter}
               options={servicoOptions}
               onChange={setServicoFilter}
+              triggerClassName={AGENDAMENTOS_SIDEBAR_FILTER}
             />
             <MinimalFilterSelect
               label="Status"
+              showSelectedLabel
               value={statusFilter}
               options={statusFilterOptions}
               onChange={(v) => setStatusFilter(v as StatusFilter)}
+              triggerClassName={AGENDAMENTOS_SIDEBAR_FILTER}
             />
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-card/50 p-3 space-y-2 text-sm">
+          <div className={cn("p-3 space-y-2 text-sm", AGENDAMENTOS_SIDEBAR_CARD)}>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumo do período</p>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total</span>
@@ -1106,51 +1232,13 @@ export default function AgendamentosDesktopPanel({
         </div>
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border/60 shrink-0">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-panel-canvas px-6 py-4 shrink-0 dark:bg-background">
           <h1 className="text-lg font-semibold tracking-tight">Agendamentos</h1>
           <AgendamentosPeriodOccupancy stats={periodOccupancy} label={periodOccupancyLabel} />
         </header>
 
-        {showDayGrid && dayGrid ? (
-          <div className="relative sticky top-0 z-10 shrink-0">
-            <button
-              type="button"
-              aria-label="Ajustar largura das colunas da grade"
-              className={cn(
-                "absolute top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border bg-background shadow-sm cursor-col-resize",
-                DAY_GRID_RULE,
-                "hover:scale-110 hover:bg-secondary/80",
-                dayGridResizing && "scale-110 bg-secondary",
-              )}
-              style={{ left: `calc(${DAY_GRID_TIME_COL} + ${dayGridColWidth}px)` }}
-              onMouseDown={handleDayGridResizeStart}
-            />
-            <div
-              className={cn(
-                "grid w-full min-w-max items-center border-b bg-secondary/10 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-                DAY_GRID_RULE,
-              )}
-              style={dayGridColumnsStyle(dayGrid.columns.length, dayGridColWidth)}
-            >
-              <span className="min-w-0 truncate pl-3.5 pr-1.5">Horário</span>
-              {dayGrid.columns.map((col, colIdx) => (
-                <span
-                  key={col.id}
-                  className={cn(
-                    "min-w-0 truncate border-l text-left uppercase",
-                    DAY_GRID_RULE,
-                    dayGridProfPad(colIdx),
-                    colIdx === dayGrid.columns.length - 1 && "border-r",
-                  )}
-                  title={col.nome}
-                >
-                  {col.nome}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : viewMode !== "mes" && viewMode !== "semana" ? (
+        {!showDayGrid && viewMode !== "mes" && viewMode !== "semana" ? (
           <div className={cn(LIST_HEADER_ROW, "sticky top-0 z-10 shrink-0")}>
             <span className="min-w-0 truncate">Horário</span>
             <span className="min-w-0 truncate">Cliente</span>
@@ -1168,7 +1256,7 @@ export default function AgendamentosDesktopPanel({
           )}
         >
           {(loading || ((showDayGrid || showDayListTimeline || showPeriodCalendar) && loadingSchedule)) && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           )}
@@ -1190,16 +1278,58 @@ export default function AgendamentosDesktopPanel({
           ) : !listIsEmpty ? (
             showDayGrid && dayGrid ? (
               <div className="min-w-max">
-                {dayGrid.rows.map((row) => (
-                  <div
-                    key={`grid-${row.sortMin}`}
+                <div className="relative sticky top-0 z-10 shrink-0 bg-background">
+                  <button
+                    type="button"
+                    aria-label="Ajustar largura das colunas da grade"
                     className={cn(
-                      "grid w-full items-stretch border-b transition-colors hover:bg-secondary/10",
+                      "absolute top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border bg-background shadow-sm cursor-col-resize",
+                      DAY_GRID_RULE,
+                      "hover:scale-110 hover:bg-secondary/80",
+                      dayGridResizing && "scale-110 bg-secondary",
+                    )}
+                    style={{ left: `calc(${DAY_GRID_TIME_COL} + ${dayGridColWidth}px)` }}
+                    onMouseDown={handleDayGridResizeStart}
+                  />
+                  <div
+                    className={cn(
+                      "grid w-full min-w-max items-center border-b bg-secondary/10 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
                       DAY_GRID_RULE,
                     )}
                     style={dayGridColumnsStyle(dayGrid.columns.length, dayGridColWidth)}
                   >
-                    <span className="self-center py-2 pl-3.5 pr-1.5 text-sm font-semibold tabular-nums text-accent">
+                    <span className={cn("pl-3.5 pr-1.5", DAY_GRID_TIME_HEADER_STICKY)}>Horário</span>
+                    {dayGrid.columns.map((col, colIdx) => (
+                      <span
+                        key={col.id}
+                        className={cn(
+                          "min-w-0 truncate border-l text-left uppercase",
+                          DAY_GRID_RULE,
+                          dayGridProfPad(colIdx),
+                          colIdx === dayGrid.columns.length - 1 && "border-r",
+                        )}
+                        title={col.nome}
+                      >
+                        {col.nome}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {dayGrid.rows.map((row) => (
+                  <div
+                    key={`grid-${row.sortMin}`}
+                    className={cn(
+                      "group grid w-full items-stretch border-b transition-colors hover:bg-secondary/10",
+                      DAY_GRID_RULE,
+                    )}
+                    style={dayGridColumnsStyle(dayGrid.columns.length, dayGridColWidth)}
+                  >
+                    <span
+                      className={cn(
+                        "self-center py-2 pl-3.5 pr-1.5 text-sm font-semibold tabular-nums text-accent",
+                        DAY_GRID_TIME_CELL_STICKY,
+                      )}
+                    >
                       {row.timeLabel}
                     </span>
                     {dayGrid.columns.map((col, colIdx) => (
@@ -1242,17 +1372,45 @@ export default function AgendamentosDesktopPanel({
                 }
                 if (row.kind === "empty") {
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={`empty-${row.barbeiroId}-${row.hora}-${idx}`}
-                      className={cn(LIST_ROW_GRID, "py-1 border-b border-border/40")}
+                      onClick={() => {
+                        if (!canBookEmptySlots) {
+                          toast({
+                            title: "Horário indisponível",
+                            description: isPastDay(anchorYmd)
+                              ? "Não é possível agendar em dias passados."
+                              : "Selecione o modo Dia para agendar por horário.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        handleOpenSlotBooking(row.hora, row.barbeiroId);
+                      }}
+                      title={canBookEmptySlots ? "Clique para agendar" : undefined}
+                      className={cn(
+                        LIST_ROW_GRID,
+                        "w-full border-b border-border/40 py-1 text-left",
+                        canBookEmptySlots &&
+                          "cursor-pointer transition-colors hover:bg-available/10",
+                        !canBookEmptySlots && "cursor-not-allowed opacity-60",
+                      )}
                     >
                       <span className="min-w-0 text-sm tabular-nums text-muted-foreground">{row.hora}</span>
-                      <span className="min-w-0 text-[11px] text-muted-foreground/70 italic">vazio</span>
+                      <span
+                        className={cn(
+                          "min-w-0 text-[11px] italic text-muted-foreground/70",
+                          canBookEmptySlots && "hover:text-available",
+                        )}
+                      >
+                        vazio
+                      </span>
                       <span aria-hidden />
                       <span aria-hidden />
                       <span aria-hidden />
                       <span aria-hidden />
-                    </div>
+                    </button>
                   );
                 }
                 return renderAppointmentRow(row.item);
@@ -1310,6 +1468,13 @@ export default function AgendamentosDesktopPanel({
         agendamentoId={anotacaoTarget?.id ?? null}
         clienteNome={anotacaoTarget?.cliente_nome}
         onClose={() => setAnotacaoTarget(null)}
+      />
+
+      <AgendamentoSlotBookingModal
+        open={!!slotBookingTarget}
+        target={slotBookingTarget}
+        onClose={() => setSlotBookingTarget(null)}
+        onCreated={() => void loadData({ preserveUi: true })}
       />
     </div>
   );
