@@ -39,7 +39,7 @@ function buildNotificationBody(appointment: AppointmentRow) {
       : "Não informado";
 
   return [
-    `Cliente: ${appointment.cliente_nome}`,
+    `Paciente: ${appointment.cliente_nome}`,
     `Data: ${formatDateBr(appointment.data)}`,
     `Serviço: ${servico}`,
   ].join("\n");
