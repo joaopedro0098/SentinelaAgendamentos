@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CalendarDays, ClipboardList, Clock, Loader2, MessageSquare, Phone, User } from "lucide-react";
+import { CalendarDays, ClipboardList, Clock, Loader2, Phone, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { supabase } from "@agenda/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -53,6 +53,8 @@ import {
   AgendamentoAnotacaoButton,
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
+import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
+import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
 import {
   panelAgendamentoErrorMessage,
   parsePanelStatusRow,
@@ -156,6 +158,10 @@ export default function AgendamentosMobilePanel({
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
+  const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
+    observacao: string;
+    clienteNome?: string;
+  } | null>(null);
 
   const caBarbeariaIds = useMemo(
     () => caBarbearias.map((ca) => ca.barbeariaId).filter(Boolean),
@@ -683,12 +689,22 @@ export default function AgendamentosMobilePanel({
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        {showCardActions ? (
-                          <AgendamentoActionsMenu
-                            disabled={cardActionsBusy}
-                            compact
-                            alignBottomToCard
-                          >
+                        <div className="flex items-center gap-1.5">
+                          <AgendamentoObsIndicator
+                            observacao={a.observacao}
+                            onClick={() =>
+                              setObservacaoViewTarget({
+                                observacao: a.observacao!.trim(),
+                                clienteNome: a.cliente_nome,
+                              })
+                            }
+                          />
+                          {showCardActions ? (
+                            <AgendamentoActionsMenu
+                              disabled={cardActionsBusy}
+                              compact
+                              alignBottomToCard
+                            >
                             {cardActionsBusy ? (
                               <AgendamentoMenuActionLoading />
                             ) : (
@@ -712,7 +728,8 @@ export default function AgendamentosMobilePanel({
                               </>
                             )}
                           </AgendamentoActionsMenu>
-                        ) : null}
+                          ) : null}
+                        </div>
                         {a.status === "concluido" && canOpenAnotacaoConcluido(a, barbeariaId, caBarbeariaIds, profissionais) ? (
                           <AgendamentoAnotacaoButton
                             disabled={markingNoShowId === a.id}
@@ -762,12 +779,6 @@ export default function AgendamentosMobilePanel({
                             </p>
                           )}
                         </div>
-                      )}
-                      {a.observacao?.trim() && (
-                        <p className="flex items-start gap-2 text-muted-foreground pt-1 border-t border-border/60">
-                          <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" />
-                          <span>{a.observacao}</span>
-                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -829,6 +840,13 @@ export default function AgendamentosMobilePanel({
         agendamentoId={anotacaoTarget?.id ?? null}
         clienteNome={anotacaoTarget?.cliente_nome}
         onClose={() => setAnotacaoTarget(null)}
+      />
+
+      <AgendamentoObservacaoViewModal
+        open={!!observacaoViewTarget}
+        observacao={observacaoViewTarget?.observacao ?? null}
+        clienteNome={observacaoViewTarget?.clienteNome}
+        onClose={() => setObservacaoViewTarget(null)}
       />
     </div>
   );

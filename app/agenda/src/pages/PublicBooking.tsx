@@ -2007,7 +2007,6 @@ const PublicBooking = ({
                     onChange={(e) => setObservacao(e.target.value)}
                     maxLength={500}
                     rows={3}
-                    placeholder="Preferência, alergia, pedido especial…"
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none md:min-h-[4.25rem] md:max-h-[4.25rem]"
                   />
                 </div>

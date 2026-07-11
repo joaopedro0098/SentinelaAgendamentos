@@ -33,8 +33,9 @@ describe("slots vazios — bloqueio de clique", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("painel exibe indicador OBS quando há observação", () => {
+  it("painel exibe indicador OBS clicável quando há observação", () => {
     expect(panelSource).toContain("AgendamentoObsIndicator");
-    expect(panelSource).toContain("hasAgendamentoObservacao");
+    expect(panelSource).toContain("AgendamentoObservacaoViewModal");
+    expect(panelSource).toContain('aria-label="Ver observação"');
   });
 });

@@ -90,6 +90,8 @@ import {
   AgendamentoSlotBookingModal,
   type SlotBookingTarget,
 } from "@/features/dashboard/components/agendamentos/AgendamentoSlotBookingModal";
+import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
+import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
 import type { SlotBookingServico } from "@/features/dashboard/lib/agendamentoSlotBooking";
 
 type Props = {
@@ -134,31 +136,6 @@ const DAY_GRID_COL_WIDTH_MIN = 128;
 const DAY_GRID_COL_WIDTH_MAX = 280;
 
 const DAY_GRID_TIME_STICKY_SHADOW = "shadow-[4px_0_8px_-4px_hsl(var(--foreground)/0.1)]";
-
-function hasAgendamentoObservacao(observacao: string | null | undefined) {
-  return Boolean(observacao?.trim());
-}
-
-function AgendamentoObsIndicator({
-  observacao,
-  className,
-}: {
-  observacao: string | null | undefined;
-  className?: string;
-}) {
-  if (!hasAgendamentoObservacao(observacao)) return null;
-  return (
-    <span
-      className={cn(
-        "pointer-events-none select-none text-[10px] font-extralight tracking-wide text-available",
-        className,
-      )}
-      title={observacao!.trim()}
-    >
-      OBS
-    </span>
-  );
-}
 
 const DAY_GRID_TIME_HEADER_STICKY = cn(
   "sticky left-0 z-20 min-w-0 truncate bg-secondary/10",
@@ -437,6 +414,10 @@ export default function AgendamentosDesktopPanel({
   const [profSchedules, setProfSchedules] = useState<BookingProfSchedule[]>([]);
   const [bookingProfessionals, setBookingProfessionals] = useState<BookingProfessionalFull[]>([]);
   const [slotBookingTarget, setSlotBookingTarget] = useState<SlotBookingTarget | null>(null);
+  const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
+    observacao: string;
+    clienteNome?: string;
+  } | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [dayGridColWidth, setDayGridColWidth] = useState(DAY_GRID_COL_WIDTH_DEFAULT);
   const [dayGridResizing, setDayGridResizing] = useState(false);
@@ -973,6 +954,12 @@ export default function AgendamentosDesktopPanel({
         <AgendamentoObsIndicator
           observacao={a.observacao}
           className={cn("absolute top-1 z-[2]", actions ? "right-7" : "right-1")}
+          onClick={() =>
+            setObservacaoViewTarget({
+              observacao: a.observacao!.trim(),
+              clienteNome: a.cliente_nome,
+            })
+          }
         />
         {actions ? <div className="absolute top-0 -right-1 z-[1]">{actions}</div> : null}
         <div className="flex min-w-0 flex-col gap-1 pr-8">
@@ -1099,7 +1086,15 @@ export default function AgendamentosDesktopPanel({
           )}
         </div>
         <div className="flex min-w-0 items-center justify-end gap-1.5">
-          <AgendamentoObsIndicator observacao={a.observacao} />
+          <AgendamentoObsIndicator
+            observacao={a.observacao}
+            onClick={() =>
+              setObservacaoViewTarget({
+                observacao: a.observacao!.trim(),
+                clienteNome: a.cliente_nome,
+              })
+            }
+          />
           {renderActionsMenu(a)}
         </div>
       </div>
@@ -1475,6 +1470,13 @@ export default function AgendamentosDesktopPanel({
         target={slotBookingTarget}
         onClose={() => setSlotBookingTarget(null)}
         onCreated={() => void loadData({ preserveUi: true })}
+      />
+
+      <AgendamentoObservacaoViewModal
+        open={!!observacaoViewTarget}
+        observacao={observacaoViewTarget?.observacao ?? null}
+        clienteNome={observacaoViewTarget?.clienteNome}
+        onClose={() => setObservacaoViewTarget(null)}
       />
     </div>
   );
