@@ -15,6 +15,10 @@ import {
   type PacientePainelItem,
   type PacienteProfissional,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
+import {
+  listPacienteDocumentos,
+  type PacienteDocumentoItem,
+} from "@/features/dashboard/lib/pacienteDocumentos";
 import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import {
   whatsappMatches,
@@ -72,6 +76,8 @@ export function usePacientesPanel() {
   const [detailTab, setDetailTab] = useState<PacienteDetailTab>("historico");
   const [folderItems, setFolderItems] = useState<PacienteAnotacaoItem[]>([]);
   const [folderLoading, setFolderLoading] = useState(false);
+  const [documentosItems, setDocumentosItems] = useState<PacienteDocumentoItem[]>([]);
+  const [documentosLoading, setDocumentosLoading] = useState(false);
   const [anotacaoAgendamentoId, setAnotacaoAgendamentoId] = useState<string | null>(null);
   const [anotacaoClienteNome, setAnotacaoClienteNome] = useState<string | undefined>();
   const [nomeEditTarget, setNomeEditTarget] = useState<{
@@ -189,6 +195,17 @@ export function usePacientesPanel() {
     [profFilter],
   );
 
+  const loadDocumentos = useCallback(async (paciente: PacientePainelItem) => {
+    setDocumentosLoading(true);
+    const result = await listPacienteDocumentos(paciente.whatsapp_digits);
+    setDocumentosLoading(false);
+    if ("error" in result && result.error) {
+      setDocumentosItems([]);
+      return;
+    }
+    setDocumentosItems(result.documentos);
+  }, []);
+
   const selectPaciente = useCallback((paciente: PacientePainelItem) => {
     setSelectedPaciente(paciente);
     setDetailTab("historico");
@@ -197,15 +214,18 @@ export function usePacientesPanel() {
   const clearSelection = useCallback(() => {
     setSelectedPaciente(null);
     setFolderItems([]);
+    setDocumentosItems([]);
   }, []);
 
   useEffect(() => {
     if (!selectedPaciente) {
       setFolderItems([]);
+      setDocumentosItems([]);
       return;
     }
     void loadFolder(selectedPaciente);
-  }, [selectedPaciente, profFilter, loadFolder]);
+    void loadDocumentos(selectedPaciente);
+  }, [selectedPaciente, profFilter, loadFolder, loadDocumentos]);
 
   function openAnotacao(item: PacienteAnotacaoItem) {
     setAnotacaoAgendamentoId(item.agendamento_id);
@@ -353,6 +373,11 @@ export function usePacientesPanel() {
     setDetailTab,
     folderItems,
     folderLoading,
+    documentosItems,
+    documentosLoading,
+    reloadDocumentos: () => {
+      if (selectedPaciente) void loadDocumentos(selectedPaciente);
+    },
     anotacaoAgendamentoId,
     setAnotacaoAgendamentoId,
     anotacaoClienteNome,

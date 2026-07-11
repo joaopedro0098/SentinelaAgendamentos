@@ -7,8 +7,10 @@ import {
   PacienteNomeEditButton,
 } from "@/features/dashboard/components/PacienteNomeEditModal";
 import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/PacienteCadastroTab";
+import { PacienteDocumentosTab } from "@/features/dashboard/components/pacientes/PacienteDocumentosTab";
 import { PacienteAvatar } from "@/features/dashboard/components/pacientes/PacienteAvatar";
 import type { PacienteAnotacaoItem, PacientePainelItem } from "@/features/dashboard/lib/agendamentoAnotacao";
+import type { PacienteDocumentoItem } from "@/features/dashboard/lib/pacienteDocumentos";
 import {
   anotacaoSnippet,
   calcIdadeFromYmd,
@@ -39,6 +41,9 @@ type Props = {
   onDetailTabChange: (tab: PacienteDetailTab) => void;
   folderItems: PacienteAnotacaoItem[];
   folderLoading: boolean;
+  documentosItems: PacienteDocumentoItem[];
+  documentosLoading: boolean;
+  onReloadDocumentos: () => void;
   onOpenAnotacao: (item: PacienteAnotacaoItem) => void;
   onOpenNomeEdit: (p: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
@@ -87,6 +92,9 @@ export default function PacientesDesktopPanel({
   onDetailTabChange,
   folderItems,
   folderLoading,
+  documentosItems,
+  documentosLoading,
+  onReloadDocumentos,
   onOpenAnotacao,
   onOpenNomeEdit,
   onDataNascimentoSaved,
@@ -257,11 +265,14 @@ export default function PacientesDesktopPanel({
                   onOpenAnotacao={onOpenAnotacao}
                 />
               )}
-              {detailTab === "documentos" && (
-                <div className="rounded-xl border border-dashed border-border/70 bg-card/30 px-6 py-12 text-center text-sm text-muted-foreground">
-                  Nenhum documento anexado a este paciente.
-                </div>
-              )}
+              {detailTab === "documentos" && selectedPaciente ? (
+                <PacienteDocumentosTab
+                  paciente={selectedPaciente}
+                  documentos={documentosItems}
+                  loading={documentosLoading}
+                  onRefresh={onReloadDocumentos}
+                />
+              ) : null}
               {detailTab === "cadastro" && (
                 <PacienteCadastroTab
                   paciente={selectedPaciente}
