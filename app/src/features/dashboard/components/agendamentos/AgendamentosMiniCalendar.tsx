@@ -3,6 +3,8 @@ import { parseYmd, ymd, monthStart, type ViewMode, getWeekRange } from "@/featur
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
+type DayButtonContext = { selected: boolean; today: boolean };
+
 type Props = {
   viewMode: ViewMode;
   anchorYmd: string;
@@ -10,6 +12,10 @@ type Props = {
   onMonthChange: (delta: number) => void;
   displayMonth: Date;
   className?: string;
+  isDayDisabled?: (dayYmd: string) => boolean;
+  getDayExtraClassName?: (dayYmd: string, ctx: DayButtonContext) => string | undefined;
+  disablePrevMonth?: boolean;
+  disableNextMonth?: boolean;
 };
 
 function isSameDay(a: Date, b: Date) {
@@ -34,6 +40,10 @@ export function AgendamentosMiniCalendar({
   onMonthChange,
   displayMonth,
   className,
+  isDayDisabled,
+  getDayExtraClassName,
+  disablePrevMonth = false,
+  disableNextMonth = false,
 }: Props) {
   const first = monthStart(displayMonth);
   const startPad = first.getDay();
@@ -49,11 +59,27 @@ export function AgendamentosMiniCalendar({
   return (
     <div className={cn("rounded-2xl border border-border/70 bg-card/50 p-3", className)}>
       <div className="flex items-center justify-between mb-3">
-        <button type="button" className="text-sm px-2 py-1 rounded-lg hover:bg-secondary/60" onClick={() => onMonthChange(-1)}>
+        <button
+          type="button"
+          disabled={disablePrevMonth}
+          className={cn(
+            "text-sm px-2 py-1 rounded-lg hover:bg-secondary/60",
+            disablePrevMonth && "opacity-40 pointer-events-none",
+          )}
+          onClick={() => onMonthChange(-1)}
+        >
           ‹
         </button>
         <span className="text-sm font-semibold capitalize">{monthLabel}</span>
-        <button type="button" className="text-sm px-2 py-1 rounded-lg hover:bg-secondary/60" onClick={() => onMonthChange(1)}>
+        <button
+          type="button"
+          disabled={disableNextMonth}
+          className={cn(
+            "text-sm px-2 py-1 rounded-lg hover:bg-secondary/60",
+            disableNextMonth && "opacity-40 pointer-events-none",
+          )}
+          onClick={() => onMonthChange(1)}
+        >
           ›
         </button>
       </div>
@@ -68,15 +94,21 @@ export function AgendamentosMiniCalendar({
           const key = ymd(day);
           const selected = isInRange(key, anchorYmd, viewMode);
           const today = isSameDay(day, new Date());
+          const disabled = isDayDisabled?.(key) ?? false;
+          const extraClassName = getDayExtraClassName?.(key, { selected, today });
           return (
             <button
               key={key}
               type="button"
+              disabled={disabled}
               onClick={() => onAnchorChange(key)}
               className={cn(
                 "h-8 w-8 mx-auto rounded-lg text-xs font-medium transition-colors",
-                selected ? "bg-accent text-accent-foreground" : "hover:bg-secondary/60",
-                today && !selected && "ring-1 ring-primary/40",
+                disabled && "opacity-30 pointer-events-none",
+                !disabled && !extraClassName && selected && "bg-accent text-accent-foreground",
+                !disabled && !extraClassName && !selected && "hover:bg-secondary/60",
+                !disabled && !extraClassName && today && !selected && "ring-1 ring-primary/40",
+                extraClassName,
               )}
             >
               {day.getDate()}

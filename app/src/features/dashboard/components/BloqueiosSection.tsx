@@ -11,6 +11,8 @@ import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrol
 import { buildSlots, type Window } from "@agenda/lib/slots";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
+import { useMediaMdUp } from "@/hooks/useMediaMdUp";
+import { monthStart, parseYmd } from "@/features/dashboard/lib/agendamentosPanel";
 
 type Props = {
   barbershopId: string;
@@ -58,6 +60,7 @@ const BOOKING_MONTHS = 2;
 const BLOQUEIOS_PAST_DAYS = 60;
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 const CONFLICT_MSG =
   "Você tem agendamentos já feitos para este período, altere-os ou cancele para seguir com o bloqueio.";
@@ -282,8 +285,13 @@ function CheckboxRow({
 
 export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   const { slotGridRevision, bumpSlotGridRevision } = useDashboardShop();
+  const isDesktop = useMediaMdUp();
   const bookableRange = useMemo(() => getBloqueiosDayRange(), []);
   const hoje = useMemo(() => ymd(new Date()), []);
+  const bookableFirstYmd = useMemo(() => ymd(bookableRange.first), [bookableRange.first]);
+  const bookableLastYmd = useMemo(() => ymd(bookableRange.last), [bookableRange.last]);
+  const bookableFirstMonth = useMemo(() => monthStart(bookableRange.first), [bookableRange.first]);
+  const bookableLastMonth = useMemo(() => monthStart(bookableRange.last), [bookableRange.last]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -294,6 +302,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
 
   const [modoFerias, setModoFerias] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
+  const [displayMonth, setDisplayMonth] = useState(() => monthStart(new Date()));
   const [selectedBarbeiroId, setSelectedBarbeiroId] = useState<string | null>(null);
   const [blockMode, setBlockMode] = useState<BlockMode>("parcial");
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
@@ -348,6 +357,151 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   const selectedDateIsPast = useMemo(() => isPastDate(selectedDate), [selectedDate]);
   const canCreateOrEditBlocks = !selectedDateIsPast;
 
+  const displayMonthCells = useMemo(() => {
+    const first = monthStart(displayMonth);
+    const startPad = first.getDay();
+    const daysInMonth = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0).getDate();
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < startPad; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(new Date(displayMonth.getFullYear(), displayMonth.getMonth(), d));
+    }
+    return cells;
+  }, [displayMonth]);
+
+  const displayMonthLabel = useMemo(
+    () => displayMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+    [displayMonth],
+  );
+
+  const disablePrevMonth = displayMonth.getTime() <= bookableFirstMonth.getTime();
+  const disableNextMonth = displayMonth.getTime() >= bookableLastMonth.getTime();
+
+  const isDayInBookableRange = useCallback(
+    (dateYmd: string) => dateYmd >= bookableFirstYmd && dateYmd <= bookableLastYmd,
+    [bookableFirstYmd, bookableLastYmd],
+  );
+
+  function renderDayButton(d: Date, carousel = false, disabled = false) {
+    const key = ymd(d);
+    const sel = key === selectedDate;
+    const isToday = key === hoje;
+    const dayTotalBlock =
+      selectedBarbeiroId != null && hasTotalBlockOnDate(bloqueios, selectedBarbeiroId, key);
+
+    if (!carousel) {
+      return (
+        <button
+          key={key}
+          type="button"
+          data-day={key}
+          disabled={disabled}
+          onClick={() => setSelectedDate(key)}
+          className={cn(
+            "h-9 w-full rounded-lg text-sm font-medium transition-colors",
+            disabled && "opacity-30 pointer-events-none",
+            !disabled && sel && dayTotalBlock
+              ? "bg-unavailable text-unavailable-foreground"
+              : !disabled && sel
+                ? "bg-accent text-accent-foreground"
+                : !disabled && dayTotalBlock
+                  ? "text-unavailable hover:bg-unavailable/15"
+                  : !disabled && "hover:bg-secondary/60",
+            !disabled && isToday && !sel && !dayTotalBlock && "ring-1 ring-primary/40",
+          )}
+        >
+          {d.getDate()}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        key={key}
+        type="button"
+        data-day={key}
+        onClick={() => setSelectedDate(key)}
+        className={cn(
+          "snap-start shrink-0 w-[60px] h-[4.5rem] rounded-xl flex flex-col items-center justify-center font-semibold transition-all active:scale-95",
+          sel && dayTotalBlock
+            ? "bg-unavailable text-unavailable-foreground ring-2 ring-unavailable/60 ring-offset-2 ring-offset-background"
+            : sel
+              ? "bg-accent text-accent-foreground shadow-sm ring-2 ring-accent ring-offset-2 ring-offset-background"
+              : dayTotalBlock
+                ? "bg-unavailable/80 text-unavailable-foreground opacity-90"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        )}
+      >
+        <span className="text-[10px] opacity-90 font-medium">{DIAS[d.getDay()]}</span>
+        <span className="font-display text-lg leading-none my-0.5">{d.getDate()}</span>
+        <span className="text-[9px] opacity-80">{MESES[d.getMonth()]}</span>
+        {isToday && !sel && <span className="text-[8px] mt-0.5 font-medium text-accent">Hoje</span>}
+      </button>
+    );
+  }
+
+  function renderDayPicker() {
+    if (isDesktop) {
+      return (
+        <div className="w-full rounded-2xl bg-panel-canvas dark:bg-background p-3">
+          <div className="flex items-center justify-center gap-1 mb-3">
+            <button
+              type="button"
+              disabled={disablePrevMonth}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none hover:bg-secondary/60",
+                disablePrevMonth && "opacity-40 pointer-events-none",
+              )}
+              onClick={() =>
+                setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
+              }
+              aria-label="Mês anterior"
+            >
+              ‹
+            </button>
+            <span className="text-sm font-semibold capitalize px-1">{displayMonthLabel}</span>
+            <button
+              type="button"
+              disabled={disableNextMonth}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none hover:bg-secondary/60",
+                disableNextMonth && "opacity-40 pointer-events-none",
+              )}
+              onClick={() =>
+                setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
+              }
+              aria-label="Próximo mês"
+            >
+              ›
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+            {WEEKDAYS.map((w) => (
+              <span
+                key={w}
+                className="h-9 w-full flex items-center justify-center text-sm font-medium text-muted-foreground"
+              >
+                {w}
+              </span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {displayMonthCells.map((day, i) => {
+              if (!day) return <span key={`empty-${i}`} className="h-9" aria-hidden />;
+              return renderDayButton(day, false, !isDayInBookableRange(ymd(day)));
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <HorizontalScrollStrip centerOn={`[data-day="${selectedDate}"]`}>
+        {bookableRange.days.map((d) => renderDayButton(d, true))}
+      </HorizontalScrollStrip>
+    );
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -389,6 +543,21 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   useEffect(() => {
     void load();
   }, [load, slotGridRevision]);
+
+  useEffect(() => {
+    const selected = parseYmd(selectedDate);
+    setDisplayMonth((prev) => {
+      if (selected.getMonth() === prev.getMonth() && selected.getFullYear() === prev.getFullYear()) return prev;
+      return monthStart(selected);
+    });
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (isDesktop) return;
+    document
+      .querySelector(`[data-day="${selectedDate}"]`)
+      ?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [selectedDate, isDesktop]);
 
   useEffect(() => {
     if (profissionais.length === 0) {
@@ -665,6 +834,41 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
   const hasPainelBloqueiosVisiveis = bloqueiosPainel.length > 0;
   const showSectionContent = hasOwnProfissionais || hasFeriasVisiveis || hasPainelBloqueiosVisiveis;
 
+  function renderBlockModeToggle() {
+    return (
+      <ModeToggle
+        value={blockMode}
+        onChange={(v) => setBlockMode(v as BlockMode)}
+        options={[
+          { id: "parcial", label: "Parcial" },
+          { id: "total", label: "Total" },
+        ]}
+      />
+    );
+  }
+
+  function renderProfissionalSection() {
+    if (!showProfissionalStrip) return null;
+    return (
+      <section>
+        <h3 className="text-sm font-semibold mb-2.5">Profissional</h3>
+        <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
+          {profissionais.map((p) => renderProfissionalChip(p, p.barbeiro_id === selectedBarbeiroId))}
+        </HorizontalScrollStrip>
+      </section>
+    );
+  }
+
+  function renderDaySection() {
+    return (
+      <section>
+        <h3 className="text-sm font-semibold mb-2.5">Dia</h3>
+        {renderDayPicker()}
+        <p className="mt-2 text-xs text-muted-foreground capitalize">{dataLabel}</p>
+      </section>
+    );
+  }
+
   return (
     <Card className="glass-panel border-border/80">
       <CardHeader className="pb-3">
@@ -766,54 +970,8 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
               </div>
             ) : hasOwnProfissionais || hasPainelBloqueiosVisiveis ? (
               <>
-                <section>
-                  <h3 className="text-sm font-semibold mb-2.5">Dia</h3>
-                  <HorizontalScrollStrip centerOn={`[data-day="${selectedDate}"]`}>
-                    {bookableRange.days.map((d) => {
-                      const key = ymd(d);
-                      const sel = key === selectedDate;
-                      const isToday = key === ymd(new Date());
-                      const dayTotalBlock =
-                        selectedBarbeiroId != null &&
-                        hasTotalBlockOnDate(bloqueios, selectedBarbeiroId, key);
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          data-day={key}
-                          onClick={() => setSelectedDate(key)}
-                          className={cn(
-                            "snap-start shrink-0 w-[60px] h-[4.5rem] rounded-xl flex flex-col items-center justify-center font-semibold transition-all active:scale-95",
-                            sel && dayTotalBlock
-                              ? "bg-unavailable text-unavailable-foreground ring-2 ring-unavailable/60 ring-offset-2 ring-offset-background"
-                              : sel
-                                ? "bg-accent text-accent-foreground shadow-sm ring-2 ring-accent ring-offset-2 ring-offset-background"
-                                : dayTotalBlock
-                                  ? "bg-unavailable/80 text-unavailable-foreground opacity-90"
-                                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                          )}
-                        >
-                          <span className="text-[10px] opacity-90 font-medium">{DIAS[d.getDay()]}</span>
-                          <span className="font-display text-lg leading-none my-0.5">{d.getDate()}</span>
-                          <span className="text-[9px] opacity-80">{MESES[d.getMonth()]}</span>
-                          {isToday && !sel && (
-                            <span className="text-[8px] mt-0.5 font-medium text-accent">Hoje</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </HorizontalScrollStrip>
-                  <p className="mt-2 text-xs text-muted-foreground capitalize">{dataLabel}</p>
-                </section>
-
-                {hasOwnProfissionais && showProfissionalStrip && (
-                  <section>
-                    <h3 className="text-sm font-semibold mb-2.5">Profissional</h3>
-                    <HorizontalScrollStrip centerOn={selectedBarbeiroId ? `[data-barbeiro="${selectedBarbeiroId}"]` : null}>
-                      {profissionais.map((p) => renderProfissionalChip(p, p.barbeiro_id === selectedBarbeiroId))}
-                    </HorizontalScrollStrip>
-                  </section>
-                )}
+                {renderDaySection()}
+                {renderProfissionalSection()}
 
                 {hasOwnProfissionais && selectedProfOnFerias ? (
                   <p className="text-sm text-muted-foreground">
@@ -825,16 +983,7 @@ export function BloqueiosSection({ barbershopId, barbershopSlug }: Props) {
                   </p>
                 ) : hasOwnProfissionais ? (
                   <>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ModeToggle
-                        value={blockMode}
-                        onChange={(v) => setBlockMode(v as BlockMode)}
-                        options={[
-                          { id: "parcial", label: "Parcial" },
-                          { id: "total", label: "Total" },
-                        ]}
-                      />
-                    </div>
+                    <div className="flex flex-wrap items-center gap-2">{renderBlockModeToggle()}</div>
 
                     {blockMode === "parcial" && (
                       <section>
