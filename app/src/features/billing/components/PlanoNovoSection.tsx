@@ -68,12 +68,14 @@ function PlanTierCard({
   cardRef,
   showActions,
   onCheckout,
+  onUpdatePayment,
 }: {
   tier: PlanTierDefinition;
   highlighted?: boolean;
   cardRef?: RefObject<HTMLDivElement | null>;
   showActions: boolean;
   onCheckout: (tier: PlanTier, method: "cartao" | "pix") => void;
+  onUpdatePayment?: () => void;
 }) {
   return (
     <div
@@ -109,6 +111,15 @@ function PlanTierCard({
           >
             <CreditCard className="h-4 w-4" /> Cartão
           </Button>
+          {onUpdatePayment && (
+            <button
+              type="button"
+              className="w-full text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              onClick={onUpdatePayment}
+            >
+              Atualizar forma de pagamento
+            </button>
+          )}
           <Button variant="outline" className="w-full rounded-full" onClick={() => onCheckout(tier.id, "pix")}>
             Pix
           </Button>
@@ -148,6 +159,14 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
   const showFullPlanGrid = isCancelledWithAccess || !hasActivePlan;
   const showProUpgrade = hasActivePlan && activeTier === "start" && isRecurringActive;
   const showActivePlanStatus = hasActivePlan && activeTier;
+  const canUpdatePaymentMethod =
+    isRecurringActive &&
+    info?.last_payment_method === "card" &&
+    Boolean(info?.stripe_subscription_id?.trim());
+
+  function goUpdatePayment() {
+    navigate("/app/perfil/atualizar-pagamento");
+  }
 
   useEffect(() => {
     if (loading || periodSyncAttemptedRef.current) return;
@@ -244,6 +263,16 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
               </div>
             )}
 
+            {canUpdatePaymentMethod && activeTier === "pro" && (
+              <button
+                type="button"
+                className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                onClick={goUpdatePayment}
+              >
+                Atualizar forma de pagamento
+              </button>
+            )}
+
             {showFullPlanGrid && (
               <>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -271,6 +300,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
                 cardRef={proCardRef}
                 showActions={canSubscribeTier("pro")}
                 onCheckout={goCheckout}
+                onUpdatePayment={canUpdatePaymentMethod ? goUpdatePayment : undefined}
               />
             )}
 

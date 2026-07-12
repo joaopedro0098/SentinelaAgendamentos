@@ -11,6 +11,7 @@ import {
   AssinarPlanoCartaoPage,
   AssinarPlanoPixPage,
 } from "@/features/billing/pages/AssinarPlanoPage";
+import AtualizarPagamentoPage from "@/features/billing/pages/AtualizarPagamentoPage";
 import AssinaturaRetornoPage from "@/features/billing/pages/AssinaturaRetornoPage";
 import SupportPage from "@/features/dashboard/pages/SupportPage";
 import RelatoriosPage from "@/features/dashboard/pages/RelatoriosPage";
@@ -30,6 +31,7 @@ const ROUTES = [
   { path: "/app/perfil/assinatura/retorno", Component: AssinaturaRetornoPage },
   { path: "/app/perfil/assinar-plano/cartao", Component: AssinarPlanoCartaoPage },
   { path: "/app/perfil/assinar-plano/pix", Component: AssinarPlanoPixPage },
+  { path: "/app/perfil/atualizar-pagamento", Component: AtualizarPagamentoPage },
   { path: "/app/perfil/assinar-cartao", Component: LegacyAssinarCartaoRedirect },
   { path: "/app/perfil", Component: PerfilPage, exact: true },
   { path: "/app/pagamentos", Component: PagamentosPage },

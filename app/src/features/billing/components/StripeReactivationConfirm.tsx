@@ -9,6 +9,7 @@ type Props = {
   error: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  onUseOtherCard?: () => void;
 };
 
 export function StripeReactivationConfirm({
@@ -18,6 +19,7 @@ export function StripeReactivationConfirm({
   error,
   onConfirm,
   onCancel,
+  onUseOtherCard,
 }: Props) {
   const validityText = periodEndLabel
     ? `ainda ativa até ${periodEndLabel}`
@@ -51,6 +53,17 @@ export function StripeReactivationConfirm({
         >
           {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reativar assinatura"}
         </Button>
+
+        {onUseOtherCard && (
+          <button
+            type="button"
+            className="w-full text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors disabled:opacity-50"
+            disabled={processing}
+            onClick={onUseOtherCard}
+          >
+            Usar outro cartão
+          </button>
+        )}
 
         <Button
           type="button"

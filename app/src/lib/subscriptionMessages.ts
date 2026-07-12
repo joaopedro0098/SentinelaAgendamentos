@@ -87,6 +87,16 @@ export function shouldOfferStripeReactivationConfirm(
   return info.subscription_tier === tier;
 }
 
+/** Assinatura Stripe no cartão com subscription_id — permite atualizar forma de pagamento. */
+export function canUpdateStripePaymentMethod(info: SubscriptionInfo | null | undefined) {
+  if (!info?.stripe_subscription_id?.trim()) return false;
+  if (info.last_payment_method !== "card") return false;
+
+  const recurringActive =
+    info.subscription_status === "active" && !isPlanCancelledWithAccess(info);
+  return recurringActive || isPlanCancelledWithAccess(info);
+}
+
 export function formatSubscriptionNotice(notice: string | null | undefined): string | null {
   if (!notice) return null;
   if (notice === LEGACY_SUBSCRIPTION_NOTICE_EXPIRED) return SUBSCRIPTION_NOTICE_EXPIRED;

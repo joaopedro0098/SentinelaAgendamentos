@@ -60,6 +60,33 @@ export function cancelStripeSubscription() {
   return invokeBillingFunction<CancelStripeSubscriptionResponse>("stripe-cancel-subscription");
 }
 
+export type StripePaymentMethodStartResponse = {
+  ok?: boolean;
+  client_secret?: string;
+  error?: string;
+};
+
+export type StripePaymentMethodCompleteResponse = {
+  ok?: boolean;
+  reactivated?: boolean;
+  subscription_id?: string;
+  error?: string;
+};
+
+export function startStripePaymentMethodUpdate() {
+  return invokeBillingFunction<StripePaymentMethodStartResponse>("stripe-update-payment-method", {
+    action: "start",
+  });
+}
+
+export function completeStripePaymentMethodUpdate(setupIntentId: string, reactivate = false) {
+  return invokeBillingFunction<StripePaymentMethodCompleteResponse>("stripe-update-payment-method", {
+    action: "complete",
+    setup_intent_id: setupIntentId,
+    reactivate,
+  });
+}
+
 export function createSubscriptionPlanPix(tier: PlanTier) {
   return invokeBillingFunction<PlanPixCreateResponse>("mp-create-subscription-plan-pix", { tier });
 }

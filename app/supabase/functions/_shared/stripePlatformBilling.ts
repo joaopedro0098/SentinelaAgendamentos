@@ -165,3 +165,7 @@ export function paymentIntentClientSecret(subscription: Stripe.Subscription): st
   if (!paymentIntent || typeof paymentIntent === "string") return null;
   return paymentIntent.client_secret ?? null;
 }
+
+export function setupIntentClientSecret(setupIntent: Stripe.SetupIntent): string | null {
+  return setupIntent.client_secret ?? null;
+}

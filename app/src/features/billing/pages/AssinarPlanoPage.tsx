@@ -409,6 +409,7 @@ export default function AssinarPlanoPage({ method }: Props) {
           error={reactivationError}
           onConfirm={() => void handleReactivationConfirm()}
           onCancel={() => navigate("/app/perfil")}
+          onUseOtherCard={() => navigate("/app/perfil/atualizar-pagamento?reativar=1")}
         />
       ) : (
         <Card>
