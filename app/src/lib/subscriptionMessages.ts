@@ -43,8 +43,32 @@ function isPlanPeriodStillValid(info: SubscriptionInfo) {
 export function isPlanCancelledWithAccess(info: SubscriptionInfo | null | undefined) {
   if (!info || !isPlanPeriodStillValid(info)) return false;
   if (info.subscription_status === "cancelled") return true;
-  const notice = (info.subscription_notice ?? "").toLowerCase();
-  return notice.includes("assinatura cancelada");
+
+  const notice = (info.subscription_notice ?? "").toLowerCase().normalize("NFD");
+  const normalized = notice.replace(/\p{M}/gu, "");
+
+  return (
+    normalized.includes("assinatura cancelada") ||
+    normalized.includes("acesso continua ate o fim do periodo") ||
+    normalized.includes("acesso continua ate a data de vencimento")
+  );
+}
+
+export function formatPlanStatusHeading(info: SubscriptionInfo | null | undefined, tierName: string) {
+  const periodEnd = formatSubscriptionDateBr(info?.current_period_end);
+
+  if (isPlanCancelledWithAccess(info) && periodEnd) {
+    return `Plano ${tierName} válido até ${periodEnd}`;
+  }
+
+  return `Plano ${tierName} ativo`;
+}
+
+export function formatSubscriptionDateBr(iso: string | null | undefined) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return null;
+  return `${d}/${m}/${y}`;
 }
 
 export function formatSubscriptionNotice(notice: string | null | undefined): string | null {

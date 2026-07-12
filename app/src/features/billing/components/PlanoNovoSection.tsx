@@ -4,7 +4,7 @@ import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
 import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
 import { cancelStripeSubscription } from "@/lib/subscriptionPlanApi";
-import { accountUsesExternalPlan, isPlanCancelledWithAccess } from "@/lib/subscriptionMessages";
+import { accountUsesExternalPlan, formatPlanStatusHeading, isPlanCancelledWithAccess } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
@@ -31,17 +31,6 @@ function hasPaidPlanAccess(info: SubscriptionInfo | null) {
   if (tier !== "start" && tier !== "pro") return false;
   if (info?.subscription_status !== "active" && info?.subscription_status !== "cancelled") return false;
   return isPlanPeriodStillValid(info);
-}
-
-function formatPlanStatusHeading(info: SubscriptionInfo | null, tier: PlanTier) {
-  const tierName = planTierLabel(tier);
-  const periodEnd = formatDateBr(info?.current_period_end);
-
-  if (isPlanCancelledWithAccess(info) && periodEnd !== "—") {
-    return `Plano ${tierName} válido até ${periodEnd}`;
-  }
-
-  return `Plano ${tierName} ativo`;
 }
 
 function formatActivePlanPeriodEnd(info: SubscriptionInfo | null) {
@@ -221,7 +210,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
         ) : hasActivePlan && activeTier === "pro" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10 px-4 py-3 text-sm">
-              <p className="font-semibold">{formatPlanStatusHeading(info, activeTier)}</p>
+              <p className="font-semibold">{formatPlanStatusHeading(info, planTierLabel(activeTier))}</p>
               {activePlanPeriodEndLabel && (
                 <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
@@ -240,7 +229,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
         ) : hasActivePlan && activeTier === "start" ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
-              <p className="font-semibold">{formatPlanStatusHeading(info, activeTier)}</p>
+              <p className="font-semibold">{formatPlanStatusHeading(info, planTierLabel(activeTier))}</p>
               {activePlanPeriodEndLabel && (
                 <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
