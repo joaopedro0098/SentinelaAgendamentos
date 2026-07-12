@@ -141,9 +141,13 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
 
   function canSubscribeTier(tier: PlanTier) {
     if (info?.is_admin || usesExternalPlan || loading) return false;
-    if (!hasActivePlan) return true;
+    if (isCancelledWithAccess || !hasActivePlan) return true;
     return isRecurringActive && activeTier === "start" && tier === "pro";
   }
+
+  const showFullPlanGrid = isCancelledWithAccess || !hasActivePlan;
+  const showProUpgrade = hasActivePlan && activeTier === "start" && isRecurringActive;
+  const showActivePlanStatus = hasActivePlan && activeTier;
 
   useEffect(() => {
     if (loading || periodSyncAttemptedRef.current) return;
@@ -222,68 +226,64 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
       <CardContent className="space-y-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Carregando planos…</p>
-        ) : hasActivePlan && activeTier === "pro" ? (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10 px-4 py-3 text-sm">
-              <p className="font-semibold">{formatPlanStatusHeading(info, planTierLabel(activeTier))}</p>
-              {activePlanPeriodEndLabel && (
-                <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
-              )}
-            </div>
-            {canCancel && (
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={() => void handleCancel()}
-                disabled={cancelling}
-              >
-                {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar assinatura"}
-              </Button>
-            )}
-          </div>
-        ) : hasActivePlan && activeTier === "start" ? (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
-              <p className="font-semibold">{formatPlanStatusHeading(info, planTierLabel(activeTier))}</p>
-              {activePlanPeriodEndLabel && (
-                <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
-              )}
-            </div>
-            <PlanTierCard
-              tier={proTier}
-              highlighted={highlightPro}
-              cardRef={proCardRef}
-              showActions={canSubscribeTier("pro")}
-              onCheckout={goCheckout}
-            />
-            {canCancel && (
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={() => void handleCancel()}
-                disabled={cancelling}
-              >
-                {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar assinatura"}
-              </Button>
-            )}
-          </div>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              14 dias grátis no Sentinela. Pix ativa o plano na hora; cartão renova automaticamente todo mês.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {PLAN_TIERS.map((tier) => (
-                <PlanTierCard
-                  key={tier.id}
-                  tier={tier}
-                  highlighted={highlightPro && tier.id === "pro"}
-                  cardRef={tier.id === "pro" ? proCardRef : undefined}
-                  showActions={canSubscribeTier(tier.id)}
-                  onCheckout={goCheckout}
-                />
-              ))}
-            </div>
+            {showActivePlanStatus && (
+              <div
+                className={cn(
+                  "rounded-xl px-4 py-3 text-sm",
+                  activeTier === "pro"
+                    ? "border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10"
+                    : "border border-border bg-muted/30",
+                )}
+              >
+                <p className="font-semibold">{formatPlanStatusHeading(info, planTierLabel(activeTier))}</p>
+                {activePlanPeriodEndLabel && (
+                  <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
+                )}
+              </div>
+            )}
+
+            {showFullPlanGrid && (
+              <>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  14 dias grátis no Sentinela. Pix ativa o plano na hora; cartão renova automaticamente todo mês.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {PLAN_TIERS.map((tier) => (
+                    <PlanTierCard
+                      key={tier.id}
+                      tier={tier}
+                      highlighted={highlightPro && tier.id === "pro"}
+                      cardRef={tier.id === "pro" ? proCardRef : undefined}
+                      showActions={canSubscribeTier(tier.id)}
+                      onCheckout={goCheckout}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {showProUpgrade && proTier && (
+              <PlanTierCard
+                tier={proTier}
+                highlighted={highlightPro}
+                cardRef={proCardRef}
+                showActions={canSubscribeTier("pro")}
+                onCheckout={goCheckout}
+              />
+            )}
+
+            {canCancel && (
+              <Button
+                variant="outline"
+                className="w-full rounded-full"
+                onClick={() => void handleCancel()}
+                disabled={cancelling}
+              >
+                {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar assinatura"}
+              </Button>
+            )}
           </>
         )}
       </CardContent>
