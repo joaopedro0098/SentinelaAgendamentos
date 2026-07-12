@@ -113,6 +113,23 @@ Deno.serve(async (req) => {
         const existing = await stripe.subscriptions.retrieve(shop.stripe_subscription_id);
         if (existing.status === "incomplete" || existing.status === "incomplete_expired") {
           await stripe.subscriptions.cancel(shop.stripe_subscription_id);
+        } else if (
+          existing.status === "active" &&
+          existing.cancel_at_period_end &&
+          shop.subscription_tier === tier
+        ) {
+          const reactivated = await stripe.subscriptions.update(shop.stripe_subscription_id, {
+            cancel_at_period_end: false,
+          });
+
+          await syncShopFromStripeSubscription(supabase, shop.id, reactivated);
+
+          return jsonResponse({
+            ok: true,
+            reactivated: true,
+            activated: true,
+            subscription_id: reactivated.id,
+          });
         } else if (existing.status === "active" && shop.subscription_tier === tier) {
           return jsonResponse({ error: "Você já possui este plano ativo." }, 400);
         }

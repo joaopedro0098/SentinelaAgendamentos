@@ -85,7 +85,7 @@ function StripeCheckoutForm({ subscriptionId, processing, setProcessing, onSucce
 
 type StripePlanCheckoutProps = {
   tier: PlanTier;
-  onSuccess: () => void;
+  onSuccess: (result?: { reactivated?: boolean }) => void;
 };
 
 function StripePlanCheckout({ tier, onSuccess }: StripePlanCheckoutProps) {
@@ -110,7 +110,7 @@ function StripePlanCheckout({ tier, onSuccess }: StripePlanCheckoutProps) {
 
         if (data.activated) {
           clearSubscriptionCache();
-          onSuccess();
+          onSuccess({ reactivated: data.reactivated });
           return;
         }
 
@@ -220,9 +220,19 @@ export default function AssinarPlanoPage({ method }: Props) {
     };
   }, [method, tier]);
 
-  const handleCardSuccess = useCallback(async () => {
+  const handleCardSuccess = useCallback(async (result?: { reactivated?: boolean }) => {
     await refresh({ force: true });
-    toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
+    toast(
+      result?.reactivated
+        ? {
+            title: "Assinatura reativada",
+            description: "A renovação automática no cartão foi restaurada.",
+          }
+        : {
+            title: "Assinatura ativa",
+            description: "Pagamento confirmado com sucesso.",
+          },
+    );
     navigate("/app/perfil", { replace: true });
   }, [navigate, refresh]);
 

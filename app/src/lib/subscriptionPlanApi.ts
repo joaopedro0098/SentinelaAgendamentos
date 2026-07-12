@@ -26,6 +26,7 @@ export type StripeCreateSubscriptionResponse = {
   customer_id?: string;
   upgraded?: boolean;
   activated?: boolean;
+  reactivated?: boolean;
   error?: string;
 };
 
