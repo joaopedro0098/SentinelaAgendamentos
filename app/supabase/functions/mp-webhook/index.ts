@@ -1,15 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   activateShopSubscription,
-  buildMpWebhookEventKey,
-  claimMpWebhookEvent,
-  fetchMpPreapproval,
-  getNextSubscriptionPeriodEnd,
   getPlatformMpAccessToken,
-  normalizePreapprovalFailureStatus,
   parsePlanPixExternalReference,
-  parsePreapprovalExternalReference,
-  preapprovalFailureNotice,
 } from "../_shared/mpPlatformBilling.ts";
 import {
   fetchMpPayment,
@@ -49,120 +42,6 @@ Deno.serve(async (req) => {
         status: 200,
         headers: debug ? { ...corsHeaders, "Content-Type": "application/json" } : corsHeaders,
       });
-    }
-
-    if (resourceType === "subscription_preapproval" || resourceType === "preapproval") {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-
-      try {
-        const preapproval = await fetchMpPreapproval(String(resourceId));
-        const { shopId, tier } = parsePreapprovalExternalReference(preapproval.external_reference);
-        const mpStatus = String(preapproval.status ?? "").toLowerCase();
-        const action = typeof payload.action === "string" ? payload.action : null;
-        const notificationId = (payload.id as string | number | undefined) ?? null;
-
-        const eventKey = buildMpWebhookEventKey({
-          notificationId,
-          resourceType: String(resourceType),
-          resourceId: String(resourceId),
-          action,
-          resourceStatus: mpStatus || "unknown",
-        });
-
-        const claimed = await claimMpWebhookEvent(supabase, eventKey, {
-          resource_type: String(resourceType),
-          resource_id: String(resourceId),
-          resource_status: mpStatus || "unknown",
-        });
-
-        if (!claimed) {
-          if (debug) {
-            return new Response(
-              JSON.stringify({ ok: true, action: "preapproval_duplicate_ignored", event_key: eventKey }),
-              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
-          }
-          return new Response("ok", { status: 200, headers: corsHeaders });
-        }
-
-        if (shopId) {
-          const { data: shop } = await supabase
-            .from("barbershops")
-            .select("id, current_period_end, subscription_status, mp_subscription_id")
-            .eq("id", shopId)
-            .maybeSingle();
-
-          if (shop) {
-            if (mpStatus === "authorized") {
-              const alreadyActive =
-                shop.subscription_status === "active" &&
-                shop.mp_subscription_id === String(resourceId) &&
-                shop.current_period_end != null;
-
-              if (!alreadyActive) {
-                if (tier) {
-                  await activateShopSubscription(supabase, shop.id, {
-                    tier,
-                    lastPaymentMethod: "mp_sub",
-                    mpSubscriptionId: String(resourceId),
-                    currentPeriodEnd: shop.current_period_end,
-                  });
-                } else {
-                  const periodEnd = getNextSubscriptionPeriodEnd(shop.current_period_end);
-                  await supabase
-                    .from("barbershops")
-                    .update({
-                      subscription_status: "active",
-                      mp_subscription_id: String(resourceId),
-                      last_payment_method: "mp_sub",
-                      current_period_end: periodEnd,
-                      grace_until: null,
-                      subscription_notice: null,
-                    })
-                    .eq("id", shop.id);
-                }
-              }
-            } else {
-              const failureStatus = normalizePreapprovalFailureStatus(mpStatus);
-              if (failureStatus) {
-                const update: Record<string, unknown> = {
-                  subscription_notice: preapprovalFailureNotice(failureStatus),
-                };
-
-                if (shop.subscription_status === "trial") {
-                  update.mp_subscription_id = null;
-                } else if (failureStatus === "cancelled") {
-                  update.subscription_status = "cancelled";
-                  update.mp_subscription_id = String(resourceId);
-                }
-
-                await supabase.from("barbershops").update(update).eq("id", shop.id);
-              }
-            }
-          }
-        }
-
-        if (debug) {
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              action: "preapproval",
-              event_key: eventKey,
-              preapproval_id: resourceId,
-              status: preapproval.status,
-              shop_id: shopId,
-            }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      } catch (e) {
-        console.error("mp-webhook preapproval:", e);
-      }
-
-      return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
     if (resourceType === "payment") {

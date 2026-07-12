@@ -1,15 +1,6 @@
 import { invokeBillingFunction } from "@/lib/billingApi";
 import type { PlanTier } from "@/lib/planTiers";
 
-export type PreapprovalCardResponse = {
-  ok?: boolean;
-  preapproval_id?: string;
-  ui_status?: "approved" | "pending" | "error";
-  mp_status?: string | null;
-  error?: string;
-  retry?: boolean;
-};
-
 export type PlanPixCreateResponse = {
   ok?: boolean;
   payment_id?: string;
@@ -28,7 +19,25 @@ export type PlanPixVerifyResponse = {
   error?: string;
 };
 
-export type CancelPreapprovalResponse = {
+export type StripeCreateSubscriptionResponse = {
+  ok?: boolean;
+  client_secret?: string | null;
+  subscription_id?: string;
+  customer_id?: string;
+  upgraded?: boolean;
+  activated?: boolean;
+  error?: string;
+};
+
+export type StripeSyncSubscriptionResponse = {
+  ok?: boolean;
+  activated?: boolean;
+  subscription_status?: string;
+  subscription?: Record<string, unknown>;
+  error?: string;
+};
+
+export type CancelStripeSubscriptionResponse = {
   ok?: boolean;
   subscription_status?: string;
   current_period_end?: string | null;
@@ -36,19 +45,18 @@ export type CancelPreapprovalResponse = {
   error?: string;
 };
 
-export type PreapprovalRedirectResponse = {
-  preapproval_id?: string;
-  init_point?: string;
-  back_url?: string;
-  error?: string;
-};
-
-export function createPreapprovalRedirect(tier: PlanTier) {
-  return invokeBillingFunction<PreapprovalRedirectResponse>("mp-create-preapproval", { tier });
+export function createStripeSubscription(tier: PlanTier) {
+  return invokeBillingFunction<StripeCreateSubscriptionResponse>("stripe-create-subscription", { tier });
 }
 
-export function createPreapprovalCard(tier: PlanTier, formData: Record<string, unknown>) {
-  return invokeBillingFunction<PreapprovalCardResponse>("mp-create-preapproval-card", { tier, formData });
+export function syncStripeSubscription(subscriptionId?: string | null) {
+  return invokeBillingFunction<StripeSyncSubscriptionResponse>("stripe-sync-subscription", {
+    subscription_id: subscriptionId ?? undefined,
+  });
+}
+
+export function cancelStripeSubscription() {
+  return invokeBillingFunction<CancelStripeSubscriptionResponse>("stripe-cancel-subscription");
 }
 
 export function createSubscriptionPlanPix(tier: PlanTier) {
@@ -60,8 +68,4 @@ export function verifySubscriptionPlanPix(tier: PlanTier, paymentId?: string | n
     tier,
     payment_id: paymentId ?? undefined,
   });
-}
-
-export function cancelMpPreapproval() {
-  return invokeBillingFunction<CancelPreapprovalResponse>("mp-cancel-preapproval");
 }

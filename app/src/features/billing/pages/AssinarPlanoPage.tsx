@@ -1,32 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
-import { explainMpPlanBrickError } from "@/lib/mpBrickErrors";
-import { MP_PLATFORM_PUBLIC_KEY, MP_PLATFORM_TEST_MODE } from "@/lib/paymentsApi";
-import { getMpCardBrickStyleForDashboardTheme } from "@/lib/mpBrickTheme";
-import { useDashboardTheme } from "@/hooks/useDashboardTheme";
+import { STRIPE_PUBLISHABLE_KEY } from "@/lib/stripeApi";
 import {
-  createPreapprovalCard,
-  createPreapprovalRedirect,
+  createStripeSubscription,
   createSubscriptionPlanPix,
+  syncStripeSubscription,
   verifySubscriptionPlanPix,
 } from "@/lib/subscriptionPlanApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-
-let mpInitialized = false;
-
-function ensureMpInit() {
-  if (!MP_PLATFORM_PUBLIC_KEY || mpInitialized) return;
-  initMercadoPago(MP_PLATFORM_PUBLIC_KEY, { locale: "pt-BR" });
-  mpInitialized = true;
-}
 
 type CheckoutMethod = "cartao" | "pix";
 
@@ -34,81 +24,153 @@ type Props = {
   method: CheckoutMethod;
 };
 
-type MpPlanCardBrickProps = {
-  tier: PlanTier;
-  amount: number;
-  payerEmail?: string | null;
-  brickRetryKey: number;
-  onSubmit: (formData: unknown) => Promise<void>;
-  onBrickError: (message: string) => void;
+type StripeCheckoutFormProps = {
+  subscriptionId: string | null;
+  processing: boolean;
+  setProcessing: (value: boolean) => void;
+  onSuccess: () => void;
 };
 
-/** Evita remount do Brick a cada render (callbacks estáveis + refs). */
-function MpPlanCardBrick({ tier, amount, payerEmail, brickRetryKey, onSubmit, onBrickError }: MpPlanCardBrickProps) {
-  const { mode } = useDashboardTheme();
+function StripeCheckoutForm({ subscriptionId, processing, setProcessing, onSuccess }: StripeCheckoutFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
 
-  const submitRef = useRef(onSubmit);
-  submitRef.current = onSubmit;
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!stripe || !elements) return;
 
-  const onBrickErrorRef = useRef(onBrickError);
-  onBrickErrorRef.current = onBrickError;
-
-  const stableSubmit = useCallback(async (formData: unknown) => {
-    await submitRef.current(formData);
-  }, []);
-
-  const stableOnError = useCallback((error: unknown) => {
-    const message =
-      typeof error === "object" && error && "message" in error
-        ? String((error as { message?: string }).message)
-        : "Erro no formulário de pagamento.";
-    onBrickErrorRef.current(message);
-  }, []);
-
-  const initialization = useMemo(() => {
-    const email = payerEmail?.trim();
-    return {
-      amount: Math.max(1, amount),
-      ...(email ? { payer: { email } } : {}),
-    };
-  }, [amount, payerEmail]);
-
-  const brickStyle = useMemo(() => getMpCardBrickStyleForDashboardTheme(mode), [mode]);
-
-  const customization = useMemo(
-    () => ({
-      paymentMethods: {
-        maxInstallments: 1,
-        minInstallments: 1,
-        types: {
-          included: ["credit_card"] as ("credit_card" | "debit_card" | "prepaid-card")[],
+    setProcessing(true);
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/app/perfil`,
         },
-      },
-      visual: {
-        hideFormTitle: true,
-        style: brickStyle,
-      },
-    }),
-    [brickStyle],
-  );
+        redirect: "if_required",
+      });
+
+      if (error) {
+        throw new Error(error.message ?? "Pagamento não concluído.");
+      }
+
+      const sync = await syncStripeSubscription(subscriptionId);
+      if (sync.error) throw new Error(sync.error);
+
+      clearSubscriptionCache();
+      onSuccess();
+    } catch (e) {
+      toast({
+        title: "Pagamento não confirmado",
+        description: e instanceof Error ? e.message : "Verifique os dados do cartão e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   return (
-    <CardPayment
-      id={`mp-plan-card-${tier}-${brickRetryKey}`}
-      locale="pt-BR"
-      initialization={initialization}
-      customization={customization}
-      onSubmit={stableSubmit}
-      onError={stableOnError}
-    />
+    <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
+      <PaymentElement options={{ layout: "tabs" }} />
+      <Button
+        type="submit"
+        className="w-full rounded-full bg-gradient-brand text-white border-0"
+        disabled={!stripe || !elements || processing}
+      >
+        {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar assinatura"}
+      </Button>
+    </form>
+  );
+}
+
+type StripePlanCheckoutProps = {
+  tier: PlanTier;
+  onSuccess: () => void;
+};
+
+function StripePlanCheckout({ tier, onSuccess }: StripePlanCheckoutProps) {
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const stripePromise = useMemo(() => loadStripe(STRIPE_PUBLISHABLE_KEY), []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+    setClientSecret(null);
+
+    void createStripeSubscription(tier)
+      .then((data) => {
+        if (!active) return;
+        if (data.error) throw new Error(data.error);
+
+        if (data.activated) {
+          clearSubscriptionCache();
+          onSuccess();
+          return;
+        }
+
+        if (!data.client_secret) {
+          throw new Error("Stripe não retornou confirmação de pagamento.");
+        }
+
+        setClientSecret(data.client_secret);
+        setSubscriptionId(data.subscription_id ?? null);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setLoadError(e instanceof Error ? e.message : "Não foi possível iniciar o pagamento.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tier, onSuccess]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return <p className="text-sm text-destructive">{loadError}</p>;
+  }
+
+  if (!clientSecret || !stripePromise) return null;
+
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret,
+        locale: "pt-BR",
+        appearance: { theme: "stripe" },
+      }}
+    >
+      <StripeCheckoutForm
+        subscriptionId={subscriptionId}
+        processing={processing}
+        setProcessing={setProcessing}
+        onSuccess={onSuccess}
+      />
+    </Elements>
   );
 }
 
 export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-  const { info, loading: subscriptionLoading, refresh } = useSubscription();
+  const { refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
   const tierDef = getPlanTier(tierParam);
@@ -119,20 +181,9 @@ export default function AssinarPlanoPage({ method }: Props) {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
-  const [processingCard, setProcessingCard] = useState(false);
-  const [redirectingMp, setRedirectingMp] = useState(false);
   const [verifyingPix, setVerifyingPix] = useState(false);
-  const [brickRetryKey, setBrickRetryKey] = useState(0);
 
   const verifyInFlightRef = useRef(false);
-
-  const hasActiveMpSubscription =
-    info?.subscription_status === "active" &&
-    info?.last_payment_method === "mp_sub" &&
-    Boolean(info?.mp_subscription_id?.trim());
-
-  const proCardBlockedByActiveMpSub =
-    method === "cartao" && tier === "pro" && hasActiveMpSubscription;
 
   useEffect(() => {
     document.title =
@@ -140,10 +191,6 @@ export default function AssinarPlanoPage({ method }: Props) {
         ? `Assinar com cartão — ${tierDef?.name ?? "Plano"}`
         : `Assinar com Pix — ${tierDef?.name ?? "Plano"}`;
   }, [method, tierDef?.name]);
-
-  useEffect(() => {
-    if (method === "cartao") ensureMpInit();
-  }, [method]);
 
   useEffect(() => {
     if (method !== "pix" || !tier) return;
@@ -173,86 +220,11 @@ export default function AssinarPlanoPage({ method }: Props) {
     };
   }, [method, tier]);
 
-  const handleCardSubmit = useCallback(
-    async (formData: unknown) => {
-      if (!tier) return;
-      setProcessingCard(true);
-      try {
-        const result = await createPreapprovalCard(tier, formData as Record<string, unknown>);
-        if (result.error) throw new Error(result.error);
-
-        clearSubscriptionCache();
-        await refresh({ force: true });
-
-        if (result.ui_status === "approved") {
-          toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
-          navigate("/app/perfil", { replace: true });
-          return;
-        }
-
-        if (result.preapproval_id) {
-          navigate(`/app/perfil/assinatura/retorno?preapproval_id=${encodeURIComponent(result.preapproval_id)}`, {
-            replace: true,
-          });
-          return;
-        }
-
-        throw new Error("Mercado Pago não retornou a confirmação da assinatura.");
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Verifique os dados e tente novamente.";
-        const isActiveMpSub =
-          message.toLowerCase().includes("já possui uma assinatura") ||
-          message.toLowerCase().includes("assinatura ativa com mercado pago");
-        const explained = isActiveMpSub
-          ? {
-              title: "Assinatura ativa no Mercado Pago",
-              description:
-                "Você já tem o plano Start (ou outra assinatura) no cartão. Cancele em Conta antes de assinar o Pro com cartão. Outro cartão não resolve.",
-              hint: "Para subir ao Pro sem cancelar, use Pix em Conta → Plano Pro.",
-            }
-          : explainMpPlanBrickError(message);
-        toast({
-          title: explained.title,
-          description: explained.hint
-            ? `${explained.description} ${explained.hint}`
-            : explained.description,
-          variant: "destructive",
-        });
-        setBrickRetryKey((key) => key + 1);
-      } finally {
-        setProcessingCard(false);
-      }
-    },
-    [tier, navigate, refresh],
-  );
-
-  const handleBrickError = useCallback((message: string) => {
-    const explained = explainMpPlanBrickError(message);
-    toast({
-      title: explained.title,
-      description: explained.hint ? `${explained.description} ${explained.hint}` : explained.description,
-      variant: "destructive",
-    });
-  }, []);
-
-  const handleMpRedirect = useCallback(async () => {
-    if (!tier) return;
-    setRedirectingMp(true);
-    try {
-      const result = await createPreapprovalRedirect(tier);
-      if (result.error || !result.init_point) {
-        throw new Error(result.error ?? "Mercado Pago não retornou o link de assinatura.");
-      }
-      window.location.href = result.init_point;
-    } catch (e) {
-      toast({
-        title: "Não foi possível abrir o Mercado Pago",
-        description: e instanceof Error ? e.message : "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-      setRedirectingMp(false);
-    }
-  }, [tier]);
+  const handleCardSuccess = useCallback(async () => {
+    await refresh({ force: true });
+    toast({ title: "Assinatura ativa", description: "Pagamento confirmado com sucesso." });
+    navigate("/app/perfil", { replace: true });
+  }, [navigate, refresh]);
 
   const verifyPix = useCallback(async () => {
     if (!tier || verifyInFlightRef.current) return;
@@ -307,9 +279,7 @@ export default function AssinarPlanoPage({ method }: Props) {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              Plano {tierDef.name} — Pix
-            </CardTitle>
+            <CardTitle className="text-base">Plano {tierDef.name} — Pix</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
@@ -352,11 +322,11 @@ export default function AssinarPlanoPage({ method }: Props) {
     );
   }
 
-  if (!MP_PLATFORM_PUBLIC_KEY) {
+  if (!STRIPE_PUBLISHABLE_KEY) {
     return (
       <div className="p-4 md:p-8 max-w-lg mx-auto space-y-4">
         <p className="text-sm text-destructive">
-          Pagamento com cartão não configurado (VITE_MP_PLATFORM_PUBLIC_KEY ou VITE_MP_PUBLIC_KEY).
+          Pagamento com cartão não configurado (VITE_STRIPE_PUBLISHABLE_KEY).
         </p>
         <Button asChild variant="outline" className="rounded-full">
           <Link to="/app/perfil">
@@ -379,7 +349,8 @@ export default function AssinarPlanoPage({ method }: Props) {
           <CreditCard className="h-6 w-6" /> Assinar plano {tierDef.name}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          14 dias grátis no cartão, depois {tierDef.priceLabel}. Cancele quando quiser em Conta.
+          {tierDef.priceLabel}. O teste gratuito é gerenciado pelo Sentinela — o cartão só é necessário para
+          assinar o plano.
         </p>
       </div>
 
@@ -388,81 +359,12 @@ export default function AssinarPlanoPage({ method }: Props) {
           <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {subscriptionLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : proCardBlockedByActiveMpSub ? (
-            <div className="space-y-4">
-              <p className="text-sm text-amber-950 dark:text-amber-100 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3 leading-relaxed">
-                Você já possui assinatura ativa no Mercado Pago
-                {info?.subscription_tier === "start" ? " (plano Start no cartão)" : ""}. Para assinar o{" "}
-                <strong>Pro com cartão</strong>, cancele o plano atual em <strong>Conta</strong> primeiro. Usar outro
-                cartão não adianta — o bloqueio é pela conta, não pelo cartão.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Quer subir ao Pro sem cancelar? Use <strong>Pix</strong> em Conta → Plano Pro.
-              </p>
-              <Button asChild className="w-full rounded-full bg-gradient-brand text-white border-0">
-                <Link to="/app/perfil">Ir para Conta e cancelar Start</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full rounded-full">
-                <Link to="/app/perfil/assinar-plano/pix?tier=pro">Assinar Pro com Pix</Link>
-              </Button>
-            </div>
-          ) : MP_PLATFORM_TEST_MODE ? (
-            <>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                No modo teste, o Mercado Pago costuma não aceitar cartão digitado aqui para assinatura. Continue no
-                checkout do Mercado Pago e use o cartão teste lá.
-              </p>
-              <p className="text-xs text-muted-foreground rounded-lg border border-border bg-muted/30 px-3 py-2 leading-relaxed">
-                Cartão teste: <strong>5031 4332 1540 6351</strong> · CVV <strong>123</strong> · validade{" "}
-                <strong>11/30</strong> · titular <strong>APRO</strong> · CPF <strong>12345678909</strong>
-              </p>
-              <Button
-                type="button"
-                className="w-full rounded-full bg-gradient-brand text-white border-0"
-                disabled={redirectingMp}
-                onClick={() => void handleMpRedirect()}
-              >
-                {redirectingMp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continuar no Mercado Pago"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <MpPlanCardBrick
-                tier={tier}
-                amount={tierDef.amount}
-                payerEmail={user?.email}
-                brickRetryKey={brickRetryKey}
-                onSubmit={handleCardSubmit}
-                onBrickError={handleBrickError}
-              />
-
-              {processingCard && (
-                <div className="flex justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-full"
-                disabled={processingCard || redirectingMp}
-                onClick={() => void handleMpRedirect()}
-              >
-                {redirectingMp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ou assinar no site do Mercado Pago"}
-              </Button>
-            </>
-          )}
+          <StripePlanCheckout tier={tier} onSuccess={() => void handleCardSuccess()} />
 
           <Button
             type="button"
             variant="ghost"
             className="w-full rounded-full"
-            disabled={processingCard || redirectingMp}
             onClick={() => navigate("/app/perfil")}
           >
             Voltar

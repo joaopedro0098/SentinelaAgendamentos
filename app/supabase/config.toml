@@ -47,6 +47,9 @@ subject = "Convite — Sentinela Agendamentos"
 [functions.mp-webhook]
 verify_jwt = false
 
+[functions.stripe-subscription-webhook]
+verify_jwt = false
+
 [functions.mp-oauth-start]
 verify_jwt = true
 

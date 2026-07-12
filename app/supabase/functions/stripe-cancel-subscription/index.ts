@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { fetchMpPreapproval, getPlatformMpAccessToken } from "../_shared/mpPlatformBilling.ts";
+import { getStripeClient } from "../_shared/stripePlatformBilling.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: shop } = await supabase
       .from("barbershops")
-      .select("id, subscription_status, mp_subscription_id, current_period_end")
+      .select("id, subscription_status, stripe_subscription_id, current_period_end")
       .eq("owner_id", userData.user.id)
       .maybeSingle();
 
@@ -47,36 +47,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Não há assinatura ativa para cancelar." }, 400);
     }
 
-    if (shop.mp_subscription_id) {
-      const mpToken = getPlatformMpAccessToken();
-      const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${shop.mp_subscription_id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${mpToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: "cancelled" }),
-      });
-
-      if (!mpRes.ok) {
-        const details = await mpRes.json().catch(() => ({}));
-        console.error("mp-cancel-preapproval:", details);
-        const message =
-          typeof details === "object" && details !== null && "message" in details
-            ? String((details as { message?: string }).message)
-            : "Mercado Pago não cancelou a assinatura.";
-        return jsonResponse({ error: message }, 502);
-      }
-
-      try {
-        const preapproval = await fetchMpPreapproval(shop.mp_subscription_id);
-        if (String(preapproval.status ?? "").toLowerCase() !== "cancelled") {
-          console.warn("mp-cancel-preapproval: status inesperado após cancelamento", preapproval.status);
-        }
-      } catch (e) {
-        console.warn("mp-cancel-preapproval: não foi possível revalidar status", e);
-      }
+    if (!shop.stripe_subscription_id?.trim()) {
+      return jsonResponse({ error: "Esta assinatura não é recorrente por cartão (Stripe)." }, 400);
     }
+
+    const stripe = getStripeClient();
+    await stripe.subscriptions.update(shop.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
 
     await supabase
       .from("barbershops")
@@ -95,7 +73,7 @@ Deno.serve(async (req) => {
       subscription,
     });
   } catch (e) {
-    console.error("mp-cancel-preapproval:", e);
+    console.error("stripe-cancel-subscription:", e);
     return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });

@@ -14,13 +14,13 @@ export type SubscriptionInfo = {
   trial_already_used?: boolean;
   facial_trial_used?: boolean;
   plan_price_label?: string;
-  /** Plano ativo: start | pro (Mercado Pago). */
+  /** Plano ativo: start | pro. */
   subscription_tier?: "start" | "pro" | null;
   /** Pro ativo libera aba Pagamentos e cobrança no link. */
   can_use_appointment_payments?: boolean;
   label?: string;
   mp_subscription_id?: string | null;
-  /** Último meio de pagamento: mp_sub (cartão recorrente MP), pix ou card (Stripe legado). */
+  /** Último meio de pagamento: pix ou card (Stripe). */
   last_payment_method?: "card" | "pix" | "mp_sub" | null;
   stripe_subscription_id?: string | null;
   is_aggregated_account?: boolean;

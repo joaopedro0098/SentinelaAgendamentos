@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
 import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
-import { cancelMpPreapproval } from "@/lib/subscriptionPlanApi";
+import { cancelStripeSubscription } from "@/lib/subscriptionPlanApi";
 import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,13 @@ function formatActivePlanPeriodEnd(info: SubscriptionInfo | null) {
     info?.last_payment_method === "pix" &&
     (info?.subscription_tier === "start" || info?.subscription_tier === "pro");
 
+  const paidWithCard =
+    info?.subscription_status === "active" &&
+    info?.last_payment_method === "card" &&
+    (info?.subscription_tier === "start" || info?.subscription_tier === "pro");
+
   if (paidWithPix) return `${date} — você pagou com Pix`;
+  if (paidWithCard) return `${date} — renovação automática no cartão`;
   return date;
 }
 
@@ -107,8 +113,8 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     !info?.is_admin &&
     !usesExternalPlan &&
     isActive &&
-    info?.last_payment_method === "mp_sub" &&
-    Boolean(info?.mp_subscription_id?.trim());
+    info?.last_payment_method === "card" &&
+    Boolean(info?.stripe_subscription_id?.trim());
   const proTier = PLAN_TIERS.find((tier) => tier.id === "pro");
   const activePlanPeriodEndLabel = formatActivePlanPeriodEnd(info);
 
@@ -145,7 +151,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago.")) return;
     setCancelling(true);
     try {
-      const data = await cancelMpPreapproval();
+      const data = await cancelStripeSubscription();
       if (data.error) throw new Error(data.error);
       toast({
         title: "Assinatura cancelada",
@@ -229,7 +235,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
         ) : (
           <>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              14 dias grátis no cartão (Mercado Pago). Pix ativa o plano na hora após o pagamento.
+              14 dias grátis no Sentinela. Pix ativa o plano na hora; cartão renova automaticamente todo mês.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {PLAN_TIERS.map((tier) => (
