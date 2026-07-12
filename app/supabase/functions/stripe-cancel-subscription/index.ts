@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getStripeClient } from "../_shared/stripePlatformBilling.ts";
+import { getStripeClient, stripePeriodEndYmd } from "../_shared/stripePlatformBilling.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     }
 
     const stripe = getStripeClient();
-    await stripe.subscriptions.update(shop.stripe_subscription_id, {
+    const updated = await stripe.subscriptions.update(shop.stripe_subscription_id, {
       cancel_at_period_end: true,
     });
 
@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
       .from("barbershops")
       .update({
         subscription_status: "cancelled",
+        current_period_end: stripePeriodEndYmd(updated),
         subscription_notice: "Assinatura cancelada. O acesso continua até o fim do período já pago.",
       })
       .eq("id", shop.id);

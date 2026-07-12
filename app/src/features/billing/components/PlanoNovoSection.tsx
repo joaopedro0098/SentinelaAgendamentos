@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
 import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
-import { cancelStripeSubscription } from "@/lib/subscriptionPlanApi";
+import { cancelStripeSubscription, syncStripeSubscription } from "@/lib/subscriptionPlanApi";
 import { accountUsesExternalPlan, formatPlanStatusHeading, isPlanCancelledWithAccess } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,6 +123,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
   const location = useLocation();
   const [cancelling, setCancelling] = useState(false);
   const proCardRef = useRef<HTMLDivElement>(null);
+  const periodSyncAttemptedRef = useRef(false);
 
   const usesExternalPlan = accountUsesExternalPlan(info);
   const hasActivePlan = hasPaidPlanAccess(info);
@@ -143,6 +144,20 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     if (!hasActivePlan) return true;
     return isRecurringActive && activeTier === "start" && tier === "pro";
   }
+
+  useEffect(() => {
+    if (loading || periodSyncAttemptedRef.current) return;
+    if (!info?.stripe_subscription_id?.trim()) return;
+    if (info.current_period_end) return;
+    if (!isCancelledWithAccess) return;
+
+    periodSyncAttemptedRef.current = true;
+    void syncStripeSubscription(info.stripe_subscription_id)
+      .then(() => onRefresh())
+      .catch(() => {
+        periodSyncAttemptedRef.current = false;
+      });
+  }, [loading, info, isCancelledWithAccess, onRefresh]);
 
   useEffect(() => {
     if (!highlightPro || loading) return;

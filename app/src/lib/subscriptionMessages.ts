@@ -39,26 +39,29 @@ function isPlanPeriodStillValid(info: SubscriptionInfo) {
   return end >= new Date();
 }
 
+/** Aviso de assinatura cancelada com acesso até o fim do período pago. */
+export function isSubscriptionCancelledNotice(notice: string | null | undefined) {
+  const normalized = (notice ?? "").toLowerCase();
+  return normalized.includes("assinatura cancelada");
+}
+
 /** Plano cancelado (cartão/Pix) mas ainda dentro do período já pago. */
 export function isPlanCancelledWithAccess(info: SubscriptionInfo | null | undefined) {
-  if (!info || !isPlanPeriodStillValid(info)) return false;
-  if (info.subscription_status === "cancelled") return true;
+  if (!info) return false;
 
-  const notice = (info.subscription_notice ?? "").toLowerCase().normalize("NFD");
-  const normalized = notice.replace(/\p{M}/gu, "");
+  const cancelled =
+    info.subscription_status === "cancelled" || isSubscriptionCancelledNotice(info.subscription_notice);
+  if (!cancelled) return false;
 
-  return (
-    normalized.includes("assinatura cancelada") ||
-    normalized.includes("acesso continua ate o fim do periodo") ||
-    normalized.includes("acesso continua ate a data de vencimento")
-  );
+  if (!info.current_period_end) return info.can_book !== false;
+  return isPlanPeriodStillValid(info);
 }
 
 export function formatPlanStatusHeading(info: SubscriptionInfo | null | undefined, tierName: string) {
   const periodEnd = formatSubscriptionDateBr(info?.current_period_end);
 
-  if (isPlanCancelledWithAccess(info) && periodEnd) {
-    return `Plano ${tierName} válido até ${periodEnd}`;
+  if (isPlanCancelledWithAccess(info)) {
+    return periodEnd ? `Plano ${tierName} válido até ${periodEnd}` : `Plano ${tierName} válido`;
   }
 
   return `Plano ${tierName} ativo`;
