@@ -14,6 +14,11 @@ import {
   syncStripeSubscription,
   verifySubscriptionPlanPix,
 } from "@/lib/subscriptionPlanApi";
+import { StripeReactivationConfirm } from "@/features/billing/components/StripeReactivationConfirm";
+import {
+  formatSubscriptionDateBr,
+  shouldOfferStripeReactivationConfirm,
+} from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
@@ -170,7 +175,7 @@ function StripePlanCheckout({ tier, onSuccess }: StripePlanCheckoutProps) {
 export default function AssinarPlanoPage({ method }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refresh } = useSubscription();
+  const { info, loading: subscriptionLoading, refresh } = useSubscription();
 
   const tierParam = searchParams.get("tier");
   const tierDef = getPlanTier(tierParam);
@@ -182,15 +187,22 @@ export default function AssinarPlanoPage({ method }: Props) {
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
   const [verifyingPix, setVerifyingPix] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const [reactivationError, setReactivationError] = useState<string | null>(null);
 
   const verifyInFlightRef = useRef(false);
+
+  const offerReactivation =
+    method === "cartao" && tier != null && shouldOfferStripeReactivationConfirm(info, tier);
 
   useEffect(() => {
     document.title =
       method === "cartao"
-        ? `Assinar com cartão — ${tierDef?.name ?? "Plano"}`
+        ? offerReactivation
+          ? `Reativar assinatura — ${tierDef?.name ?? "Plano"}`
+          : `Assinar com cartão — ${tierDef?.name ?? "Plano"}`
         : `Assinar com Pix — ${tierDef?.name ?? "Plano"}`;
-  }, [method, tierDef?.name]);
+  }, [method, tierDef?.name, offerReactivation]);
 
   useEffect(() => {
     if (method !== "pix" || !tier) return;
@@ -235,6 +247,25 @@ export default function AssinarPlanoPage({ method }: Props) {
     );
     navigate("/app/perfil", { replace: true });
   }, [navigate, refresh]);
+
+  const handleReactivationConfirm = useCallback(async () => {
+    if (!tier) return;
+    setReactivating(true);
+    setReactivationError(null);
+    try {
+      const data = await createStripeSubscription(tier);
+      if (data.error) throw new Error(data.error);
+      if (!data.reactivated) {
+        throw new Error("Não foi possível reativar a assinatura. Tente novamente.");
+      }
+      clearSubscriptionCache();
+      await handleCardSuccess({ reactivated: true });
+    } catch (e) {
+      setReactivationError(e instanceof Error ? e.message : "Não foi possível reativar a assinatura.");
+    } finally {
+      setReactivating(false);
+    }
+  }, [tier, handleCardSuccess]);
 
   const verifyPix = useCallback(async () => {
     if (!tier || verifyInFlightRef.current) return;
@@ -356,31 +387,48 @@ export default function AssinarPlanoPage({ method }: Props) {
           </Link>
         </Button>
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
-          <CreditCard className="h-6 w-6" /> Assinar plano {tierDef.name}
+          <CreditCard className="h-6 w-6" />{" "}
+          {offerReactivation ? "Reativar assinatura" : `Assinar plano ${tierDef.name}`}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {tierDef.priceLabel}. O teste gratuito é gerenciado pelo Sentinela — o cartão só é necessário para
-          assinar o plano.
+          {offerReactivation
+            ? `Plano ${tierDef.name}. Confirme abaixo se deseja retomar a renovação automática no cartão.`
+            : `${tierDef.priceLabel}. O teste gratuito é gerenciado pelo Sentinela — o cartão só é necessário para assinar o plano.`}
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <StripePlanCheckout tier={tier} onSuccess={() => void handleCardSuccess()} />
+      {subscriptionLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : offerReactivation ? (
+        <StripeReactivationConfirm
+          tierName={tierDef.name}
+          periodEndLabel={formatSubscriptionDateBr(info?.current_period_end)}
+          processing={reactivating}
+          error={reactivationError}
+          onConfirm={() => void handleReactivationConfirm()}
+          onCancel={() => navigate("/app/perfil")}
+        />
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{tierDef.priceLabel}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <StripePlanCheckout tier={tier} onSuccess={(result) => void handleCardSuccess(result)} />
 
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full rounded-full"
-            onClick={() => navigate("/app/perfil")}
-          >
-            Voltar
-          </Button>
-        </CardContent>
-      </Card>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full rounded-full"
+              onClick={() => navigate("/app/perfil")}
+            >
+              Voltar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

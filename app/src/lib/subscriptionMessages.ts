@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
+import type { PlanTier } from "@/lib/planTiers";
 
 export const FACIAL_TRIAL_BLOCKED_MESSAGE =
   "Identificamos um cadastro anterior associado a esta biometria facial. Para fazer novos agendamentos, assine o plano.";
@@ -72,6 +73,18 @@ export function formatSubscriptionDateBr(iso: string | null | undefined) {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return null;
   return `${d}/${m}/${y}`;
+}
+
+/** Cartão Stripe: mesmo plano cancelado (período ainda válido) → pedir confirmação antes de reativar. */
+export function shouldOfferStripeReactivationConfirm(
+  info: SubscriptionInfo | null | undefined,
+  tier: PlanTier,
+) {
+  if (!info) return false;
+  if (!isPlanCancelledWithAccess(info)) return false;
+  if (info.last_payment_method !== "card") return false;
+  if (!info.stripe_subscription_id?.trim()) return false;
+  return info.subscription_tier === tier;
 }
 
 export function formatSubscriptionNotice(notice: string | null | undefined): string | null {
