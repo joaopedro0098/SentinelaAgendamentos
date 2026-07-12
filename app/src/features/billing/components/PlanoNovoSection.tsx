@@ -4,7 +4,7 @@ import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
 import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
 import { cancelStripeSubscription } from "@/lib/subscriptionPlanApi";
-import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
+import { accountUsesExternalPlan, isPlanCancelledWithAccess } from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
@@ -17,7 +17,36 @@ function formatDateBr(iso: string | null | undefined) {
   return `${d}/${m}/${y}`;
 }
 
+function isPlanPeriodStillValid(info: SubscriptionInfo | null) {
+  if (!info?.current_period_end) return true;
+  const [y, m, d] = info.current_period_end.split("-").map(Number);
+  if (!y || !m || !d) return true;
+  const end = new Date(y, m - 1, d);
+  end.setHours(23, 59, 59, 999);
+  return end >= new Date();
+}
+
+function hasPaidPlanAccess(info: SubscriptionInfo | null) {
+  const tier = info?.subscription_tier;
+  if (tier !== "start" && tier !== "pro") return false;
+  if (info?.subscription_status !== "active" && info?.subscription_status !== "cancelled") return false;
+  return isPlanPeriodStillValid(info);
+}
+
+function formatPlanStatusHeading(info: SubscriptionInfo | null, tier: PlanTier) {
+  const tierName = planTierLabel(tier);
+  const periodEnd = formatDateBr(info?.current_period_end);
+
+  if (isPlanCancelledWithAccess(info) && periodEnd !== "—") {
+    return `Plano ${tierName} válido até ${periodEnd}`;
+  }
+
+  return `Plano ${tierName} ativo`;
+}
+
 function formatActivePlanPeriodEnd(info: SubscriptionInfo | null) {
+  if (isPlanCancelledWithAccess(info)) return null;
+
   const date = formatDateBr(info?.current_period_end);
   if (!date || date === "—") return null;
 
@@ -107,12 +136,14 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
   const proCardRef = useRef<HTMLDivElement>(null);
 
   const usesExternalPlan = accountUsesExternalPlan(info);
-  const isActive = info?.subscription_status === "active";
+  const hasActivePlan = hasPaidPlanAccess(info);
+  const isCancelledWithAccess = isPlanCancelledWithAccess(info);
+  const isRecurringActive = info?.subscription_status === "active" && !isCancelledWithAccess;
   const activeTier = (info?.subscription_tier as PlanTier | null | undefined) ?? null;
   const canCancel =
     !info?.is_admin &&
     !usesExternalPlan &&
-    isActive &&
+    isRecurringActive &&
     info?.last_payment_method === "card" &&
     Boolean(info?.stripe_subscription_id?.trim());
   const proTier = PLAN_TIERS.find((tier) => tier.id === "pro");
@@ -120,8 +151,8 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
 
   function canSubscribeTier(tier: PlanTier) {
     if (info?.is_admin || usesExternalPlan || loading) return false;
-    if (!isActive) return true;
-    return activeTier === "start" && tier === "pro";
+    if (!hasActivePlan) return true;
+    return isRecurringActive && activeTier === "start" && tier === "pro";
   }
 
   useEffect(() => {
@@ -132,7 +163,7 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [highlightPro, loading, isActive, activeTier]);
+  }, [highlightPro, loading, hasActivePlan, activeTier]);
 
   useEffect(() => {
     if (!highlightPro || !onDismissProHighlight || location.pathname !== "/app/perfil") return;
@@ -187,10 +218,10 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
       <CardContent className="space-y-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Carregando planos…</p>
-        ) : isActive && activeTier === "pro" ? (
+        ) : hasActivePlan && activeTier === "pro" ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-[hsl(var(--brand-green))]/30 bg-[hsl(var(--brand-green))]/10 px-4 py-3 text-sm">
-              <p className="font-semibold">Plano {planTierLabel(activeTier)} ativo</p>
+              <p className="font-semibold">{formatPlanStatusHeading(info, activeTier)}</p>
               {activePlanPeriodEndLabel && (
                 <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}
@@ -206,10 +237,10 @@ export function PlanoNovoSection({ info, loading, onRefresh, highlightPro = fals
               </Button>
             )}
           </div>
-        ) : isActive && activeTier === "start" ? (
+        ) : hasActivePlan && activeTier === "start" ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
-              <p className="font-semibold">Plano Start ativo</p>
+              <p className="font-semibold">{formatPlanStatusHeading(info, activeTier)}</p>
               {activePlanPeriodEndLabel && (
                 <p className="text-muted-foreground mt-1">Vencimento: {activePlanPeriodEndLabel}</p>
               )}

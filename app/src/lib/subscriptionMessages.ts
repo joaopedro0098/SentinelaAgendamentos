@@ -30,6 +30,23 @@ function isCheckoutPendingNotice(notice: string): boolean {
   return CHECKOUT_PENDING_NOTICE_PREFIXES.some((prefix) => notice.startsWith(prefix));
 }
 
+function isPlanPeriodStillValid(info: SubscriptionInfo) {
+  if (!info.current_period_end) return true;
+  const [y, m, d] = info.current_period_end.split("-").map(Number);
+  if (!y || !m || !d) return true;
+  const end = new Date(y, m - 1, d);
+  end.setHours(23, 59, 59, 999);
+  return end >= new Date();
+}
+
+/** Plano cancelado (cartão/Pix) mas ainda dentro do período já pago. */
+export function isPlanCancelledWithAccess(info: SubscriptionInfo | null | undefined) {
+  if (!info || !isPlanPeriodStillValid(info)) return false;
+  if (info.subscription_status === "cancelled") return true;
+  const notice = (info.subscription_notice ?? "").toLowerCase();
+  return notice.includes("assinatura cancelada");
+}
+
 export function formatSubscriptionNotice(notice: string | null | undefined): string | null {
   if (!notice) return null;
   if (notice === LEGACY_SUBSCRIPTION_NOTICE_EXPIRED) return SUBSCRIPTION_NOTICE_EXPIRED;

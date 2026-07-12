@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       .from("barbershops")
       .update({
         subscription_status: "cancelled",
-        subscription_notice: "Assinatura cancelada. O acesso continua até a data de vencimento.",
+        subscription_notice: "Assinatura cancelada. O acesso continua até o fim do período já pago.",
       })
       .eq("id", shop.id);
 

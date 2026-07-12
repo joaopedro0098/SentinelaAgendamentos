@@ -91,7 +91,7 @@ export async function syncShopFromStripeSubscription(
         ...baseUpdate,
         subscription_status: cancelledAtPeriodEnd ? "cancelled" : "active",
         subscription_notice: cancelledAtPeriodEnd
-          ? "Assinatura cancelada. O acesso continua até a data de vencimento."
+          ? "Assinatura cancelada. O acesso continua até o fim do período já pago."
           : null,
       })
       .eq("id", shopId);
