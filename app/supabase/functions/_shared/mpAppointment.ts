@@ -257,6 +257,15 @@ function explainByMpCode(code: number | null, description: string, rawMessage: s
     };
   }
 
+  if (code === 13253 || blob.includes("without key enabled for qr render")) {
+    return {
+      title: "Chave Pix não cadastrada",
+      message: "O recebedor não tem chave Pix cadastrada no Mercado Pago.",
+      hint: null,
+      retry: false,
+    };
+  }
+
   if (code === 801) {
     return {
       title: "Pagamento duplicado",

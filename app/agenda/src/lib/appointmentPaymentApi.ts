@@ -65,6 +65,18 @@ function explainPaymentErrorLocally(message: string): AppointmentPaymentErrorDet
     };
   }
 
+  if (normalized.includes("without key enabled for qr render")) {
+    return {
+      title: "Chave Pix não cadastrada",
+      message: "O recebedor não tem chave Pix cadastrada no Mercado Pago.",
+      hint: null,
+      mp_code: 13253,
+      mp_status_detail: null,
+      retry: false,
+      release_hold: false,
+    };
+  }
+
   return {
     title: "Erro no pagamento",
     message,
