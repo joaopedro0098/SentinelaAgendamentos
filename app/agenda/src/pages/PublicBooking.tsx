@@ -473,15 +473,28 @@ const PublicBooking = ({
     setInternalSlotGridRevision((r) => r + 1);
   }, []);
 
-  useEffect(() => {
-    if (!ownerPanel) return;
+  const occupancyRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const scheduleOccupancyRefresh = useCallback(() => {
+    if (occupancyRealtimeDebounceRef.current) clearTimeout(occupancyRealtimeDebounceRef.current);
+    occupancyRealtimeDebounceRef.current = setTimeout(() => {
+      bumpOccupancyRefresh();
+    }, 400);
+  }, [bumpOccupancyRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (occupancyRealtimeDebounceRef.current) clearTimeout(occupancyRealtimeDebounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
     const onAgendamentosChanged = () => {
       bumpOccupancyRefresh();
     };
     window.addEventListener(PANEL_AGENDAMENTOS_CHANGED, onAgendamentosChanged);
     return () => window.removeEventListener(PANEL_AGENDAMENTOS_CHANGED, onAgendamentosChanged);
-  }, [ownerPanel, bumpOccupancyRefresh]);
+  }, [bumpOccupancyRefresh]);
 
   useEffect(() => {
     if (!ownerPanel) return;
@@ -490,6 +503,43 @@ const PublicBooking = ({
     }
     wasAgendarTabInactiveRef.current = !ownerPanelActive;
   }, [ownerPanel, ownerPanelActive, bumpOccupancyRefresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") bumpOccupancyRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [bumpOccupancyRefresh]);
+
+  const barbeariaIdsForRealtime = useMemo(
+    () => [...new Set(barbeiros.map((b) => b.barbearia_id).filter(Boolean))],
+    [barbeiros],
+  );
+
+  useEffect(() => {
+    if (!barbeariaIdsForRealtime.length) return;
+    const channels = barbeariaIdsForRealtime.map((bid) =>
+      supabase
+        .channel(`public-booking-slots:${bid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
+          () => scheduleOccupancyRefresh(),
+        )
+        .subscribe(),
+    );
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [barbeariaIdsForRealtime, scheduleOccupancyRefresh]);
+
+  useEffect(() => {
+    if (!barbeariaIdsForRealtime.length) return;
+    if (done && paymentCheckout) return;
+    const intervalId = window.setInterval(() => bumpOccupancyRefresh(), 15_000);
+    return () => window.clearInterval(intervalId);
+  }, [barbeariaIdsForRealtime, done, paymentCheckout, bumpOccupancyRefresh]);
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -1037,8 +1087,10 @@ const PublicBooking = ({
           });
 
           if (holdErr) {
-            if (holdErr.code === "23505") toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
-            else if (isSubscriptionBlockError(holdErr.message)) notifyBookingBlocked();
+            if (holdErr.code === "23505") {
+              toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+              bumpOccupancyRefresh();
+            } else if (isSubscriptionBlockError(holdErr.message)) notifyBookingBlocked();
             else toast.error(holdErr.message);
             return;
           }
@@ -1052,7 +1104,12 @@ const PublicBooking = ({
 
           if (hold?.error === "payment_not_required" || !hold?.ok || !hold.agendamento_id || !hold.confirmation_token) {
             if (hold?.error && hold.error !== "payment_not_required") {
-              toast.error(hold.error);
+              if (hold.error === "slot_taken") {
+                toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
+                bumpOccupancyRefresh();
+              } else {
+                toast.error(hold.error);
+              }
               return;
             }
           } else {
@@ -1070,6 +1127,12 @@ const PublicBooking = ({
               setPaymentFailed(false);
               setBookingConfirmed(false);
               setDone(true);
+              bumpOccupancyRefresh();
+              notifyPanelAgendamentosChanged({
+                data,
+                barbeiroId,
+                agendamentoId: hold.agendamento_id,
+              });
               localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
               return;
             } catch (payErr) {

@@ -9,6 +9,7 @@ type PermissionToggleRowProps = {
   id: string;
   label: string;
   description?: string;
+  descriptionClassName?: string;
   checked: boolean;
   disabled?: boolean;
   busy?: boolean;
@@ -20,6 +21,7 @@ export function PermissionToggleRow({
   id,
   label,
   description,
+  descriptionClassName,
   checked,
   disabled,
   busy,
@@ -33,7 +35,9 @@ export function PermissionToggleRow({
           {label}
         </label>
         {description ? (
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <p className={cn("mt-1 leading-relaxed text-muted-foreground", descriptionClassName ?? "text-xs")}>
+            {description}
+          </p>
         ) : null}
         {hint ? (
           <p className="mt-0.5 text-[11px] leading-snug text-destructive line-clamp-3">{hint}</p>

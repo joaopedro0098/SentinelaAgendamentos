@@ -466,6 +466,7 @@ export default function PagamentosPage() {
               id="payments-centralized"
               label="Centralizar pagamentos"
               description="Ao habilitar esta função todo o valor cobrado por agendamentos de contas agregadas serão transferidos diretamente para a sua conta do Mercado Pago."
+              descriptionClassName="text-sm"
               checked={centralized}
               onToggle={() => void handleCentralizationToggle(!centralized)}
             />
