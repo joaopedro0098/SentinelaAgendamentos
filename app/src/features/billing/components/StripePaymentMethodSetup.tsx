@@ -66,7 +66,6 @@ function StripePaymentMethodSetupForm({ processing, setProcessing, onSuccess, on
 }
 
 type Props = {
-  submitLabel?: string;
   onSuccess: (setupIntentId: string) => void | Promise<void>;
   onError: (message: string) => void;
 };

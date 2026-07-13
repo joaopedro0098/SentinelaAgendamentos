@@ -31,8 +31,8 @@ function isCheckoutPendingNotice(notice: string): boolean {
   return CHECKOUT_PENDING_NOTICE_PREFIXES.some((prefix) => notice.startsWith(prefix));
 }
 
-function isPlanPeriodStillValid(info: SubscriptionInfo) {
-  if (!info.current_period_end) return true;
+export function isPlanPeriodStillValid(info: SubscriptionInfo | null | undefined) {
+  if (!info?.current_period_end) return true;
   const [y, m, d] = info.current_period_end.split("-").map(Number);
   if (!y || !m || !d) return true;
   const end = new Date(y, m - 1, d);

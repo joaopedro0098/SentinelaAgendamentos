@@ -4,7 +4,6 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
-import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPlanTier, type PlanTier } from "@/lib/planTiers";
 import { STRIPE_PUBLISHABLE_KEY } from "@/lib/stripeApi";

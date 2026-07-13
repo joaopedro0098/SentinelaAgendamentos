@@ -4,27 +4,17 @@ import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
 import { PLAN_TIERS, planTierLabel, type PlanTier, type PlanTierDefinition } from "@/lib/planTiers";
 import { cancelStripeSubscription, syncStripeSubscription } from "@/lib/subscriptionPlanApi";
-import { accountUsesExternalPlan, formatPlanStatusHeading, isPlanCancelledWithAccess } from "@/lib/subscriptionMessages";
+import {
+  accountUsesExternalPlan,
+  formatPlanStatusHeading,
+  formatSubscriptionDateBr,
+  isPlanCancelledWithAccess,
+  isPlanPeriodStillValid,
+} from "@/lib/subscriptionMessages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-function formatDateBr(iso: string | null | undefined) {
-  if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
-}
-
-function isPlanPeriodStillValid(info: SubscriptionInfo | null) {
-  if (!info?.current_period_end) return true;
-  const [y, m, d] = info.current_period_end.split("-").map(Number);
-  if (!y || !m || !d) return true;
-  const end = new Date(y, m - 1, d);
-  end.setHours(23, 59, 59, 999);
-  return end >= new Date();
-}
 
 function hasPaidPlanAccess(info: SubscriptionInfo | null) {
   const tier = info?.subscription_tier;
@@ -36,8 +26,8 @@ function hasPaidPlanAccess(info: SubscriptionInfo | null) {
 function formatActivePlanPeriodEnd(info: SubscriptionInfo | null) {
   if (isPlanCancelledWithAccess(info)) return null;
 
-  const date = formatDateBr(info?.current_period_end);
-  if (!date || date === "—") return null;
+  const date = formatSubscriptionDateBr(info?.current_period_end);
+  if (!date) return null;
 
   const paidWithPix =
     info?.subscription_status === "active" &&
