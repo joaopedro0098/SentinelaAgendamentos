@@ -299,6 +299,37 @@ type AgendamentoOcupado = {
   payment_expires_at?: string | null;
 };
 
+const SLOT_OCCUPANCY_FIELDS = ["status", "data", "hora", "duracao_minutos", "payment_expires_at", "barbeiro_id"] as const;
+
+function buildAgOcupadosMap(
+  appointments: AgendamentoOcupado[],
+  rescheduleAgendamentoId?: string,
+): Map<string, Map<string, number>> {
+  const map = new Map<string, Map<string, number>>();
+  const nowMs = Date.now();
+  for (const a of appointments) {
+    if (rescheduleAgendamentoId && a.id === rescheduleAgendamentoId) continue;
+    if (a.status === "aguardando_pagamento") {
+      const expiresMs = a.payment_expires_at ? new Date(a.payment_expires_at).getTime() : 0;
+      if (!expiresMs || expiresMs < nowMs) continue;
+    }
+    const k = `${a.barbeiro_id}|${a.data}`;
+    if (!map.has(k)) map.set(k, new Map());
+    map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
+  }
+  return map;
+}
+
+function agendamentoChangeAffectsSlots(payload: {
+  eventType: string;
+  new: Record<string, unknown>;
+  old: Record<string, unknown>;
+}) {
+  if (payload.eventType === "INSERT" || payload.eventType === "DELETE") return true;
+  if (payload.eventType !== "UPDATE") return false;
+  return SLOT_OCCUPANCY_FIELDS.some((field) => payload.old[field] !== payload.new[field]);
+}
+
 const STORAGE_KEY = "agendabarber:cliente";
 const BOOKING_MONTHS = 2;
 
@@ -438,7 +469,6 @@ const PublicBooking = ({
   const { slug: slugParam } = useParams();
   const slug = slugOverride ?? slugParam;
   const [internalSlotGridRevision, setInternalSlotGridRevision] = useState(0);
-  const slotGridRevision = slotGridRevisionProp + internalSlotGridRevision;
   const [loading, setLoading] = useState(true);
   const [barbearia, setBarbearia] = useState<Barbearia | null>(null);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
@@ -472,6 +502,31 @@ const PublicBooking = ({
   const bumpOccupancyRefresh = useCallback(() => {
     setInternalSlotGridRevision((r) => r + 1);
   }, []);
+
+  const loadOccupiedSlots = useCallback(
+    async (barbeiroIds: string[], fromYmd: string, toYmd: string) => {
+      if (!barbeiroIds.length) {
+        setAgOcupados(new Map());
+        return;
+      }
+
+      const { data: ag, error: agErr } = await supabase
+        .from("agendamentos")
+        .select("id, barbeiro_id, data, hora, duracao_minutos, status, payment_expires_at")
+        .in("barbeiro_id", barbeiroIds)
+        .in("status", ["confirmado", "aguardando_pagamento"])
+        .gte("data", fromYmd)
+        .lte("data", toYmd);
+
+      if (agErr) {
+        console.error("[PublicBooking] agendamentos ocupados:", agErr.message);
+        return;
+      }
+
+      setAgOcupados(buildAgOcupadosMap((ag ?? []) as AgendamentoOcupado[], reschedule?.agendamentoId));
+    },
+    [reschedule?.agendamentoId],
+  );
 
   const occupancyRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -512,34 +567,63 @@ const PublicBooking = ({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [bumpOccupancyRefresh]);
 
-  const barbeariaIdsForRealtime = useMemo(
-    () => [...new Set(barbeiros.map((b) => b.barbearia_id).filter(Boolean))],
-    [barbeiros],
-  );
+  const barbeariaIdsForRealtimeKey = useMemo(() => {
+    const ids = [...new Set(barbeiros.map((b) => b.barbearia_id).filter(Boolean))].sort();
+    return ids.join(",");
+  }, [barbeiros]);
 
   useEffect(() => {
-    if (!barbeariaIdsForRealtime.length) return;
-    const channels = barbeariaIdsForRealtime.map((bid) =>
+    if (!barbeariaIdsForRealtimeKey) return;
+    const barbeariaIds = barbeariaIdsForRealtimeKey.split(",");
+
+    const channels = barbeariaIds.map((bid) =>
       supabase
         .channel(`public-booking-slots:${bid}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "agendamentos", filter: `barbearia_id=eq.${bid}` },
-          () => scheduleOccupancyRefresh(),
+          (payload) => {
+            if (
+              !agendamentoChangeAffectsSlots({
+                eventType: payload.eventType,
+                new: (payload.new ?? {}) as Record<string, unknown>,
+                old: (payload.old ?? {}) as Record<string, unknown>,
+              })
+            ) {
+              return;
+            }
+            scheduleOccupancyRefresh();
+          },
         )
         .subscribe(),
     );
     return () => {
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [barbeariaIdsForRealtime, scheduleOccupancyRefresh]);
+  }, [barbeariaIdsForRealtimeKey, scheduleOccupancyRefresh]);
 
   useEffect(() => {
-    if (!barbeariaIdsForRealtime.length) return;
+    if (internalSlotGridRevision === 0 || !barbeiros.length) return;
+    const { first, last } = getBookableRange(minDayOffset);
+    void loadOccupiedSlots(
+      barbeiros.map((b) => b.id),
+      ymd(first),
+      ymd(last),
+    );
+  }, [internalSlotGridRevision, barbeiros, minDayOffset, loadOccupiedSlots]);
+
+  useEffect(() => {
+    if (!barbeiros.length) return;
     if (done && paymentCheckout) return;
-    const intervalId = window.setInterval(() => bumpOccupancyRefresh(), 15_000);
+    const { first, last } = getBookableRange(minDayOffset);
+    const fromYmd = ymd(first);
+    const toYmd = ymd(last);
+    const barbeiroIds = barbeiros.map((b) => b.id);
+    const intervalId = window.setInterval(() => {
+      void loadOccupiedSlots(barbeiroIds, fromYmd, toYmd);
+    }, 30_000);
     return () => window.clearInterval(intervalId);
-  }, [barbeariaIdsForRealtime, done, paymentCheckout, bumpOccupancyRefresh]);
+  }, [barbeiros, done, paymentCheckout, minDayOffset, loadOccupiedSlots]);
 
   useEffect(() => {
     if (reschedule || prefill) return;
@@ -686,21 +770,9 @@ const PublicBooking = ({
               : "Não foi possível verificar horários ocupados. Tente novamente.",
           );
         } else {
-          const map = new Map<string, Map<string, number>>();
-          const nowMs = Date.now();
-          ((ag ?? []) as AgendamentoOcupado[]).forEach((a) => {
-            if (reschedule?.agendamentoId && a.id === reschedule.agendamentoId) return;
-            if (a.status === "aguardando_pagamento") {
-              const expiresMs = a.payment_expires_at
-                ? new Date(a.payment_expires_at).getTime()
-                : 0;
-              if (!expiresMs || expiresMs < nowMs) return;
-            }
-            const k = `${a.barbeiro_id}|${a.data}`;
-            if (!map.has(k)) map.set(k, new Map());
-            map.get(k)!.set(String(a.hora).slice(0, 5), a.duracao_minutos ?? 30);
-          });
-          setAgOcupados(map);
+          setAgOcupados(
+            buildAgOcupadosMap((ag ?? []) as AgendamentoOcupado[], reschedule?.agendamentoId),
+          );
         }
       } else {
         setAgOcupados(new Map());
@@ -708,7 +780,7 @@ const PublicBooking = ({
       setLoading(false);
     };
     load();
-  }, [slug, reschedule?.agendamentoId, minDayOffset, ownerPanel, hubOnlyProfessionals, ownerPanelEditableCas, slotGridRevision]);
+  }, [slug, reschedule?.agendamentoId, minDayOffset, ownerPanel, hubOnlyProfessionals, ownerPanelEditableCas, slotGridRevisionProp]);
 
   const bookableRange = useMemo(() => getBookableRange(minDayOffset), [minDayOffset]);
 
