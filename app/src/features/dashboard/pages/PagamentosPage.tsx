@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ExternalLink, Info, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { supabase } from "@/integrations/supabase/client";
+import { broadcastPaymentsConfigChanged } from "@agenda/lib/paymentsConfigSync";
+import { usePaymentsConfigBroadcast } from "@/features/dashboard/hooks/usePaymentsConfigBroadcast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -92,6 +95,7 @@ function buildExceptionDescription(ex: MpPaymentException) {
 export default function PagamentosPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
+  const { shop } = useDashboardShop();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -148,8 +152,10 @@ export default function PagamentosPage() {
     }
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     try {
       const data = await fetchPaymentPanelSettings();
       if (data.error && data.error !== "no_shop") {
@@ -158,29 +164,35 @@ export default function PagamentosPage() {
       setSettings(data);
       if (!data.ca_readonly) applySettingsToForm(data);
     } catch (e) {
-      toast({
-        title: "Erro ao carregar pagamentos",
-        description: e instanceof Error ? e.message : "Tente novamente.",
-        variant: "destructive",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Erro ao carregar pagamentos",
+          description: e instanceof Error ? e.message : "Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, [applySettingsToForm]);
+
+  const notifyCasPaymentsConfigChanged = useCallback(() => {
+    const slug = shop?.slug?.trim();
+    if (!slug || !settings?.can_edit_centralization) return;
+    void broadcastPaymentsConfigChanged(slug);
+  }, [shop?.slug, settings?.can_edit_centralization]);
+
+  usePaymentsConfigBroadcast(() => {
+    void load({ silent: true });
+  });
 
   useEffect(() => {
     document.title = "Pagamentos — Sentinela Agendamentos";
     void load();
     void loadExceptions();
   }, [load, loadExceptions]);
-
-  useEffect(() => {
-    if (subscriptionInfo?.account_type !== "ca") return;
-    const intervalId = window.setInterval(() => {
-      void load();
-    }, 20_000);
-    return () => window.clearInterval(intervalId);
-  }, [subscriptionInfo?.account_type, load]);
 
   useEffect(() => {
     const mp = searchParams.get("mp");
@@ -242,6 +254,7 @@ export default function PagamentosPage() {
       const updated = await savePaymentPanelSettings({ payments_centralized: next });
       setSettings(updated);
       applySettingsToForm(updated);
+      notifyCasPaymentsConfigChanged();
       toast({ title: next ? "Pagamentos centralizados" : "Pagamentos descentralizados" });
     } catch (e) {
       setCentralized(!next);
@@ -283,6 +296,9 @@ export default function PagamentosPage() {
       });
       setSettings(updated);
       applySettingsToForm(updated);
+      if (settings?.can_edit_centralization) {
+        notifyCasPaymentsConfigChanged();
+      }
       toast({ title: "Configurações salvas" });
     } catch (e) {
       toast({
