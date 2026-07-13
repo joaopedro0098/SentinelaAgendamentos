@@ -169,3 +169,69 @@ export function paymentIntentClientSecret(subscription: Stripe.Subscription): st
 export function setupIntentClientSecret(setupIntent: Stripe.SetupIntent): string | null {
   return setupIntent.client_secret ?? null;
 }
+
+/** Resolve qual PaymentMethod usar como default, deduplicando por fingerprint. */
+export async function resolveDefaultPaymentMethod(
+  stripe: Stripe,
+  customerId: string,
+  newPaymentMethodId: string,
+): Promise<{ paymentMethodId: string; deduplicated: boolean }> {
+  const newPm = await stripe.paymentMethods.retrieve(newPaymentMethodId);
+  const newFingerprint = newPm.card?.fingerprint;
+
+  if (!newFingerprint) {
+    return { paymentMethodId: newPaymentMethodId, deduplicated: false };
+  }
+
+  const existingList = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: "card",
+  });
+
+  const duplicate = existingList.data.find(
+    (pm) => pm.id !== newPaymentMethodId && pm.card?.fingerprint === newFingerprint,
+  );
+
+  if (duplicate) {
+    await stripe.paymentMethods.detach(newPaymentMethodId);
+    return { paymentMethodId: duplicate.id, deduplicated: true };
+  }
+
+  return { paymentMethodId: newPaymentMethodId, deduplicated: false };
+}
+
+/** Remove cartões salvos que não são default nem estão em assinaturas ativas. */
+export async function detachUnusedCustomerPaymentMethods(
+  stripe: Stripe,
+  customerId: string,
+  defaultPaymentMethodId: string,
+) {
+  const inUse = new Set<string>([defaultPaymentMethodId]);
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 100,
+  });
+
+  for (const sub of subscriptions.data) {
+    if (!["active", "trialing", "past_due"].includes(sub.status)) continue;
+    const dpm = sub.default_payment_method;
+    if (typeof dpm === "string") inUse.add(dpm);
+    else if (dpm && typeof dpm === "object" && "id" in dpm) inUse.add(dpm.id);
+  }
+
+  const paymentMethods = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: "card",
+  });
+
+  for (const pm of paymentMethods.data) {
+    if (inUse.has(pm.id)) continue;
+    try {
+      await stripe.paymentMethods.detach(pm.id);
+    } catch {
+      /* conservador: ignora se não puder remover */
+    }
+  }
+}

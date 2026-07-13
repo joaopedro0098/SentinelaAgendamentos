@@ -130,6 +130,12 @@ Deno.serve(async (req) => {
             activated: true,
             subscription_id: reactivated.id,
           });
+        } else if (
+          existing.status === "active" &&
+          existing.cancel_at_period_end &&
+          shop.subscription_tier !== tier
+        ) {
+          await stripe.subscriptions.cancel(shop.stripe_subscription_id);
         } else if (existing.status === "active" && shop.subscription_tier === tier) {
           return jsonResponse({ error: "Você já possui este plano ativo." }, 400);
         }

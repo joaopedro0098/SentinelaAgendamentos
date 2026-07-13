@@ -1,7 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  detachUnusedCustomerPaymentMethods,
   getOrCreateStripeCustomer,
   getStripeClient,
+  resolveDefaultPaymentMethod,
   setupIntentClientSecret,
   syncShopFromStripeSubscription,
 } from "../_shared/stripePlatformBilling.ts";
@@ -121,9 +123,25 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Stripe não retornou o método de pagamento." }, 502);
       }
 
+      const customerId =
+        typeof setupIntent.customer === "string"
+          ? setupIntent.customer
+          : setupIntent.customer?.id ?? shop.stripe_customer_id;
+      if (!customerId) {
+        return jsonResponse({ error: "Cliente Stripe não encontrado." }, 400);
+      }
+
+      const { paymentMethodId: defaultPaymentMethodId } = await resolveDefaultPaymentMethod(
+        stripe,
+        customerId,
+        paymentMethodId,
+      );
+
+      await detachUnusedCustomerPaymentMethods(stripe, customerId, defaultPaymentMethodId);
+
       const reactivate = Boolean(body.reactivate);
       const updated = await stripe.subscriptions.update(shop.stripe_subscription_id, {
-        default_payment_method: paymentMethodId,
+        default_payment_method: defaultPaymentMethodId,
         ...(reactivate ? { cancel_at_period_end: false } : {}),
       });
 
