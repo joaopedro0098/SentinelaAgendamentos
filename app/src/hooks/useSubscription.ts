@@ -18,6 +18,8 @@ export type SubscriptionInfo = {
   subscription_tier?: "start" | "pro" | null;
   /** Pro ativo libera aba Pagamentos e cobrança no link. */
   can_use_appointment_payments?: boolean;
+  /** Exibe a aba Pagamentos (CA sempre true; CT/owner quando Pro). */
+  can_view_payments_tab?: boolean;
   label?: string;
   mp_subscription_id?: string | null;
   /** Último meio de pagamento: pix ou card (Stripe). */

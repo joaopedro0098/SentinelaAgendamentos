@@ -108,7 +108,11 @@ export default function AppLayout() {
   }, [shop, subscriptionInfo]);
 
   const showPagamentosNav = Boolean(
-    subscriptionInfo?.is_admin || subscriptionInfo?.can_use_appointment_payments,
+    subscriptionInfo?.is_admin
+    || subscriptionInfo?.can_view_payments_tab
+    || subscriptionInfo?.can_use_appointment_payments
+    || subscriptionInfo?.account_type === "ca"
+    || subscriptionInfo?.is_aggregated_account,
   );
   const { pendingCount: pendingPaymentExceptions } = usePendingPaymentExceptions(showPagamentosNav);
   const showPagamentosAttention = pendingPaymentExceptions > 0;

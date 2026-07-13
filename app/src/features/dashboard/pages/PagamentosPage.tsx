@@ -327,7 +327,45 @@ export default function PagamentosPage() {
     );
   }
 
+  if (settings?.ca_readonly) {
+    const centralizedMessage = settings.readonly_message?.toLowerCase().includes("centraliz");
+    return (
+      <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
+        <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+          <Wallet className="h-6 w-6" />
+          Pagamentos
+        </h1>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
+              {centralizedMessage ? (
+                <Info className="h-5 w-5 shrink-0 text-primary mt-0.5" aria-hidden />
+              ) : null}
+              <p>{settings.readonly_message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!subscriptionInfo?.is_admin && !subscriptionInfo?.can_use_appointment_payments) {
+    if (subscriptionInfo?.account_type === "ca" || subscriptionInfo?.is_aggregated_account) {
+      return (
+        <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
+          <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+            <Wallet className="h-6 w-6" />
+            Pagamentos
+          </h1>
+          <Card>
+            <CardContent className="pt-6 text-sm text-muted-foreground leading-relaxed">
+              O titular possui plano Start. Para receber pagamentos, o titular precisa assinar o Pro.
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
@@ -346,28 +384,6 @@ export default function PagamentosPage() {
             <Button asChild className="w-full sm:w-auto rounded-full bg-gradient-brand text-white border-0 px-8">
               <Link to="/app/perfil?destaque=pro">Assinar</Link>
             </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (settings?.ca_readonly) {
-    const centralizedMessage = settings.readonly_message?.includes("centralizados");
-    return (
-      <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
-        <h1 className="font-display text-2xl font-bold flex items-center gap-2">
-          <Wallet className="h-6 w-6" />
-          Pagamentos
-        </h1>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
-              {centralizedMessage ? (
-                <Info className="h-5 w-5 shrink-0 text-primary mt-0.5" aria-hidden />
-              ) : null}
-              <p>{settings.readonly_message}</p>
-            </div>
           </CardContent>
         </Card>
       </div>
