@@ -461,16 +461,11 @@ export default function PagamentosPage() {
 
       {settings?.can_edit_centralization && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Contas agregadas (CA)</CardTitle>
-            <CardDescription>
-              Centralize pagamentos na conta MP do titular ou deixe cada CA conectar a própria conta.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <PermissionToggleRow
               id="payments-centralized"
-              label="Centralizar pagamentos das contas agregadas"
+              label="Centralizar pagamentos"
+              description="Ao habilitar esta função todo o valor cobrado por agendamentos de contas agregadas serão transferidos diretamente para a sua conta do Mercado Pago."
               checked={centralized}
               onToggle={() => void handleCentralizationToggle(!centralized)}
             />

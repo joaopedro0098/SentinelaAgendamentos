@@ -33,7 +33,7 @@ export function PermissionToggleRow({
           {label}
         </label>
         {description ? (
-          <p className="mt-1 text-[11px] leading-tight text-muted-foreground truncate">{description}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
         {hint ? (
           <p className="mt-0.5 text-[11px] leading-snug text-destructive line-clamp-3">{hint}</p>
