@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, UserCog, Users, Wallet, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,7 @@ import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
+import { usePendingPaymentExceptions } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
@@ -111,6 +112,8 @@ export default function AppLayout() {
     subscriptionInfo?.is_admin ||
       (subscriptionInfo != null && !accountUsesExternalPlan(subscriptionInfo)),
   );
+  const { pendingCount: pendingPaymentExceptions } = usePendingPaymentExceptions(showPagamentosNav);
+  const showPagamentosAttention = pendingPaymentExceptions > 0;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
@@ -194,6 +197,7 @@ export default function AppLayout() {
                   to="/app/pagamentos"
                   icon={<Wallet className="h-4 w-4" />}
                   label="Pagamentos"
+                  showAttentionDot={showPagamentosAttention}
                   onNavigate={closeMenu}
                 />
               )}
@@ -273,7 +277,13 @@ export default function AppLayout() {
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/perfil" icon={<User className="h-5 w-5" />} label="Conta" />
             {showPagamentosNav && (
-              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pagamentos" icon={<Wallet className="h-5 w-5" />} label="Pagamentos" />
+              <DesktopNavItem
+                collapsed={sidebarCollapsed}
+                to="/app/pagamentos"
+                icon={<Wallet className="h-5 w-5" />}
+                label="Pagamentos"
+                showAttentionDot={showPagamentosAttention}
+              />
             )}
             {subscriptionInfo?.is_admin && (
               <DesktopNavItem collapsed={sidebarCollapsed} to="/app/relatorios" icon={<BarChart2 className="h-5 w-5" />} label="Relatórios" />
@@ -383,18 +393,34 @@ function ShopPanelBrand({
   );
 }
 
+function NavIconWithAttention({ icon, showAttentionDot }: { icon: ReactNode; showAttentionDot?: boolean }) {
+  return (
+    <span className="relative inline-flex shrink-0">
+      {icon}
+      {showAttentionDot && (
+        <span
+          className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-card"
+          aria-hidden
+        />
+      )}
+    </span>
+  );
+}
+
 function DesktopNavItem({
   to,
   icon,
   label,
   end,
   collapsed,
+  showAttentionDot,
 }: {
   to: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   end?: boolean;
   collapsed?: boolean;
+  showAttentionDot?: boolean;
 }) {
   return (
     <NavLink
@@ -411,7 +437,7 @@ function DesktopNavItem({
         )
       }
     >
-      {icon}
+      <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} />
       {!collapsed && <span>{label}</span>}
     </NavLink>
   );
@@ -423,12 +449,14 @@ function MobileNavItem({
   label,
   end,
   onNavigate,
+  showAttentionDot,
 }: {
   to: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   end?: boolean;
   onNavigate: () => void;
+  showAttentionDot?: boolean;
 }) {
   return (
     <NavLink
@@ -444,7 +472,7 @@ function MobileNavItem({
         )
       }
     >
-      {icon}
+      <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} />
       <span>{label}</span>
     </NavLink>
   );

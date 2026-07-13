@@ -1,15 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ExternalLink, Loader2, TriangleAlert, Wallet } from "lucide-react";
-import { maskPhone } from "@agenda/lib/phone";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyPaymentExceptionsChanged } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
+import { buildSlotTakenLatePaymentMessage } from "@/lib/mpPaymentExceptionMessages";
 import {
   disconnectMpAccount,
   fetchPaymentPanelSettings,
@@ -64,34 +75,18 @@ function formatSlotLabel(data: string | null, hora: string | null) {
 
 function buildExceptionDescription(ex: MpPaymentException) {
   const nome = ex.cliente_nome?.trim() || "Cliente";
-  const whatsappRaw = ex.cliente_whatsapp?.trim() || "";
-  const whatsapp = whatsappRaw ? maskPhone(whatsappRaw) : "não informado";
-  const valor = formatMoney(ex.amount_centavos);
-  const slot = formatSlotLabel(ex.agendamento_data, ex.agendamento_hora);
 
   if (ex.reason === "slot_taken_late_payment") {
-    return (
-      <>
-        Pagamento de <strong>{nome}</strong> (WhatsApp: {whatsapp}) no valor de{" "}
-        <strong>{valor}</strong> foi confirmado após o prazo de reserva de 15 minutos, quando o horário{" "}
-        <strong>{slot}</strong> já havia sido ocupado por outro cliente. Isso costuma acontecer por atraso na
-        confirmação do Pix do lado do banco do cliente. Entre em contato com <strong>{nome}</strong> para
-        remarcar em outro horário disponível ou realizar o reembolso.
-      </>
-    );
+    return buildSlotTakenLatePaymentMessage(nome, ex.agendamento_data, ex.agendamento_hora);
   }
 
   if (ex.reason === "late_pix_after_hold_expired") {
-    return (
-      <>
-        Pix de <strong>{nome}</strong> (WhatsApp: {whatsapp}) no valor de <strong>{valor}</strong> foi recebido
-        após a expiração da reserva de 15 minutos. Verifique o pagamento e entre em contato com{" "}
-        <strong>{nome}</strong> se necessário.
-      </>
-    );
+    const slot = formatSlotLabel(ex.agendamento_data, ex.agendamento_hora);
+    const valor = formatMoney(ex.amount_centavos);
+    return `PIX tardio: O paciente ${nome} fez um agendamento para ${slot} mas o Pix foi confirmado após a expiração da reserva de 15 minutos (valor ${valor}). Verifique o pagamento e entre em contato com ${nome} se necessário.`;
   }
 
-  return <>Pagamento de {nome} requer resolução manual ({ex.reason}).</>;
+  return `Pagamento de ${nome} requer resolução manual (${ex.reason}).`;
 }
 
 export default function PagamentosPage() {
@@ -115,6 +110,7 @@ export default function PagamentosPage() {
   const [exceptions, setExceptions] = useState<MpPaymentException[]>([]);
   const [loadingExceptions, setLoadingExceptions] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveTargetId, setResolveTargetId] = useState<string | null>(null);
 
   const applySettingsToForm = useCallback((data: PaymentPanelSettings) => {
     if (data.appointment_payment_mode) setPaymentMode(data.appointment_payment_mode);
@@ -300,8 +296,9 @@ export default function PagamentosPage() {
       if (error) throw error;
       const row = data as { error?: string; ok?: boolean } | null;
       if (row?.error) throw new Error(row.error);
-      toast({ title: "Exceção marcada como resolvida" });
+      toast({ title: "Pendência marcada como resolvida" });
       await loadExceptions();
+      notifyPaymentExceptionsChanged();
     } catch (e) {
       toast({
         title: "Não foi possível resolver",
@@ -310,6 +307,7 @@ export default function PagamentosPage() {
       });
     } finally {
       setResolvingId(null);
+      setResolveTargetId(null);
     }
   }
 
@@ -375,10 +373,6 @@ export default function PagamentosPage() {
           <Wallet className="h-6 w-6" />
           Pagamentos
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Recebimentos de agendamentos pelo link público via Mercado Pago. O painel interno continua sem
-          cobrança.
-        </p>
       </div>
 
       {!loadingExceptions && exceptions.length > 0 && (
@@ -396,8 +390,8 @@ export default function PagamentosPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Pendências de pagamento</CardTitle>
               <CardDescription>
-                Pagamentos confirmados fora do prazo quando o horário já estava ocupado. Resolva com o cliente
-                (remarcação ou reembolso) e marque como resolvido quando concluir.
+                Pix confirmado fora do prazo quando o horário já estava ocupado. Resolva com o paciente e marque
+                como resolvido quando concluir.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -419,7 +413,7 @@ export default function PagamentosPage() {
                       variant="outline"
                       className="mt-1 rounded-full"
                       disabled={resolvingId === ex.id}
-                      onClick={() => void handleResolveException(ex.id)}
+                      onClick={() => setResolveTargetId(ex.id)}
                     >
                       {resolvingId === ex.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -434,6 +428,34 @@ export default function PagamentosPage() {
           </Card>
         </div>
       )}
+
+      <p className="text-sm text-muted-foreground -mt-2">
+        Recebimentos de agendamentos pelo link público via Mercado Pago. O painel interno continua sem cobrança.
+      </p>
+
+      <AlertDialog open={resolveTargetId != null} onOpenChange={(open) => !open && setResolveTargetId(null)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marcar como resolvido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja marcar como resolvido? Use isso depois de remarcar o paciente ou concluir o
+              reembolso no Mercado Pago.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resolvingId != null}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resolvingId != null || !resolveTargetId}
+              onClick={(event) => {
+                event.preventDefault();
+                if (resolveTargetId) void handleResolveException(resolveTargetId);
+              }}
+            >
+              {resolvingId != null ? "Salvando…" : "Sim, marcar como resolvido"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {settings?.can_edit_centralization && (
         <Card>
