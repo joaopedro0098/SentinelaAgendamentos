@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
-import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
@@ -109,8 +108,7 @@ export default function AppLayout() {
   }, [shop, subscriptionInfo]);
 
   const showPagamentosNav = Boolean(
-    subscriptionInfo?.is_admin ||
-      (subscriptionInfo != null && !accountUsesExternalPlan(subscriptionInfo)),
+    subscriptionInfo?.is_admin || subscriptionInfo?.can_use_appointment_payments,
   );
   const { pendingCount: pendingPaymentExceptions } = usePendingPaymentExceptions(showPagamentosNav);
   const showPagamentosAttention = pendingPaymentExceptions > 0;

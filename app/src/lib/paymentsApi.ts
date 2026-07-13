@@ -26,6 +26,8 @@ export type PaymentPanelSettings = {
   payment_max_installments?: number | null;
   has_priced_services?: boolean;
   can_enable_payment?: boolean;
+  mp_managed_by_titular?: boolean;
+  can_connect_mp?: boolean;
 };
 
 export type SavePaymentPanelSettingsInput = {

@@ -362,6 +362,8 @@ export default function PagamentosPage() {
 
   const mpStatus = settings?.mp_connect_status ?? "not_connected";
   const mpConnected = settings?.mp_connected === true;
+  const canConnectMp = settings?.can_connect_mp !== false;
+  const mpManagedByTitular = settings?.mp_managed_by_titular === true;
   const chargeEnabled = paymentMode !== "none";
   const canSaveCharge =
     !chargeEnabled || (mpConnected && (enableCard || enablePix));
@@ -480,7 +482,9 @@ export default function PagamentosPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Mercado Pago</CardTitle>
           <CardDescription>
-            Conecte a conta que receberá os pagamentos dos agendamentos do link público.
+            {mpManagedByTitular
+              ? "Recebimentos do seu link público usam a conta Mercado Pago do titular."
+              : "Conecte a conta que receberá os pagamentos dos agendamentos do link público."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -495,7 +499,12 @@ export default function PagamentosPage() {
             )}
           </p>
 
-          {!mpConnected ? (
+          {mpManagedByTitular ? (
+            <p className="text-sm text-muted-foreground rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+              A conexão Mercado Pago é gerenciada pelo titular. Você pode configurar as regras de cobrança do
+              seu link abaixo.
+            </p>
+          ) : !mpConnected ? (
             <Button
               type="button"
               className="rounded-full"
@@ -514,7 +523,7 @@ export default function PagamentosPage() {
                 </>
               )}
             </Button>
-          ) : (
+          ) : canConnectMp ? (
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -535,7 +544,7 @@ export default function PagamentosPage() {
                 Desconectar
               </Button>
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
