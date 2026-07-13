@@ -54,6 +54,12 @@ Deno.serve(async (req) => {
     if (panelObj?.ca_readonly === true) {
       return jsonResponse({ error: String(panelObj.readonly_message ?? "Pagamentos centralizados.") }, 403);
     }
+    if (panelObj?.can_connect_mp === false) {
+      return jsonResponse(
+        { error: "A conexão Mercado Pago é gerenciada pela conta titular." },
+        403,
+      );
+    }
 
     const shopId = String(panelObj?.shop_id ?? "");
     if (!shopId) return jsonResponse({ error: "Empresa não encontrada." }, 404);

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ExternalLink, Loader2, TriangleAlert, Wallet } from "lucide-react";
+import { ExternalLink, Info, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { notifyPaymentExceptionsChanged } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { buildSlotTakenLatePaymentMessage } from "@/lib/mpPaymentExceptionMessages";
 import {
@@ -173,6 +173,14 @@ export default function PagamentosPage() {
     void load();
     void loadExceptions();
   }, [load, loadExceptions]);
+
+  useEffect(() => {
+    if (subscriptionInfo?.account_type !== "ca") return;
+    const intervalId = window.setInterval(() => {
+      void load();
+    }, 20_000);
+    return () => window.clearInterval(intervalId);
+  }, [subscriptionInfo?.account_type, load]);
 
   useEffect(() => {
     const mp = searchParams.get("mp");
@@ -345,6 +353,7 @@ export default function PagamentosPage() {
   }
 
   if (settings?.ca_readonly) {
+    const centralizedMessage = settings.readonly_message?.includes("centralizados");
     return (
       <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-4">
         <h1 className="font-display text-2xl font-bold flex items-center gap-2">
@@ -352,8 +361,13 @@ export default function PagamentosPage() {
           Pagamentos
         </h1>
         <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground leading-relaxed">
-            {settings.readonly_message}
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
+              {centralizedMessage ? (
+                <Info className="h-5 w-5 shrink-0 text-primary mt-0.5" aria-hidden />
+              ) : null}
+              <p>{settings.readonly_message}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
