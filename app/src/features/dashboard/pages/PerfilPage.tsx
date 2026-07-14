@@ -9,6 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PasswordInput, PASSWORD_MIN_LENGTH } from "@/features/auth/components/PasswordInput";
 import { toast } from "@/hooks/use-toast";
 import { formatSubscriptionNotice, shouldShowSubscriptionNotice, accountUsesExternalPlan } from "@/lib/subscriptionMessages";
@@ -28,6 +38,8 @@ export default function PerfilPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leavingAggregation, setLeavingAggregation] = useState(false);
   const [highlightPro, setHighlightPro] = useState(() => searchParams.get("destaque") === "pro");
 
   useEffect(() => {
@@ -120,6 +132,39 @@ export default function PerfilPage() {
     }
   }
 
+  async function handleLeaveAggregation() {
+    setLeavingAggregation(true);
+    try {
+      const { data, error } = await supabase.rpc("leave_my_aggregated_account");
+      if (error) throw error;
+
+      const result = data as { ok?: boolean; error?: string } | null;
+      if (!result?.ok) {
+        throw new Error(
+          result?.error === "not_aggregated"
+            ? "Sua conta não está agregada no momento."
+            : "Não foi possível desagregar.",
+        );
+      }
+
+      setLeaveDialogOpen(false);
+      clearSubscriptionCache();
+      await refresh({ force: true });
+      toast({
+        title: "Conta desagregada",
+        description: "Você voltou a usar sua conta de forma independente.",
+      });
+    } catch (e) {
+      toast({
+        title: "Erro ao desagregar",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLeavingAggregation(false);
+    }
+  }
+
   const accountType = info?.account_type;
   const isCaAccount = accountType === "ca" || Boolean(info?.is_aggregated_account);
   const isAaAccount = accountType === "aa" || Boolean(info?.is_admin_aggregated);
@@ -145,13 +190,25 @@ export default function PerfilPage() {
 
       <BillingProgressNotice info={info} loading={loading} />
 
-      {isCaAccount && (
+      {isAggregated && (
         <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-          <p className="font-bold">
-            {info?.aggregated_by_email
-              ? `Conta agregada por ${info.aggregated_by_email}`
-              : "Conta agregada"}
+          <p>
+            Sua conta está agregada por {info?.aggregated_by_email ?? "o titular"} para desagregar,{" "}
+            <button
+              type="button"
+              onClick={() => setLeaveDialogOpen(true)}
+              className="underline underline-offset-2 hover:opacity-80"
+            >
+              clique aqui
+            </button>
+            .
           </p>
+        </div>
+      )}
+
+      {isCaAccount && !isAggregated && (
+        <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <p className="font-bold">Conta agregada</p>
           <p className="text-muted-foreground mt-1">
             {info?.can_book
               ? "Não é necessária assinatura própria — seus agendamentos usam o plano de quem agregou."
@@ -256,6 +313,29 @@ export default function PerfilPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desagregar conta</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. Tem certeza que deseja prosseguir?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={leavingAggregation}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleLeaveAggregation();
+              }}
+              disabled={leavingAggregation}
+            >
+              {leavingAggregation ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
