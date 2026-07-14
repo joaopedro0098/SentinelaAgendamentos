@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, Mail, Shield, Trash2 } from "lucide-react";
+import { Loader2, Mail, Shield, Trash2, TriangleAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -318,8 +318,9 @@ export default function PerfilPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Desagregar conta</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação é irreversível. Tem certeza que deseja prosseguir?
+            <AlertDialogDescription className="flex items-start gap-2">
+              <TriangleAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" aria-hidden />
+              <span>Esta ação é irreversível. Tem certeza que deseja prosseguir?</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
