@@ -1,5 +1,8 @@
 import type { useSubscription } from "@/hooks/useSubscription";
-import { accountUsesExternalPlan } from "@/lib/subscriptionMessages";
+import {
+  accountUsesExternalPlan,
+  isPlanCancelledWithAccess,
+} from "@/lib/subscriptionMessages";
 
 export function BillingProgressNotice({
   info,
@@ -9,6 +12,15 @@ export function BillingProgressNotice({
   loading: boolean;
 }) {
   if (loading || !info || info.is_admin || accountUsesExternalPlan(info)) return null;
+
+  const subscribeNotice = getSubscribePlanNotice(info);
+  if (subscribeNotice) {
+    return (
+      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
+        {subscribeNotice}
+      </div>
+    );
+  }
 
   const trialNotice = getTrialNotice(info);
   const renewalNotice = getRenewalNotice(info);
@@ -33,20 +45,38 @@ export function BillingProgressNotice({
   );
 }
 
+function getSubscribePlanNotice(info: ReturnType<typeof useSubscription>["info"]) {
+  if (!info) return null;
+
+  if (info.subscription_status === "grace" && info.can_book) return null;
+  if (info.subscription_status === "active" && info.can_book && !isPlanCancelledWithAccess(info)) {
+    return null;
+  }
+  if (isPlanCancelledWithAccess(info)) return null;
+
+  const trialEnded =
+    info.subscription_status === "trial" && Math.max(0, info.trial_days_left ?? 0) === 0;
+
+  if (trialEnded || info.subscription_status === "expired" || !info.can_book) {
+    return "Assine um plano para realizar agendamentos.";
+  }
+
+  return null;
+}
+
 function getTrialNotice(info: ReturnType<typeof useSubscription>["info"]) {
   if (!info || info.subscription_status !== "trial") return null;
 
   const daysLeft = Math.max(0, Math.min(14, info.trial_days_left ?? 0));
+  if (daysLeft === 0) return null;
+
   const currentDay = Math.max(1, Math.min(14, 15 - daysLeft));
 
   return {
     label: "Teste grátis",
     countLabel: `${currentDay}/14`,
     progress: Math.round((currentDay / 14) * 100),
-    message:
-      daysLeft > 0
-        ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} do seu teste.`
-        : 'Assine na aba "Conta" para fazer novos agendamentos.',
+    message: `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"} do seu teste.`,
   };
 }
 
