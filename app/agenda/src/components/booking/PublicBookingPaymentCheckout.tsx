@@ -434,15 +434,17 @@ export function PublicBookingPaymentCheckout({
           <p className="text-sm font-medium">Pix gerado — escaneie ou copie o código</p>
           <img src={`data:image/png;base64,${pixQrBase64}`} alt="QR Code Pix" className="mx-auto max-w-[200px]" />
           {pixQr && (
-            <div className="space-y-1.5 text-left">
-              <p className="text-xs break-all text-muted-foreground bg-muted/40 rounded-lg p-2">{pixQr}</p>
-              <button
-                type="button"
-                onClick={() => void copyPixCode()}
-                className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
-              >
-                {pixCopied ? "Copiado" : "Copiar código"}
-              </button>
+            <div className="space-y-1.5">
+              <p className="text-xs break-all text-muted-foreground bg-muted/40 rounded-lg p-2 text-left">{pixQr}</p>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => void copyPixCode()}
+                  className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                >
+                  {pixCopied ? "Copiado" : "Copiar código"}
+                </button>
+              </div>
             </div>
           )}
           <Button
