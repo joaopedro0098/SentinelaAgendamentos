@@ -164,6 +164,7 @@ export function PublicBookingPaymentCheckout({
   );
   const [pixQr, setPixQr] = useState<string | null>(null);
   const [pixQrBase64, setPixQrBase64] = useState<string | null>(null);
+  const [pixCopied, setPixCopied] = useState(false);
   const [lastPaymentError, setLastPaymentError] = useState<AppointmentPaymentErrorDetails | null>(null);
 
   const canSwitchMethod = enablePix && enableCard;
@@ -243,12 +244,24 @@ export function PublicBookingPaymentCheckout({
       if (next === activeMethod) return;
       setPixQr(null);
       setPixQrBase64(null);
+      setPixCopied(false);
       setLastPaymentError(null);
       setActiveMethod(next);
       setBrickRetryKey((key) => key + 1);
     },
     [activeMethod],
   );
+
+  const copyPixCode = useCallback(async () => {
+    if (!pixQr) return;
+    try {
+      await navigator.clipboard.writeText(pixQr);
+      setPixCopied(true);
+      window.setTimeout(() => setPixCopied(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar o código.");
+    }
+  }, [pixQr]);
 
   const initialization = useMemo(
     () => ({
@@ -421,7 +434,16 @@ export function PublicBookingPaymentCheckout({
           <p className="text-sm font-medium">Pix gerado — escaneie ou copie o código</p>
           <img src={`data:image/png;base64,${pixQrBase64}`} alt="QR Code Pix" className="mx-auto max-w-[200px]" />
           {pixQr && (
-            <p className="text-xs break-all text-muted-foreground bg-muted/40 rounded-lg p-2">{pixQr}</p>
+            <div className="space-y-1.5 text-left">
+              <p className="text-xs break-all text-muted-foreground bg-muted/40 rounded-lg p-2">{pixQr}</p>
+              <button
+                type="button"
+                onClick={() => void copyPixCode()}
+                className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+              >
+                {pixCopied ? "Copiado" : "Copiar código"}
+              </button>
+            </div>
           )}
           <Button
             type="button"
