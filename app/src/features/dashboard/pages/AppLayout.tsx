@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Menu, Settings, Shield, User, UserCog, Users, Wallet, X } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Settings, Shield, User, UserCog, Users, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
-import { PwaInstallButton } from "@/components/pwa/PwaInstallButton";
 import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeSupportRedirect";
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
+import { MobileBottomNav } from "@/features/dashboard/components/MobileBottomNav";
 import { usePendingPaymentExceptions } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -39,53 +39,16 @@ export default function AppLayout() {
   const location = useLocation();
   const { info: subscriptionInfo } = useSubscription();
   const { shop } = useDashboardShop();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuMounted, setMenuMounted] = useState(false);
-  const [menuEntered, setMenuEntered] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
-
   useEffect(() => {
     if (!location.pathname.startsWith("/app/pacientes")) return;
     setSidebarCollapsed(true);
     writeSidebarCollapsed(true);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (menuOpen) {
-      setMenuMounted(true);
-      return;
-    }
-    setMenuEntered(false);
-    const timer = window.setTimeout(() => setMenuMounted(false), 200);
-    return () => window.clearTimeout(timer);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!menuMounted || !menuOpen) return;
-    const frame = window.requestAnimationFrame(() => setMenuEntered(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, [menuMounted, menuOpen]);
-
-  useEffect(() => {
-    if (!menuMounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [menuMounted]);
-
   async function handleLogout() {
-    setMenuOpen(false);
     await signOut();
     navigate("/login", { replace: true });
-  }
-
-  function closeMenu() {
-    setMenuOpen(false);
   }
 
   function toggleSidebarCollapsed() {
@@ -116,142 +79,12 @@ export default function AppLayout() {
   );
   const { pendingCount: pendingPaymentExceptions } = usePendingPaymentExceptions(showPagamentosNav);
   const showPagamentosAttention = pendingPaymentExceptions > 0;
+  const showSuporteNav = subscriptionInfo != null && !subscriptionInfo.is_admin;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
       <PwaColdStartRedirect />
       <WelcomeSupportRedirect />
-      <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur shrink-0">
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="p-2 -ml-2 rounded-lg text-foreground hover:bg-secondary/80"
-          aria-label="Abrir menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        <div className="flex-1 min-w-0" />
-      </header>
-
-      {menuMounted && (
-        <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu do painel">
-          <button
-            type="button"
-            className={cn(
-              "absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out",
-              menuEntered ? "opacity-100" : "opacity-0",
-            )}
-            aria-label="Fechar menu"
-            onClick={closeMenu}
-          />
-          <aside
-            className={cn(
-              "absolute inset-y-0 left-0 w-[min(100vw-3rem,280px)] bg-card border-r border-border shadow-xl flex flex-col min-h-0 transition-transform duration-200 ease-out",
-              menuEntered ? "translate-x-0" : "-translate-x-full",
-            )}
-          >
-            <div className="flex items-center justify-between gap-2 px-4 min-h-14 py-3 border-b border-border shrink-0">
-              <ShopPanelBrand shop={panelBrandShop} avatarClassName="h-9 w-9" />
-              <button
-                type="button"
-                onClick={closeMenu}
-                className="p-2 rounded-lg text-muted-foreground hover:bg-secondary/80"
-                aria-label="Fechar menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <nav className="flex flex-col gap-1 p-3 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-              <MobileNavItem to="/app/agendar" icon={<Calendar className="h-4 w-4" />} label="Agendar" end onNavigate={closeMenu} />
-              <MobileNavItem
-                to="/app/agendamentos"
-                icon={<CalendarCheck className="h-4 w-4" />}
-                label="Agendamentos"
-                onNavigate={closeMenu}
-              />
-              <MobileNavItem
-                to="/app/pacientes"
-                icon={<Users className="h-4 w-4" />}
-                label="Pacientes"
-                onNavigate={closeMenu}
-              />
-              <MobileNavItem
-                to="/app/profissionais"
-                icon={<UserCog className="h-4 w-4" />}
-                label="Profissionais"
-                onNavigate={closeMenu}
-              />
-              <MobileNavItem
-                to="/app/settings"
-                icon={<Settings className="h-4 w-4" />}
-                label="Configurações"
-                onNavigate={closeMenu}
-              />
-              <MobileNavItem
-                to="/app/perfil"
-                icon={<User className="h-4 w-4" />}
-                label="Conta"
-                onNavigate={closeMenu}
-              />
-              {showPagamentosNav && (
-                <MobileNavItem
-                  to="/app/pagamentos"
-                  icon={<Wallet className="h-4 w-4" />}
-                  label="Pagamentos"
-                  showAttentionDot={showPagamentosAttention}
-                  onNavigate={closeMenu}
-                />
-              )}
-              {subscriptionInfo?.is_admin && (
-                <MobileNavItem
-                  to="/app/relatorios"
-                  icon={<BarChart2 className="h-4 w-4" />}
-                  label="Relatórios"
-                  onNavigate={closeMenu}
-                />
-              )}
-              {subscriptionInfo?.is_admin && (
-                <MobileNavItem
-                  to="/app/admin"
-                  icon={<Shield className="h-4 w-4" />}
-                  label="Admin"
-                  onNavigate={closeMenu}
-                />
-              )}
-              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-                <MobileNavItem
-                  to="/app/relatorios"
-                  icon={<BarChart2 className="h-4 w-4" />}
-                  label="Relatórios"
-                  onNavigate={closeMenu}
-                />
-              )}
-              {subscriptionInfo != null && !subscriptionInfo.is_admin && (
-                <MobileNavItem
-                  to="/app/suporte"
-                  icon={<Headphones className="h-4 w-4" />}
-                  label="Suporte"
-                  onNavigate={closeMenu}
-                />
-              )}
-            </nav>
-
-            <div className="mt-auto shrink-0 p-3 border-t border-border space-y-2">
-              <PwaInstallButton
-                label="Instalar"
-                helpVariant="app"
-                buttonClassName="w-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
-                variant="default"
-              />
-              <SidebarUserEmail email={user?.email} />
-              <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" /> Sair
-              </Button>
-            </div>
-          </aside>
-        </div>
-      )}
 
       <aside
         className={cn(
@@ -317,9 +150,16 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 min-h-0 w-full overflow-x-hidden overflow-y-auto flex flex-col">
+      <main className="mobile-panel-main flex-1 min-w-0 min-h-0 w-full overflow-x-hidden overflow-y-auto flex flex-col pt-[env(safe-area-inset-top,0px)] pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] md:pt-0 md:pb-0">
         <Outlet />
       </main>
+
+      <MobileBottomNav
+        showPagamentosNav={showPagamentosNav}
+        showPagamentosAttention={showPagamentosAttention}
+        showSuporte={showSuporteNav}
+        showAdmin={Boolean(subscriptionInfo?.is_admin)}
+      />
     </div>
   );
 }
@@ -441,41 +281,6 @@ function DesktopNavItem({
     >
       <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} />
       {!collapsed && <span>{label}</span>}
-    </NavLink>
-  );
-}
-
-function MobileNavItem({
-  to,
-  icon,
-  label,
-  end,
-  onNavigate,
-  showAttentionDot,
-}: {
-  to: string;
-  icon: ReactNode;
-  label: string;
-  end?: boolean;
-  onNavigate: () => void;
-  showAttentionDot?: boolean;
-}) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onNavigate}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition",
-          isActive
-            ? "bg-accent text-accent-foreground shadow-sm"
-            : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
-        )
-      }
-    >
-      <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} />
-      <span>{label}</span>
     </NavLink>
   );
 }
