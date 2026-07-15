@@ -17,7 +17,7 @@ type Props = {
   maxActiveStaff?: number;
 };
 
-type StaffRow = { id: string; name: string; sort_order: number };
+type StaffRow = { id: string; name: string; sort_order: number; whatsapp: string | null };
 type ServiceRow = { id: string; staff_id: string; name: string; duration_minutes: number; price_cents: number };
 type ScheduleRow = { id: string; staff_id: string; day_of_week: number; start_time: string; end_time: string };
 type ServiceDraft = { id: string; name: string; duration_minutes: number; price_cents: number };
@@ -186,7 +186,7 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
     try {
       const { data: staffRows, error: staffErr } = await supabase
         .from("staff")
-        .select("id, name, sort_order")
+        .select("id, name, sort_order, whatsapp")
         .eq("barbershop_id", barbershopId)
         .eq("is_active", true)
         .order("sort_order")
@@ -300,6 +300,37 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
     return true;
   }
 
+  function normalizeWhatsappDigits(value: string) {
+    return value.replace(/\D/g, "");
+  }
+
+  async function updateStaffWhatsappIfNeeded(staffId: string, whatsapp: string): Promise<boolean> {
+    const digits = normalizeWhatsappDigits(whatsapp);
+    if (digits && (digits.length < 10 || digits.length > 15)) {
+      toast({
+        title: "WhatsApp inválido",
+        description: "Informe o número com DDI e DDD (ex.: 5511999999999).",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const current = staff.find((s) => s.id === staffId)?.whatsapp ?? "";
+    if (digits === current) return true;
+
+    setBusy(`staff-${staffId}`);
+    const { error } = await supabase
+      .from("staff")
+      .update({ whatsapp: digits || null })
+      .eq("id", staffId);
+    setBusy(null);
+    if (error) {
+      toast({ title: "Erro ao salvar WhatsApp", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  }
+
   async function removeStaff(id: string) {
     if (!confirm("Excluir este colaborador e todos os serviços e horários vinculados?")) return;
     setBusy(`del-staff-${id}`);
@@ -321,10 +352,16 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
     original: ServiceRow[],
     rows: ScheduleDraft[],
     staffName?: string,
+    staffWhatsapp?: string,
   ) {
     if (staffName !== undefined) {
       const nameSaved = await updateStaffNameIfNeeded(staffId, staffName);
       if (!nameSaved) return;
+    }
+
+    if (staffWhatsapp !== undefined) {
+      const whatsappSaved = await updateStaffWhatsappIfNeeded(staffId, staffWhatsapp);
+      if (!whatsappSaved) return;
     }
 
     const existingDrafts = drafts.filter((d) => !isNewServiceDraft(d.id));
@@ -500,13 +537,14 @@ export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActive
                 busy={busy}
                 onRemove={() => removeStaff(member.id)}
                 onRemoveService={removeService}
-                onSaveStaffMember={(drafts, rows, staffName) =>
+                onSaveStaffMember={(drafts, rows, staffName, staffWhatsapp) =>
                   saveStaffMember(
                     member.id,
                     drafts,
                     services.filter((s) => s.staff_id === member.id),
                     rows,
                     staffName,
+                    staffWhatsapp,
                   )
                 }
               />
@@ -568,10 +606,16 @@ function StaffCard({
   onToggle: () => void;
   busy: string | null;
   onRemove: () => void;
-  onSaveStaffMember: (drafts: ServiceDraft[], rows: ScheduleDraft[], staffName: string) => Promise<void>;
+  onSaveStaffMember: (
+    drafts: ServiceDraft[],
+    rows: ScheduleDraft[],
+    staffName: string,
+    staffWhatsapp: string,
+  ) => Promise<void>;
   onRemoveService: (id: string) => void;
 }) {
   const [editName, setEditName] = useState(member.name);
+  const [editWhatsapp, setEditWhatsapp] = useState(member.whatsapp ?? "");
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>(() => buildScheduleDraft(schedules));
 
   useEffect(() => {
@@ -581,9 +625,10 @@ function StaffCard({
   useEffect(() => {
     if (expanded) {
       setEditName(member.name);
+      setEditWhatsapp(member.whatsapp ?? "");
       setScheduleDraft(buildScheduleDraft(schedules));
     }
-  }, [expanded, member.id, member.name, schedules]);
+  }, [expanded, member.id, member.name, member.whatsapp, schedules]);
 
   return (
     <li className="rounded-lg border border-border bg-card/50 overflow-hidden">
@@ -608,11 +653,31 @@ function StaffCard({
       </div>
 
       {expanded && (
+        <div className="border-t border-border px-3 py-3 bg-muted/10 space-y-1.5">
+          <Label htmlFor={`staff-whatsapp-${member.id}`} className="text-xs">
+            WhatsApp do profissional
+          </Label>
+          <Input
+            id={`staff-whatsapp-${member.id}`}
+            className="h-8 max-w-[220px]"
+            inputMode="numeric"
+            placeholder="Ex.: 5511999999999"
+            value={editWhatsapp}
+            onChange={(e) => setEditWhatsapp(e.target.value.replace(/[^\d]/g, "").slice(0, 15))}
+            maxLength={15}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Recebe alertas por WhatsApp quando um paciente pedir cancelamento ou alteração.
+          </p>
+        </div>
+      )}
+
+      {expanded && (
         <StaffExpanded
           member={member}
           services={services}
           busy={busy}
-          onSaveStaffMember={(drafts, rows) => onSaveStaffMember(drafts, rows, editName)}
+          onSaveStaffMember={(drafts, rows) => onSaveStaffMember(drafts, rows, editName, editWhatsapp)}
           onRemoveService={onRemoveService}
           scheduleDraft={scheduleDraft}
           setScheduleDraft={setScheduleDraft}

@@ -54,6 +54,8 @@ import {
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
+import { AgendamentoAlertIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
 import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
 import {
   panelAgendamentoErrorMessage,
@@ -112,6 +114,7 @@ type AgendamentoRow = {
   valor_pago_centavos?: number | null;
   valor_restante_centavos?: number | null;
   can_manage?: boolean;
+  has_pending_alert?: boolean;
   barbeiros: { id: string; nome: string } | null;
 };
 
@@ -160,6 +163,10 @@ export default function AgendamentosMobilePanel({
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
   const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
     observacao: string;
+    clienteNome?: string;
+  } | null>(null);
+  const [alertModalTarget, setAlertModalTarget] = useState<{
+    agendamentoId: string;
     clienteNome?: string;
   } | null>(null);
 
@@ -242,6 +249,7 @@ export default function AgendamentosMobilePanel({
           valor_pago_centavos: item.valor_pago_centavos,
           valor_restante_centavos: item.valor_restante_centavos,
           can_manage: item.can_manage,
+          has_pending_alert: item.has_pending_alert,
           barbeiros: { id: item.barbeiro_id, nome: item.barbeiro_nome },
         })),
       );
@@ -437,6 +445,12 @@ export default function AgendamentosMobilePanel({
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleAlertResolved(agendamentoId: string) {
+    setAgendamentos((prev) =>
+      prev.map((item) => (item.id === agendamentoId ? { ...item, has_pending_alert: false } : item)),
+    );
   }
 
   async function handlePastDayStatus(a: AgendamentoRow, novoStatus: PastDayStatusKey) {
@@ -690,6 +704,10 @@ export default function AgendamentosMobilePanel({
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <div className="flex items-center gap-1.5">
+                          <AgendamentoAlertIndicator
+                            show={Boolean(a.has_pending_alert)}
+                            onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
+                          />
                           <AgendamentoObsIndicator
                             observacao={a.observacao}
                             onClick={() =>
@@ -847,6 +865,14 @@ export default function AgendamentosMobilePanel({
         observacao={observacaoViewTarget?.observacao ?? null}
         clienteNome={observacaoViewTarget?.clienteNome}
         onClose={() => setObservacaoViewTarget(null)}
+      />
+
+      <AgendamentoAlertModal
+        open={!!alertModalTarget}
+        agendamentoId={alertModalTarget?.agendamentoId ?? null}
+        clienteNome={alertModalTarget?.clienteNome}
+        onClose={() => setAlertModalTarget(null)}
+        onResolved={handleAlertResolved}
       />
     </div>
   );

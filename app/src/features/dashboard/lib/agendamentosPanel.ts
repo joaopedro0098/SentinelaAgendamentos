@@ -24,6 +24,7 @@ export type AgendamentoPainelItem = {
   payment_expires_at?: string | null;
   payment_status?: string | null;
   can_manage?: boolean;
+  has_pending_alert?: boolean;
 };
 
 export type AgendamentoPainelSummary = {

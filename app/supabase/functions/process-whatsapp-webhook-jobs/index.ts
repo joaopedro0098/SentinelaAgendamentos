@@ -1,7 +1,14 @@
+/**
+ * Worker: consome a fila whatsapp_webhook_jobs e executa a lógica de negócio.
+ * Invocado por pg_cron a cada 1 minuto (invoke_process_whatsapp_webhook_jobs_cron).
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { configureWebPush } from "../_shared/webPush.ts";
-import { sendDueClientConfirmationPushes } from "../_shared/clientConfirmationPush.ts";
-import { sendDueClientReminderWhatsApp } from "../_shared/whatsappAppointmentReminders.ts";
+import {
+  claimPendingWebhookJobs,
+  markWebhookJobDone,
+  markWebhookJobFailed,
+} from "../_shared/whatsappWebhookQueue.ts";
+import { processWhatsAppInboundReply } from "../_shared/processWhatsAppInboundReply.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,52 +66,47 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Não autorizado." }, 401);
     }
 
-    let force = false;
-    if (req.method === "POST") {
-      try {
-        const body = await req.clone().json();
-        force = Boolean(body?.force);
-      } catch {
-        force = false;
-      }
-    }
-
-    configureWebPush();
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const pushResult = await sendDueClientConfirmationPushes(supabase, { force });
+    const jobs = await claimPendingWebhookJobs(supabase);
+    let done = 0;
+    let failed = 0;
+    const errors: Array<{ job_id: string; error: string }> = [];
 
-    // Lembrete D-1 via WhatsApp (Twilio) roda em paralelo ao Web Push. Só dispara se o
-    // Content Template já estiver configurado — enquanto não estiver, fica um no-op.
-    let whatsappResult: unknown = { skipped: true, reason: "twilio_not_configured" };
-    if (Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim() && !pushResult.skipped) {
-      try {
-        whatsappResult = await sendDueClientReminderWhatsApp(supabase);
-      } catch (whatsappError) {
-        console.error(
-          "process-appointment-reminders: falha no lembrete WhatsApp:",
-          whatsappError instanceof Error ? whatsappError.message : whatsappError,
-        );
-        whatsappResult = {
-          error: whatsappError instanceof Error ? whatsappError.message : "Falha ao enviar lembrete WhatsApp",
-        };
+    for (const job of jobs) {
+      const result = await processWhatsAppInboundReply(supabase, {
+        telefone: job.telefone,
+        body: job.body,
+      });
+
+      if (result.ok) {
+        await markWebhookJobDone(supabase, job.id);
+        done += 1;
+      } else if (result.retryable !== false) {
+        await markWebhookJobFailed(supabase, job, result.error);
+        failed += 1;
+        errors.push({ job_id: job.id, error: result.error });
+      } else {
+        await markWebhookJobFailed(supabase, { ...job, attempts: job.max_attempts }, result.error);
+        failed += 1;
+        errors.push({ job_id: job.id, error: result.error });
       }
     }
 
-    const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");
-
     return jsonResponse({
       ok: true,
-      confirmation_pushes: pushResult,
-      confirmation_whatsapp: whatsappResult,
-      canceled: canceledCount ?? 0,
+      claimed: jobs.length,
+      done,
+      failed,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    console.error("process-appointment-reminders:", error);
-    return jsonResponse({ error: "Não foi possível processar manutenção de agendamentos." }, 500);
+    console.error("process-whatsapp-webhook-jobs:", error);
+    return jsonResponse({
+      error: error instanceof Error ? error.message : "Falha ao processar fila de webhooks WhatsApp.",
+    }, 500);
   }
 });

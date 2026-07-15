@@ -92,6 +92,8 @@ import {
 } from "@/features/dashboard/components/agendamentos/AgendamentoSlotBookingModal";
 import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
 import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
+import { AgendamentoAlertIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
 import type { SlotBookingServico } from "@/features/dashboard/lib/agendamentoSlotBooking";
 
 type Props = {
@@ -416,6 +418,10 @@ export default function AgendamentosDesktopPanel({
   const [slotBookingTarget, setSlotBookingTarget] = useState<SlotBookingTarget | null>(null);
   const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
     observacao: string;
+    clienteNome?: string;
+  } | null>(null);
+  const [alertModalTarget, setAlertModalTarget] = useState<{
+    agendamentoId: string;
     clienteNome?: string;
   } | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
@@ -846,6 +852,12 @@ export default function AgendamentosDesktopPanel({
     );
   }
 
+  function handleAlertResolved(agendamentoId: string) {
+    setItems((prev) =>
+      prev.map((item) => (item.id === agendamentoId ? { ...item, has_pending_alert: false } : item)),
+    );
+  }
+
   async function handleStatusAction(
     a: AgendamentoPainelItem,
     action: "confirmar" | "nao_confirmado" | "cancelar",
@@ -951,6 +963,11 @@ export default function AgendamentosDesktopPanel({
 
     return (
       <div className="relative min-h-[3.25rem] py-2">
+        <AgendamentoAlertIndicator
+          show={Boolean(a.has_pending_alert)}
+          className={cn("absolute top-1 z-[2]", actions ? "right-14" : "right-8")}
+          onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
+        />
         <AgendamentoObsIndicator
           observacao={a.observacao}
           className={cn("absolute top-1 z-[2]", actions ? "right-7" : "right-1")}
@@ -1086,6 +1103,10 @@ export default function AgendamentosDesktopPanel({
           )}
         </div>
         <div className="flex min-w-0 items-center justify-end gap-1.5">
+          <AgendamentoAlertIndicator
+            show={Boolean(a.has_pending_alert)}
+            onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
+          />
           <AgendamentoObsIndicator
             observacao={a.observacao}
             onClick={() =>
@@ -1477,6 +1498,14 @@ export default function AgendamentosDesktopPanel({
         observacao={observacaoViewTarget?.observacao ?? null}
         clienteNome={observacaoViewTarget?.clienteNome}
         onClose={() => setObservacaoViewTarget(null)}
+      />
+
+      <AgendamentoAlertModal
+        open={!!alertModalTarget}
+        agendamentoId={alertModalTarget?.agendamentoId ?? null}
+        clienteNome={alertModalTarget?.clienteNome}
+        onClose={() => setAlertModalTarget(null)}
+        onResolved={handleAlertResolved}
       />
     </div>
   );
