@@ -3,7 +3,7 @@
  * Consumida pelo worker process-whatsapp-webhook-jobs — não pelo webhook diretamente.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { sendWhatsAppTemplate } from "./twilioWhatsapp.ts";
+import { normalizeBrazilPhoneE164Digits, sendWhatsAppTemplate } from "./twilioWhatsapp.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { buildAppointmentAlertMessage } from "./appointmentAlertMessage.ts";
 
@@ -65,7 +65,7 @@ export async function processWhatsAppInboundReply(
   supabase: SupabaseClient,
   payload: InboundReplyPayload,
 ): Promise<ProcessInboundReplyResult> {
-  const telefoneDigits = payload.telefone;
+  const telefoneDigits = normalizeBrazilPhoneE164Digits(payload.telefone);
   const body = payload.body.trim();
 
   const { data: pending, error: pendingError } = await supabase

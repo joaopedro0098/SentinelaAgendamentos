@@ -13,9 +13,27 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
 
-/** Normaliza para "whatsapp:+<dígitos>" — aceita "whatsapp:+55...", "+55...", "55..." etc. */
+/**
+ * E.164 em dígitos para telefones brasileiros salvos sem DDI (10–11 dígitos: DDD + número).
+ * Se já vier com 55 (12+ dígitos), mantém. Não infere outros países — não prefixa +1.
+ */
+export function normalizeBrazilPhoneE164Digits(phone: string): string {
+  let digits = digitsOnly(phone);
+  if (digits.startsWith("0") && digits.length > 11) {
+    digits = digits.replace(/^0+/, "");
+  }
+  if (digits.length >= 12 && digits.startsWith("55")) {
+    return digits;
+  }
+  if (digits.length >= 10 && digits.length <= 11) {
+    return `55${digits}`;
+  }
+  return digits;
+}
+
+/** Normaliza para "whatsapp:+<dígitos E.164 BR quando aplicável>". */
 export function toWhatsAppAddress(phone: string): string {
-  const digits = digitsOnly(phone);
+  const digits = normalizeBrazilPhoneE164Digits(phone);
   return `whatsapp:+${digits}`;
 }
 

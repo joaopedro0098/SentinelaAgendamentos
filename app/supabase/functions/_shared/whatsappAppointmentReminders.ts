@@ -4,7 +4,11 @@
  * (clientConfirmationPush.ts) — mesma janela/critério de agendamentos, canal diferente.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { sendWhatsAppTemplate, phoneDigitsFromWhatsAppAddress } from "./twilioWhatsapp.ts";
+import {
+  sendWhatsAppTemplate,
+  normalizeBrazilPhoneE164Digits,
+  phoneDigitsFromWhatsAppAddress,
+} from "./twilioWhatsapp.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { formatAppointmentDateTimeBr } from "./appointmentAlertMessage.ts";
 import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
@@ -61,10 +65,11 @@ async function sendOneReminder(
   row: AppointmentForReminder,
   contentSid: string,
 ): Promise<SendReminderOutcome> {
-  const phoneDigits = phoneDigitsFromWhatsAppAddress(row.cliente_whatsapp ?? "");
-  if (phoneDigits.length < 10) {
+  const localDigits = phoneDigitsFromWhatsAppAddress(row.cliente_whatsapp ?? "");
+  if (localDigits.length < 10) {
     return { kind: "no_phone" };
   }
+  const phoneDigits = normalizeBrazilPhoneE164Digits(localDigits);
 
   const result = await sendWhatsAppTemplate({
     to: phoneDigits,
