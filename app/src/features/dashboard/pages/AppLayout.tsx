@@ -11,6 +11,8 @@ import { WelcomeSupportRedirect } from "@/features/dashboard/components/WelcomeS
 import { PwaColdStartRedirect } from "@/features/dashboard/components/PwaColdStartRedirect";
 import { MobileBottomNav } from "@/features/dashboard/components/MobileBottomNav";
 import { usePendingPaymentExceptions } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
+import { useMediaMdUp } from "@/hooks/useMediaMdUp";
+import { useAdminFailedWebhookJobsCount } from "@/hooks/useAdminFailedWebhookJobsCount";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
@@ -80,6 +82,9 @@ export default function AppLayout() {
   const { pendingCount: pendingPaymentExceptions } = usePendingPaymentExceptions(showPagamentosNav);
   const showPagamentosAttention = pendingPaymentExceptions > 0;
   const showSuporteNav = subscriptionInfo != null && !subscriptionInfo.is_admin;
+  const isDesktop = useMediaMdUp();
+  const failedWebhookJobsCount = useAdminFailedWebhookJobsCount(Boolean(subscriptionInfo?.is_admin && isDesktop));
+  const showAdminAttention = failedWebhookJobsCount > 0;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
@@ -124,7 +129,13 @@ export default function AppLayout() {
               <DesktopNavItem collapsed={sidebarCollapsed} to="/app/relatorios" icon={<BarChart2 className="h-5 w-5" />} label="Relatórios" />
             )}
             {subscriptionInfo?.is_admin && (
-              <DesktopNavItem collapsed={sidebarCollapsed} to="/app/admin" icon={<Shield className="h-5 w-5" />} label="Admin" />
+              <DesktopNavItem
+                collapsed={sidebarCollapsed}
+                to="/app/admin"
+                icon={<Shield className="h-5 w-5" />}
+                label="Admin"
+                showAttentionDot={showAdminAttention}
+              />
             )}
             {subscriptionInfo != null && !subscriptionInfo.is_admin && (
               <DesktopNavItem collapsed={sidebarCollapsed} to="/app/relatorios" icon={<BarChart2 className="h-5 w-5" />} label="Relatórios" />

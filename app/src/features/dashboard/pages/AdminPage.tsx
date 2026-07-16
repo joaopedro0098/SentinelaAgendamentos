@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { AdminAggregatedAccountsSection } from "@/features/dashboard/components/admin/AdminAggregatedAccountsSection";
+import { AdminWhatsAppFailedJobsSection } from "@/features/dashboard/components/admin/AdminWhatsAppFailedJobsSection";
 
 const SUPABASE_FUNCTIONS_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
 const SUPABASE_PUBLISHABLE_KEY = String(
@@ -796,6 +797,8 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AdminWhatsAppFailedJobsSection />
 
       <AdminAggregatedAccountsSection />
     </div>

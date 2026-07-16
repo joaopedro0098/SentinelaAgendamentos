@@ -115,28 +115,39 @@ export async function processWhatsAppInboundReply(
 
     const { data: existingAlert } = await supabase
       .from("alertas_agendamento")
-      .select("id")
+      .select("id, mensagem_profissional_enviada_em")
       .eq("agendamento_id", ag.id)
       .eq("tipo", tipo)
       .eq("status", "pendente")
       .maybeSingle();
 
-    if (!existingAlert) {
-      const { error: alertError } = await supabase.from("alertas_agendamento").insert({
-        agendamento_id: ag.id,
-        barbearia_id: ag.barbearia_id,
-        barbeiro_id: ag.barbeiro_id,
-        tipo,
-        mensagem,
-      });
+    let alertId: string;
+
+    if (existingAlert) {
+      alertId = existingAlert.id;
+    } else {
+      const { data: inserted, error: alertError } = await supabase
+        .from("alertas_agendamento")
+        .insert({
+          agendamento_id: ag.id,
+          barbearia_id: ag.barbearia_id,
+          barbeiro_id: ag.barbeiro_id,
+          tipo,
+          mensagem,
+        })
+        .select("id")
+        .single();
 
       if (alertError) {
         return { ok: false, error: alertError.message, retryable: true };
       }
+      alertId = inserted.id;
     }
 
+    const professionalMessageAlreadySent = Boolean(existingAlert?.mensagem_profissional_enviada_em);
+
     const barbeiroWhatsapp = barbeiroFromRow(ag)?.whatsapp?.trim();
-    if (barbeiroWhatsapp) {
+    if (barbeiroWhatsapp && !professionalMessageAlreadySent) {
       const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
       if (!contentSid) {
         console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
@@ -150,6 +161,18 @@ export async function processWhatsAppInboundReply(
           contentSid,
           contentVariables: { "1": mensagem },
         });
+
+        const sentAt = new Date().toISOString();
+        const { error: markSentError } = await supabase
+          .from("alertas_agendamento")
+          .update({ mensagem_profissional_enviada_em: sentAt })
+          .eq("id", alertId)
+          .is("mensagem_profissional_enviada_em", null);
+
+        if (markSentError) {
+          return { ok: false, error: markSentError.message, retryable: true };
+        }
+
         await registrarUsoMensageria(supabase, {
           barbeariaId: ag.barbearia_id,
           tipo: "alerta_profissional",
@@ -161,6 +184,8 @@ export async function processWhatsAppInboundReply(
         const message = sendError instanceof Error ? sendError.message : "Falha ao notificar profissional";
         return { ok: false, error: message, retryable: true };
       }
+    } else if (barbeiroWhatsapp && professionalMessageAlreadySent) {
+      console.info("processWhatsAppInboundReply: mensagem ao profissional já enviada, pulando reenvio (retry).");
     } else {
       console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
     }
