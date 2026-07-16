@@ -115,7 +115,7 @@ export async function processWhatsAppInboundReply(
 
     const { data: existingAlert } = await supabase
       .from("alertas_agendamento")
-      .select("id, mensagem_profissional_enviada_em")
+      .select("id, mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
       .eq("agendamento_id", ag.id)
       .eq("tipo", tipo)
       .eq("status", "pendente")
@@ -144,50 +144,115 @@ export async function processWhatsAppInboundReply(
       alertId = inserted.id;
     }
 
-    const professionalMessageAlreadySent = Boolean(existingAlert?.mensagem_profissional_enviada_em);
+    const { data: alertState, error: alertStateError } = await supabase
+      .from("alertas_agendamento")
+      .select("mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
+      .eq("id", alertId)
+      .single();
+
+    if (alertStateError) {
+      return { ok: false, error: alertStateError.message, retryable: true };
+    }
 
     const barbeiroWhatsapp = barbeiroFromRow(ag)?.whatsapp?.trim();
-    if (barbeiroWhatsapp && !professionalMessageAlreadySent) {
-      const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
-      if (!contentSid) {
-        console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
-        await markOutboundMessageResponded(supabase, row.id);
-        return { ok: true, action: "alerta" };
-      }
+    if (!barbeiroWhatsapp) {
+      console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
+      await markOutboundMessageResponded(supabase, row.id);
+      return { ok: true, action: "alerta" };
+    }
 
+    const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
+    if (!contentSid) {
+      console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
+      await markOutboundMessageResponded(supabase, row.id);
+      return { ok: true, action: "alerta" };
+    }
+
+    let messageSent = Boolean(alertState?.mensagem_profissional_enviada_em);
+    let billingDone = Boolean(alertState?.billing_registrado_em);
+    const storedTwilioSid = alertState?.twilio_message_sid?.trim() || null;
+    let twilioMessageSid: string | null = storedTwilioSid;
+
+    if (storedTwilioSid && !messageSent) {
+      console.info(
+        "processWhatsAppInboundReply: twilio_message_sid presente sem mensagem_profissional_enviada_em — tratando como enviada, pulando reenvio.",
+      );
+      const { error: repairTimestampError } = await supabase
+        .from("alertas_agendamento")
+        .update({ mensagem_profissional_enviada_em: new Date().toISOString() })
+        .eq("id", alertId)
+        .is("mensagem_profissional_enviada_em", null);
+
+      if (repairTimestampError) {
+        return { ok: false, error: repairTimestampError.message, retryable: true };
+      }
+      messageSent = true;
+    }
+
+    if (!messageSent) {
       try {
         const result = await sendWhatsAppTemplate({
           to: barbeiroWhatsapp,
           contentSid,
           contentVariables: { "1": mensagem },
         });
+        twilioMessageSid = result.sid;
 
         const sentAt = new Date().toISOString();
-        const { error: markSentError } = await supabase
+        const { error: markMessageError } = await supabase
           .from("alertas_agendamento")
-          .update({ mensagem_profissional_enviada_em: sentAt })
+          .update({
+            mensagem_profissional_enviada_em: sentAt,
+            twilio_message_sid: result.sid,
+          })
           .eq("id", alertId)
           .is("mensagem_profissional_enviada_em", null);
 
-        if (markSentError) {
-          return { ok: false, error: markSentError.message, retryable: true };
+        if (markMessageError) {
+          return { ok: false, error: markMessageError.message, retryable: true };
         }
-
-        await registrarUsoMensageria(supabase, {
-          barbeariaId: ag.barbearia_id,
-          tipo: "alerta_profissional",
-          profissionalId: ag.barbeiro_id,
-          agendamentoId: ag.id,
-          twilioMessageSid: result.sid,
-        });
+        messageSent = true;
       } catch (sendError) {
         const message = sendError instanceof Error ? sendError.message : "Falha ao notificar profissional";
         return { ok: false, error: message, retryable: true };
       }
-    } else if (barbeiroWhatsapp && professionalMessageAlreadySent) {
-      console.info("processWhatsAppInboundReply: mensagem ao profissional já enviada, pulando reenvio (retry).");
     } else {
-      console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
+      console.info("processWhatsAppInboundReply: mensagem ao profissional já enviada, pulando reenvio (retry).");
+    }
+
+    if (!billingDone) {
+      const billingResult = await registrarUsoMensageria(supabase, {
+        barbeariaId: ag.barbearia_id,
+        tipo: "alerta_profissional",
+        profissionalId: ag.barbeiro_id,
+        agendamentoId: ag.id,
+        twilioMessageSid,
+      });
+
+      if (!billingResult.ok) {
+        return { ok: false, error: billingResult.error, retryable: true };
+      }
+
+      const { error: markBillingError } = await supabase
+        .from("alertas_agendamento")
+        .update({ billing_registrado_em: new Date().toISOString() })
+        .eq("id", alertId)
+        .is("billing_registrado_em", null);
+
+      if (markBillingError) {
+        return { ok: false, error: markBillingError.message, retryable: true };
+      }
+      billingDone = true;
+    } else {
+      console.info("processWhatsAppInboundReply: billing já registrado, pulando (retry).");
+    }
+
+    if (!messageSent || !billingDone) {
+      return {
+        ok: false,
+        error: "Alerta ao profissional incompleto (mensagem ou billing pendente).",
+        retryable: true,
+      };
     }
 
     await markOutboundMessageResponded(supabase, row.id);

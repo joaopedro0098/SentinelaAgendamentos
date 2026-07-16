@@ -31,7 +31,7 @@ export async function registrarUsoMensageria(
     agendamentoId?: string | null;
     twilioMessageSid?: string | null;
   },
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const { error } = await supabase.rpc("registrar_uso_mensageria", {
     p_barbearia_id: params.barbeariaId,
     p_tipo: params.tipo,
@@ -41,7 +41,9 @@ export async function registrarUsoMensageria(
   });
 
   if (error) {
-    // Não bloqueia o fluxo de envio por falha no log de billing — só registra o erro.
     console.error("registrarUsoMensageria:", error.message);
+    return { ok: false, error: error.message };
   }
+
+  return { ok: true };
 }
