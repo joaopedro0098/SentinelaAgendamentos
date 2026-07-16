@@ -49,6 +49,18 @@ async function markOutboundMessageResponded(supabase: SupabaseClient, outboundMe
     .eq("status", "aguardando_resposta");
 }
 
+function logProcessamentoConcluido(params: { action: string; agendamentoId?: string; telefone?: string }) {
+  if (params.agendamentoId) {
+    console.log(
+      `processamento concluído com sucesso | action=${params.action} | agendamento_id=${params.agendamentoId}`,
+    );
+  } else {
+    console.log(
+      `processamento concluído com sucesso | action=${params.action} | telefone=${params.telefone ?? "—"}`,
+    );
+  }
+}
+
 export async function processWhatsAppInboundReply(
   supabase: SupabaseClient,
   payload: InboundReplyPayload,
@@ -69,6 +81,7 @@ export async function processWhatsAppInboundReply(
     return { ok: false, error: pendingError.message, retryable: true };
   }
   if (!pending) {
+    logProcessamentoConcluido({ action: "sem_pendencia", telefone: telefoneDigits });
     return { ok: true, action: "sem_pendencia" };
   }
 
@@ -85,6 +98,7 @@ export async function processWhatsAppInboundReply(
   }
   if (!appointment) {
     await markOutboundMessageResponded(supabase, row.id);
+    logProcessamentoConcluido({ action: "ignorado", agendamentoId: row.agendamento_id });
     return { ok: true, action: "ignorado" };
   }
 
@@ -95,12 +109,15 @@ export async function processWhatsAppInboundReply(
       .from("agendamentos")
       .update({ client_confirmed_at: new Date().toISOString() })
       .eq("id", ag.id)
-      .eq("status", "confirmado");
+      .eq("status", "confirmado")
+      .eq("requires_client_confirmation", true)
+      .is("client_confirmed_at", null);
 
     if (confirmError) {
       return { ok: false, error: confirmError.message, retryable: true };
     }
     await markOutboundMessageResponded(supabase, row.id);
+    logProcessamentoConcluido({ action: "confirmado", agendamentoId: ag.id });
     return { ok: true, action: "confirmado" };
   }
 
@@ -158,6 +175,7 @@ export async function processWhatsAppInboundReply(
     if (!barbeiroWhatsapp) {
       console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
       await markOutboundMessageResponded(supabase, row.id);
+      logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
       return { ok: true, action: "alerta" };
     }
 
@@ -165,6 +183,7 @@ export async function processWhatsAppInboundReply(
     if (!contentSid) {
       console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
       await markOutboundMessageResponded(supabase, row.id);
+      logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
       return { ok: true, action: "alerta" };
     }
 
@@ -256,9 +275,11 @@ export async function processWhatsAppInboundReply(
     }
 
     await markOutboundMessageResponded(supabase, row.id);
+    logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
     return { ok: true, action: "alerta" };
   }
 
   await markOutboundMessageResponded(supabase, row.id);
+  logProcessamentoConcluido({ action: "ignorado", agendamentoId: ag.id });
   return { ok: true, action: "ignorado" };
 }

@@ -44,6 +44,11 @@ Deno.serve(async (req) => {
   const body = (formParams["Body"] ?? "").trim();
   const telefoneDigits = phoneDigitsFromWhatsAppAddress(from);
 
+  console.log(
+    "twilio-whatsapp-webhook: assinatura válida — mensagem recebida",
+    JSON.stringify({ From: from, Body: body, MessageSid: inboundMessageSid, telefoneDigits }),
+  );
+
   if (!inboundMessageSid) {
     console.error("twilio-whatsapp-webhook: MessageSid ausente");
     return twimlResponse();
@@ -70,9 +75,18 @@ Deno.serve(async (req) => {
   }
 
   if (enqueueResult.duplicate) {
+    console.log(
+      "twilio-whatsapp-webhook: job duplicado (MessageSid já enfileirado)",
+      JSON.stringify({ inboundMessageSid }),
+    );
     // Idempotência: MessageSid já enfileirado anteriormente.
     return twimlResponse();
   }
+
+  console.log(
+    "twilio-whatsapp-webhook: job enfileirado com sucesso",
+    JSON.stringify({ jobId: enqueueResult.jobId, inboundMessageSid, telefoneDigits, Body: body }),
+  );
 
   return twimlResponse();
 });
