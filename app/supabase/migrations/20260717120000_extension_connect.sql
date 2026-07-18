@@ -8,16 +8,14 @@ CREATE TABLE IF NOT EXISTS public.extension_connect_tokens (
   token_hash text NOT NULL UNIQUE,
   label text NOT NULL DEFAULT 'Chrome',
   created_at timestamptz NOT NULL DEFAULT now(),
-  last_used_at timestamptz,
-  revoked_at timestamptz
+  last_used_at timestamptz
 );
 
 CREATE INDEX IF NOT EXISTS idx_extension_connect_tokens_user
   ON public.extension_connect_tokens (user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_extension_connect_tokens_hash_active
-  ON public.extension_connect_tokens (token_hash)
-  WHERE revoked_at IS NULL;
+  ON public.extension_connect_tokens (token_hash);
 
 COMMENT ON TABLE public.extension_connect_tokens IS
   'Tokens sc_live_* para a extensão Sentinela Connect. Armazena apenas SHA-256; plain text só na criação.';
@@ -303,8 +301,7 @@ BEGIN
   SELECT coalesce(json_agg(row_to_json(t) ORDER BY t.created_at DESC), '[]'::json)
   INTO _rows
   FROM (
-    SELECT id, label, created_at, last_used_at, revoked_at,
-      (revoked_at IS NULL) AS active
+    SELECT id, label, created_at, last_used_at
     FROM public.extension_connect_tokens
     WHERE user_id = _uid
   ) t;
@@ -327,11 +324,9 @@ BEGIN
     RETURN json_build_object('error', 'not_authenticated');
   END IF;
 
-  UPDATE public.extension_connect_tokens
-  SET revoked_at = now()
+  DELETE FROM public.extension_connect_tokens
   WHERE id = p_token_id
-    AND user_id = _uid
-    AND revoked_at IS NULL;
+    AND user_id = _uid;
 
   IF NOT FOUND THEN
     RETURN json_build_object('error', 'not_found');
@@ -358,7 +353,6 @@ BEGIN
   INTO _row
   FROM public.extension_connect_tokens t
   WHERE t.token_hash = trim(p_token_hash)
-    AND t.revoked_at IS NULL
   LIMIT 1;
 
   IF NOT FOUND THEN

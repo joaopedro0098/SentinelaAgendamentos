@@ -12,8 +12,6 @@ type ExtensionTokenRow = {
   label: string;
   created_at: string;
   last_used_at: string | null;
-  revoked_at: string | null;
-  active: boolean;
 };
 
 export function ExtensionConnectSection() {
@@ -143,13 +141,13 @@ export function ExtensionConnectSection() {
         ) : null}
 
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Tokens da conta</h3>
+          <h3 className="text-sm font-medium">Tokens ativos</h3>
           {loading ? (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </p>
           ) : tokens.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum token gerado ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhum token ativo. Gere um novo acima.</p>
           ) : (
             <ul className="space-y-2">
               {tokens.map((t) => (
@@ -162,26 +160,23 @@ export function ExtensionConnectSection() {
                     <p className="text-xs text-muted-foreground">
                       Criado {new Date(t.created_at).toLocaleString("pt-BR")}
                       {t.last_used_at ? ` · Último uso ${new Date(t.last_used_at).toLocaleString("pt-BR")}` : ""}
-                      {!t.active ? " · Revogado" : ""}
                     </p>
                   </div>
-                  {t.active ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={revokingId === t.id}
-                      onClick={() => void handleRevoke(t.id)}
-                    >
-                      {revokingId === t.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="h-4 w-4" /> Revogar
-                        </>
-                      )}
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={revokingId === t.id}
+                    onClick={() => void handleRevoke(t.id)}
+                  >
+                    {revokingId === t.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" /> Revogar
+                      </>
+                    )}
+                  </Button>
                 </li>
               ))}
             </ul>
