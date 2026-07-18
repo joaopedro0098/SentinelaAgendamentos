@@ -5,6 +5,7 @@ import PacientesDesktopPanel from "@/features/dashboard/components/pacientes/Pac
 import PacientesMobilePanel from "@/features/dashboard/components/pacientes/PacientesMobilePanel";
 import { AgendamentoAnotacaoModal } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { PacienteNomeEditModal } from "@/features/dashboard/components/PacienteNomeEditModal";
+import { PacienteCadastroCreateModal } from "@/features/dashboard/components/pacientes/PacienteCadastroCreateModal";
 
 export default function PacientesPage() {
   const isDesktop = useMediaMdUp();
@@ -42,6 +43,7 @@ export default function PacientesPage() {
     onDataNascimentoSaved: panel.patchPacienteDataNascimento,
     onAvatarSaved: panel.patchPacienteAvatar,
     caLabel: panel.caLabel,
+    onOpenCreateCadastro: () => panel.setCreateCadastroOpen(true),
   };
 
   return (
@@ -76,6 +78,13 @@ export default function PacientesPage() {
         initialNome={panel.nomeEditTarget?.cliente_nome ?? ""}
         onClose={() => panel.setNomeEditTarget(null)}
         onSaved={() => undefined}
+      />
+
+      <PacienteCadastroCreateModal
+        open={panel.createCadastroOpen}
+        initialWhatsappDigits={panel.searchQuery}
+        onClose={() => panel.setCreateCadastroOpen(false)}
+        onCreated={panel.handlePacienteCadastroCreated}
       />
     </>
   );

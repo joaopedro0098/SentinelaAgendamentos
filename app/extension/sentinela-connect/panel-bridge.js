@@ -1,24 +1,20 @@
 const PANEL_SOURCE = "sentinela-connect-panel";
 const EXT_SOURCE = "sentinela-connect-extension";
 
-async function saveConfig({ token, apiBaseUrl, appBaseUrl }) {
-  await chrome.storage.sync.set({
-    token: String(token ?? "").trim(),
-    apiBaseUrl: String(apiBaseUrl ?? "").trim(),
-    appBaseUrl: String(appBaseUrl ?? "").trim(),
-  });
+function extensionAvailable() {
+  return typeof chrome !== "undefined" && Boolean(chrome.runtime?.id);
 }
 
-function pingBackground() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "PING" }, (response) => {
-      if (chrome.runtime.lastError) {
-        resolve({ ok: false, message: chrome.runtime.lastError.message });
-        return;
-      }
-      resolve(response ?? { ok: false, message: "Sem resposta da extensão." });
-    });
-  });
+function postConfigureResult(requestId, payload) {
+  window.postMessage(
+    {
+      source: EXT_SOURCE,
+      type: "CONFIGURE_RESULT",
+      requestId,
+      ...payload,
+    },
+    "*",
+  );
 }
 
 window.addEventListener("message", (event) => {
@@ -26,47 +22,46 @@ window.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || data.source !== PANEL_SOURCE) return;
 
-  (async () => {
-    if (data.type === "CHECK_INSTALLED") {
-      window.postMessage(
-        {
-          source: EXT_SOURCE,
-          type: "INSTALLED",
-          requestId: data.requestId,
-          installed: true,
-        },
-        "*",
-      );
+  if (data.type === "CHECK_INSTALLED") {
+    window.postMessage(
+      {
+        source: EXT_SOURCE,
+        type: "INSTALLED",
+        requestId: data.requestId,
+        installed: extensionAvailable(),
+      },
+      "*",
+    );
+    return;
+  }
+
+  if (data.type === "CONFIGURE") {
+    if (!extensionAvailable()) {
+      postConfigureResult(data.requestId, {
+        ok: false,
+        message: "Extensão Sentinela Connect não está ativa nesta aba.",
+      });
       return;
     }
 
-    if (data.type === "CONFIGURE") {
-      try {
-        await saveConfig(data);
-        const ping = await pingBackground();
-        window.postMessage(
-          {
-            source: EXT_SOURCE,
-            type: "CONFIGURE_RESULT",
-            requestId: data.requestId,
-            ok: true,
-            pingOk: Boolean(ping?.ok),
-            message: ping?.ok ? "Conexão OK — token válido." : ping?.message || "Token salvo, mas o teste falhou.",
-          },
-          "*",
-        );
-      } catch (error) {
-        window.postMessage(
-          {
-            source: EXT_SOURCE,
-            type: "CONFIGURE_RESULT",
-            requestId: data.requestId,
+    chrome.runtime.sendMessage(
+      {
+        type: "CONFIGURE",
+        token: data.token,
+        apiBaseUrl: data.apiBaseUrl,
+        supabaseUrl: data.supabaseUrl,
+        supabasePublishableKey: data.supabasePublishableKey,
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          postConfigureResult(data.requestId, {
             ok: false,
-            message: error instanceof Error ? error.message : "Falha ao salvar configuração.",
-          },
-          "*",
-        );
-      }
-    }
-  })();
+            message: chrome.runtime.lastError.message,
+          });
+          return;
+        }
+        postConfigureResult(data.requestId, response ?? { ok: false, message: "Sem resposta da extensão." });
+      },
+    );
+  }
 });

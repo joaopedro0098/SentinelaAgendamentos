@@ -187,6 +187,32 @@ export function parseClientesCadastroRpc(
   return { clientes, total_count };
 }
 
+export async function createPacienteCadastroPainel(
+  whatsappDigits: string,
+  nome: string,
+  dataNascimento: string | null,
+): Promise<{ ok: true; patient: PacientePainelItem } | { error: string; alreadyExists?: boolean }> {
+  const { data, error } = await supabase.rpc("create_paciente_cadastro_painel", {
+    p_whatsapp: whatsappDigits,
+    p_nome: nome.trim(),
+    p_data_nascimento: dataNascimento || null,
+  });
+  if (error) return { error: error.message };
+  const row = data as Record<string, unknown> | null;
+  if (!row) return { error: "Resposta inválida" };
+  if (row.error === "already_exists") {
+    return {
+      error: "Já existe um paciente com este WhatsApp.",
+      alreadyExists: true,
+    };
+  }
+  if (row.error) return { error: String(row.error) };
+  const patient = row.patient as PacientePainelItem | undefined;
+  if (!patient?.whatsapp_digits) return { error: "Resposta inválida" };
+  notifyPanelPacientesChanged();
+  return { ok: true, patient };
+}
+
 export async function searchClientesCadastroPainel(
   barbeariaId: string,
   search: string,

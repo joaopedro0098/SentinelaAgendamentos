@@ -20,7 +20,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-wa-store.js", "page-compose-insert.js", "wppconnect-wa.js"],
+      "matches": ["https://web.whatsapp.com/*"]
+    }
+  ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://*.supabase.co/*"
@@ -28,7 +34,12 @@
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "js": ["content.js"],
+      "js": ["wa-early-inject.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["phone-utils.js", "content.js", "connect-messages.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     },

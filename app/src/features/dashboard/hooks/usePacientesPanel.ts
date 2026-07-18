@@ -84,6 +84,7 @@ export function usePacientesPanel() {
     whatsapp_digits: string;
     cliente_nome: string;
   } | null>(null);
+  const [createCadastroOpen, setCreateCadastroOpen] = useState(false);
 
   const profFilterRef = useRef(profFilter);
   const searchQueryRef = useRef(searchQuery);
@@ -350,6 +351,12 @@ export function usePacientesPanel() {
     );
   }
 
+  function handlePacienteCadastroCreated(patient: PacientePainelItem) {
+    setSelectedPaciente(patient);
+    setDetailTab("cadastro");
+    void reloadFirstPage();
+  }
+
   return {
     isCA,
     barbeariaId,
@@ -360,7 +367,11 @@ export function usePacientesPanel() {
     totalCount,
     hasMore,
     search,
+    searchQuery,
     setSearch: handleSearchChange,
+    createCadastroOpen,
+    setCreateCadastroOpen,
+    handlePacienteCadastroCreated,
     selectedPaciente,
     selectPaciente,
     clearSelection,

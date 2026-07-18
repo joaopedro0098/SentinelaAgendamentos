@@ -6,17 +6,24 @@
   --sc-text: hsl(155 14% 12%);
   --sc-muted: hsl(155 10% 34%);
   --sc-border: hsl(156 12% 88%);
-  --sc-danger: hsl(0 65% 55%);
   --sc-panel-width: 340px;
 }
 
-body.sentinela-connect-active #app {
-  width: calc(100% - var(--sc-panel-width)) !important;
-  max-width: calc(100% - var(--sc-panel-width)) !important;
+html.sentinela-connect-active,
+body.sentinela-connect-active {
+  overflow-x: hidden !important;
 }
 
-body.sentinela-connect-active .app-wrapper-web {
-  width: calc(100% - var(--sc-panel-width)) !important;
+/*
+ * WhatsApp Web usa containers em 100vw (position fixed). margin-right no body
+ * não os encolhe — o painel fixed acabava por cima. Reduzimos só os wrappers
+ * raiz; não combinar com margin-right no body (gerava faixa preta).
+ */
+body.sentinela-connect-active #app,
+body.sentinela-connect-active .app-wrapper-web,
+body.sentinela-connect-active .two {
+  width: calc(100vw - var(--sc-panel-width)) !important;
+  max-width: calc(100vw - var(--sc-panel-width)) !important;
 }
 
 #sentinela-connect-panel {
@@ -50,18 +57,13 @@ body.sentinela-connect-active .app-wrapper-web {
   border-bottom: 1px solid var(--sc-border);
 }
 
-.sc-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .sc-brand strong {
   font-size: 14px;
   font-weight: 600;
 }
 
 .sc-brand span {
+  display: block;
   font-size: 11px;
   color: var(--sc-muted);
 }
@@ -84,7 +86,7 @@ body.sentinela-connect-active .app-wrapper-web {
 
 .sc-state {
   text-align: center;
-  padding: 24px 12px;
+  padding: 24px 8px;
   color: var(--sc-muted);
   font-size: 13px;
   line-height: 1.5;
@@ -100,87 +102,87 @@ body.sentinela-connect-active .app-wrapper-web {
   animation: sc-spin 0.8s linear infinite;
 }
 
+.sc-spinner-sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  margin: 0;
+}
+
+.sc-section-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 8px;
+  color: var(--sc-muted);
+  font-size: 13px;
+}
+
+.sc-avatar-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.sc-avatar-wrap .sc-avatar {
+  position: absolute;
+  inset: 0;
+}
+
+.sc-avatar-wrap .sc-avatar-photo:not([hidden]) + .sc-avatar-fallback {
+  visibility: hidden;
+}
+
 @keyframes sc-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-.sc-card {
-  background: var(--sc-surface);
-  border: 1px solid var(--sc-border);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
+.sc-patient-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.sc-card h2 {
-  margin: 0 0 4px;
-  font-size: 18px;
-  font-weight: 600;
+.sc-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.sc-sub {
-  font-size: 12px;
-  color: var(--sc-muted);
-  margin-bottom: 12px;
-}
-
-.sc-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 999px;
+.sc-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--sc-primary-soft);
   color: var(--sc-primary);
+  font-weight: 700;
+  font-size: 16px;
 }
 
-.sc-highlight {
-  border-color: var(--sc-primary);
-  background: linear-gradient(180deg, var(--sc-primary-soft), var(--sc-surface));
-}
-
-.sc-highlight .sc-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--sc-muted);
-  margin-bottom: 6px;
-}
-
-.sc-highlight .sc-value {
+.sc-patient-name {
+  margin: 0;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.3;
 }
 
-.sc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sc-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--sc-border);
-  font-size: 13px;
-}
-
-.sc-list li:last-child {
-  border-bottom: none;
-}
-
-.sc-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
+.sc-patient-phone {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--sc-muted);
 }
 
 .sc-btn {
   display: block;
+  width: 100%;
   text-align: center;
-  text-decoration: none;
   font-size: 13px;
   font-weight: 600;
   padding: 10px 12px;
@@ -197,8 +199,203 @@ body.sentinela-connect-active .app-wrapper-web {
   color: #fff;
 }
 
-.sc-error {
-  color: var(--sc-danger);
+.sc-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sc-btn-ghost {
+  margin-top: 8px;
+  background: transparent;
+  color: var(--sc-primary);
+  border-color: transparent;
+}
+
+.sc-btn-agendar {
+  margin-bottom: 20px;
+}
+
+.sc-section-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sc-muted);
+}
+
+.sc-appts-section {
+  margin-top: 4px;
+}
+
+.sc-appts-section > .sc-section-title {
+  margin-bottom: 10px;
+}
+
+.sc-appts-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sc-appts-tab {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-surface);
+  color: var(--sc-muted);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.sc-appts-tab:hover {
+  border-color: hsl(156 20% 78%);
+  color: var(--sc-text);
+}
+
+.sc-appts-tab-active {
+  background: var(--sc-primary-soft);
+  border-color: hsl(156 35% 72%);
+  color: hsl(156 42% 28%);
+}
+
+.sc-appts-panel .sc-history-empty {
+  padding: 12px 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.sc-future-card {
+  background: var(--sc-surface);
+  border: 1px solid var(--sc-border);
+  border-left: 3px solid var(--sc-primary);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.sc-future-card-nao_confirmado {
+  border-left-color: hsl(45 92% 47%);
+}
+
+.sc-future-card-aguardando_pagamento {
+  border-left-color: hsl(25 95% 53%);
+}
+
+.sc-future-card .sc-history-when-line {
+  margin-bottom: 3px;
+}
+
+.sc-future-status {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sc-future-status-confirmado {
+  color: hsl(156 42% 32%);
+}
+
+.sc-future-status-nao_confirmado {
+  color: hsl(45 80% 28%);
+}
+
+.sc-future-status-aguardando_pagamento {
+  color: hsl(25 80% 38%);
+}
+
+.sc-btn-compact {
+  margin-top: 8px;
+  width: 100%;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.sc-history-empty {
+  font-size: 13px;
+  color: var(--sc-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.sc-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-history-card {
+  background: var(--sc-surface);
+  border: 1px solid var(--sc-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sc-history-head {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sc-history-when-line {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sc-text);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-history-summary {
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-history-prof {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sc-muted);
+  line-height: 1.35;
+}
+
+.sc-history-chevron {
+  color: var(--sc-muted);
+  transform: rotate(90deg);
+  font-size: 16px;
+  transition: transform 0.15s ease;
+}
+
+.sc-history-card-open .sc-history-chevron {
+  transform: rotate(-90deg);
+}
+
+.sc-history-chevron-muted {
+  opacity: 0.35;
+}
+
+.sc-history-note {
+  border-top: 1px solid var(--sc-border);
+  padding: 0 12px 10px;
+}
+
+.sc-history-note-inner {
+  max-height: 6.5em;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sc-muted);
+  padding-top: 8px;
+  white-space: pre-wrap;
 }
 
 .sc-debug {
@@ -206,4 +403,171 @@ body.sentinela-connect-active .app-wrapper-web {
   font-size: 10px;
   color: var(--sc-muted);
   word-break: break-all;
+}
+
+.sc-panel-footer {
+  flex-shrink: 0;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--sc-border);
+  background: var(--sc-surface);
+}
+
+.sc-btn-outline {
+  background: var(--sc-surface);
+  border-color: var(--sc-primary);
+  color: var(--sc-primary);
+}
+
+.sc-msg-open-btn {
+  margin: 0;
+}
+
+.sc-msg-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+}
+
+.sc-msg-back {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--sc-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sc-msg-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sc-muted);
+  line-height: 1.45;
+}
+
+.sc-msg-empty {
+  text-align: center;
+  font-size: 13px;
+  color: var(--sc-muted);
+  padding: 16px 0;
+}
+
+.sc-msg-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-msg-card {
+  position: relative;
+  background: var(--sc-surface);
+  border: 1px solid var(--sc-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sc-msg-card-main {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 12px 36px 12px 12px;
+  cursor: pointer;
+}
+
+.sc-msg-card-main:hover {
+  background: var(--sc-primary-soft);
+}
+
+.sc-msg-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sc-text);
+}
+
+.sc-msg-card-edit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sc-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sc-msg-card-edit:hover {
+  background: var(--sc-bg);
+  color: var(--sc-text);
+}
+
+.sc-msg-create-btn {
+  margin-top: 4px;
+}
+
+.sc-msg-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sc-text);
+}
+
+.sc-msg-input,
+.sc-msg-textarea {
+  width: 100%;
+  border: 1px solid var(--sc-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--sc-surface);
+  color: var(--sc-text);
+  resize: vertical;
+}
+
+.sc-msg-textarea {
+  min-height: 120px;
+}
+
+.sc-msg-vars {
+  margin: 12px 0 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--sc-muted);
+  line-height: 1.55;
+}
+
+.sc-msg-vars p {
+  margin: 0 0 8px;
+}
+
+.sc-msg-vars p:last-child {
+  margin-bottom: 0;
+}
+
+.sc-msg-delete {
+  color: #c0392b;
+}
+
+.sc-toast {
+  position: sticky;
+  bottom: 0;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--sc-primary-soft);
+  color: var(--sc-text);
+  border: 1px solid var(--sc-border);
+}
+
+.sc-toast-err {
+  background: #fdecea;
+  color: #922b21;
 }

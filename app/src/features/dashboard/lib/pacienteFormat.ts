@@ -1,5 +1,15 @@
 import { maskPhone } from "@agenda/lib/phone";
 
+export function extractWhatsappSearchDigits(search: string) {
+  return String(search ?? "").replace(/\D/g, "");
+}
+
+/** Busca por número completo ou parcial (mín. 10 dígitos). */
+export function isPlausibleWhatsappSearch(search: string) {
+  const digits = extractWhatsappSearchDigits(search);
+  return digits.length >= 10 && digits.length <= 13;
+}
+
 export function formatWhatsAppDisplay(digits: string) {
   if (digits.length === 11) return maskPhone(digits);
   if (digits.length === 10) return maskPhone(`9${digits}`);

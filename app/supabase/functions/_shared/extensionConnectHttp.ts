@@ -1,9 +1,3 @@
-const DEFAULT_APP_URL = "https://sentinelagendamentos.com";
-
-export function getAppBaseUrl() {
-  return (Deno.env.get("APP_URL")?.trim() || DEFAULT_APP_URL).replace(/\/+$/, "");
-}
-
 export function extensionConnectCorsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin") ?? "";
   const allowOrigin =
@@ -16,7 +10,7 @@ export function extensionConnectCorsHeaders(req: Request): HeadersInit {
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "authorization, content-type, x-sentinela-token",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Vary": "Origin",
   };
 }

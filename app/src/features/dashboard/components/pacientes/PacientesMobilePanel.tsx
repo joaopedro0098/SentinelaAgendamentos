@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/PacienteCadastroTab";
 import { PacienteDocumentosTab } from "@/features/dashboard/components/pacientes/PacienteDocumentosTab";
+import { PacientesSearchEmptyState } from "@/features/dashboard/components/pacientes/PacientesSearchEmptyState";
 import { PacienteAvatar } from "@/features/dashboard/components/pacientes/PacienteAvatar";
 import {
   PacienteNomeEditButton,
@@ -51,6 +52,7 @@ type Props = {
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
   caLabel: (barbeariaId: string) => string;
+  onOpenCreateCadastro: () => void;
 };
 
 const TABS: { id: PacienteDetailTab; label: string }[] = [
@@ -83,6 +85,7 @@ function PacienteMobileList({
   profFilterOptions,
   onProfFilterChange,
   isCA,
+  onOpenCreateCadastro,
 }: Omit<
   Props,
   | "selectedPaciente"
@@ -125,11 +128,11 @@ function PacienteMobileList({
 
       <Input
         type="search"
-        placeholder="Pesquisar"
+        placeholder="Nome ou WhatsApp"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         className="rounded-xl"
-        aria-label="Pesquisar paciente por nome"
+        aria-label="Pesquisar paciente por nome ou WhatsApp"
       />
 
       {showProfFilter && (
@@ -159,9 +162,9 @@ function PacienteMobileList({
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : pacientes.length === 0 ? (
-        <p className="py-12 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">
-          {search.trim() ? "Nenhum paciente encontrado." : "Nenhum paciente com atendimento concluído."}
-        </p>
+        <div className="border border-dashed border-border rounded-xl">
+          <PacientesSearchEmptyState search={search} onCreateClick={onOpenCreateCadastro} />
+        </div>
       ) : (
         <>
           <ul className="divide-y divide-border/60 rounded-xl border border-border/70 overflow-hidden">

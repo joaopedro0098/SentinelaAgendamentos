@@ -64,6 +64,7 @@ import {
   rpcAlterarStatusPassado,
   rpcExcluirAgendamento,
 } from "@/features/dashboard/lib/agendamentosPanelActions";
+import { broadcastConnectAppointmentUpdate } from "@agenda/lib/connectAppointmentSync";
 import { AgendamentosMobileMonthNav } from "@/features/dashboard/components/agendamentos/AgendamentosMobileMonthNav";
 import { AgendamentosGridDesktopOnlyNotice } from "@/features/dashboard/components/agendamentos/AgendamentosGridDesktopOnlyNotice";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -511,6 +512,7 @@ export default function AgendamentosMobilePanel({
       ),
     );
     notifyPanelPacientesChanged();
+    void broadcastConnectAppointmentUpdate(supabase, a.cliente_whatsapp, a.id).catch(() => {});
   }
 
   return (

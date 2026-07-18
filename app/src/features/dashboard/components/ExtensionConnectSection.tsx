@@ -126,8 +126,10 @@ export function ExtensionConnectSection() {
 
     if (result.ok) {
       toast({
-        title: result.pingOk ? "Extensão configurada" : "Token salvo na extensão",
-        description: result.message ?? (result.pingOk ? "Conexão OK." : "Teste a conexão abrindo o WhatsApp Web."),
+        title: "Token salvo na extensão",
+        description:
+          result.message ??
+          "Abra Opções da extensão → Testar conexão. Depois recarregue o WhatsApp Web (F5).",
       });
       setExtensionInstalled(true);
       return;

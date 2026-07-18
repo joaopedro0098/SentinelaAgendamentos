@@ -1,58 +1,38 @@
 # Sentinela Connect (Chrome Extension)
 
-Painel lateral no [WhatsApp Web](https://web.whatsapp.com) com dados do paciente no Sentinela Agendamentos.
+Painel lateral no [WhatsApp Web](https://web.whatsapp.com) com histórico do paciente (mesma regra da aba Pacientes).
 
 ## Pré-requisitos
 
-1. Migration `20260717120000_extension_connect.sql` aplicada no Supabase.
+1. Migrations Connect aplicadas (`db push`).
 2. Edge Function `extension-connect` deployada.
-3. Token gerado em **Painel → Connect** (aba desktop).
+3. Token gerado em **Painel → Connect** (desktop).
 
-## Carregar no Chrome (desenvolvimento)
+## Instalação (dev)
 
-1. Abra `chrome://extensions/`.
-2. Ative **Modo do desenvolvedor**.
-3. **Carregar sem compactação** → selecione esta pasta (`app/extension/sentinela-connect`).
-4. No painel Sentinela, aba **Connect**: **Gerar novo token** → **Aplicar na extensão** (configuração automática).
-5. Alternativa manual: opções da extensão → cole o token → **Testar conexão** → **Salvar**.
-6. Abra [web.whatsapp.com](https://web.whatsapp.com) e selecione uma conversa **individual**.
+1. `chrome://extensions` → Modo desenvolvedor → Carregar sem compactação → esta pasta.
+2. Aba **Connect** no Sentinela → **Gerar token** → **Aplicar na extensão**.
+3. Abrir [web.whatsapp.com](https://web.whatsapp.com) e selecionar conversa individual.
 
-## Configuração automática
+**Após recarregar a extensão** em `chrome://extensions`, dê **F5 na aba do WhatsApp** — senão aparece *Extension context invalidated*.
 
-Com a extensão instalada, a aba **Connect** envia token e URLs para a extensão via `panel-bridge.js` (content script no domínio do painel). Não é necessário colar manualmente nas opções.
+O wa-js precisa ser injetado no carregamento da página; após atualizar a extensão, **feche e abra de novo** a aba do WhatsApp (ou Ctrl+Shift+R).
 
-## Permissões
+## Painel
 
-- `storage` — salvar token e preferências.
-- `https://web.whatsapp.com/*` — content script e painel.
-- `https://*.supabase.co/*` — chamadas à Edge Function (service worker).
-
-A extensão **não envia** mensagens WhatsApp; só lê o DOM da conversa aberta.
+- Cabeçalho: foto, nome, WhatsApp.
+- Botão **Agendar** (sem ação por enquanto).
+- **Agendamentos**: abas **Últimos** e **Futuros** (uma lista por vez; mesma regra da aba Pacientes).
+- **Mensagens pré-definidas**: botão fixo no rodapé do painel; insere texto no WhatsApp (`%paciente%`, `%clinica%`, `%consultorio%`, `%agendamento%`).
 
 ## Modo debug
 
-Nas opções, marque **Modo debug** para ver o telefone detectado no rodapé do painel. Use se o WhatsApp Web atualizar o DOM e a detecção falhar.
+Opções da extensão → **Modo debug** → mostra `id=` / `jid=` no rodapé do painel.
 
-## Seletores frágeis
-
-O WhatsApp Web muda o HTML com frequência. Estratégias atuais (em ordem):
-
-1. `#main [data-id]` com sufixo `@c.us` / `@s.whatsapp.net`
-2. `#main header [title]` com padrão de telefone
-3. Texto do header
-
-**Grupos** (`@g.us`): painel exibe “Abra conversa individual”.
-
-Valide manualmente após updates do WhatsApp e ajuste `content.js` se necessário.
-
-## Deploy da API
+## Deploy
 
 ```bash
 cd app
-npx supabase functions deploy extension-connect
 npx supabase db push
+npx supabase functions deploy extension-connect
 ```
-
-## Escopo CT/CA
-
-O lookup usa as mesmas regras de `painel_barbearia_ids_visiveis` / toggles de visualização de CA agregada. Só retorna pacientes com **agendamento** em barbearia visível ao usuário do token.

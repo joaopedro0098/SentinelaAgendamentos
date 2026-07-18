@@ -8,6 +8,7 @@ import {
 } from "@/features/dashboard/components/PacienteNomeEditModal";
 import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/PacienteCadastroTab";
 import { PacienteDocumentosTab } from "@/features/dashboard/components/pacientes/PacienteDocumentosTab";
+import { PacientesSearchEmptyState } from "@/features/dashboard/components/pacientes/PacientesSearchEmptyState";
 import { PacienteAvatar } from "@/features/dashboard/components/pacientes/PacienteAvatar";
 import type { PacienteAnotacaoItem, PacientePainelItem } from "@/features/dashboard/lib/agendamentoAnotacao";
 import type { PacienteDocumentoItem } from "@/features/dashboard/lib/pacienteDocumentos";
@@ -49,6 +50,7 @@ type Props = {
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
   caLabel: (barbeariaId: string) => string;
+  onOpenCreateCadastro: () => void;
 };
 
 const TABS: { id: PacienteDetailTab; label: string }[] = [
@@ -100,6 +102,7 @@ export default function PacientesDesktopPanel({
   onDataNascimentoSaved,
   onAvatarSaved,
   caLabel,
+  onOpenCreateCadastro,
 }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedWhatsapp = selectedPaciente?.whatsapp_digits ?? null;
@@ -124,11 +127,11 @@ export default function PacientesDesktopPanel({
         <div className="shrink-0 space-y-3 border-b border-border/60 p-3">
           <Input
             type="search"
-            placeholder="Pesquisar"
+            placeholder="Nome ou WhatsApp"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="h-9 rounded-lg border-border/70 bg-panel-canvas text-sm placeholder:text-muted-foreground/70"
-            aria-label="Pesquisar paciente por nome"
+            aria-label="Pesquisar paciente por nome ou WhatsApp"
           />
           {showProfFilter && (
             <MinimalFilterSelect
@@ -150,9 +153,7 @@ export default function PacientesDesktopPanel({
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : pacientes.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-              {search.trim() ? "Nenhum paciente encontrado." : "Nenhum paciente com atendimento concluído."}
-            </p>
+            <PacientesSearchEmptyState search={search} onCreateClick={onOpenCreateCadastro} />
           ) : (
             <>
               <ul>

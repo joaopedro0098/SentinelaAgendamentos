@@ -6,11 +6,12 @@ export function getExtensionConnectApiUrl() {
   return base ? `${base}/functions/v1/extension-connect` : "";
 }
 
-export function getConnectAppBaseUrl() {
-  if (typeof window !== "undefined" && window.location.origin) {
-    return window.location.origin;
-  }
-  return "https://sentinelagendamentos.com";
+export function getSupabaseUrl() {
+  return String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
+}
+
+export function getSupabasePublishableKey() {
+  return String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "").trim();
 }
 
 export const CONNECT_EXTENSION_STORE_URL = String(import.meta.env.VITE_CONNECT_EXTENSION_STORE_URL ?? "").trim();
@@ -62,13 +63,19 @@ export async function configureConnectExtension(token: string) {
     {
       token: trimmed,
       apiBaseUrl: getExtensionConnectApiUrl(),
-      appBaseUrl: getConnectAppBaseUrl(),
+      supabaseUrl: getSupabaseUrl(),
+      supabasePublishableKey: getSupabasePublishableKey(),
     },
-    5000,
+    8000,
   );
 
   if (!response) {
-    return { ok: false as const, reason: "not_installed" as const };
+    return {
+      ok: false as const,
+      reason: "configure_failed" as const,
+      message:
+        "Tempo esgotado ao falar com a extensão. Cole o token em Opções da extensão e clique em Testar conexão.",
+    };
   }
 
   if (!response.ok) {
