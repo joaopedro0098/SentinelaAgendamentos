@@ -101,5 +101,8 @@ verify_jwt = false
 [functions.process-appointment-reminders]
 verify_jwt = false
 
+[functions.extension-connect]
+verify_jwt = false
+
 [functions.upload-paciente-documento]
 verify_jwt = true

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sentinela Connect — Opções</title>
+    <style>
+      body {
+        font-family: Inter, "Segoe UI", system-ui, sans-serif;
+        max-width: 520px;
+        margin: 32px auto;
+        padding: 0 16px;
+        color: #1a2e28;
+        background: #f7f6f2;
+      }
+      h1 {
+        font-size: 22px;
+        margin-bottom: 8px;
+      }
+      p {
+        color: #5c6b66;
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 16px 0 6px;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d8e3de;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid #3b8f6e;
+        background: #3b8f6e;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: #1a2e28;
+        border-color: #d8e3de;
+      }
+      #status {
+        margin-top: 16px;
+        font-size: 13px;
+        min-height: 20px;
+      }
+      #status.ok {
+        color: #3b8f6e;
+      }
+      #status.err {
+        color: #c0392b;
+      }
+      .hint {
+        font-size: 12px;
+        color: #5c6b66;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sentinela Connect</h1>
+    <p>
+      Gere um token em <strong>Configurações → Sentinela Connect</strong> no painel web e cole abaixo.
+      O token fica salvo neste navegador (chrome.storage.sync).
+    </p>
+
+    <label for="apiBaseUrl">URL da API (Edge Function)</label>
+    <input id="apiBaseUrl" type="text" spellcheck="false" />
+
+    <label for="appBaseUrl">URL do painel Sentinela</label>
+    <input id="appBaseUrl" type="text" spellcheck="false" />
+
+    <label for="token">Token da API (sc_live_…)</label>
+    <input id="token" type="password" autocomplete="off" spellcheck="false" />
+    <p class="hint">Não compartilhe este token. Revogue no painel se suspeitar de vazamento.</p>
+
+    <label><input type="checkbox" id="debug" /> Modo debug (mostra telefone detectado no painel)</label>
+
+    <div class="row">
+      <button type="button" id="save">Salvar</button>
+      <button type="button" id="test" class="secondary">Testar conexão</button>
+    </div>
+
+    <div id="status"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
