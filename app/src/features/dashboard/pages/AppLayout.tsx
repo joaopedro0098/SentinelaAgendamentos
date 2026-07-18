@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Settings, Shield, User, UserCog, Users, Wallet } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Plug2, Settings, Shield, User, UserCog, Users, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,7 @@ export default function AppLayout() {
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendamentos" icon={<CalendarCheck className="h-5 w-5" />} label="Agendamentos" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pacientes" icon={<Users className="h-5 w-5" />} label="Pacientes" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/profissionais" icon={<UserCog className="h-5 w-5" />} label="Profissionais" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/connect" icon={<Plug2 className="h-5 w-5" />} label="Connect" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/perfil" icon={<User className="h-5 w-5" />} label="Conta" />
             {showPagamentosNav && (

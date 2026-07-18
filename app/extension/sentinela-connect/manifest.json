@@ -31,6 +31,16 @@
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://sentinelagendamentos.com/*",
+        "https://www.sentinelagendamentos.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["panel-bridge.js"],
+      "run_at": "document_idle"
     }
   ]
 }

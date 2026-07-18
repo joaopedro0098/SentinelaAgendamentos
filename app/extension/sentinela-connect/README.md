@@ -6,16 +6,20 @@ Painel lateral no [WhatsApp Web](https://web.whatsapp.com) com dados do paciente
 
 1. Migration `20260717120000_extension_connect.sql` aplicada no Supabase.
 2. Edge Function `extension-connect` deployada.
-3. Token gerado em **Painel → Configurações → Sentinela Connect**.
+3. Token gerado em **Painel → Connect** (aba desktop).
 
 ## Carregar no Chrome (desenvolvimento)
 
 1. Abra `chrome://extensions/`.
 2. Ative **Modo do desenvolvedor**.
 3. **Carregar sem compactação** → selecione esta pasta (`app/extension/sentinela-connect`).
-4. Clique no ícone da extensão ou em **Detalhes → Opções da extensão**.
-5. Cole o token `sc_live_…` e clique **Testar conexão** → **Salvar**.
+4. No painel Sentinela, aba **Connect**: **Gerar novo token** → **Aplicar na extensão** (configuração automática).
+5. Alternativa manual: opções da extensão → cole o token → **Testar conexão** → **Salvar**.
 6. Abra [web.whatsapp.com](https://web.whatsapp.com) e selecione uma conversa **individual**.
+
+## Configuração automática
+
+Com a extensão instalada, a aba **Connect** envia token e URLs para a extensão via `panel-bridge.js` (content script no domínio do painel). Não é necessário colar manualmente nas opções.
 
 ## Permissões
 

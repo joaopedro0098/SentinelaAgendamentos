@@ -18,8 +18,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { usePanelSettingsScrollTop } from "@/features/dashboard/hooks/usePanelSettingsScrollTop";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
-import { ExtensionConnectSection } from "@/features/dashboard/components/ExtensionConnectSection";
-
 export default function Settings() {
   usePanelSettingsScrollTop();
   const { user } = useAuth();
@@ -574,8 +572,6 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
-
-        <ExtensionConnectSection />
 
         {!isCA && (
         <Card className="glass-panel border-border/80">
