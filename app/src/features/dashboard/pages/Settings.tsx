@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Check, Copy, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
+import { ShopProfileAvatarFallback } from "@/features/dashboard/components/ShopProfileAvatarFallback";
 import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
@@ -34,6 +35,8 @@ export default function Settings() {
   const [cropOpen, setCropOpen] = useState(false);
   const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
   const [contactPhone, setContactPhone] = useState("");
   const [slotInterval, setSlotInterval] = useState("30");
   const [savingSlots, setSavingSlots] = useState(false);
@@ -42,6 +45,7 @@ export default function Settings() {
   const [savingShowServicePrices, setSavingShowServicePrices] = useState(false);
   const [savingTitularPermissions, setSavingTitularPermissions] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = "Configurações — Sentinela Agendamentos";
@@ -59,6 +63,15 @@ export default function Settings() {
       if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
     };
   }, [avatarPreviewUrl]);
+
+  useEffect(() => {
+    if (!avatarMenuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (!avatarMenuRef.current?.contains(e.target as Node)) setAvatarMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [avatarMenuOpen]);
 
   function stageAvatarBlob(blob: Blob) {
     setPendingAvatarBlob(blob);
@@ -151,6 +164,35 @@ export default function Settings() {
 
   async function handleCropConfirm(blob: Blob) {
     stageAvatarBlob(blob);
+    setAvatarMenuOpen(false);
+  }
+
+  async function handleRemoveAvatar() {
+    if (!shop || !user || isCA) return;
+    setAvatarMenuOpen(false);
+    setRemovingAvatar(true);
+    setPendingAvatarBlob(null);
+    setAvatarPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+
+    const path = `${user.id}/avatar.jpg`;
+    await supabase.storage.from("barbershop-avatars").remove([path]);
+
+    const { error } = await supabase.from("barbershops").update({ avatar_url: null }).eq("id", shop.id);
+    if (error) {
+      setRemovingAvatar(false);
+      toast({ title: "Erro ao excluir foto", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setShop({ ...shop, avatar_url: null });
+    patchDashboardShopCache({ avatar_url: null });
+    void supabase.from("barbearias").update({ logo_url: "" }).eq("slug", shop.slug);
+    void refresh({ force: true });
+    setRemovingAvatar(false);
+    toast({ title: "Foto removida" });
   }
 
   async function handleSaveSlotSettings() {
@@ -333,6 +375,7 @@ export default function Settings() {
     ? (subscriptionInfo?.owner_contact_phone ? maskPhone(subscriptionInfo.owner_contact_phone) : "")
     : contactPhone;
   const displayedAvatarUrlResolved = isCA ? profileAvatarUrl : displayedAvatarUrl ?? shop.avatar_url;
+  const hasProfilePhoto = Boolean(displayedAvatarUrlResolved || pendingAvatarBlob);
 
   return (
     <>
@@ -379,30 +422,62 @@ export default function Settings() {
                     {displayedAvatarUrlResolved && (
                       <AvatarImage src={displayedAvatarUrlResolved} alt={profileDisplayName} />
                     )}
-                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      {(profileDisplayName.trim() || "?").slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
+                    <ShopProfileAvatarFallback />
                   </Avatar>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={saving}
-                    className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full disabled:opacity-60"
-                    aria-label="Alterar foto"
-                  >
-                    <Avatar className="h-24 w-24">
-                      {displayedAvatarUrlResolved && (
-                        <AvatarImage src={displayedAvatarUrlResolved} alt={shop.display_name} />
-                      )}
-                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                        {(shop.display_name.trim() || "?").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/25 pb-[3px] pt-[2px]">
-                      <Camera className="h-3.5 w-3.5 text-white" strokeWidth={2.25} />
-                    </span>
-                  </button>
+                  <div ref={avatarMenuRef} className="relative h-24 w-24 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setAvatarMenuOpen((open) => !open)}
+                      disabled={saving || removingAvatar}
+                      className="relative h-24 w-24 overflow-hidden rounded-full disabled:opacity-60"
+                      aria-label="Foto de perfil"
+                      aria-expanded={avatarMenuOpen}
+                    >
+                      <Avatar className="h-24 w-24">
+                        {displayedAvatarUrlResolved && (
+                          <AvatarImage src={displayedAvatarUrlResolved} alt={shop.display_name} />
+                        )}
+                        <ShopProfileAvatarFallback />
+                      </Avatar>
+                      <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/25 pb-[3px] pt-[2px]">
+                        {removingAvatar ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                        ) : (
+                          <Camera className="h-3.5 w-3.5 text-white" strokeWidth={2.25} />
+                        )}
+                      </span>
+                    </button>
+                    {avatarMenuOpen && (
+                      <div
+                        className="absolute left-0 top-[calc(100%+0.5rem)] z-20 min-w-[9.5rem] overflow-hidden rounded-xl border border-border/80 bg-popover p-1 shadow-lg"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-secondary/60"
+                          onClick={() => {
+                            setAvatarMenuOpen(false);
+                            fileRef.current?.click();
+                          }}
+                        >
+                          Alterar foto
+                        </button>
+                        {hasProfilePhoto && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            disabled={removingAvatar}
+                            className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                            onClick={() => void handleRemoveAvatar()}
+                          >
+                            Excluir
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex-1 space-y-3">
@@ -414,7 +489,6 @@ export default function Settings() {
                       onChange={(e) => setShop({ ...shop, display_name: e.target.value })}
                       maxLength={80}
                       placeholder="Defina o nome do perfil"
-                      required={!isCA}
                       readOnly={isCA}
                       disabled={isCA}
                     />

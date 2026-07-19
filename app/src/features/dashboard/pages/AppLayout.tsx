@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BarChart2, Blocks, Calendar, CalendarCheck, ChevronLeft, ChevronRight, Headphones, LogOut, Plug2, Settings, Shield, User, UserCog, Users, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { ShopProfileAvatarFallback } from "@/features/dashboard/components/ShopProfileAvatarFallback";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -236,9 +237,7 @@ function ShopPanelBrand({
     <Link to="/app/settings" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity">
       <Avatar className={cn("shrink-0", avatarClassName)}>
         {shop?.avatar_url && <AvatarImage src={shop.avatar_url} alt={displayName} />}
-        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-          {displayName.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
+        <ShopProfileAvatarFallback />
       </Avatar>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium leading-none">Painel</p>

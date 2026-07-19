@@ -1,16 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Ban,
-  BarChart2,
+  Blocks,
   Calendar,
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
   Clock,
   CreditCard,
-  Headphones,
   Link2,
   LogOut,
+  Plug2,
   Plus,
   Search,
   Settings,
@@ -44,12 +44,59 @@ const PREVIEW_NAV_ITEMS = [
   { id: "agendamentos", label: "Agendamentos", icon: CalendarCheck },
   { id: "pacientes", label: "Pacientes", icon: Users },
   { id: "profissionais", label: "Profissionais", icon: UserCog },
+  { id: "connect", label: "Connect", icon: Plug2 },
+  { id: "integracoes", label: "Integrações", icon: Blocks },
   { id: "settings", label: "Configurações", icon: Settings },
   { id: "perfil", label: "Conta", icon: User },
   { id: "pagamentos", label: "Pagamentos", icon: Wallet },
-  { id: "relatorios", label: "Relatórios", icon: BarChart2 },
-  { id: "suporte", label: "Suporte", icon: Headphones },
 ] as const;
+
+const PREVIEW_EXAMPLE_EMAIL = "exemplodeemail@exemplo.com";
+const PREVIEW_BOOKING_WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const PREVIEW_JULY_2026_CELLS: (number | null)[] = [
+  null,
+  null,
+  null,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+];
+const PREVIEW_UNAVAILABLE_DAYS = new Set([19, 26]);
+const PREVIEW_SELECTED_DAY = 20;
+/** Verde/vermelho do painel (data-theme dashboard/booking) — landing não define --available/--unavailable. */
+const PREVIEW_CHIP_AVAILABLE = "bg-[hsl(156_42%_40%)] text-white";
+const PREVIEW_CHIP_UNAVAILABLE = "bg-[hsl(0_65%_55%)] text-white opacity-90";
+const PREVIEW_DOT_AVAILABLE = "bg-[hsl(156_42%_40%)]";
+const PREVIEW_DOT_UNAVAILABLE = "bg-[hsl(0_65%_55%)]";
+const PREVIEW_SPLIT_DIVIDER = "border-[hsl(156_42%_40%)]";
 
 type PreviewNavId = (typeof PREVIEW_NAV_ITEMS)[number]["id"];
 
@@ -78,16 +125,19 @@ function PreviewSidebar({
     >
       <div className="px-2 py-2 border-b border-border/60 shrink-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
-            <User className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border/60">
+            <User className="h-3 w-3" strokeWidth={1.75} aria-hidden />
           </div>
-          <p className="min-w-0 text-[10px] font-semibold truncate leading-tight">Seu nome</p>
+          <div className="min-w-0">
+            <p className="text-[8px] uppercase tracking-wider text-muted-foreground font-medium leading-none">Painel</p>
+            <p className="mt-0.5 text-[10px] font-semibold truncate leading-tight">Sua empresa</p>
+          </div>
         </div>
       </div>
 
       <nav
         className={cn(
-          "flex flex-1 min-h-0 flex-col overflow-hidden",
+          "flex flex-1 min-h-0 flex-col overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           compact ? "gap-0.5 p-1.5" : "gap-0.5 p-1.5",
         )}
       >
@@ -111,7 +161,7 @@ function PreviewSidebar({
       </nav>
 
       <div className="shrink-0 border-t border-border/60 p-1.5 space-y-1">
-        <p className="text-[9px] text-muted-foreground truncate px-0.5">profissional@email.com</p>
+        <p className="text-[9px] text-muted-foreground truncate px-0.5">{PREVIEW_EXAMPLE_EMAIL}</p>
         <div className="flex w-full items-center justify-center gap-1 rounded-full border border-border px-1.5 py-1 text-[9px] font-medium text-muted-foreground">
           <LogOut className="h-2.5 w-2.5" aria-hidden />
           Sair
@@ -500,74 +550,220 @@ function PreviewSlotLegend({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-3 text-[10px] md:text-xs text-muted-foreground", className)}>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-sm bg-[hsl(156_42%_40%)]" aria-hidden />
+        <span className={cn("h-2.5 w-2.5 rounded-sm", PREVIEW_DOT_AVAILABLE)} aria-hidden />
         Disponível
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-sm bg-[hsl(0_65%_55%)]" aria-hidden />
+        <span className={cn("h-2.5 w-2.5 rounded-sm", PREVIEW_DOT_UNAVAILABLE)} aria-hidden />
         Indisponível
       </span>
     </div>
   );
 }
 
-function previewHorarioChipClass(livre: boolean, selected: boolean, compact = false) {
+function previewDesktopDayClass(day: number) {
+  const inRange = day >= 20 && day <= 31;
+  const ok = inRange && !PREVIEW_UNAVAILABLE_DAYS.has(day);
+  const sel = day === PREVIEW_SELECTED_DAY;
   return cn(
-    "shrink-0 rounded-xl flex items-center justify-center font-semibold transition-all",
-    compact ? "w-14 h-9 text-[11px]" : "w-[4.25rem] h-10 text-xs",
-    livre ? "bg-[hsl(156_42%_40%)] text-white" : "bg-[hsl(0_65%_55%)] text-white opacity-90",
-    selected && livre && "ring-2 ring-foreground ring-offset-1 ring-offset-background",
+    "mx-auto flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-xl text-[7px] font-semibold leading-none",
+    !inRange && "bg-muted/40 text-muted-foreground/40",
+    inRange && ok && PREVIEW_CHIP_AVAILABLE,
+    inRange && !ok && PREVIEW_CHIP_UNAVAILABLE,
+    sel && ok && inRange && "ring-1 ring-foreground ring-offset-[0.5px] ring-offset-background",
+  );
+}
+
+function previewBarbeiroChipClass(selected: boolean) {
+  return cn(
+    "inline-flex shrink-0 min-w-[3.25rem] h-6 items-center justify-center rounded-xl px-2 text-[8px] font-semibold",
+    PREVIEW_CHIP_AVAILABLE,
+    selected && "ring-1 ring-foreground ring-offset-[0.5px] ring-offset-background",
+  );
+}
+
+function previewHorarioChipClass(livre: boolean, selected: boolean) {
+  return cn(
+    "shrink-0 flex h-5 w-[2.25rem] items-center justify-center rounded-xl text-[8px] font-semibold tabular-nums leading-none",
+    livre ? PREVIEW_CHIP_AVAILABLE : PREVIEW_CHIP_UNAVAILABLE,
+    selected && livre && "ring-1 ring-foreground ring-offset-[0.5px] ring-offset-background",
   );
 }
 
 function AgendarSlide({ isMobile }: { isMobile: boolean }) {
-  const slots: { time: string; livre: boolean; selected?: boolean }[] = [
-    { time: "09:00", livre: true },
-    { time: "09:30", livre: true },
-    { time: "10:00", livre: true },
-    { time: "10:30", livre: false },
-    { time: "11:00", livre: true, selected: true },
-    { time: "11:30", livre: true },
-    { time: "14:00", livre: false },
-    { time: "14:30", livre: true },
+  const horarios: { time: string; livre: boolean; selected?: boolean }[] = [
+    { time: "09:00", livre: false },
+    { time: "10:00", livre: true, selected: true },
+    { time: "11:00", livre: true },
+    { time: "12:00", livre: true },
+    { time: "13:00", livre: true },
+    { time: "14:00", livre: true },
     { time: "15:00", livre: true },
-    { time: "15:30", livre: true },
+    { time: "16:00", livre: true },
+    { time: "17:00", livre: true },
   ];
 
-  return (
-    <PreviewShell activeNav="agendar" isMobile={isMobile}>
-      <div className="space-y-2.5">
-        <div>
-          <p className={cn("font-semibold tracking-tight", isMobile ? "text-base" : "text-sm md:text-base")}>Agendar</p>
-          <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5">Escolha serviço e horário</p>
-        </div>
-        <div className="rounded-xl border border-border/70 p-2.5 space-y-2.5">
-          <div>
-            <p className="text-[11px] font-semibold mb-1.5">Serviços</p>
-            <span className="inline-flex min-w-[7.5rem] min-h-10 px-2.5 py-1.5 rounded-2xl flex-col items-center justify-center font-semibold bg-background border border-border text-foreground shadow-sm">
-              <span className="text-xs leading-snug text-center">Atendimento Clínico</span>
-            </span>
+  if (isMobile) {
+    return (
+      <PreviewShell activeNav="agendar" isMobile>
+        <div className="space-y-2.5 origin-top scale-[0.96]">
+          <PreviewSlotLegend className="justify-center" />
+          <div className="flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[20, 21, 22, 23].map((day) => (
+              <span
+                key={day}
+                className={cn(
+                  "shrink-0 flex h-12 w-10 flex-col items-center justify-center rounded-2xl text-[9px] font-semibold",
+                  day === 20
+                    ? cn(PREVIEW_CHIP_AVAILABLE, "ring-2 ring-foreground ring-offset-1 ring-offset-background")
+                    : PREVIEW_CHIP_AVAILABLE,
+                )}
+              >
+                <span className="opacity-80">{day === 20 ? "Seg" : "Ter"}</span>
+                <span className="text-sm leading-none">{day}</span>
+              </span>
+            ))}
           </div>
           <div>
-            <p className="text-[11px] font-semibold mb-1.5">Selecione o horário</p>
-            <div
-              className={cn(
-                isMobile
-                  ? "flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  : "flex flex-wrap gap-1.5",
-              )}
-            >
-              {slots.slice(0, isMobile ? 10 : 8).map((slot) => (
-                <span key={slot.time} className={previewHorarioChipClass(slot.livre, Boolean(slot.selected), isMobile)}>
+            <p className="text-[10px] font-semibold mb-1">Selecione o profissional</p>
+            <div className="flex gap-1.5">
+              <span className={previewBarbeiroChipClass(true)}>Danielle</span>
+              <span className={previewBarbeiroChipClass(false)}>Pedro</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold mb-1">Serviços</p>
+            <span className="inline-flex min-h-7 w-full items-center justify-center rounded-2xl bg-muted px-2 text-[9px] font-semibold">
+              Atendimento Clínico
+            </span>
+            <p className="mt-1 text-[9px] text-muted-foreground">
+              Tempo total: <b className="text-foreground">1h</b>
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold mb-1">Selecione o horário</p>
+            <div className="flex flex-wrap gap-1">
+              {horarios.slice(0, 6).map((slot) => (
+                <span
+                  key={slot.time}
+                  className={previewHorarioChipClass(slot.livre, Boolean(slot.selected))}
+                >
                   {slot.time}
                 </span>
               ))}
             </div>
-            <PreviewSlotLegend className="mt-2" />
           </div>
-          <Button type="button" size="sm" className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-8 text-[11px]">
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 w-full rounded-xl border-0 bg-primary text-[10px] text-primary-foreground hover:bg-primary/90"
+          >
             Confirmar agendamento
           </Button>
+        </div>
+      </PreviewShell>
+    );
+  }
+
+  return (
+    <PreviewShell activeNav="agendar">
+      <div className="flex h-full min-h-0 flex-col origin-top md:scale-[0.88] md:-mx-1">
+        <PreviewSlotLegend className="mb-1.5 shrink-0 justify-center gap-2 text-[8px]" />
+
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-x-0">
+          <div className="min-w-0 space-y-1.5 pr-2">
+            <div className="flex items-center justify-between gap-1 text-[8px] text-muted-foreground">
+              <span className="inline-flex items-center gap-0.5">
+                <ChevronLeft className="h-2.5 w-2.5" aria-hidden />
+                Junho
+              </span>
+              <span className="font-display text-[9px] font-semibold text-foreground">Julho 2026</span>
+              <span className="inline-flex items-center gap-0.5">
+                Agosto
+                <ChevronRight className="h-2.5 w-2.5" aria-hidden />
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {PREVIEW_BOOKING_WEEKDAYS.map((label) => (
+                <span key={label} className="text-center text-[6px] font-medium text-muted-foreground">
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {PREVIEW_JULY_2026_CELLS.map((day, i) =>
+                day == null ? (
+                  <span key={`e-${i}`} className="h-[1.125rem]" />
+                ) : (
+                  <span key={day} className={previewDesktopDayClass(day)}>
+                    {day}
+                  </span>
+                ),
+              )}
+            </div>
+
+            <div>
+              <p className="mb-1 text-[8px] font-semibold">Selecione o profissional</p>
+              <div className="flex flex-wrap gap-1">
+                <span className={previewBarbeiroChipClass(true)}>Danielle</span>
+                <span className={previewBarbeiroChipClass(false)}>Pedro</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1 text-[8px] font-semibold">Serviços</p>
+              <span className="inline-flex min-h-6 w-full max-w-[7rem] items-center justify-center rounded-2xl bg-muted px-1.5 text-[7px] font-semibold leading-snug text-center">
+                Atendimento Clínico
+              </span>
+              <p className="mt-0.5 text-[7px] text-muted-foreground">
+                Tempo total: <b className="text-foreground">1h</b>
+              </p>
+            </div>
+          </div>
+
+          <div className={cn("relative min-w-0 space-y-1.5 border-l-[3px] pl-2", PREVIEW_SPLIT_DIVIDER)}>
+            <div>
+              <p className="mb-1 text-[8px] font-semibold">Selecione o horário</p>
+              <div className="flex flex-wrap gap-1">
+                {horarios.map((slot) => (
+                  <span key={slot.time} className={previewHorarioChipClass(slot.livre, Boolean(slot.selected))}>
+                    {slot.time}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-1">
+                <div>
+                  <p className="mb-0.5 text-[7px] font-semibold">Nome</p>
+                  <div className="h-5 rounded-md border border-input bg-background px-1 flex items-center text-[7px] text-muted-foreground">
+                    Seu paciente
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-0.5 text-[7px] font-semibold">WhatsApp</p>
+                  <div className="h-5 rounded-md border border-input bg-background px-1 flex items-center text-[7px] text-muted-foreground tabular-nums">
+                    (00) 00000-0000
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="mb-0.5 text-[7px] font-semibold">
+                  Observação <span className="font-normal text-muted-foreground">(opcional)</span>
+                </p>
+                <div className="h-7 rounded-md border border-input bg-background" />
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              className="h-6 w-full rounded-xl border-0 bg-primary text-[8px] font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Confirmar agendamento
+            </Button>
+          </div>
         </div>
       </div>
     </PreviewShell>
@@ -740,8 +936,9 @@ export function LandingPanelPreview() {
   return (
     <div className="mx-auto w-full min-w-0 max-w-xl lg:max-w-none">
       <div
+        data-theme="dashboard"
         className={cn(
-          "relative rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden touch-pan-y",
+          "relative rounded-2xl border border-border/70 bg-background shadow-elevated overflow-hidden touch-pan-y text-foreground",
           !isMdUp ? PREVIEW_MOBILE_FRAME_H : PREVIEW_FRAME_MIN_H,
         )}
         {...swipeHandlers}
