@@ -7,6 +7,7 @@ import PacientesPage from "@/features/dashboard/pages/PacientesPage";
 import ProfissionaisPage from "@/features/dashboard/pages/ProfissionaisPage";
 import SettingsPage from "@/features/dashboard/pages/Settings";
 import ConnectPage from "@/features/dashboard/pages/ConnectPage";
+import IntegracoesPage from "@/features/dashboard/pages/IntegracoesPage";
 import PerfilPage from "@/features/dashboard/pages/PerfilPage";
 import {
   AssinarPlanoCartaoPage,
@@ -28,6 +29,7 @@ const ROUTES = [
   { path: "/app/pacientes", Component: PacientesPage },
   { path: "/app/profissionais", Component: ProfissionaisPage },
   { path: "/app/connect", Component: ConnectPage },
+  { path: "/app/integracoes", Component: IntegracoesPage },
   { path: "/app/settings", Component: SettingsPage },
   { path: "/app/perfil/assinatura/retorno", Component: LegacyPerfilRedirect },
   { path: "/app/perfil/assinar-plano/cartao", Component: AssinarPlanoCartaoPage },

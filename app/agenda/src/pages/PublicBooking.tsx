@@ -331,9 +331,6 @@ function agendamentoChangeAffectsSlots(payload: {
 }
 
 const STORAGE_KEY = "agendabarber:cliente";
-
-export const PUBLIC_MESSAGING_CONSENT_TEXT =
-  "Eu concordo em receber mensagens de confirmação e lembrete deste agendamento por RCS/SMS.";
 const BOOKING_MONTHS = 2;
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -485,8 +482,6 @@ const PublicBooking = ({
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [messagingConsent, setMessagingConsent] = useState(false);
-  const [messagingConsentAt, setMessagingConsentAt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -976,7 +971,6 @@ const PublicBooking = ({
         p_duracao_minutos: duracaoTotal,
         p_observacao: obs,
         p_servicos_nomes: servicosNomes,
-        ...getMessagingConsentRpcPayload(),
       });
 
       if (error) {
@@ -1009,41 +1003,6 @@ const PublicBooking = ({
     [nome, whatsapp],
   );
 
-  const publicMessagingConsentReady = ownerPanel || messagingConsent;
-
-  const resetMessagingConsent = useCallback(() => {
-    setMessagingConsent(false);
-    setMessagingConsentAt(null);
-  }, []);
-
-  const handleMessagingConsentChange = (checked: boolean) => {
-    setMessagingConsent(checked);
-    setMessagingConsentAt(checked ? new Date().toISOString() : null);
-  };
-
-  const getMessagingConsentPayload = () => {
-    if (ownerPanel || !messagingConsentAt) return {};
-    return {
-      messaging_consent_at: messagingConsentAt,
-      messaging_consent_text: PUBLIC_MESSAGING_CONSENT_TEXT,
-    };
-  };
-
-  const getMessagingConsentRpcPayload = () => {
-    if (ownerPanel || !messagingConsentAt) return {};
-    return {
-      p_messaging_consent_at: messagingConsentAt,
-      p_messaging_consent_text: PUBLIC_MESSAGING_CONSENT_TEXT,
-    };
-  };
-
-  const requirePublicMessagingConsent = () => {
-    if (ownerPanel) return true;
-    if (messagingConsent && messagingConsentAt) return true;
-    toast.error("Marque o consentimento para receber mensagens de confirmação e lembrete.");
-    return false;
-  };
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barbearia || !barbeiroId || !data || !hora) return toast.error("Selecione dia, barbeiro e horário");
@@ -1056,7 +1015,6 @@ const PublicBooking = ({
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
     if (rejectSameDayPublicBooking()) return;
-    if (!requirePublicMessagingConsent()) return;
 
     if (!ownerPanel || !reschedule) {
       setBookingConfirmed(false);
@@ -1118,7 +1076,6 @@ const PublicBooking = ({
     }
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
-    if (!requirePublicMessagingConsent()) return;
 
     if (!ownerPanel && !isReschedule) {
       void requestClientNotificationPermission();
@@ -1199,7 +1156,6 @@ const PublicBooking = ({
             p_duracao_minutos: duracaoTotal,
             p_servicos_nomes: servicosNomes,
             p_observacao: obs,
-            ...getMessagingConsentRpcPayload(),
           });
 
           if (holdErr) {
@@ -1223,8 +1179,6 @@ const PublicBooking = ({
               if (hold.error === "slot_taken") {
                 toast.error("Esse horário acabou de ser preenchido. Escolha outro.");
                 bumpOccupancyRefresh();
-              } else if (hold.error === "messaging_consent_required") {
-                toast.error("Marque o consentimento para receber mensagens de confirmação e lembrete.");
               } else {
                 toast.error(hold.error);
               }
@@ -1285,7 +1239,6 @@ const PublicBooking = ({
           observacao: obs,
           origem: ownerPanel ? "painel" : "link_publico",
           requires_client_confirmation: true,
-          ...getMessagingConsentPayload(),
         })
         .select("id, confirmation_token")
         .single();
@@ -1347,7 +1300,6 @@ const PublicBooking = ({
     setRescheduleSummary(null);
     setPaymentCheckout(null);
     setPaymentFailed(false);
-    resetMessagingConsent();
   };
 
   const startNewOwnerBooking = useCallback(() => {
@@ -1359,8 +1311,7 @@ const PublicBooking = ({
     setObservacao("");
     setNome("");
     setWhatsapp("");
-    resetMessagingConsent();
-  }, [barbeiros, resetMessagingConsent, singleProfessional]);
+  }, [barbeiros, singleProfessional]);
 
   useEffect(() => {
     if (!ownerPanel || ownerPanelActive) return;
@@ -1602,7 +1553,7 @@ const PublicBooking = ({
               <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
                 Alterar
               </Button>
-              <Button type="button" className="flex-1 rounded-full" disabled={submitting || !clientContactReady || !publicMessagingConsentReady} onClick={confirmBooking}>
+              <Button type="button" className="flex-1 rounded-full" disabled={submitting || !clientContactReady} onClick={confirmBooking}>
                 {submitting ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -2204,31 +2155,11 @@ const PublicBooking = ({
                   />
                 </div>
 
-                {!ownerPanel && (
-                  <label className="flex items-start gap-2.5 rounded-md border border-border/70 bg-muted/20 px-3 py-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={messagingConsent}
-                      onChange={(e) => handleMessagingConsentChange(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
-                    />
-                    <span className="text-[11px] leading-snug text-muted-foreground md:text-xs">
-                      {PUBLIC_MESSAGING_CONSENT_TEXT}
-                    </span>
-                  </label>
-                )}
-
               </section>
 
               <Button
                 type="submit"
-                disabled={
-                  submitting ||
-                  !barbeiroId ||
-                  !hora ||
-                  !clientContactReady ||
-                  !publicMessagingConsentReady
-                }
+                disabled={submitting || !barbeiroId || !hora || !clientContactReady}
                 className="w-full h-13 md:h-11 text-base md:text-sm font-semibold py-3.5 md:py-2.5 rounded-xl"
               >
                 {submitting ? (

@@ -55,7 +55,6 @@ import {
   parseYmd,
   monthStart,
   getAppointmentStatusMenuActions,
-  servicesInPeriod,
   type AgendamentoPainelItem,
   type PastDayStatusKey,
   type AgendamentoPainelSummary,
@@ -75,7 +74,7 @@ import { broadcastConnectAppointmentUpdate } from "@agenda/lib/connectAppointmen
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { AgendamentosMiniCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
 import { AgendamentosMonthCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMonthCalendar";
-import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
+import { MinimalFilterSelect, AGENDAMENTOS_SIDEBAR_SECTION_LABEL } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
 import {
   AgendamentoActionsMenu,
@@ -156,6 +155,9 @@ const DAY_GRID_TIME_CELL_STICKY = cn(
 );
 
 /** Cards da sidebar (Agendamentos) — destaque branco + sombra só no tema claro. */
+const AGENDAMENTOS_FILTER_EMPTY_PROF = "__agendamentos_filter_empty_prof__";
+const AGENDAMENTOS_FILTER_EMPTY_SERV = "__agendamentos_filter_empty_serv__";
+
 const AGENDAMENTOS_SIDEBAR_CARD = cn(
   "rounded-2xl border border-border/35 bg-card",
   "shadow-[0_1px_3px_hsl(var(--foreground)/0.07),0_5px_16px_hsl(var(--foreground)/0.05)]",
@@ -180,6 +182,35 @@ function toHHMM(mins: number) {
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
 
+function parseServicosFromProfessionalRow(row: Record<string, unknown>): SlotBookingServico[] {
+  const raw = row.servicos ?? row.barbeiro_services;
+  let list: unknown[] = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) list = parsed;
+    } catch {
+      list = [];
+    }
+  }
+  return list
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const s = entry as Record<string, unknown>;
+      const nome = String(s.nome ?? "").trim();
+      if (!nome) return null;
+      return {
+        id: String(s.id ?? nome),
+        nome,
+        duracao_minutos: Number(s.duracao_minutos ?? 30),
+        preco_centavos: s.preco_centavos != null ? Number(s.preco_centavos) : undefined,
+      } satisfies SlotBookingServico;
+    })
+    .filter((s): s is SlotBookingServico => s != null);
+}
+
 function parseBookingProfessionalsPayload(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) return data as Record<string, unknown>[];
   if (typeof data === "string") {
@@ -191,6 +222,21 @@ function parseBookingProfessionalsPayload(data: unknown): Record<string, unknown
     }
   }
   return [];
+}
+
+function collectRegisteredServiceNames(
+  professionals: BookingProfessionalFull[],
+  visibleProfessionalIds?: Set<string>,
+) {
+  const set = new Set<string>();
+  for (const p of professionals) {
+    if (visibleProfessionalIds && !visibleProfessionalIds.has(p.id)) continue;
+    for (const s of p.servicos) {
+      const name = s.nome.trim();
+      if (name) set.add(name);
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function parseBookingProfessionals(data: unknown): BookingProfSchedule[] {
@@ -208,14 +254,7 @@ function parseBookingProfessionalsFull(data: unknown): BookingProfessionalFull[]
     barbearia_id: String(r.barbearia_id ?? ""),
     nome: String(r.nome ?? "Profissional"),
     slot_minutos: Number(r.slot_minutos ?? 30),
-    servicos: Array.isArray(r.servicos)
-      ? (r.servicos as SlotBookingServico[]).map((s) => ({
-          id: String(s.id),
-          nome: String(s.nome),
-          duracao_minutos: Number(s.duracao_minutos ?? 30),
-          preco_centavos: s.preco_centavos != null ? Number(s.preco_centavos) : undefined,
-        }))
-      : [],
+    servicos: parseServicosFromProfessionalRow(r),
   }));
 }
 
@@ -443,8 +482,10 @@ export default function AgendamentosDesktopPanel({
     () => items.filter((item) => item.status === "nao_veio").length,
     [items],
   );
-  const profissionalId = profFilter === "todos" ? null : profFilter;
-  const servico = servicoFilter === "todos" ? null : servicoFilter;
+  const profissionalId =
+    profFilter === "todos" || profFilter === AGENDAMENTOS_FILTER_EMPTY_PROF ? null : profFilter;
+  const servico =
+    servicoFilter === "todos" || servicoFilter === AGENDAMENTOS_FILTER_EMPTY_SERV ? null : servicoFilter;
 
   useEffect(() => {
     if (!statusFilterOptions.some((o) => o.value === statusFilter)) {
@@ -550,7 +591,12 @@ export default function AgendamentosDesktopPanel({
   }, [allBarbeariaIds, debouncedLoadData]);
 
   const loadProfSchedules = useCallback(async () => {
-    if (!slug || (viewMode !== "dia" && viewMode !== "mes" && viewMode !== "semana")) {
+    if (!slug) {
+      setProfSchedules([]);
+      setBookingProfessionals([]);
+      return;
+    }
+    if (viewMode !== "dia" && viewMode !== "semana" && viewMode !== "mes") {
       setProfSchedules([]);
       return;
     }
@@ -584,9 +630,11 @@ export default function AgendamentosDesktopPanel({
     }
   }, [slug, viewMode, anchorYmd, slotGridRevision, permissionsRevision, isCA]);
 
+  const visibleProfIds = useMemo(() => new Set(profissionais.map((p) => p.id)), [profissionais]);
+
   useEffect(() => {
     void loadProfSchedules();
-  }, [loadProfSchedules]);
+  }, [loadProfSchedules, visibleProfIds]);
 
   const debouncedLoadProfSchedules = useDebouncedCallback(() => {
     void loadProfSchedules();
@@ -613,14 +661,32 @@ export default function AgendamentosDesktopPanel({
     setDisplayMonth(monthStart(parseYmd(anchorYmd)));
   }, [anchorYmd]);
 
+  const registeredServiceNames = useMemo(
+    () => collectRegisteredServiceNames(bookingProfessionals, visibleProfIds),
+    [bookingProfessionals, visibleProfIds],
+  );
+
   const servicoOptions = useMemo(() => {
-    const names = servicesInPeriod(items);
-    return [{ value: "todos", label: "Todos" }, ...names.map((n) => ({ value: n, label: n }))];
-  }, [items]);
+    if (registeredServiceNames.length === 0) {
+      return [{ value: AGENDAMENTOS_FILTER_EMPTY_SERV, label: "Não há serviço cadastrado" }];
+    }
+    if (registeredServiceNames.length === 1) {
+      const name = registeredServiceNames[0];
+      return [{ value: name, label: name }];
+    }
+    return [
+      { value: "todos", label: "Todos" },
+      ...registeredServiceNames.map((n) => ({ value: n, label: n })),
+    ];
+  }, [registeredServiceNames]);
 
   const profOptions = useMemo(() => {
+    if (profissionais.length === 0) {
+      return [{ value: AGENDAMENTOS_FILTER_EMPTY_PROF, label: "Não há profissional cadastrado" }];
+    }
     const opts = profissionais.map((p) => ({ value: p.id, label: p.nome }));
     if (isCA) return opts;
+    if (opts.length === 1) return opts;
     return [{ value: "todos", label: "Todos" }, ...opts];
   }, [profissionais, isCA]);
 
@@ -630,11 +696,44 @@ export default function AgendamentosDesktopPanel({
   );
 
   useEffect(() => {
-    if (!isCA || profissionais.length === 0) return;
-    setProfFilter((cur) =>
-      cur === "todos" || !profissionais.some((p) => p.id === cur) ? profissionais[0].id : cur,
-    );
-  }, [isCA, profissionais]);
+    if (registeredServiceNames.length === 0) {
+      setServicoFilter(AGENDAMENTOS_FILTER_EMPTY_SERV);
+      return;
+    }
+    if (registeredServiceNames.length === 1) {
+      setServicoFilter(registeredServiceNames[0]);
+      return;
+    }
+    setServicoFilter((cur) => {
+      if (cur === AGENDAMENTOS_FILTER_EMPTY_SERV) return "todos";
+      if (cur !== "todos" && !registeredServiceNames.includes(cur)) return "todos";
+      return cur;
+    });
+  }, [registeredServiceNames]);
+
+  useEffect(() => {
+    if (profissionais.length === 0) {
+      setProfFilter(AGENDAMENTOS_FILTER_EMPTY_PROF);
+      return;
+    }
+    if (isCA) {
+      setProfFilter((cur) =>
+        cur === AGENDAMENTOS_FILTER_EMPTY_PROF || !profissionais.some((p) => p.id === cur)
+          ? profissionais[0].id
+          : cur,
+      );
+      return;
+    }
+    if (profissionais.length === 1) {
+      setProfFilter(profissionais[0].id);
+      return;
+    }
+    setProfFilter((cur) => {
+      if (cur === AGENDAMENTOS_FILTER_EMPTY_PROF) return "todos";
+      if (cur !== "todos" && !profissionais.some((p) => p.id === cur)) return "todos";
+      return cur;
+    });
+  }, [profissionais, isCA]);
 
   const filteredList = useMemo(
     () => filterAgendamentos(items, profissionalId, servico, statusFilter),
@@ -1163,24 +1262,22 @@ export default function AgendamentosDesktopPanel({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
-          <div className="space-y-2">
-            {profissionais.length === 0 ? (
-              <div className={cn("flex w-full items-center px-3 py-2.5 text-sm", AGENDAMENTOS_SIDEBAR_CARD)}>
-                <span className="font-medium text-muted-foreground">Profissional</span>
-              </div>
-            ) : (
-              <MinimalFilterSelect
-                label="Profissional"
-                showSelectedLabel
-                value={profFilter}
-                options={profOptions}
-                onChange={setProfFilter}
-                triggerClassName={AGENDAMENTOS_SIDEBAR_FILTER}
-              />
-            )}
+          <div className="space-y-3">
+            <MinimalFilterSelect
+              label="Profissional"
+              fieldLabel="Profissionais"
+              showSelectedLabel
+              emptyState={profissionais.length === 0}
+              value={profFilter}
+              options={profOptions}
+              onChange={setProfFilter}
+              triggerClassName={AGENDAMENTOS_SIDEBAR_FILTER}
+            />
             <MinimalFilterSelect
               label="Serviço"
+              fieldLabel="Serviços"
               showSelectedLabel
+              emptyState={registeredServiceNames.length === 0}
               value={servicoFilter}
               options={servicoOptions}
               onChange={setServicoFilter}
@@ -1188,6 +1285,7 @@ export default function AgendamentosDesktopPanel({
             />
             <MinimalFilterSelect
               label="Status"
+              fieldLabel="Status"
               showSelectedLabel
               value={statusFilter}
               options={statusFilterOptions}
@@ -1196,8 +1294,9 @@ export default function AgendamentosDesktopPanel({
             />
           </div>
 
-          <div className={cn("p-3 space-y-2 text-sm", AGENDAMENTOS_SIDEBAR_CARD)}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumo do período</p>
+          <div>
+            <p className={AGENDAMENTOS_SIDEBAR_SECTION_LABEL}>Resumo do período</p>
+            <div className={cn("p-3 space-y-2 text-sm", AGENDAMENTOS_SIDEBAR_CARD)}>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total</span>
               <span className="font-semibold tabular-nums">{summary.total}</span>
@@ -1245,6 +1344,7 @@ export default function AgendamentosDesktopPanel({
             <div className="flex justify-between pt-1 border-t border-border/60">
               <span className="text-muted-foreground">Faturamento</span>
               <span className="font-semibold tabular-nums">{formatMoney(summary.faturamento_centavos)}</span>
+            </div>
             </div>
           </div>
         </div>

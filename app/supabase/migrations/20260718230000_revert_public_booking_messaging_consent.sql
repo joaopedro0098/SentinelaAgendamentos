@@ -1,14 +1,8 @@
--- Consentimento RCS/SMS no agendamento público (link do cliente).
+-- Reverte consentimento RCS/SMS no agendamento público (se aplicado).
 
 ALTER TABLE public.agendamentos
-  ADD COLUMN IF NOT EXISTS messaging_consent_at timestamptz,
-  ADD COLUMN IF NOT EXISTS messaging_consent_text text;
-
-COMMENT ON COLUMN public.agendamentos.messaging_consent_at IS
-  'Momento em que o cliente marcou o consentimento para mensagens RCS/SMS no link público.';
-
-COMMENT ON COLUMN public.agendamentos.messaging_consent_text IS
-  'Texto exato do consentimento exibido ao cliente no momento do aceite.';
+  DROP COLUMN IF EXISTS messaging_consent_at,
+  DROP COLUMN IF EXISTS messaging_consent_text;
 
 DROP POLICY IF EXISTS "public insere agendamento" ON public.agendamentos;
 CREATE POLICY "public insere agendamento" ON public.agendamentos
@@ -18,9 +12,11 @@ CREATE POLICY "public insere agendamento" ON public.agendamentos
     AND public.barbearia_pode_agendar(barbearia_id)
     AND status = 'confirmado'::public.agendamento_status
     AND public.barbearia_allows_public_booking_insert(barbearia_id)
-    AND messaging_consent_at IS NOT NULL
-    AND NULLIF(trim(messaging_consent_text), '') IS NOT NULL
   );
+
+DROP FUNCTION IF EXISTS public.create_public_booking_payment_hold(
+  uuid, uuid, date, time, text, text, uuid, int, text[], text, timestamptz, text
+);
 
 CREATE OR REPLACE FUNCTION public.create_public_booking_payment_hold(
   p_barbearia_id uuid,
@@ -32,9 +28,7 @@ CREATE OR REPLACE FUNCTION public.create_public_booking_payment_hold(
   p_cliente_id uuid,
   p_duracao_minutos int,
   p_servicos_nomes text[],
-  p_observacao text DEFAULT NULL,
-  p_messaging_consent_at timestamptz DEFAULT NULL,
-  p_messaging_consent_text text DEFAULT NULL
+  p_observacao text DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -63,10 +57,6 @@ DECLARE
   _enable_card boolean;
   _enable_pix boolean;
 BEGIN
-  IF p_messaging_consent_at IS NULL OR NULLIF(trim(p_messaging_consent_text), '') IS NULL THEN
-    RETURN json_build_object('error', 'messaging_consent_required');
-  END IF;
-
   PERFORM public.expirar_agendamentos_aguardando_pagamento();
 
   _settings := public.get_effective_appointment_payment_settings(p_barbearia_id);
@@ -149,9 +139,7 @@ BEGIN
     valor_pago_centavos,
     valor_cobranca_base_centavos,
     valor_restante_centavos,
-    payment_expires_at,
-    messaging_consent_at,
-    messaging_consent_text
+    payment_expires_at
   )
   VALUES (
     p_barbearia_id,
@@ -172,9 +160,7 @@ BEGIN
     _charge,
     _charge_base,
     _remaining,
-    _expires,
-    p_messaging_consent_at,
-    NULLIF(trim(p_messaging_consent_text), '')
+    _expires
   )
   RETURNING id, confirmation_token INTO _ag_id, _token;
 
@@ -197,6 +183,10 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.reagendar_agendamento_cliente(
+  uuid, text, text, date, time, uuid, int, text, text[], timestamptz, text
+);
+
 CREATE OR REPLACE FUNCTION public.reagendar_agendamento_cliente(
   p_agendamento_id uuid,
   p_slug text,
@@ -206,9 +196,7 @@ CREATE OR REPLACE FUNCTION public.reagendar_agendamento_cliente(
   p_barbeiro_id uuid,
   p_duracao_minutos int,
   p_observacao text DEFAULT NULL,
-  p_servicos_nomes text[] DEFAULT NULL,
-  p_messaging_consent_at timestamptz DEFAULT NULL,
-  p_messaging_consent_text text DEFAULT NULL
+  p_servicos_nomes text[] DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -226,10 +214,6 @@ BEGIN
   _digits := regexp_replace(COALESCE(p_whatsapp, ''), '\D', '', 'g');
   IF length(_digits) < 10 THEN
     RAISE EXCEPTION 'WhatsApp inválido';
-  END IF;
-
-  IF p_messaging_consent_at IS NULL OR NULLIF(trim(p_messaging_consent_text), '') IS NULL THEN
-    RAISE EXCEPTION 'Consentimento para mensagens RCS/SMS é obrigatório';
   END IF;
 
   SELECT
@@ -301,9 +285,7 @@ BEGIN
     servicos_nomes = COALESCE(p_servicos_nomes, servicos_nomes),
     client_confirmed_at = NULL,
     confirmation_push_sent_at = NULL,
-    reminder_push_sent_at = NULL,
-    messaging_consent_at = p_messaging_consent_at,
-    messaging_consent_text = NULLIF(trim(p_messaging_consent_text), '')
+    reminder_push_sent_at = NULL
   WHERE id = p_agendamento_id;
 
   RETURN jsonb_build_object(
@@ -318,5 +300,5 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.create_public_booking_payment_hold(
-  uuid, uuid, date, time, text, text, uuid, int, text[], text, timestamptz, text
+  uuid, uuid, date, time, text, text, uuid, int, text[], text
 ) TO anon, authenticated, service_role;

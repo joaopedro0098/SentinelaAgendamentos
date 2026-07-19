@@ -30,8 +30,6 @@ export type Database = {
           duracao_minutos: number
           hora: string
           id: string
-          messaging_consent_at: string | null
-          messaging_consent_text: string | null
           observacao: string | null
           reminder_push_sent_at: string | null
           requires_client_confirmation: boolean
@@ -54,8 +52,6 @@ export type Database = {
           duracao_minutos?: number
           hora: string
           id?: string
-          messaging_consent_at?: string | null
-          messaging_consent_text?: string | null
           observacao?: string | null
           reminder_push_sent_at?: string | null
           requires_client_confirmation?: boolean
@@ -78,8 +74,6 @@ export type Database = {
           duracao_minutos?: number
           hora?: string
           id?: string
-          messaging_consent_at?: string | null
-          messaging_consent_text?: string | null
           observacao?: string | null
           reminder_push_sent_at?: string | null
           requires_client_confirmation?: boolean
@@ -570,8 +564,6 @@ export type Database = {
           duracao_minutos: number
           hora: string
           id: string
-          messaging_consent_at: string | null
-          messaging_consent_text: string | null
           observacao: string | null
           servicos_nomes: string[]
           status: Database["public"]["Enums"]["agendamento_status"]
