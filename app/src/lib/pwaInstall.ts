@@ -166,6 +166,7 @@ const BARBER_PWA_MARKETING_PATHS = new Set([
   "/login",
   "/signup",
   "/signup/confirmar-codigo",
+  "/verificacao-facial",
   "/recover",
 ]);
 

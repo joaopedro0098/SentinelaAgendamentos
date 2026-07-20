@@ -1,10 +1,11 @@
 -- Reverte consentimento RCS/SMS no agendamento público (se aplicado).
 
+DROP POLICY IF EXISTS "public insere agendamento" ON public.agendamentos;
+
 ALTER TABLE public.agendamentos
   DROP COLUMN IF EXISTS messaging_consent_at,
   DROP COLUMN IF EXISTS messaging_consent_text;
 
-DROP POLICY IF EXISTS "public insere agendamento" ON public.agendamentos;
 CREATE POLICY "public insere agendamento" ON public.agendamentos
   FOR INSERT TO anon, authenticated
   WITH CHECK (

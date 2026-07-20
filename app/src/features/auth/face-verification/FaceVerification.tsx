@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, ScanFace, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toUserFaceError } from "./faceEmbeddingService";
 import { useCamera } from "./useCamera";
 import { useLiveness } from "./useLiveness";
@@ -11,10 +10,10 @@ import {
   type FacialVerificationProgress,
   type FacialVerificationResult,
 } from "./facialRecognitionController";
-
-const FACE_CLIP_PATH = "ellipse(34% 40% at 50% 50%)";
-const FACE_BORDER_COLOR = "hsl(152, 55%, 42%)";
-const FACE_BORDER_WIDTH_PX = 8;
+import {
+  FACE_CAMERA_CLIP_PATH,
+  FaceCameraStageLayout,
+} from "./FaceCameraStageLayout";
 
 type Props = {
   open: boolean;
@@ -163,42 +162,35 @@ export function FaceVerification({ open, onClose, onVerified }: Props) {
           )}
         </div>
 
-        <div className="relative mx-6 aspect-[3/4] max-h-[min(58vh,400px)] rounded-2xl overflow-hidden bg-white">
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
-            style={{ clipPath: FACE_CLIP_PATH, WebkitClipPath: FACE_CLIP_PATH }}
-            playsInline
-            muted
-          />
-
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div
-              className={cn(
-                "w-[68%] h-[80%] box-border transition-colors duration-300 bg-transparent",
-                "rounded-[48%_48%_42%_42%_/_54%_54%_46%_46%]",
-              )}
-              style={{
-                borderStyle: "solid",
-                borderWidth: FACE_BORDER_WIDTH_PX,
-                borderColor: failed ? "hsl(0, 84%, 60%)" : FACE_BORDER_COLOR,
-              }}
+        <FaceCameraStageLayout
+          borderFailed={Boolean(failed)}
+          video={
+            <video
+              ref={videoRef}
+              className="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+              style={{ clipPath: FACE_CAMERA_CLIP_PATH, WebkitClipPath: FACE_CAMERA_CLIP_PATH }}
+              playsInline
+              muted
             />
-          </div>
+          }
+          overlay={
+            <>
+              {!ready && !failed && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--brand-green))]" />
+                </div>
+              )}
 
-          {!ready && !failed && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white">
-              <Loader2 className="w-8 h-8 animate-spin text-[hsl(var(--brand-green))]" />
-            </div>
-          )}
-
-          {processing && !failed && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75 gap-2">
-              <Loader2 className="w-7 h-7 animate-spin text-[hsl(var(--brand-green))]" />
-              <span className="text-sm font-medium text-foreground">Finalizando…</span>
-            </div>
-          )}
-        </div>
+              {processing && !failed && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/75 gap-2">
+                  <Loader2 className="w-7 h-7 animate-spin text-[hsl(var(--brand-green))]" />
+                  <span className="text-sm font-medium text-foreground">Finalizando…</span>
+                </div>
+              )}
+            </>
+          }
+          className="mx-6"
+        />
 
         <div className="px-6 py-5">
           <p className="text-[11px] text-center text-muted-foreground leading-relaxed">

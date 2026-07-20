@@ -26,10 +26,17 @@ import { completeSignupSession } from "@/features/auth/lib/completeSignupSession
 import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import type { Session } from "@supabase/supabase-js";
+import { isDesktopForFaceHandoff } from "@/features/auth/face-verification/isDesktopForFaceHandoff";
 
 const FaceVerificationFlow = lazy(() =>
   import("@/features/auth/face-verification/FaceVerificationFlow").then((m) => ({
     default: m.FaceVerificationFlow,
+  })),
+);
+
+const FaceHandoffDesktopStep = lazy(() =>
+  import("@/features/auth/face-verification/FaceHandoffDesktopStep").then((m) => ({
+    default: m.FaceHandoffDesktopStep,
   })),
 );
 
@@ -67,6 +74,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<SignupPhase>("form");
   const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [usePcFaceVerification, setUsePcFaceVerification] = useState(false);
   const [submittingAccount, setSubmittingAccount] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
   const [otpShopName, setOtpShopName] = useState("");
@@ -197,6 +205,7 @@ export default function Signup() {
       return;
     }
     pendingSignupRef.current = parsed.data;
+    setUsePcFaceVerification(false);
     setShowFaceVerification(true);
   }
 
@@ -223,23 +232,45 @@ export default function Signup() {
     );
   }
 
+  const showDesktopHandoff = showFaceVerification && isDesktopForFaceHandoff() && !usePcFaceVerification;
+  const showPcFaceFlow = showFaceVerification && (!isDesktopForFaceHandoff() || usePcFaceVerification);
+
   return (
     <>
       <Suspense fallback={null}>
-        <FaceVerificationFlow
-          open={showFaceVerification}
-          busy={submittingAccount}
-          busyMessage="Criando sua conta…"
-          onClose={() => {
-            if (submittingAccount) return;
-            setShowFaceVerification(false);
-            pendingSignupRef.current = null;
-          }}
-          onVerified={(result) => {
-            const pending = pendingSignupRef.current;
-            if (pending) void completeSignup(pending, result);
-          }}
-        />
+        {showDesktopHandoff ? (
+          <FaceHandoffDesktopStep
+            open
+            onClose={() => {
+              if (submittingAccount) return;
+              setShowFaceVerification(false);
+              setUsePcFaceVerification(false);
+              pendingSignupRef.current = null;
+            }}
+            onContinueOnPc={() => setUsePcFaceVerification(true)}
+            onVerified={(result) => {
+              const pending = pendingSignupRef.current;
+              if (pending) void completeSignup(pending, result);
+            }}
+          />
+        ) : null}
+        {showPcFaceFlow ? (
+          <FaceVerificationFlow
+            open
+            busy={submittingAccount}
+            busyMessage="Criando sua conta…"
+            onClose={() => {
+              if (submittingAccount) return;
+              setShowFaceVerification(false);
+              setUsePcFaceVerification(false);
+              pendingSignupRef.current = null;
+            }}
+            onVerified={(result) => {
+              const pending = pendingSignupRef.current;
+              if (pending) void completeSignup(pending, result);
+            }}
+          />
+        ) : null}
       </Suspense>
       <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
         <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">

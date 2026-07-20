@@ -8,6 +8,7 @@ const LANDING_PATHS = new Set([
   "/login",
   "/signup",
   "/signup/confirmar-codigo",
+  "/verificacao-facial",
   "/recover",
   "/reset-password",
   "/reset-password/success",
