@@ -27,7 +27,7 @@ CREATE OR REPLACE FUNCTION public.create_facial_handoff_session()
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   _id uuid;

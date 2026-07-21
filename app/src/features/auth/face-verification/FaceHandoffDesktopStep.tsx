@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { Loader2, ScanFace, Smartphone, X } from "lucide-react";
+import { Loader2, ScanFace, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import { facialHandoffPublicPath } from "@/features/auth/face-verification/facialHandoffConstants";
@@ -16,8 +16,9 @@ type Props = {
 
 export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerified }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
 
-  const { session, creating, expired, countdownLabel, regenerate } = useFacialHandoffDesktop({
+  const { session, creating, expired, createError, countdownLabel, regenerate } = useFacialHandoffDesktop({
     enabled: open,
     onCompleted: onVerified,
     onFailed: () => {
@@ -38,12 +39,21 @@ export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerifi
   useEffect(() => {
     if (!handoffUrl || expired) {
       setQrDataUrl(null);
+      setQrError(null);
       return;
     }
     let cancelled = false;
-    void QRCode.toDataURL(handoffUrl, { margin: 1, width: 220 }).then((url) => {
-      if (!cancelled) setQrDataUrl(url);
-    });
+    setQrError(null);
+    void QRCode.toDataURL(handoffUrl, { margin: 1, width: 220 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl(null);
+          setQrError("Não foi possível gerar o QR code.");
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -68,9 +78,7 @@ export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerifi
             <ScanFace className="w-5 h-5" />
           </div>
           <h2 className="font-display text-lg font-semibold">Reconhecimento facial</h2>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            Escaneie o QR code com o celular para usar a câmera do telefone (melhor iluminação).
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">Escaneie e faça pelo seu celular.</p>
         </div>
 
         <div className="px-6 pb-2 flex flex-col items-center gap-3">
@@ -78,11 +86,29 @@ export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerifi
             <div className="flex h-[220px] w-[220px] items-center justify-center rounded-2xl border border-border/60 bg-card/40">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : createError ? (
+            <div className="text-center space-y-3 py-4 max-w-[260px]">
+              <p className="text-sm text-muted-foreground">{createError}</p>
+              <Button type="button" className="rounded-full" onClick={() => void regenerate()}>
+                Tentar novamente
+              </Button>
+            </div>
           ) : expired ? (
             <div className="text-center space-y-3 py-4">
               <p className="text-sm text-muted-foreground">O QR code expirou.</p>
               <Button type="button" className="rounded-full" onClick={() => void regenerate()}>
                 Gerar novo QR code
+              </Button>
+            </div>
+          ) : !session ? (
+            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-2xl border border-border/60 bg-card/40">
+              <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+            </div>
+          ) : qrError ? (
+            <div className="text-center space-y-3 py-4">
+              <p className="text-sm text-muted-foreground">{qrError}</p>
+              <Button type="button" className="rounded-full" onClick={() => void regenerate()}>
+                Tentar novamente
               </Button>
             </div>
           ) : (
@@ -94,7 +120,9 @@ export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerifi
                   <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
                 </div>
               )}
-              <p className="text-xs tabular-nums text-muted-foreground">Expira em {countdownLabel}</p>
+              {countdownLabel ? (
+                <p className="text-xs tabular-nums text-muted-foreground">Expira em {countdownLabel}</p>
+              ) : null}
             </>
           )}
         </div>
@@ -107,11 +135,6 @@ export function FaceHandoffDesktopStep({ open, onClose, onContinueOnPc, onVerifi
             Voltar
           </Button>
         </div>
-
-        <p className="px-6 pb-5 text-[11px] text-center text-muted-foreground flex items-center justify-center gap-1.5">
-          <Smartphone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          O cadastro continua automaticamente neste computador após a verificação no celular.
-        </p>
       </div>
     </div>
   );

@@ -6,7 +6,11 @@ import {
   FACIAL_HANDOFF_POLL_INTERVAL_MS,
   facialHandoffChannelName,
 } from "@/features/auth/face-verification/facialHandoffConstants";
-import { consumeFacialHandoffResult, createFacialHandoffSession } from "@/lib/facialHandoffApi";
+import {
+  consumeFacialHandoffResult,
+  createFacialHandoffSession,
+  parseFacialHandoffExpiresAt,
+} from "@/lib/facialHandoffApi";
 
 type SessionState = {
   sessionId: string;
@@ -31,7 +35,8 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
   const [session, setSession] = useState<SessionState | null>(null);
   const [creating, setCreating] = useState(false);
   const [expired, setExpired] = useState(false);
-  const [remainingMs, setRemainingMs] = useState(0);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const sessionRef = useRef<SessionState | null>(null);
   const consumedRef = useRef(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -74,19 +79,26 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
 
   const startSession = useCallback(async () => {
     setCreating(true);
+    setCreateError(null);
+    setRemainingMs(null);
     consumedRef.current = false;
     stopListeners();
     try {
       const created = await createFacialHandoffSession();
+      const expiresAt = parseFacialHandoffExpiresAt(created.expires_at);
       const next: SessionState = {
         sessionId: created.session_id,
         watchToken: created.watch_token,
-        expiresAt: new Date(created.expires_at),
+        expiresAt,
       };
       sessionRef.current = next;
       setSession(next);
       setExpired(false);
-      setRemainingMs(Math.max(0, next.expiresAt.getTime() - Date.now()));
+      setRemainingMs(Math.max(0, expiresAt.getTime() - Date.now()));
+    } catch (err) {
+      sessionRef.current = null;
+      setSession(null);
+      setCreateError(err instanceof Error ? err.message : "Não foi possível gerar o QR code.");
     } finally {
       setCreating(false);
     }
@@ -97,6 +109,8 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
       stopListeners();
       sessionRef.current = null;
       setSession(null);
+      setRemainingMs(null);
+      setCreateError(null);
       return;
     }
     void startSession();
@@ -137,7 +151,9 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
     if (!enabled || !session || expired) return;
 
     const tick = () => {
-      const ms = session.expiresAt.getTime() - Date.now();
+      const active = sessionRef.current;
+      if (!active) return;
+      const ms = active.expiresAt.getTime() - Date.now();
       if (ms <= 0) {
         setRemainingMs(0);
         setExpired(true);
@@ -156,7 +172,8 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
     session,
     creating,
     expired,
-    countdownLabel: formatCountdown(remainingMs),
+    createError,
+    countdownLabel: remainingMs == null ? null : formatCountdown(remainingMs),
     regenerate: startSession,
   };
 }

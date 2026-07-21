@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
+import { FACIAL_HANDOFF_TTL_MS } from "@/features/auth/face-verification/facialHandoffConstants";
 
 export type FacialHandoffSessionCreated = {
   session_id: string;
@@ -9,14 +10,47 @@ export type FacialHandoffSessionCreated = {
 
 export type FacialHandoffClaimError = "expired" | "already_claimed" | "not_found";
 
+function unwrapRpcJson<T>(data: unknown): T {
+  if (typeof data === "string") {
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return data as T;
+    }
+  }
+  return data as T;
+}
+
+/** Postgres/PostgREST às vezes devolve timestamptz com espaço no lugar de "T". */
+export function parseFacialHandoffExpiresAt(value: unknown): Date {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return new Date(value);
+  if (typeof value === "string" && value.trim()) {
+    const normalized = value.includes("T") ? value : value.replace(" ", "T");
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date(Date.now() + FACIAL_HANDOFF_TTL_MS);
+}
+
 export async function createFacialHandoffSession(): Promise<FacialHandoffSessionCreated> {
   const { data, error } = await supabase.rpc("create_facial_handoff_session");
   if (error) throw new Error(error.message);
-  const row = data as FacialHandoffSessionCreated & { error?: string };
-  if (!row?.session_id || !row.watch_token || !row.expires_at) {
+  const row = unwrapRpcJson<FacialHandoffSessionCreated & { error?: string }>(data);
+  const sessionId = row?.session_id != null ? String(row.session_id) : "";
+  const watchToken = row?.watch_token != null ? String(row.watch_token) : "";
+  const expiresAtRaw = row?.expires_at;
+  if (!sessionId || !watchToken || expiresAtRaw == null || expiresAtRaw === "") {
     throw new Error("Não foi possível iniciar a sessão de verificação.");
   }
-  return row;
+  return {
+    session_id: sessionId,
+    watch_token: watchToken,
+    expires_at:
+      typeof expiresAtRaw === "string"
+        ? expiresAtRaw
+        : parseFacialHandoffExpiresAt(expiresAtRaw).toISOString(),
+  };
 }
 
 export async function claimFacialHandoffSession(sessionId: string): Promise<{ ok: true } | { ok: false; error: FacialHandoffClaimError }> {
