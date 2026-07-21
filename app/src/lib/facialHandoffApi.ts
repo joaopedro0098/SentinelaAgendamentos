@@ -1,6 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
-import { FACIAL_HANDOFF_TTL_MS } from "@/features/auth/face-verification/facialHandoffConstants";
+import {
+  FACIAL_HANDOFF_BROADCAST_EVENT,
+  FACIAL_HANDOFF_TTL_MS,
+  facialHandoffChannelName,
+} from "@/features/auth/face-verification/facialHandoffConstants";
 
 export type FacialHandoffSessionCreated = {
   session_id: string;
@@ -19,6 +23,17 @@ function unwrapRpcJson<T>(data: unknown): T {
     }
   }
   return data as T;
+}
+
+function parseHandoffReadyFlag(value: unknown): boolean {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function normalizeHandoffEmbedding(raw: unknown): number[] | null {
+  if (!Array.isArray(raw) || raw.length !== 128) return null;
+  const nums = raw.map((v) => Number(v));
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  return nums;
 }
 
 /** Postgres/PostgREST às vezes devolve timestamptz com espaço no lugar de "T". */
@@ -58,7 +73,7 @@ export async function claimFacialHandoffSession(sessionId: string): Promise<{ ok
     p_session_id: sessionId,
   });
   if (error) throw new Error(error.message);
-  const row = data as { ok?: boolean; error?: FacialHandoffClaimError };
+  const row = unwrapRpcJson<{ ok?: boolean; error?: FacialHandoffClaimError }>(data);
   if (row?.ok) return { ok: true };
   return { ok: false, error: row?.error ?? "not_found" };
 }
@@ -68,11 +83,19 @@ type ConsumeRow = {
   status?: string;
   error?: string;
   result?: {
-    embedding?: number[];
-    trial_eligible?: boolean;
-    facial_match?: boolean;
+    embedding?: unknown;
+    trial_eligible?: boolean | string;
+    facial_match?: boolean | string;
   };
 };
+
+function parseConsumeRow(data: unknown): ConsumeRow {
+  const row = unwrapRpcJson<ConsumeRow & { ready?: unknown }>(data);
+  return {
+    ...row,
+    ready: parseHandoffReadyFlag(row?.ready),
+  };
+}
 
 export async function consumeFacialHandoffResult(
   sessionId: string,
@@ -88,15 +111,15 @@ export async function consumeFacialHandoffResult(
   });
   if (error) throw new Error(error.message);
 
-  const row = data as ConsumeRow;
-  if (!row?.ready) return { ready: false };
+  const row = parseConsumeRow(data);
+  if (!row.ready) return { ready: false };
 
   if (row.status === "failed") {
     return { ready: true, status: "failed", error: row.error ?? "failed" };
   }
 
-  const embedding = row.result?.embedding;
-  if (!Array.isArray(embedding) || embedding.length !== 128) {
+  const embedding = normalizeHandoffEmbedding(row.result?.embedding);
+  if (!embedding) {
     throw new Error("Resposta de verificação inválida.");
   }
 
@@ -105,8 +128,8 @@ export async function consumeFacialHandoffResult(
     status: "completed",
     result: {
       embedding,
-      trialEligible: row.result?.trial_eligible === true,
-      facialMatch: row.result?.facial_match === true,
+      trialEligible: row.result?.trial_eligible === true || row.result?.trial_eligible === "true",
+      facialMatch: row.result?.facial_match === true || row.result?.facial_match === "true",
     },
   };
 }
@@ -136,4 +159,37 @@ export async function submitFacialHandoffComplete(sessionId: string, embedding: 
     throw new FacialHandoffSubmitError(row?.error ?? "unknown");
   }
   return row;
+}
+
+/** Acorda o desktop (Realtime broadcast). Falha silenciosa — o polling no PC cobre o resto. */
+export async function notifyFacialHandoffDesktop(sessionId: string): Promise<void> {
+  const channel = supabase.channel(facialHandoffChannelName(sessionId), {
+    config: { broadcast: { self: false } },
+  });
+
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      void supabase.removeChannel(channel);
+      resolve();
+    };
+    const timer = window.setTimeout(done, 4000);
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        void channel
+          .send({
+            type: "broadcast",
+            event: FACIAL_HANDOFF_BROADCAST_EVENT,
+            payload: { session_id: sessionId, status: "completed" },
+          })
+          .finally(() => {
+            window.clearTimeout(timer);
+            done();
+          });
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        window.clearTimeout(timer);
+        done();
+      }
+    });
+  });
 }

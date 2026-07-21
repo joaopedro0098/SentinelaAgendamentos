@@ -37,9 +37,17 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
   const [expired, setExpired] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const sessionRef = useRef<SessionState | null>(null);
   const consumedRef = useRef(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const onCompletedRef = useRef(onCompleted);
+  const onFailedRef = useRef(onFailed);
+
+  useEffect(() => {
+    onCompletedRef.current = onCompleted;
+    onFailedRef.current = onFailed;
+  }, [onCompleted, onFailed]);
 
   const stopListeners = useCallback(() => {
     if (channelRef.current) {
@@ -52,37 +60,47 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
     (result: FacialVerificationResult) => {
       if (consumedRef.current) return;
       consumedRef.current = true;
+      setSyncing(false);
       stopListeners();
-      onCompleted(result);
+      onCompletedRef.current(result);
     },
-    [onCompleted, stopListeners],
+    [stopListeners],
   );
 
   const tryConsume = useCallback(async () => {
     const active = sessionRef.current;
     if (!active || consumedRef.current) return;
 
+    setSyncing(true);
     try {
       const row = await consumeFacialHandoffResult(active.sessionId, active.watchToken);
-      if (!row.ready) return;
+      if (!row.ready) {
+        setSyncing(false);
+        return;
+      }
       if (row.status === "failed") {
         const retryable = row.error === "invalid_embedding";
-        if (retryable) return;
+        if (retryable) {
+          setSyncing(false);
+          return;
+        }
         consumedRef.current = true;
+        setSyncing(false);
         stopListeners();
-        onFailed?.(row.error ?? "failed");
+        onFailedRef.current?.(row.error ?? "failed");
         return;
       }
       finishWithResult(row.result);
     } catch {
-      /* polling silencioso — próxima tentativa */
+      setSyncing(false);
     }
-  }, [finishWithResult, onFailed, stopListeners]);
+  }, [finishWithResult, stopListeners]);
 
   const startSession = useCallback(async () => {
     setCreating(true);
     setCreateError(null);
     setRemainingMs(null);
+    setSyncing(false);
     consumedRef.current = false;
     stopListeners();
     try {
@@ -113,6 +131,7 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
       setSession(null);
       setRemainingMs(null);
       setCreateError(null);
+      setSyncing(false);
       return;
     }
     void startSession();
@@ -142,11 +161,21 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
   useEffect(() => {
     if (!enabled || !session || consumedRef.current) return;
 
+    void tryConsume();
+
     const poll = window.setInterval(() => {
       void tryConsume();
     }, FACIAL_HANDOFF_POLL_INTERVAL_MS);
 
-    return () => window.clearInterval(poll);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tryConsume();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [enabled, session?.sessionId, tryConsume]);
 
   useEffect(() => {
@@ -175,7 +204,9 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
     creating,
     expired,
     createError,
+    syncing,
     countdownLabel: remainingMs == null ? null : formatCountdown(remainingMs),
     regenerate: startSession,
+    checkNow: tryConsume,
   };
 }

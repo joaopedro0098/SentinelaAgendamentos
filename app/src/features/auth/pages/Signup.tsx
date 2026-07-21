@@ -241,6 +241,8 @@ export default function Signup() {
         {showDesktopHandoff ? (
           <FaceHandoffDesktopStep
             open
+            busy={submittingAccount}
+            busyMessage="Criando sua conta…"
             onClose={() => {
               if (submittingAccount) return;
               setShowFaceVerification(false);

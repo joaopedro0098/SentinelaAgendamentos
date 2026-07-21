@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   claimFacialHandoffSession,
   FacialHandoffSubmitError,
+  notifyFacialHandoffDesktop,
   submitFacialHandoffComplete,
 } from "@/lib/facialHandoffApi";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
@@ -102,6 +103,7 @@ export default function FacialVerificationHandoffPage() {
     setSubmitError(null);
     try {
       await submitFacialHandoffComplete(sessionId, result.embedding);
+      void notifyFacialHandoffDesktop(sessionId);
       setPhase("done");
     } catch (err) {
       const code = err instanceof FacialHandoffSubmitError ? err.code : "unknown";
