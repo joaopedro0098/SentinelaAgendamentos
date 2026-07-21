@@ -1,7 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { claimFacialHandoffSession, submitFacialHandoffComplete } from "@/lib/facialHandoffApi";
+import { Button } from "@/components/ui/button";
+import {
+  claimFacialHandoffSession,
+  FacialHandoffSubmitError,
+  submitFacialHandoffComplete,
+} from "@/lib/facialHandoffApi";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 
 const FaceVerificationFlow = lazy(() =>
@@ -10,12 +15,48 @@ const FaceVerificationFlow = lazy(() =>
   })),
 );
 
-type Phase = "loading" | "claim_error" | "verify" | "submitting" | "done";
+type Phase = "loading" | "claim_error" | "verify" | "submitting" | "submit_error" | "done";
 
 function claimErrorMessage(code: string) {
-  if (code === "expired") return "QR code expirado";
-  if (code === "already_claimed") return "Este QR code já está em uso em outro aparelho.";
-  return "QR code inválido";
+  if (code === "expired") return "Este QR code expirou.";
+  if (code === "already_claimed") return "Outro aparelho já está usando este QR code.";
+  return "Link inválido ou expirado.";
+}
+
+function submitErrorCopy(code: string): { title: string; description: string; retryOnPhone: boolean } {
+  switch (code) {
+    case "invalid_embedding":
+      return {
+        title: "Não lemos o rosto desta vez",
+        description: "Ajuste a iluminação, encaixe o rosto no oval e tente de novo aqui no celular.",
+        retryOnPhone: true,
+      };
+    case "expired":
+      return {
+        title: "QR code expirado",
+        description: "Gere um novo QR code no computador para continuar.",
+        retryOnPhone: false,
+      };
+    case "not_claimed":
+    case "session_busy":
+      return {
+        title: "Sessão indisponível",
+        description: "Abra o link do QR code de novo. Se persistir, gere um novo QR no computador.",
+        retryOnPhone: true,
+      };
+    case "network":
+      return {
+        title: "Sem conexão com o servidor",
+        description: "Confira a internet e tente enviar de novo.",
+        retryOnPhone: true,
+      };
+    default:
+      return {
+        title: "Não enviamos para o computador",
+        description: "Algo falhou ao sincronizar. Tente de novo no celular ou gere outro QR no PC.",
+        retryOnPhone: true,
+      };
+  }
 }
 
 export default function FacialVerificationHandoffPage() {
@@ -23,6 +64,10 @@ export default function FacialVerificationHandoffPage() {
   const sessionId = params.get("session")?.trim() ?? "";
   const [phase, setPhase] = useState<Phase>("loading");
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<{ title: string; description: string; retryOnPhone: boolean } | null>(
+    null,
+  );
+  const [verifyKey, setVerifyKey] = useState(0);
 
   useEffect(() => {
     document.title = "Verificação facial — Sentinela Agendamentos";
@@ -54,13 +99,21 @@ export default function FacialVerificationHandoffPage() {
   async function handleVerified(result: FacialVerificationResult) {
     if (!sessionId) return;
     setPhase("submitting");
+    setSubmitError(null);
     try {
       await submitFacialHandoffComplete(sessionId, result.embedding);
       setPhase("done");
-    } catch {
-      setClaimError("Não foi possível enviar a verificação. Tente novamente no computador.");
-      setPhase("claim_error");
+    } catch (err) {
+      const code = err instanceof FacialHandoffSubmitError ? err.code : "unknown";
+      setSubmitError(submitErrorCopy(code));
+      setPhase("submit_error");
     }
+  }
+
+  function retryOnPhone() {
+    setSubmitError(null);
+    setVerifyKey((n) => n + 1);
+    setPhase("verify");
   }
 
   if (phase === "loading") {
@@ -73,15 +126,28 @@ export default function FacialVerificationHandoffPage() {
   }
 
   if (phase === "claim_error") {
-    const title = claimError?.includes("expirado") ? "QR code expirado" : "Não foi possível abrir";
+    const title = claimError?.includes("expirou") ? "QR code expirado" : "Link inválido";
+    return (
+      <main className="min-h-[70vh] flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md glass rounded-2xl border border-border/60 p-6 text-center space-y-3 shadow-soft">
+          <h1 className="font-display text-xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">{claimError}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (phase === "submit_error" && submitError) {
     return (
       <main className="min-h-[70vh] flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-md glass rounded-2xl border border-border/60 p-6 text-center space-y-4 shadow-soft">
-          <h1 className="font-display text-xl font-semibold">{title}</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">{claimError}</p>
-          <p className="text-sm text-muted-foreground">
-            Volte ao computador e toque em <strong className="font-semibold text-foreground">Gerar novo QR code</strong>.
-          </p>
+          <h1 className="font-display text-xl font-semibold">{submitError.title}</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">{submitError.description}</p>
+          {submitError.retryOnPhone ? (
+            <Button type="button" className="w-full rounded-full" onClick={retryOnPhone}>
+              Tentar novamente no celular
+            </Button>
+          ) : null}
         </div>
       </main>
     );
@@ -93,7 +159,7 @@ export default function FacialVerificationHandoffPage() {
         <div className="w-full max-w-md glass rounded-2xl border border-border/60 p-6 text-center space-y-3 shadow-soft">
           <h1 className="font-display text-xl font-semibold">Verificação enviada</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Pronto! Pode fechar esta página — o cadastro continua no seu computador.
+            Pode fechar esta página — o cadastro continua no computador.
           </p>
         </div>
       </main>
@@ -104,7 +170,7 @@ export default function FacialVerificationHandoffPage() {
     return (
       <main className="min-h-[70vh] flex flex-col items-center justify-center gap-3 px-4">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Enviando verificação…</p>
+        <p className="text-sm text-muted-foreground">Enviando para o computador…</p>
       </main>
     );
   }
@@ -118,6 +184,7 @@ export default function FacialVerificationHandoffPage() {
       }
     >
       <FaceVerificationFlow
+        key={verifyKey}
         open
         orientationVariant="page"
         onClose={() => window.history.back()}

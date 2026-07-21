@@ -111,14 +111,29 @@ export async function consumeFacialHandoffResult(
   };
 }
 
+export class FacialHandoffSubmitError extends Error {
+  constructor(
+    readonly code: string,
+    message?: string,
+  ) {
+    super(message ?? code);
+    this.name = "FacialHandoffSubmitError";
+  }
+}
+
 export async function submitFacialHandoffComplete(sessionId: string, embedding: number[]) {
-  const { data, error } = await supabase.functions.invoke("facial-handoff-complete", {
-    body: { session_id: sessionId, embedding },
+  const { data, error } = await supabase.rpc("submit_facial_handoff_verification", {
+    p_session_id: sessionId,
+    p_embedding: embedding,
   });
-  if (error) throw new Error(error.message);
-  const row = data as { ok?: boolean; error?: string };
+
+  if (error) {
+    throw new FacialHandoffSubmitError("network", error.message);
+  }
+
+  const row = unwrapRpcJson<{ ok?: boolean; error?: string }>(data);
   if (!row?.ok) {
-    throw new Error(row?.error ?? "Não foi possível concluir a verificação.");
+    throw new FacialHandoffSubmitError(row?.error ?? "unknown");
   }
   return row;
 }

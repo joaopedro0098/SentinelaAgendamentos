@@ -66,9 +66,11 @@ export function useFacialHandoffDesktop({ enabled, onCompleted, onFailed }: Opti
       const row = await consumeFacialHandoffResult(active.sessionId, active.watchToken);
       if (!row.ready) return;
       if (row.status === "failed") {
+        const retryable = row.error === "invalid_embedding";
+        if (retryable) return;
         consumedRef.current = true;
         stopListeners();
-        onFailed?.(row.error);
+        onFailed?.(row.error ?? "failed");
         return;
       }
       finishWithResult(row.result);
