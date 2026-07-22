@@ -71,7 +71,9 @@ export async function savePaymentPanelSettings(
 export async function disconnectMpAccount(): Promise<PaymentPanelSettings> {
   const { data, error } = await supabase.rpc("disconnect_mp_account");
   if (error) throw new Error(error.message);
-  return (data ?? {}) as PaymentPanelSettings;
+  const result = (data ?? {}) as PaymentPanelSettings;
+  if (result.error) throw new Error(result.message ?? result.error);
+  return result;
 }
 
 export async function startMpOAuth(): Promise<{ url: string }> {

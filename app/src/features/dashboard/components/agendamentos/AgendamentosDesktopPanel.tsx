@@ -925,10 +925,10 @@ export default function AgendamentosDesktopPanel({
     if (!deleteTarget) return;
     const removedId = deleteTarget.id;
     setDeleting(true);
-    const { error } = await rpcExcluirAgendamento(removedId);
+    const result = await rpcExcluirAgendamento(removedId);
     setDeleting(false);
-    if (error) {
-      toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
+    if ("error" in result) {
+      toast({ title: "Não foi possível excluir", description: result.error, variant: "destructive" });
       return;
     }
     setDeleteTarget(null);

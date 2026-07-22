@@ -6,7 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-async function purgeUserCompletely(admin: SupabaseClient, userId: string, userEmail: string | null) {
+async function purgeUserCompletely(
+  admin: SupabaseClient,
+  userId: string,
+  userEmail: string | null,
+  actorUserId: string,
+) {
   const normEmail = userEmail?.trim().toLowerCase() ?? null;
 
   if (normEmail) {
@@ -17,6 +22,20 @@ async function purgeUserCompletely(admin: SupabaseClient, userId: string, userEm
     p_user_id: userId,
   });
   if (facialErr) throw new Error(facialErr.message);
+
+  const { data: arch, error: archErr } = await admin.rpc("clinical_archive_for_account_deletion", {
+    p_titular_user_id: userId,
+    p_actor_user_id: actorUserId,
+    p_reason: "admin_purge_user",
+  });
+  if (archErr || !(arch as { ok?: boolean })?.ok) {
+    throw new Error(archErr?.message ?? "Falha ao arquivar dados clínicos");
+  }
+
+  const { error: aggErr } = await admin.rpc("close_aggregated_links_on_account_deletion", {
+    p_user_id: userId,
+  });
+  if (aggErr) throw new Error(aggErr.message);
 
   const { data: shops } = await admin.from("barbershops").select("id, slug, avatar_url").eq("owner_id", userId);
 
@@ -41,7 +60,6 @@ async function purgeUserCompletely(admin: SupabaseClient, userId: string, userEm
         await admin.from("bloqueios").delete().in("barbeiro_id", barbeiroIds);
         await admin.from("disponibilidades").delete().in("barbeiro_id", barbeiroIds);
       }
-      await admin.from("agendamentos").delete().in("barbearia_id", barbeariaIds);
       await admin.from("barbeiros").delete().in("barbearia_id", barbeariaIds);
       await admin.from("barbearias").delete().in("id", barbeariaIds);
     }
@@ -58,8 +76,18 @@ async function purgeUserCompletely(admin: SupabaseClient, userId: string, userEm
   await admin.from("profiles").delete().eq("id", userId);
   await admin.from("user_roles").delete().eq("user_id", userId);
 
-  const { error: delErr } = await admin.auth.admin.deleteUser(userId);
-  if (delErr) throw new Error(delErr.message);
+  const tombstoneEmail = `deleted+${userId}@accounts.sentinela.invalid`;
+  const { error: anonErr } = await admin.auth.admin.updateUserById(userId, {
+    email: tombstoneEmail,
+    email_confirm: true,
+    ban_duration: "876000h",
+    user_metadata: {
+      account_deleted: true,
+      deleted_at: new Date().toISOString(),
+      admin_purged: true,
+    },
+  });
+  if (anonErr) throw new Error(anonErr.message);
 }
 
 Deno.serve(async (req) => {
@@ -134,7 +162,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    await purgeUserCompletely(admin, userId, targetEmail);
+    await purgeUserCompletely(admin, userId, targetEmail, callerData.user.id);
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

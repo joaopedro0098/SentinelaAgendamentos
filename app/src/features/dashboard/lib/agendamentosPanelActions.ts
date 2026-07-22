@@ -29,8 +29,33 @@ export function parsePanelStatusRow(data: unknown): PanelStatusUpdateRow | null 
   };
 }
 
-export async function rpcExcluirAgendamento(p_agendamento_id: string) {
-  return supabase.rpc("excluir_agendamento_painel", { p_agendamento_id });
+const EXCLUIR_AGENDAMENTO_ERROR_MESSAGES: Record<string, string> = {
+  not_authenticated: "Faça login novamente.",
+  not_found: "Agendamento não encontrado.",
+  forbidden: "Sem permissão para excluir este agendamento.",
+};
+
+export type ExcluirAgendamentoResult = { ok: true } | { error: string };
+
+export function parseExcluirAgendamentoRpc(data: unknown): ExcluirAgendamentoResult {
+  if (!data || typeof data !== "object") return { error: "Resposta inválida" };
+  const row = data as Record<string, unknown>;
+  if (row.error) {
+    const key = String(row.error);
+    return { error: EXCLUIR_AGENDAMENTO_ERROR_MESSAGES[key] ?? key };
+  }
+  if (row.ok === true) return { ok: true };
+  return { error: "Resposta inválida" };
+}
+
+export async function rpcExcluirAgendamento(
+  p_agendamento_id: string,
+): Promise<ExcluirAgendamentoResult> {
+  const { data, error } = await supabase.rpc("excluir_agendamento_painel", {
+    p_agendamento_id,
+  });
+  if (error) return { error: panelAgendamentoErrorMessage(error.message) };
+  return parseExcluirAgendamentoRpc(data);
 }
 
 export async function rpcAlterarAgendamentoPainel(

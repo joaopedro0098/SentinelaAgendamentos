@@ -36,6 +36,39 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+    const { data: blocked, error: blockErr } = await admin.rpc("account_deletion_blocked_by_active_cas", {
+      p_user_id: userId,
+    });
+    if (blockErr) {
+      return new Response(JSON.stringify({ error: blockErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (blocked === true) {
+      return new Response(
+        JSON.stringify({
+          error: "active_aggregated_accounts",
+          message: "Remova ou desagregue todas as contas agregadas antes de excluir sua conta.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { data: arch, error: archErr } = await admin.rpc("clinical_archive_for_account_deletion", {
+      p_titular_user_id: userId,
+      p_actor_user_id: userId,
+      p_reason: "delete_account",
+    });
+    if (archErr || !(arch as { ok?: boolean })?.ok) {
+      return new Response(JSON.stringify({ error: archErr?.message ?? "Falha ao arquivar dados clínicos" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    await admin.rpc("close_aggregated_links_on_account_deletion", { p_user_id: userId });
+
     if (userEmail) {
       await admin.from("trial_claims").upsert(
         { email: userEmail, user_id: userId, claimed_at: new Date().toISOString() },
@@ -65,7 +98,6 @@ Deno.serve(async (req) => {
           await admin.from("bloqueios").delete().in("barbeiro_id", barbeiroIds);
           await admin.from("disponibilidades").delete().in("barbeiro_id", barbeiroIds);
         }
-        await admin.from("agendamentos").delete().in("barbearia_id", barbeariaIds);
         await admin.from("barbeiros").delete().in("barbearia_id", barbeariaIds);
         await admin.from("barbearias").delete().in("id", barbeariaIds);
       }
@@ -76,9 +108,18 @@ Deno.serve(async (req) => {
     await admin.from("profiles").delete().eq("id", userId);
     await admin.from("user_roles").delete().eq("user_id", userId);
 
-    const { error: delErr } = await admin.auth.admin.deleteUser(userId);
-    if (delErr) {
-      return new Response(JSON.stringify({ error: delErr.message }), {
+    const tombstoneEmail = `deleted+${userId}@accounts.sentinela.invalid`;
+    const { error: anonErr } = await admin.auth.admin.updateUserById(userId, {
+      email: tombstoneEmail,
+      email_confirm: true,
+      ban_duration: "876000h",
+      user_metadata: {
+        account_deleted: true,
+        deleted_at: new Date().toISOString(),
+      },
+    });
+    if (anonErr) {
+      return new Response(JSON.stringify({ error: anonErr.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

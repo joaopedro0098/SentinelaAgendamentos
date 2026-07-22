@@ -530,7 +530,7 @@ export type Database = {
       }
       excluir_agendamento_painel: {
         Args: { p_agendamento_id: string }
-        Returns: undefined
+        Returns: Json
       }
       confirmar_presenca_agendamento_painel: {
         Args: { p_agendamento_id: string }

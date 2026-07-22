@@ -17,7 +17,10 @@ export async function registerUserFacialEmbedding(
     throw new Error("Não foi possível registrar a verificação facial.");
   }
 
-  const row = data as { trial_eligible?: boolean; facial_match?: boolean };
+  const row = data as { error?: string; trial_eligible?: boolean; facial_match?: boolean };
+  if (row.error) {
+    throw new Error(row.error);
+  }
   return {
     trialEligible: row.trial_eligible !== false,
     facialMatch: row.facial_match === true,

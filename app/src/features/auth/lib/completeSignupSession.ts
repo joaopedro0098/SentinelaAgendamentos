@@ -25,12 +25,18 @@ export async function completeSignupSession(session: Session, options: Options) 
 
   const pending = loadPendingFaceEmbedding(options.email);
   if (pending) {
-    const registered = await registerUserFacialEmbedding(pending.embedding);
-    clearPendingFaceEmbedding();
-    clearSubscriptionCache();
-    markFaceVerificationComplete(session.user.id);
-    if (!registered.trialEligible || registered.facialMatch) {
-      authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+    try {
+      const registered = await registerUserFacialEmbedding(pending.embedding);
+      clearSubscriptionCache();
+      markFaceVerificationComplete(session.user.id);
+      if (!registered.trialEligible || registered.facialMatch) {
+        authInfoToast(FACIAL_TRIAL_BLOCKED_MESSAGE);
+      }
+    } catch {
+      // Registro falhou (ex.: embedding inválido) — não marca como concluído;
+      // userNeedsFaceVerification abaixo vai corretamente pedir para refazer.
+    } finally {
+      clearPendingFaceEmbedding();
     }
   }
 

@@ -406,7 +406,7 @@ export type Database = {
         Args: { p_agendamento_id: string }
         Returns: string
       }
-      excluir_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: undefined }
+      excluir_agendamento_painel: { Args: { p_agendamento_id: string }; Returns: Json }
       expirar_agendamentos_nao_confirmados: {
         Args: { p_barbearia_ids?: string[] | null }
         Returns: number

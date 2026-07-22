@@ -40,6 +40,7 @@ export default function PerfilPage() {
   const [deleting, setDeleting] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [leavingAggregation, setLeavingAggregation] = useState(false);
+  const [activeAggAccountCount, setActiveAggAccountCount] = useState<number | null>(null);
   const [highlightPro, setHighlightPro] = useState(() => searchParams.get("destaque") === "pro");
 
   useEffect(() => {
@@ -59,6 +60,26 @@ export default function PerfilPage() {
     clearSubscriptionCache();
     void refresh({ force: true });
   }, [refresh]);
+
+  useEffect(() => {
+    if (!info?.can_manage_aggregated_accounts) {
+      setActiveAggAccountCount(null);
+      return;
+    }
+    let cancelled = false;
+    void supabase.rpc("list_my_aggregated_accounts").then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        setActiveAggAccountCount(null);
+        return;
+      }
+      const accounts = (data as { accounts?: unknown[] } | null)?.accounts ?? [];
+      setActiveAggAccountCount(accounts.length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [info?.can_manage_aggregated_accounts]);
 
   useEffect(() => {
     if (user?.email) setNewEmail(user.email);
@@ -118,7 +139,14 @@ export default function PerfilPage() {
     try {
       const { data, error } = await supabase.functions.invoke("delete-account", { method: "POST" });
       if (error) throw error;
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      const payload = data as { ok?: boolean; error?: string; message?: string };
+      if (payload?.error === "active_aggregated_accounts") {
+        throw new Error(
+          payload.message ??
+            "Remova ou desagregue todas as contas agregadas antes de excluir sua conta.",
+        );
+      }
+      if (payload?.error) throw new Error(payload.error);
       await signOut();
       navigate("/", { replace: true });
     } catch (e) {
@@ -180,6 +208,9 @@ export default function PerfilPage() {
 
   const subscriptionNotice = formatSubscriptionNotice(info?.subscription_notice);
   const showSubscriptionNotice = shouldShowSubscriptionNotice(info, info?.subscription_notice);
+
+  const deleteBlockedByActiveCas =
+    Boolean(info?.can_manage_aggregated_accounts) && (activeAggAccountCount ?? 0) > 0;
 
   return (
     <div className="panel-canvas-page p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
@@ -302,12 +333,18 @@ export default function PerfilPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {deleteBlockedByActiveCas && (
+            <p className="text-xs text-muted-foreground">
+              Você ainda tem contas agregadas pendentes ou ativas. Remova ou desagregue todas na aba
+              correspondente antes de excluir sua conta.
+            </p>
+          )}
           <Button
             variant="destructive"
             size="sm"
             className="rounded-full w-full"
             onClick={handleDeleteAccount}
-            disabled={deleting}
+            disabled={deleting || deleteBlockedByActiveCas}
           >
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir minha conta"}
           </Button>

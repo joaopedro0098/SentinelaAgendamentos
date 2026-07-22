@@ -144,10 +144,6 @@ export async function deletePacienteDocumento(documentoId: string) {
   const row = data as { error?: string; ok?: boolean; storage_path?: string } | null;
   if (!row || row.error) return { error: row?.error ?? "Não foi possível excluir o documento." };
 
-  if (row.storage_path) {
-    await supabase.storage.from("paciente-documentos").remove([row.storage_path]);
-  }
-
   return { ok: true as const };
 }
 
