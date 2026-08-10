@@ -14,6 +14,7 @@ const LANDING_PATHS = new Set([
   "/reset-password/success",
   "/politica-de-privacidade",
   "/termos-de-servico",
+  "/exclusao-de-dados-pessoais",
 ]);
 
 function resolveTheme(pathname: string): "landing" | "dashboard" | "booking" {

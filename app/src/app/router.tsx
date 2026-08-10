@@ -12,6 +12,7 @@ const HomePage = lazy(() => import("@/features/landing/pages/HomePage"));
 const PlanosPage = lazy(() => import("@/features/landing/pages/PlanosPage"));
 const PoliticaPrivacidadePage = lazy(() => import("@/features/landing/pages/PoliticaPrivacidadePage"));
 const TermosServicoPage = lazy(() => import("@/features/landing/pages/TermosServicoPage"));
+const ExclusaoDadosPessoaisPage = lazy(() => import("@/features/landing/pages/ExclusaoDadosPessoaisPage"));
 
 const PublicAgendaLayout = lazy(() => import("@/features/agenda/pages/PublicAgendaLayout"));
 const PublicBookingHub = lazy(() => import("@agenda/pages/PublicBookingHub"));
@@ -44,6 +45,7 @@ export function AppRouter() {
           <Route path="/planos" element={<PlanosPage />} />
           <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
           <Route path="/termos-de-servico" element={<TermosServicoPage />} />
+          <Route path="/exclusao-de-dados-pessoais" element={<ExclusaoDadosPessoaisPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signup/confirmar-codigo" element={<SignupConfirmEmailPage />} />

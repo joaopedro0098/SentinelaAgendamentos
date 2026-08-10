@@ -1,7 +1,7 @@
 import { LegalPageShell } from "@/features/landing/components/LegalPageShell";
 import { Link } from "react-router-dom";
 
-const ULTIMA_ATUALIZACAO = "09 de agosto de 2026";
+const ULTIMA_ATUALIZACAO = "10 de agosto de 2026";
 
 const PoliticaPrivacidade = () => (
   <LegalPageShell title="Política de privacidade" subtitle={`Última atualização: ${ULTIMA_ATUALIZACAO}`}>
@@ -151,17 +151,21 @@ const PoliticaPrivacidade = () => (
 
     <h2>8. Seus direitos e escolhas</h2>
     <p>
-      Nos termos da LGPD, você pode solicitar confirmação de tratamento, acesso, correção, anonimização, eliminação de dados desnecessários,
-      informação sobre compartilhamentos e revogação de consentimento, quando cabível. Para exercer esses direitos, entre em contato pelos
-      canais do site ou pelo e-mail{" "}
+      Você pode solicitar a exclusão total ou parcial dos seus dados, bem como tratamento, acesso, correção, anonimização, ou qualquer
+      outro tipo de alteração de dados pessoais. Para exercer esses direitos, entre em contato pelos canais do site ou pelo e-mail{" "}
       <a href="mailto:joaopedro.suporte98@gmail.com" className="text-foreground hover:underline">
         joaopedro.suporte98@gmail.com
-      </a>
+      </a>{" "}
+      ou pelo contato de suporte do WhatsApp do próprio site. Veja mais sobre excluir/alterar dados pessoais{" "}
+      <Link to="/exclusao-de-dados-pessoais" className="text-foreground hover:underline">
+        clicando aqui
+      </Link>
       .
     </p>
     <p>
-      Se seus dados foram inseridos na plataforma por um Profissional/Estabelecimento (ou seja, você é cliente/paciente dele), recomendamos
-      também contatar diretamente esse Profissional/Estabelecimento, que é o Controlador responsável pela finalidade da coleta.
+      Informamos que você também poderá contatar diretamente o Profissional/Estabelecimento que lhe prestou atendimento, que é o
+      Controlador responsável pela finalidade da coleta, para exclusão total ou parcial dos seus dados bem como qualquer tipo de
+      alteração.
     </p>
 
     <h2>9. Alterações nesta política</h2>

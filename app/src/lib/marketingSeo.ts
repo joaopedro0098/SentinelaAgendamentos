@@ -12,6 +12,7 @@ export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/reset-password/success": "Senha alterada — Sentinela Agendamentos",
   "/politica-de-privacidade": "Política de privacidade — Sentinela Agendamentos",
   "/termos-de-servico": "Termos de serviço — Sentinela Agendamentos",
+  "/exclusao-de-dados-pessoais": "Exclusão de dados pessoais — Sentinela Agendamentos",
 };
 
 export const MARKETING_PAGE_DESCRIPTIONS: Record<string, string> = {

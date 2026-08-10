@@ -163,6 +163,7 @@ const BARBER_PWA_MARKETING_PATHS = new Set([
   "/planos",
   "/politica-de-privacidade",
   "/termos-de-servico",
+  "/exclusao-de-dados-pessoais",
   "/login",
   "/signup",
   "/signup/confirmar-codigo",
