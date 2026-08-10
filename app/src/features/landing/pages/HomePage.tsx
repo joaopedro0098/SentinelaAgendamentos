@@ -7,6 +7,7 @@ import { SocialProofSection } from "@/features/landing/components/SocialProofSec
 import { LandingFaqSection } from "@/features/landing/components/LandingFaqSection";
 import { LandingCta } from "@/features/landing/components/LandingCta";
 import LandingFooter from "@/features/landing/components/LandingFooter";
+import { LandingWhatsAppFab } from "@/features/landing/components/LandingWhatsAppFab";
 
 const HomePage = () => {
   return (
@@ -22,6 +23,7 @@ const HomePage = () => {
         <LandingCta />
       </main>
       <LandingFooter />
+      <LandingWhatsAppFab />
     </>
   );
 };

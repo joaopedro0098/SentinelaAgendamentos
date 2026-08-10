@@ -1,4 +1,5 @@
 const SUPPORT_MESSAGE = "Olá, preciso de ajuda com o Sentinela Agendamentos";
+const LANDING_SUPPORT_MESSAGE = "Olá, gostaria de suporte com o sentinela.";
 
 const APP_SUPPORT_WHATSAPP_PHONE = "5511999773308";
 
@@ -13,6 +14,11 @@ function buildAppSupportWhatsAppUrl() {
 
 export function openAppSupportWhatsApp() {
   window.open(buildAppSupportWhatsAppUrl(), "_blank", "noopener,noreferrer");
+}
+
+export function buildLandingSupportWhatsAppUrl() {
+  const text = encodeURIComponent(LANDING_SUPPORT_MESSAGE);
+  return `https://wa.me/${APP_SUPPORT_WHATSAPP_PHONE}?text=${text}`;
 }
 
 export function buildSupportWhatsAppUrl(phoneDigits: string | null | undefined) {
