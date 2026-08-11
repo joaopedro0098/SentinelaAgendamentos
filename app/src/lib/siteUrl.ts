@@ -1,11 +1,10 @@
-/** Origem canônica do site em produção (usada em og:url e canonical). */
-export const SITE_ORIGIN = "https://www.sentinelagendamentos.com";
+import { buildPublicPageUrl as buildPublicPageUrlFromSeo, SITE_ORIGIN } from "../../seo/publicPages";
+
+export { SITE_ORIGIN };
 
 /** Monta a URL pública absoluta da rota atual. */
 export function buildPublicPageUrl(pathname: string, search = ""): string {
-  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  const base = path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${path}`;
-  return search ? `${base}${search}` : base;
+  return buildPublicPageUrlFromSeo(pathname, search);
 }
 
 function setMetaProperty(property: string, content: string) {
@@ -28,7 +27,7 @@ function setCanonicalLink(href: string) {
   el.href = href;
 }
 
-/** Atualiza og:url e canonical para refletir a rota atual. */
+/** Atualiza og:url e canonical para refletir a rota atual (navegador; crawlers usam edge middleware). */
 export function syncDocumentUrlMeta(pathname: string, search = "") {
   const url = buildPublicPageUrl(pathname, search);
   setMetaProperty("og:url", url);

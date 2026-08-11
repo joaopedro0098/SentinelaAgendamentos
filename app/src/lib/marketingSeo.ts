@@ -1,8 +1,18 @@
+import { PUBLIC_CRAWLER_PAGES } from "../../seo/publicPages";
+
 const HOME_TITLE = "Sentinela Agendamentos — Gestão de agenda para profissionais de saúde";
+
+const crawlerTitles = Object.fromEntries(
+  Object.entries(PUBLIC_CRAWLER_PAGES).map(([path, page]) => [path, page.title]),
+);
+
+const crawlerDescriptions = Object.fromEntries(
+  Object.entries(PUBLIC_CRAWLER_PAGES).map(([path, page]) => [path, page.description]),
+);
 
 export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/": HOME_TITLE,
-  "/planos": "Planos e preços — Sentinela Agendamentos",
+  ...crawlerTitles,
   "/login": "Entrar — Sentinela Agendamentos",
   "/signup": "Teste grátis 14 dias — Sentinela Agendamentos",
   "/signup/confirmar-codigo": "Confirme seu e-mail — Sentinela Agendamentos",
@@ -10,16 +20,12 @@ export const MARKETING_PAGE_TITLES: Record<string, string> = {
   "/recover": "Recuperar senha — Sentinela Agendamentos",
   "/reset-password": "Recuperação de senha — Sentinela Agendamentos",
   "/reset-password/success": "Senha alterada — Sentinela Agendamentos",
-  "/politica-de-privacidade": "Política de privacidade — Sentinela Agendamentos",
-  "/termos-de-servico": "Termos de serviço — Sentinela Agendamentos",
-  "/exclusao-de-dados-pessoais": "Exclusão de dados pessoais — Sentinela Agendamentos",
 };
 
 export const MARKETING_PAGE_DESCRIPTIONS: Record<string, string> = {
   "/":
     "Agendamento online, ficha de pacientes e gestão do consultório em um só lugar. Teste grátis por 14 dias, sem cartão. Para psicólogos, médicos, nutricionistas e mais.",
-  "/planos":
-    "Planos Start e Pro para consultórios e clínicas. Teste grátis por 14 dias, sem cartão de crédito. Agendamento online e gestão de equipe.",
+  ...crawlerDescriptions,
   "/signup":
     "Crie sua conta e organize sua agenda em minutos. Teste grátis por 14 dias, sem cartão de crédito.",
 };
