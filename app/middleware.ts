@@ -1,12 +1,13 @@
-import {
-  CRAWLER_UA_RE,
-  PUBLIC_CRAWLER_PAGES,
-  PUBLIC_CRAWLER_PATHS,
-  patchIndexHtmlForCrawler,
-} from "./seo/publicPages";
+import { CRAWLER_UA_RE, PUBLIC_CRAWLER_PAGES, patchIndexHtmlForCrawler } from "./seo/publicPages";
 
 export const config = {
-  matcher: PUBLIC_CRAWLER_PATHS,
+  // Literal obrigatório — Vercel analisa o matcher estaticamente (não aceita variável importada).
+  matcher: [
+    "/politica-de-privacidade",
+    "/termos-de-servico",
+    "/exclusao-de-dados-pessoais",
+    "/planos",
+  ],
 };
 
 export default async function middleware(request: Request): Promise<Response | undefined> {

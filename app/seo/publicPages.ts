@@ -34,7 +34,7 @@ export const PUBLIC_CRAWLER_PAGES: Record<string, PublicCrawlerPage> = {
   },
 };
 
-export const PUBLIC_CRAWLER_PATHS = Object.keys(PUBLIC_CRAWLER_PAGES);
+/** Ao adicionar rota no matcher do middleware, inclua também em PUBLIC_CRAWLER_PAGES acima. */
 
 export function buildPublicPageUrl(pathname: string, search = ""): string {
   const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
