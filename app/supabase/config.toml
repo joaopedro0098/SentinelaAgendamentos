@@ -106,3 +106,7 @@ verify_jwt = false
 
 [functions.upload-paciente-documento]
 verify_jwt = true
+
+[functions.waba-account-webhook]
+verify_jwt = false
+
