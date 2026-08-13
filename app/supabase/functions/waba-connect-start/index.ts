@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
 
     const { data: shop, error: shopErr } = await serviceClient
       .from("barbershops")
-      .select("id, twilio_subaccount_sid, twilio_subaccount_auth_token, sender_sid, waba_connect_status")
+      .select("id, twilio_subaccount_sid, twilio_subaccount_auth_token, sender_sid, waba_connect_status, updated_at")
       .eq("owner_id", userId)
       .maybeSingle();
 
@@ -112,11 +112,103 @@ Deno.serve(async (req) => {
     if (!shop) return jsonResponse({ error: "Empresa não encontrada." }, 404);
 
     const shopId: string = shop.id;
+    const currentStatus = String(shop.waba_connect_status ?? "");
+    const currentSenderSid = String(shop.sender_sid ?? "").trim();
+    const currentSubaccountSid = String(shop.twilio_subaccount_sid ?? "").trim();
+    const encryptedToken = String(shop.twilio_subaccount_auth_token ?? "").trim();
+
+    // 4. CHECAGEM PRÉ-LOCK PARA STATUS 'pending' (Recuperação e Validação Silenciosa)
+    if (currentStatus === "pending" && currentSenderSid && currentSubaccountSid && encryptedToken) {
+      const subaccountAuthToken = await decryptWabaToken(encryptedToken);
+
+      // Consulta se o Sender virou ONLINE assincronamente na Twilio/Meta
+      const checkSenderRes = await twilioFetch(
+        `https://messaging.twilio.com/v2/Channels/Senders/${currentSenderSid}`,
+        {
+          method: "GET",
+          auth: twilioBasicAuth(currentSubaccountSid, subaccountAuthToken),
+        },
+      );
+
+      if (checkSenderRes.ok) {
+        const twilioStatus = String(checkSenderRes.data.status ?? "").toUpperCase();
+        if (twilioStatus === "ONLINE") {
+          // Ativação concluída! Atualiza o banco para connected e retorna sucesso
+          await serviceClient.from("barbershops").update({
+            waba_connect_status: "connected",
+            waba_connected_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", shopId);
+
+          return jsonResponse({ success: true, status: "connected", sender_sid: currentSenderSid });
+        }
+      }
+    }
+
+    // Helper para reverter o status para 'not_connected' caso qualquer etapa Twilio falhe
+    const unlockOnError = async () => {
+      await serviceClient.from("barbershops").update({
+        waba_connect_status: "not_connected",
+        updated_at: new Date().toISOString(),
+      }).eq("id", shopId);
+    };
+
+    // 5. AQUISIÇÃO DO LOCK OTIMISTA (Cobre toda a função do início ao fim)
+    // Janelas de expiração (decisão de design do projeto):
+    // - otpCutoff: 10 minutos (tempo limite de cooldown para solicitar um novo OTP)
+    // - lockCutoff: 5 minutos (tempo limite para expirar um lock 'provisioning' travado)
+    const otpCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const lockCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+    const { count, error: lockErr } = await serviceClient
+      .from("barbershops")
+      .update({
+        waba_connect_status: "provisioning",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shopId)
+      .or(
+        `waba_connect_status.eq.not_connected,` +
+        `waba_connect_status.eq.error,` +
+        `waba_connect_status.eq.token_expired,` +
+        `and(waba_connect_status.eq.pending,updated_at.lt.${otpCutoff}),` +
+        `and(waba_connect_status.eq.provisioning,updated_at.lt.${lockCutoff})`
+      )
+      .select("id", { count: "exact", head: true });
+
+    if (lockErr) {
+      return jsonResponse({ error: lockErr.message }, 500);
+    }
+
+    if ((count ?? 0) === 0) {
+      // Lock não adquirido — determina o motivo para retornar resposta 409 adequada
+      if (currentStatus === "pending") {
+        return jsonResponse({
+          error: "Um código OTP já foi enviado recentemente. Insira o código recebido para continuar ou aguarde alguns minutos para solicitar um novo.",
+          status: "pending",
+        }, 409);
+      }
+
+      if (currentStatus === "connected") {
+        return jsonResponse({
+          error: "WhatsApp já está conectado.",
+          status: "connected",
+        }, 409);
+      }
+
+      // Status 'provisioning' com lock ativo (menos de 5 min)
+      return jsonResponse({
+        error: "Conexão já em andamento. Aguarde alguns instantes e tente novamente.",
+        status: "provisioning",
+      }, 409);
+    }
+
+    // A partir daqui, o lock 'provisioning' pertence a esta requisição!
     let subaccountSid: string = shop.twilio_subaccount_sid ?? "";
     let subaccountAuthTokenEncrypted: string = shop.twilio_subaccount_auth_token ?? "";
     let subaccountAuthToken = "";
 
-    // 4. CRIAÇÃO / REUSO DA SUBCONTA TWILIO (Accounts API)
+    // 6. CRIAÇÃO / REUSO DA SUBCONTA TWILIO (Accounts API)
     const { accountSid: masterSid, authToken: masterToken } = getTwiliaMasterCredentials();
 
     if (!subaccountSid) {
@@ -132,6 +224,7 @@ Deno.serve(async (req) => {
 
       if (!createSubRes.ok) {
         console.error("[waba-connect-start] Falha ao criar subconta Twilio:", createSubRes.data);
+        await unlockOnError();
         return jsonResponse({ error: "Falha ao criar subconta na Twilio. Tente novamente." }, 502);
       }
 
@@ -139,7 +232,7 @@ Deno.serve(async (req) => {
       subaccountAuthToken = String(createSubRes.data.auth_token ?? "");
       subaccountAuthTokenEncrypted = await encryptWabaToken(subaccountAuthToken);
 
-      // 5. GRAVAÇÃO IMEDIATA DA SUBCONTA (antes de tentar o Sender, para evitar subcontas órfãs)
+      // GRAVAÇÃO IMEDIATA DA SUBCONTA (Evita subcontas órfãs se etapas seguintes falharem)
       const { error: saveSubErr } = await serviceClient
         .from("barbershops")
         .update({
@@ -151,6 +244,7 @@ Deno.serve(async (req) => {
 
       if (saveSubErr) {
         console.error("[waba-connect-start] Erro ao gravar subconta no banco:", saveSubErr);
+        await unlockOnError();
         return jsonResponse({ error: "Erro ao salvar credenciais da subconta." }, 500);
       }
     } else {
@@ -158,7 +252,7 @@ Deno.serve(async (req) => {
       subaccountAuthToken = await decryptWabaToken(subaccountAuthTokenEncrypted);
     }
 
-    // 6. IDEMPOTÊNCIA: Verificar se já existe um sender_sid pendente
+    // 7. IDEMPOTÊNCIA: Verificar se já existe um sender_sid pendente
     let senderSid: string = shop.sender_sid ?? "";
 
     if (senderSid) {
@@ -175,7 +269,7 @@ Deno.serve(async (req) => {
         const existingStatus = String(getSenderRes.data.status ?? "").toUpperCase();
 
         if (existingStatus === "ONLINE") {
-          // Sender já está ativo — atualiza o banco e retorna sucesso sem disparar novo OTP
+          // Sender já está ativo — atualiza o banco para connected e libera lock
           await serviceClient.from("barbershops").update({
             waba_connect_status: "connected",
             waba_connected_at: new Date().toISOString(),
@@ -192,8 +286,8 @@ Deno.serve(async (req) => {
         );
 
         if (!deleteSenderRes.ok && deleteSenderRes.status !== 404) {
-          // 404 é aceitável (Sender já não existe na Twilio); qualquer outro erro bloqueia
           console.error("[waba-connect-start] Falha ao deletar Sender antigo:", deleteSenderRes.data);
+          await unlockOnError();
           return jsonResponse({
             error: "Não foi possível limpar a tentativa anterior de conexão. Aguarde alguns minutos e tente novamente.",
           }, 502);
@@ -209,7 +303,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. CRIAÇÃO DO SENDER + DISPARO DO OTP (Senders API)
+    // 8. CRIAÇÃO DO SENDER + DISPARO DO OTP (Senders API)
     const senderBody = new URLSearchParams({
       sender_id: `whatsapp:${phoneNumber}`,
       waba_id: wabaId,
@@ -227,12 +321,13 @@ Deno.serve(async (req) => {
 
     if (!createSenderRes.ok) {
       console.error("[waba-connect-start] Falha ao criar Sender Twilio:", createSenderRes.data);
+      await unlockOnError();
       return jsonResponse({ error: "Falha ao registrar WhatsApp Sender na Twilio. Tente novamente." }, 502);
     }
 
     senderSid = String(createSenderRes.data.sid ?? "");
 
-    // 8. GRAVAÇÃO FINAL DO ESTADO NO BANCO
+    // 9. GRAVAÇÃO FINAL DO ESTADO NO BANCO (Passa de 'provisioning' para 'pending')
     const { error: saveFinalErr } = await serviceClient
       .from("barbershops")
       .update({
@@ -246,6 +341,7 @@ Deno.serve(async (req) => {
 
     if (saveFinalErr) {
       console.error("[waba-connect-start] Erro ao gravar estado final:", saveFinalErr);
+      await unlockOnError();
       return jsonResponse({ error: "Erro ao salvar estado da integração." }, 500);
     }
 
