@@ -307,6 +307,8 @@ Deno.serve(async (req) => {
 
     // 7. IDEMPOTÊNCIA: Verificar se já existe um sender_sid pendente
     let senderSid: string = shop.sender_sid ?? "";
+    let senderStatus = "";
+    let senderWasReused = false;
 
     if (senderSid) {
       // Consulta o status do Sender existente
@@ -383,8 +385,6 @@ Deno.serve(async (req) => {
       },
     );
 
-    let senderStatus = "";
-
     if (!createSenderRes.ok) {
       const errMsg = String(createSenderRes.data.message ?? createSenderRes.data.error ?? "").toLowerCase();
       const isAlreadyExists = createSenderRes.status === 409 || errMsg.includes("already exists");
@@ -408,6 +408,7 @@ Deno.serve(async (req) => {
           if (existingSender) {
             senderSid = String(existingSender.sid ?? "");
             senderStatus = String(existingSender.status ?? "").toUpperCase();
+            senderWasReused = true;
             console.log(`[waba-connect-start] Sender já existia, reaproveitando via fallback: ${senderSid} (status: ${senderStatus})`);
           }
         }
@@ -462,6 +463,7 @@ Deno.serve(async (req) => {
       success: true,
       status: "pending",
       sender_sid: senderSid,
+      sender_was_reused: senderWasReused,
       verification_method: verificationMethod,
       message: `Código OTP enviado via ${verificationMethod === "sms" ? "SMS" : "chamada de voz"}.`,
     });
