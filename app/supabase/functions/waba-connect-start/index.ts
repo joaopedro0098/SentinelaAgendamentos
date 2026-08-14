@@ -28,8 +28,12 @@ function twilioBasicAuth(sid: string, token: string): string {
 
 async function twilioFetch(
   url: string,
-  options: { method: string; auth: string; body?: URLSearchParams },
+  options: { method: string; auth: string; body?: URLSearchParams; timeoutMs?: number },
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  const timeoutMs = options.timeoutMs ?? 10000; // 10 segundos por padrão
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   const headers: HeadersInit = {
     Authorization: options.auth,
   };
@@ -37,25 +41,55 @@ async function twilioFetch(
     headers["Content-Type"] = "application/x-www-form-urlencoded";
   }
 
-  const res = await fetch(url, {
-    method: options.method,
-    headers,
-    body: options.body,
-  });
-
-  const text = await res.text();
-  let data: Record<string, unknown> = {};
   try {
-    data = JSON.parse(text);
-  } catch {
-    data = { raw: text };
-  }
+    const res = await fetch(url, {
+      method: options.method,
+      headers,
+      body: options.body,
+      signal: controller.signal,
+    });
 
-  return { ok: res.ok, status: res.status, data };
+    const text = await res.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    return { ok: res.ok, status: res.status, data };
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      console.error(`[twilioFetch] Timeout de ${timeoutMs}ms excedido na requisição para: ${url}`);
+      return {
+        ok: false,
+        status: 504,
+        data: { error: "Timeout ao comunicar com a Twilio. Tente novamente." },
+      };
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  let lockedShopId: string | null = null;
+  let serviceClient: ReturnType<typeof createClient> | null = null;
+
+  const unlockOnError = async (shopId: string) => {
+    if (!serviceClient) return;
+    try {
+      await serviceClient.from("barbershops").update({
+        waba_connect_status: "not_connected",
+        updated_at: new Date().toISOString(),
+      }).eq("id", shopId);
+    } catch (e) {
+      console.error("[waba-connect-start] Erro ao reverter lock 'provisioning':", e);
+    }
+  };
 
   try {
     // 1. Autenticação de sessão via JWT do usuário logado
@@ -100,7 +134,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Busca a barbearia do usuário logado
-    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+    serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: shop, error: shopErr } = await serviceClient
       .from("barbershops")
@@ -144,14 +178,6 @@ Deno.serve(async (req) => {
         }
       }
     }
-
-    // Helper para reverter o status para 'not_connected' caso qualquer etapa Twilio falhe
-    const unlockOnError = async () => {
-      await serviceClient.from("barbershops").update({
-        waba_connect_status: "not_connected",
-        updated_at: new Date().toISOString(),
-      }).eq("id", shopId);
-    };
 
     // 5. AQUISIÇÃO DO LOCK OTIMISTA (Cobre toda a função do início ao fim)
     // Janelas de expiração (decisão de design do projeto):
@@ -203,7 +229,9 @@ Deno.serve(async (req) => {
       }, 409);
     }
 
-    // A partir daqui, o lock 'provisioning' pertence a esta requisição!
+    // Lock adquirido com sucesso! Marca o ID da loja travada para reversão no catch em caso de erro.
+    lockedShopId = shopId;
+
     let subaccountSid: string = shop.twilio_subaccount_sid ?? "";
     let subaccountAuthTokenEncrypted: string = shop.twilio_subaccount_auth_token ?? "";
     let subaccountAuthToken = "";
@@ -224,8 +252,9 @@ Deno.serve(async (req) => {
 
       if (!createSubRes.ok) {
         console.error("[waba-connect-start] Falha ao criar subconta Twilio:", createSubRes.data);
-        await unlockOnError();
-        return jsonResponse({ error: "Falha ao criar subconta na Twilio. Tente novamente." }, 502);
+        await unlockOnError(shopId);
+        lockedShopId = null;
+        return jsonResponse({ error: (createSubRes.data.error as string) || "Falha ao criar subconta na Twilio. Tente novamente." }, createSubRes.status === 504 ? 504 : 502);
       }
 
       subaccountSid = String(createSubRes.data.sid ?? "");
@@ -244,7 +273,8 @@ Deno.serve(async (req) => {
 
       if (saveSubErr) {
         console.error("[waba-connect-start] Erro ao gravar subconta no banco:", saveSubErr);
-        await unlockOnError();
+        await unlockOnError(shopId);
+        lockedShopId = null;
         return jsonResponse({ error: "Erro ao salvar credenciais da subconta." }, 500);
       }
     } else {
@@ -276,6 +306,7 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           }).eq("id", shopId);
 
+          lockedShopId = null;
           return jsonResponse({ success: true, status: "connected", sender_sid: senderSid });
         }
 
@@ -287,10 +318,11 @@ Deno.serve(async (req) => {
 
         if (!deleteSenderRes.ok && deleteSenderRes.status !== 404) {
           console.error("[waba-connect-start] Falha ao deletar Sender antigo:", deleteSenderRes.data);
-          await unlockOnError();
+          await unlockOnError(shopId);
+          lockedShopId = null;
           return jsonResponse({
-            error: "Não foi possível limpar a tentativa anterior de conexão. Aguarde alguns minutos e tente novamente.",
-          }, 502);
+            error: (deleteSenderRes.data.error as string) || "Não foi possível limpar a tentativa anterior de conexão. Aguarde alguns minutos e tente novamente.",
+          }, deleteSenderRes.status === 504 ? 504 : 502);
         }
 
         senderSid = "";
@@ -321,8 +353,9 @@ Deno.serve(async (req) => {
 
     if (!createSenderRes.ok) {
       console.error("[waba-connect-start] Falha ao criar Sender Twilio:", createSenderRes.data);
-      await unlockOnError();
-      return jsonResponse({ error: "Falha ao registrar WhatsApp Sender na Twilio. Tente novamente." }, 502);
+      await unlockOnError(shopId);
+      lockedShopId = null;
+      return jsonResponse({ error: (createSenderRes.data.error as string) || "Falha ao registrar WhatsApp Sender na Twilio. Tente novamente." }, createSenderRes.status === 504 ? 504 : 502);
     }
 
     senderSid = String(createSenderRes.data.sid ?? "");
@@ -341,10 +374,12 @@ Deno.serve(async (req) => {
 
     if (saveFinalErr) {
       console.error("[waba-connect-start] Erro ao gravar estado final:", saveFinalErr);
-      await unlockOnError();
+      await unlockOnError(shopId);
+      lockedShopId = null;
       return jsonResponse({ error: "Erro ao salvar estado da integração." }, 500);
     }
 
+    lockedShopId = null;
     return jsonResponse({
       success: true,
       status: "pending",
@@ -354,6 +389,12 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("[waba-connect-start] Erro interno:", e);
+
+    if (lockedShopId) {
+      await unlockOnError(lockedShopId);
+      lockedShopId = null;
+    }
+
     return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
