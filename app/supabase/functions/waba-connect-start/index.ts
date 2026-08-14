@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
       // Status 'provisioning' com lock ativo (menos de 5 min)
       return jsonResponse({
         error: "Conexão já em andamento. Aguarde alguns instantes e tente novamente.",
-        status: "provisioning",
+        status: currentStatus, // ←reporta o valor real, não um texto fixo
       }, 409);
     }
 
