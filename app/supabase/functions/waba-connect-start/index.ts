@@ -186,6 +186,17 @@ Deno.serve(async (req) => {
     const otpCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const lockCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
+    const filterStr =
+      `waba_connect_status.eq.not_connected,` +
+      `waba_connect_status.eq.error,` +
+      `waba_connect_status.eq.token_expired,` +
+      `and(waba_connect_status.eq.pending,updated_at.lt.${otpCutoff}),` +
+      `and(waba_connect_status.eq.provisioning,updated_at.lt.${lockCutoff})`;
+
+    console.log("[waba-connect-start] shopId:", shopId);
+    console.log("[waba-connect-start] currentStatus:", currentStatus);
+    console.log("[waba-connect-start] filtro OR:", filterStr);
+
     const { count, error: lockErr } = await serviceClient
       .from("barbershops")
       .update({
@@ -193,14 +204,10 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", shopId)
-      .or(
-        `waba_connect_status.eq.not_connected,` +
-        `waba_connect_status.eq.error,` +
-        `waba_connect_status.eq.token_expired,` +
-        `and(waba_connect_status.eq.pending,updated_at.lt.${otpCutoff}),` +
-        `and(waba_connect_status.eq.provisioning,updated_at.lt.${lockCutoff})`
-      )
+      .or(filterStr)
       .select("id", { count: "exact", head: true });
+
+    console.log("[waba-connect-start] resultado lock — count:", count, "error:", lockErr);
 
     if (lockErr) {
       return jsonResponse({ error: lockErr.message }, 500);
