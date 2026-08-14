@@ -28,7 +28,13 @@ function twilioBasicAuth(sid: string, token: string): string {
 
 async function twilioFetch(
   url: string,
-  options: { method: string; auth: string; body?: URLSearchParams; timeoutMs?: number },
+  options: {
+    method: string;
+    auth: string;
+    body?: URLSearchParams;
+    jsonBody?: Record<string, unknown>;
+    timeoutMs?: number;
+  },
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
   const timeoutMs = options.timeoutMs ?? 10000; // 10 segundos por padrão
   const controller = new AbortController();
@@ -37,15 +43,22 @@ async function twilioFetch(
   const headers: HeadersInit = {
     Authorization: options.auth,
   };
-  if (options.body) {
+
+  let requestBody: BodyInit | undefined;
+
+  if (options.jsonBody) {
+    headers["Content-Type"] = "application/json";
+    requestBody = JSON.stringify(options.jsonBody);
+  } else if (options.body) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";
+    requestBody = options.body;
   }
 
   try {
     const res = await fetch(url, {
       method: options.method,
       headers,
-      body: options.body,
+      body: requestBody,
       signal: controller.signal,
     });
 
@@ -138,7 +151,7 @@ Deno.serve(async (req) => {
 
     const { data: shop, error: shopErr } = await serviceClient
       .from("barbershops")
-      .select("id, twilio_subaccount_sid, twilio_subaccount_auth_token, sender_sid, waba_connect_status, updated_at")
+      .select("id, display_name, twilio_subaccount_sid, twilio_subaccount_auth_token, sender_sid, waba_connect_status, updated_at")
       .eq("owner_id", userId)
       .maybeSingle();
 
@@ -146,6 +159,7 @@ Deno.serve(async (req) => {
     if (!shop) return jsonResponse({ error: "Empresa não encontrada." }, 404);
 
     const shopId: string = shop.id;
+    const shopDisplayName = String(shop.display_name ?? "").trim();
     const currentStatus = String(shop.waba_connect_status ?? "");
     const currentSenderSid = String(shop.sender_sid ?? "").trim();
     const currentSubaccountSid = String(shop.twilio_subaccount_sid ?? "").trim();
@@ -197,7 +211,7 @@ Deno.serve(async (req) => {
     console.log("[waba-connect-start] currentStatus:", currentStatus);
     console.log("[waba-connect-start] filtro OR:", filterStr);
 
-    const { count, error: lockErr } = await serviceClient
+    const { data: lockData, error: lockErr } = await serviceClient
       .from("barbershops")
       .update({
         waba_connect_status: "provisioning",
@@ -205,9 +219,11 @@ Deno.serve(async (req) => {
       })
       .eq("id", shopId)
       .or(filterStr)
-      .select("id", { count: "exact", head: true });
+      .select("id, waba_connect_status");
 
-    console.log("[waba-connect-start] resultado lock — count:", count, "error:", lockErr);
+    const count = lockData?.length ?? 0;
+
+    console.log("[waba-connect-start] resultado lock — data:", JSON.stringify(lockData), "error:", JSON.stringify(lockErr));
 
     if (lockErr) {
       return jsonResponse({ error: lockErr.message }, 500);
@@ -343,29 +359,84 @@ Deno.serve(async (req) => {
     }
 
     // 8. CRIAÇÃO DO SENDER + DISPARO DO OTP (Senders API)
-    const senderBody = new URLSearchParams({
-      sender_id: `whatsapp:${phoneNumber}`,
-      waba_id: wabaId,
-      verification_method: verificationMethod,
-    });
+    if (!shopDisplayName) {
+      await unlockOnError(shopId);
+      lockedShopId = null;
+      return jsonResponse({ error: "Nome de exibição da barbearia não configurado. Preencha o nome do estabelecimento antes de conectar o WhatsApp." }, 400);
+    }
 
     const createSenderRes = await twilioFetch(
       "https://messaging.twilio.com/v2/Channels/Senders",
       {
         method: "POST",
         auth: twilioBasicAuth(subaccountSid, subaccountAuthToken),
-        body: senderBody,
+        jsonBody: {
+          sender_id: `whatsapp:${phoneNumber}`,
+          configuration: {
+            waba_id: wabaId,
+            verification_method: verificationMethod,
+          },
+          profile: {
+            name: shopDisplayName,
+          },
+        },
       },
     );
 
+    let senderStatus = "";
+
     if (!createSenderRes.ok) {
-      console.error("[waba-connect-start] Falha ao criar Sender Twilio:", createSenderRes.data);
-      await unlockOnError(shopId);
-      lockedShopId = null;
-      return jsonResponse({ error: (createSenderRes.data.error as string) || "Falha ao registrar WhatsApp Sender na Twilio. Tente novamente." }, createSenderRes.status === 504 ? 504 : 502);
+      const errMsg = String(createSenderRes.data.message ?? createSenderRes.data.error ?? "").toLowerCase();
+      const isAlreadyExists = createSenderRes.status === 409 || errMsg.includes("already exists");
+
+      if (isAlreadyExists) {
+        console.log("[waba-connect-start] Sender já existe na Twilio (409). Tentando recuperar via GET...");
+
+        const listSendersRes = await twilioFetch(
+          "https://messaging.twilio.com/v2/Channels/Senders?Channel=whatsapp",
+          {
+            method: "GET",
+            auth: twilioBasicAuth(subaccountSid, subaccountAuthToken),
+          },
+        );
+
+        if (listSendersRes.ok) {
+          const sendersList = (listSendersRes.data.senders ?? listSendersRes.data.results ?? []) as Array<Record<string, unknown>>;
+          const targetSenderId = `whatsapp:${phoneNumber}`;
+          const existingSender = sendersList.find((s) => String(s.sender_id ?? s.senderId ?? "") === targetSenderId);
+
+          if (existingSender) {
+            senderSid = String(existingSender.sid ?? "");
+            senderStatus = String(existingSender.status ?? "").toUpperCase();
+            console.log(`[waba-connect-start] Sender já existia, reaproveitando via fallback: ${senderSid} (status: ${senderStatus})`);
+          }
+        }
+      }
+
+      if (!senderSid) {
+        console.error("[waba-connect-start] Falha ao criar Sender Twilio:", createSenderRes.data);
+        await unlockOnError(shopId);
+        lockedShopId = null;
+        return jsonResponse({ error: (createSenderRes.data.error as string) || (createSenderRes.data.message as string) || "Falha ao registrar WhatsApp Sender na Twilio. Tente novamente." }, createSenderRes.status === 504 ? 504 : 502);
+      }
+    } else {
+      senderSid = String(createSenderRes.data.sid ?? "");
+      senderStatus = String(createSenderRes.data.status ?? "").toUpperCase();
     }
 
-    senderSid = String(createSenderRes.data.sid ?? "");
+    if (senderStatus === "ONLINE") {
+      await serviceClient.from("barbershops").update({
+        waba_id: wabaId,
+        waba_phone_number_id: phoneNumberId,
+        sender_sid: senderSid,
+        waba_connect_status: "connected",
+        waba_connected_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", shopId);
+
+      lockedShopId = null;
+      return jsonResponse({ success: true, status: "connected", sender_sid: senderSid });
+    }
 
     // 9. GRAVAÇÃO FINAL DO ESTADO NO BANCO (Passa de 'provisioning' para 'pending')
     const { error: saveFinalErr } = await serviceClient
