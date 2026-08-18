@@ -20,13 +20,16 @@ const PublicBookingPage = lazy(() => import("@/features/agenda/pages/PublicBooki
 const MeusAgendamentosPage = lazy(() => import("@agenda/pages/MeusAgendamentos"));
 const ConfirmAppointmentPage = lazy(() => import("@/features/agenda/pages/ConfirmAppointmentPage"));
 
-
+const LoginPage = lazy(() => import("@/features/auth/pages/Login"));
+const SignupPage = lazy(() => import("@/features/auth/pages/Signup"));
+const RecoverPage = lazy(() => import("@/features/auth/pages/Recover"));
 const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPassword"));
 const ResetPasswordSuccessPage = lazy(() => import("@/features/auth/pages/ResetPasswordSuccess"));
 const AuthCallbackPage = lazy(() => import("@/features/auth/pages/AuthCallback"));
 const AuthCompleteVerificationPage = lazy(() => import("@/features/auth/pages/AuthCompleteVerification"));
 const SignupConfirmEmailPage = lazy(() => import("@/features/auth/pages/SignupConfirmEmailPage"));
 const FacialVerificationHandoffPage = lazy(() => import("@/features/auth/pages/FacialVerificationHandoffPage"));
+const AtivarContaPacientePage = lazy(() => import("@/features/auth/pages/AtivarContaPacientePage"));
 
 const NotFoundPage = lazy(() => import("@/pages/NotFound"));
 
@@ -44,12 +47,16 @@ export function AppRouter() {
           <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
           <Route path="/termos-de-servico" element={<TermosServicoPage />} />
           <Route path="/exclusao-de-dados-pessoais" element={<ExclusaoDadosPessoaisPage />} />
-
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup/confirmar-codigo" element={<SignupConfirmEmailPage />} />
           <Route path="/verificacao-facial" element={<FacialVerificationHandoffPage />} />
           <Route path="/recover" element={<RecoverPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/reset-password/success" element={<ResetPasswordSuccessPage />} />
         </Route>
+
+        <Route path="/ativar-paciente" element={<AtivarContaPacientePage />} />
 
         <Route path="/agendar/:slug" element={<PublicAgendaLayout />}>
           <Route index element={<PublicBookingHub />} />

@@ -1141,7 +1141,7 @@ const PublicBooking = ({
         if (clientRecord.nome) nomeParaAgendamento = clientRecord.nome;
         if (clientRecord.whatsapp) whatsStored = clientRecord.whatsapp;
       } else {
-        // No painel do profissional, localiza o cliente existente pelo WhatsApp ou pré-cadastro
+        // No painel do profissional, localiza o cliente existente pelo WhatsApp (pré-cadastro obrigatório)
         const { data: clientRecord } = await supabase
           .from("clientes")
           .select("id, nome, whatsapp")
@@ -1150,11 +1150,20 @@ const PublicBooking = ({
           .is("archived_at", null)
           .maybeSingle();
 
-        if (clientRecord) {
-          cliId = clientRecord.id;
-          if (clientRecord.whatsapp) whatsStored = clientRecord.whatsapp;
+        if (!clientRecord) {
+          toast.error(
+            "Nenhum paciente cadastrado com este WhatsApp. Faça o pré-cadastro na aba Pacientes antes de agendar.",
+            { duration: 8000 },
+          );
+          return;
         }
-      }     if (!ownerPanel) {
+
+        cliId = clientRecord.id;
+        if (clientRecord.nome) nomeParaAgendamento = clientRecord.nome;
+        if (clientRecord.whatsapp) whatsStored = clientRecord.whatsapp;
+      }
+
+      if (!ownerPanel) {
         const { data: paySettings } = await supabase.rpc("get_effective_appointment_payment_settings", {
           p_barbearia_id: targetBarbeariaId,
         });

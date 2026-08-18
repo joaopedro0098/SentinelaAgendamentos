@@ -8,19 +8,24 @@ export function GoogleButton({
   label = "Continuar com Google",
   className,
   authFlow = "login",
+  redirectTo,
 }: {
   label?: string;
   className?: string;
-  authFlow?: "signup" | "login";
+  authFlow?: "signup" | "login" | "patient-login" | "patient-activation";
+  /** URL completa de callback OAuth; sobrescreve authFlow quando informada. */
+  redirectTo?: string;
 }) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     setLoading(true);
+    const callbackUrl =
+      redirectTo ?? `${window.location.origin}/auth/callback?flow=${encodeURIComponent(authFlow)}`;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?flow=${authFlow}`,
+        redirectTo: callbackUrl,
       },
     });
     if (error) {

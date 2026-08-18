@@ -12,6 +12,7 @@ const LANDING_PATHS = new Set([
   "/recover",
   "/reset-password",
   "/reset-password/success",
+  "/ativar-paciente",
   "/politica-de-privacidade",
   "/termos-de-servico",
   "/exclusao-de-dados-pessoais",

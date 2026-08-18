@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, MoreHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import {
   PacienteNomeEditButton,
@@ -121,7 +122,19 @@ export default function PacientesDesktopPanel({
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
       <aside className="flex w-80 shrink-0 flex-col border-r border-border/60">
-        <div className="p-4 border-b border-border/60">
+        <div className="p-4 border-b border-border/60 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold tracking-tight">Pacientes</h2>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 rounded-full gap-1 px-3 text-xs font-semibold"
+              onClick={onOpenCreateCadastro}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Criar paciente
+            </Button>
+          </div>
           <input
             type="search"
             value={search}
@@ -132,9 +145,10 @@ export default function PacientesDesktopPanel({
           {showProfFilter && (
             <div className="mt-3">
               <MinimalFilterSelect
+                label="Profissional"
                 value={profFilter}
                 onChange={onProfFilterChange}
-                options={profFilterOptions}
+                options={profFilterOptions.map((o) => ({ value: o.id, label: o.label }))}
               />
             </div>
           )}

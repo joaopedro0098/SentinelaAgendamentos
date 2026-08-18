@@ -2,13 +2,16 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
-import {
-  registerUserFacialEmbedding,
-} from "@/features/auth/face-verification/facialRecognitionController";
+import { registerUserFacialEmbedding } from "@/features/auth/face-verification/facialRecognitionController";
 import { FACIAL_TRIAL_BLOCKED_MESSAGE } from "@/lib/subscriptionMessages";
-import { userNeedsFaceVerification, markFaceVerificationComplete, canSkipFaceVerification } from "@/features/auth/face-verification/facialVerificationStatus";
+import {
+  userNeedsFaceVerification,
+  markFaceVerificationComplete,
+  canSkipFaceVerification,
+} from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
+import { getPatientPostLoginPath } from "@/features/auth/lib/postLoginPaths";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import {
   clearPendingFaceEmbedding,
@@ -19,6 +22,15 @@ import {
   urlHasPendingAuthCallback,
   waitForAuthSession,
 } from "@/features/auth/lib/authCallbackHandler";
+import { toast } from "@/hooks/use-toast";
+
+function readOAuthFlowParams() {
+  const url = new URL(window.location.href);
+  return {
+    flow: url.searchParams.get("flow"),
+    token: url.searchParams.get("token"),
+  };
+}
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -26,6 +38,7 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let active = true;
+    const { flow, token } = readOAuthFlowParams();
 
     function go(path: string) {
       if (!active || navigatedRef.current) return;
@@ -33,29 +46,11 @@ export default function AuthCallback() {
       navigate(path, { replace: true });
     }
 
-    async function finishAuth() {
-      const hadCallbackParams = urlHasPendingAuthCallback();
-      if (hadCallbackParams) {
-        await consumeAuthCallbackUrl();
-      }
-
-      const session =
-        (await supabase.auth.getSession()).data.session ??
-        (hadCallbackParams ? await waitForAuthSession() : null);
-
-      if (!active) return;
-
-      if (!session) {
-        go("/login");
-        return;
-      }
-
-      const userId = session.user.id;
-
+    async function finishProfessionalPath(userId: string, sessionEmail?: string | null) {
       if (canSkipFaceVerification(userId)) {
         markFaceVerificationComplete(userId);
         go(getBarberPostLoginPath());
-        const pending = loadPendingFaceEmbedding(session.user.email ?? undefined);
+        const pending = loadPendingFaceEmbedding(sessionEmail ?? undefined);
         if (pending) {
           void registerUserFacialEmbedding(pending.embedding)
             .then(() => clearPendingFaceEmbedding())
@@ -64,7 +59,7 @@ export default function AuthCallback() {
         return;
       }
 
-      const pending = loadPendingFaceEmbedding(session.user.email ?? undefined);
+      const pending = loadPendingFaceEmbedding(sessionEmail ?? undefined);
       if (pending) {
         try {
           const registered = await registerUserFacialEmbedding(pending.embedding);
@@ -89,6 +84,52 @@ export default function AuthCallback() {
 
       markFaceVerificationComplete(userId);
       go(getBarberPostLoginPath());
+    }
+
+    async function finishAuth() {
+      const hadCallbackParams = urlHasPendingAuthCallback();
+      if (hadCallbackParams) {
+        await consumeAuthCallbackUrl();
+      }
+
+      const session =
+        (await supabase.auth.getSession()).data.session ??
+        (hadCallbackParams ? await waitForAuthSession() : null);
+
+      if (!active) return;
+
+      if (!session) {
+        go("/login");
+        return;
+      }
+
+      const userId = session.user.id;
+
+      if (flow === "patient-activation" && token) {
+        const { error } = await supabase.rpc("concluir_ativacao_paciente", {
+          p_token: token,
+          p_auth_user_id: userId,
+        });
+        if (error) {
+          toast({
+            title: "Falha ao vincular paciente",
+            description: error.message,
+            variant: "destructive",
+          });
+          go(`/ativar-paciente?token=${encodeURIComponent(token)}`);
+          return;
+        }
+        authInfoToast("Conta ativada com sucesso!");
+        go("/login?role=patient");
+        return;
+      }
+
+      if (flow === "patient-login") {
+        go(getPatientPostLoginPath());
+        return;
+      }
+
+      await finishProfessionalPath(userId, session.user.email);
     }
 
     void finishAuth();

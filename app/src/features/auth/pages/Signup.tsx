@@ -24,6 +24,8 @@ import { getEmailSignupStatus } from "@/features/auth/lib/emailSignupStatus";
 import { resendSignupEmailOtp } from "@/features/auth/lib/signupEmailOtp";
 import { completeSignupSession } from "@/features/auth/lib/completeSignupSession";
 import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
+import { checkProfessionalAccount } from "@/features/auth/lib/professionalAccount";
+import { provisionProfessionalAccount } from "@/features/auth/lib/provisionProfessionalAccount";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import type { Session } from "@supabase/supabase-js";
 import { isDesktopForFaceHandoff } from "@/features/auth/face-verification/isDesktopForFaceHandoff";
@@ -61,6 +63,11 @@ const schema = z
 
 const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
 
+const upgradeSchema = z.object({
+  display_name: z.string().trim().min(2, "Nome muito curto").max(80),
+  shop_name: z.string().trim().min(2, "Nome da empresa muito curto").max(80),
+});
+
 type SignupPhase = "form" | "otp";
 
 export default function Signup() {
@@ -79,8 +86,58 @@ export default function Signup() {
   const [otpEmail, setOtpEmail] = useState("");
   const [otpShopName, setOtpShopName] = useState("");
   const pendingSignupRef = useRef<z.infer<typeof schema> | null>(null);
+  const [upgradeMode, setUpgradeMode] = useState(false);
+  const [blockedProfessional, setBlockedProfessional] = useState(false);
+  const [checkingAccount, setCheckingAccount] = useState(true);
 
+  useEffect(() => {
+    let active = true;
 
+    async function detectDualProfile() {
+      if (!session?.user) {
+        if (active) {
+          setUpgradeMode(false);
+          setBlockedProfessional(false);
+          setCheckingAccount(false);
+        }
+        return;
+      }
+
+      if (!isEmailVerified(session.user)) {
+        if (active) {
+          setUpgradeMode(false);
+          setBlockedProfessional(false);
+          setCheckingAccount(false);
+        }
+        return;
+      }
+
+      const account = await checkProfessionalAccount();
+      if (!active) return;
+
+      if (account.status === "professional") {
+        setBlockedProfessional(true);
+        setUpgradeMode(false);
+      } else if (account.status === "patient_only") {
+        setUpgradeMode(true);
+        setBlockedProfessional(false);
+        setEmail(session.user.email ?? "");
+        const meta = session.user.user_metadata ?? {};
+        setDisplayName(
+          String(meta.display_name ?? meta.full_name ?? meta.name ?? "").trim(),
+        );
+      } else {
+        setUpgradeMode(false);
+        setBlockedProfessional(false);
+      }
+      setCheckingAccount(false);
+    }
+
+    void detectDualProfile();
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id, session?.user?.email, session?.user?.email_confirmed_at]);
 
   function beginOtpStep(parsed: z.infer<typeof schema>, verification: FacialVerificationResult) {
     savePendingFaceEmbedding(verification.embedding, parsed.email);
@@ -162,6 +219,45 @@ export default function Signup() {
     beginOtpStep(parsed, verification);
   }
 
+  async function completeProfessionalUpgrade(
+    parsed: z.infer<typeof upgradeSchema>,
+    verification: FacialVerificationResult,
+  ) {
+    if (!session?.user) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+      return;
+    }
+
+    setSubmittingAccount(true);
+    setLoading(true);
+
+    const provision = await provisionProfessionalAccount(parsed.shop_name, parsed.display_name);
+    if ("error" in provision && provision.error) {
+      setLoading(false);
+      setSubmittingAccount(false);
+      setShowFaceVerification(false);
+      pendingSignupRef.current = null;
+      toast({
+        title: provision.code === "professional_account_exists" ? "Conta profissional existente" : "Não foi possível criar a conta",
+        description: provision.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    savePendingFaceEmbedding(verification.embedding, session.user.email ?? undefined);
+    const { needsFace } = await completeSignupSession(session, {
+      email: session.user.email ?? "",
+      shopName: parsed.shop_name,
+    });
+
+    setShowFaceVerification(false);
+    setLoading(false);
+    setSubmittingAccount(false);
+    pendingSignupRef.current = null;
+    navigate(needsFace ? "/auth/complete-verification" : getBarberPostLoginPath(), { replace: true });
+  }
+
   async function handleOtpConfirmed(confirmedSession: Session) {
     setLoading(true);
     const { needsFace } = await completeSignupSession(confirmedSession, {
@@ -174,6 +270,22 @@ export default function Signup() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (upgradeMode) {
+      const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+      if (!parsed.success) {
+        toast({
+          title: "Dados inválidos",
+          description: parsed.error.issues[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+      pendingSignupRef.current = null;
+      setUsePcFaceVerification(false);
+      setShowFaceVerification(true);
+      return;
+    }
 
     if (password !== confirmPassword) {
       authInfoToast(PASSWORDS_MISMATCH_MESSAGE);
@@ -231,6 +343,32 @@ export default function Signup() {
   const showDesktopHandoff = showFaceVerification && isDesktopForFaceHandoff() && !usePcFaceVerification;
   const showPcFaceFlow = showFaceVerification && (!isDesktopForFaceHandoff() || usePcFaceVerification);
 
+  if (checkingAccount) {
+    return (
+      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft text-center text-sm text-muted-foreground">
+          Verificando sua conta…
+        </div>
+      </main>
+    );
+  }
+
+  if (blockedProfessional) {
+    return (
+      <main className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
+        <div className="w-full max-w-[400px] glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft space-y-4 text-center">
+          <h1 className="font-display text-xl font-semibold">Conta profissional já existente</h1>
+          <p className="text-sm text-muted-foreground">
+            Este login já possui acesso ao painel profissional. Use o painel para gerenciar sua agenda.
+          </p>
+          <Button asChild className="w-full rounded-full">
+            <Link to="/app/agendamentos">Ir para o painel</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
       <Suspense fallback={null}>
@@ -247,6 +385,11 @@ export default function Signup() {
             }}
             onContinueOnPc={() => setUsePcFaceVerification(true)}
             onVerified={(result) => {
+              if (upgradeMode) {
+                const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+                if (parsed.success) void completeProfessionalUpgrade(parsed.data, result);
+                return;
+              }
               const pending = pendingSignupRef.current;
               if (pending) void completeSignup(pending, result);
             }}
@@ -264,6 +407,11 @@ export default function Signup() {
               pendingSignupRef.current = null;
             }}
             onVerified={(result) => {
+              if (upgradeMode) {
+                const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+                if (parsed.success) void completeProfessionalUpgrade(parsed.data, result);
+                return;
+              }
               const pending = pendingSignupRef.current;
               if (pending) void completeSignup(pending, result);
             }}
@@ -274,23 +422,31 @@ export default function Signup() {
         <div className="w-full max-w-[400px] max-h-[calc(100vh-7rem)] overflow-y-auto glass rounded-2xl border border-border/60 p-6 sm:p-8 shadow-soft">
           <PageReveal className="flex flex-col gap-4">
             <div className="text-center sm:text-left">
-              <h1 className="font-display text-2xl font-semibold tracking-tight">Teste grátis por 14 dias</h1>
+              <h1 className="font-display text-2xl font-semibold tracking-tight">
+                {upgradeMode ? "Criar conta profissional" : "Teste grátis por 14 dias"}
+              </h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Crie sua conta e comece a receber agendamentos online hoje mesmo. Não pedimos cartão.
+                {upgradeMode
+                  ? "Seu e-mail já está verificado. Informe os dados da clínica e conclua com reconhecimento facial."
+                  : "Crie sua conta e comece a receber agendamentos online hoje mesmo. Não pedimos cartão."}
               </p>
             </div>
 
-            <GoogleButton
-              label="Cadastrar com Google"
-              authFlow="signup"
-              className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
-            />
+            {!upgradeMode && (
+              <>
+                <GoogleButton
+                  label="Cadastrar com Google"
+                  authFlow="signup"
+                  className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
+                />
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex-1 h-px bg-border/80" />
-              <span>ou</span>
-              <div className="flex-1 h-px bg-border/80" />
-            </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex-1 h-px bg-border/80" />
+                  <span>ou</span>
+                  <div className="flex-1 h-px bg-border/80" />
+                </div>
+              </>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
@@ -317,53 +473,62 @@ export default function Signup() {
                   className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                  E-mail
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
-                  Senha
-                </Label>
-                <PasswordInput
-                  id="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirm_password" className="text-xs font-medium text-muted-foreground">
-                  Confirmar senha
-                </Label>
-                <PasswordInput
-                  id="confirm_password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  showHint={false}
-                  className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
-                />
-              </div>
+              {!upgradeMode && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                      E-mail
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                      Senha
+                    </Label>
+                    <PasswordInput
+                      id="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirm_password" className="text-xs font-medium text-muted-foreground">
+                      Confirmar senha
+                    </Label>
+                    <PasswordInput
+                      id="confirm_password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      showHint={false}
+                      className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
+                    />
+                  </div>
+                </>
+              )}
+              {upgradeMode && email && (
+                <p className="text-xs text-muted-foreground">
+                  Conta vinculada: <span className="text-foreground font-medium">{email}</span>
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
                 disabled={loading}
               >
-                {loading ? "Criando…" : "Criar conta"}
+                {loading ? "Processando…" : upgradeMode ? "Continuar para verificação facial" : "Criar conta"}
               </Button>
             </form>
 
