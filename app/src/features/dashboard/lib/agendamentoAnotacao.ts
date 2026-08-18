@@ -127,13 +127,34 @@ export async function updatePacienteNome(whatsappDigits: string, nome: string) {
   return { ok: true, nome: nomeFinal };
 }
 
+async function removePacienteStorageFiles(paths: string[]) {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length === 0) return;
+
+  const docPaths = unique.filter((p) => !p.endsWith(".jpg"));
+  const avatarPaths = unique.filter((p) => p.endsWith(".jpg"));
+
+  if (docPaths.length > 0) {
+    await supabase.storage.from("paciente-documentos").remove(docPaths);
+  }
+  if (avatarPaths.length > 0) {
+    await supabase.storage.from("barbershop-avatars").remove(avatarPaths);
+  }
+}
+
 export async function deletePacienteCadastroPainel(whatsappDigits: string) {
   const { data, error } = await supabase.rpc("delete_paciente_cadastro_painel", {
     p_whatsapp_digits: whatsappDigits,
   });
   if (error) return { error: error.message };
-  const row = data as { error?: string; ok?: boolean } | null;
+  const row = data as { error?: string; ok?: boolean; storage_paths?: unknown } | null;
   if (row?.error) return { error: row.error };
+
+  const storagePaths = Array.isArray(row?.storage_paths)
+    ? row.storage_paths.filter((p): p is string => typeof p === "string")
+    : [];
+  await removePacienteStorageFiles(storagePaths);
+
   notifyPanelPacientesChanged();
   return { ok: true as const };
 }

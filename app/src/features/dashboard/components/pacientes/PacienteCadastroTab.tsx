@@ -217,7 +217,7 @@ export function PacienteCadastroTab({
       toast({ title: "Não foi possível excluir", description: message, variant: "destructive" });
       return;
     }
-    toast({ title: "Paciente removido da lista" });
+    toast({ title: "Paciente excluído permanentemente" });
     setDeleteOpen(false);
     onCadastroDeleted(paciente.whatsapp_digits);
   }
@@ -269,8 +269,9 @@ export function PacienteCadastroTab({
                 </button>
               </div>
               <p className="text-sm text-foreground leading-relaxed">
-                Esta ação excluirá permanentemente o cadastro de{" "}
-                <span className="font-semibold">{paciente.cliente_nome}</span>. Não será possível desfazer.
+                Esta ação excluirá permanentemente{" "}
+                <span className="font-semibold">{paciente.cliente_nome}</span> e todo o histórico
+                associado (cadastro, agendamentos, anotações e documentos). Não será possível desfazer.
               </p>
               <div className="mt-5 flex justify-end gap-2">
                 <Button type="button" variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>
