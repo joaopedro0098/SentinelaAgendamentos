@@ -1,4 +1,5 @@
-
+import { useEffect, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import {
@@ -117,19 +118,25 @@ export default function PacientesDesktopPanel({
     if (distanceFromBottom < 120) onLoadMore();
   }
 
-  const profOptions = profFilterOptions.map((o) => ({ value: o.id, label: o.label }));
-
   return (
-    <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-      <aside className="flex w-[240px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-panel-canvas">
-
+    <div className="flex h-full w-full overflow-hidden bg-background">
+      <aside className="flex w-80 shrink-0 flex-col border-r border-border/60">
+        <div className="p-4 border-b border-border/60">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Buscar paciente..."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          />
           {showProfFilter && (
-            <MinimalFilterSelect
-              label="Profissional"
-              value={profFilter}
-              options={profOptions}
-              onChange={onProfFilterChange}
-            />
+            <div className="mt-3">
+              <MinimalFilterSelect
+                value={profFilter}
+                onChange={onProfFilterChange}
+                options={profFilterOptions}
+              />
+            </div>
           )}
         </div>
 

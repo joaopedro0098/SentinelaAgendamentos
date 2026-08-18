@@ -1107,9 +1107,54 @@ const PublicBooking = ({
 
     const targetBarbeariaId = barbeiroSel?.barbearia_id ?? barbearia.id;
 
-
+    try {
+      let cliId: string | null = null;
+      let nomeParaAgendamento = nome.trim();
+      let whatsStored = whatsClean;
 
       if (!ownerPanel) {
+        // Exige paciente autenticado no agendamento público
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) {
+          toast.error("Você precisa estar conectado como paciente para agendar.");
+          return;
+        }
+
+        // Identifica o cliente vinculado ao auth_user_id do paciente na clínica atual
+        const { data: clientRecord } = await supabase
+          .from("clientes")
+          .select("id, nome, whatsapp")
+          .eq("auth_user_id", authData.user.id)
+          .eq("barbearia_id", targetBarbeariaId)
+          .is("archived_at", null)
+          .maybeSingle();
+
+        if (!clientRecord) {
+          toast.error(
+            "Você ainda não possui cadastro nesta clínica. Entre em contato com a clínica para que façam seu pré-cadastro.",
+            { duration: 8000 }
+          );
+          return;
+        }
+
+        cliId = clientRecord.id;
+        if (clientRecord.nome) nomeParaAgendamento = clientRecord.nome;
+        if (clientRecord.whatsapp) whatsStored = clientRecord.whatsapp;
+      } else {
+        // No painel do profissional, localiza o cliente existente pelo WhatsApp ou pré-cadastro
+        const { data: clientRecord } = await supabase
+          .from("clientes")
+          .select("id, nome, whatsapp")
+          .eq("barbearia_id", targetBarbeariaId)
+          .eq("whatsapp", whatsClean)
+          .is("archived_at", null)
+          .maybeSingle();
+
+        if (clientRecord) {
+          cliId = clientRecord.id;
+          if (clientRecord.whatsapp) whatsStored = clientRecord.whatsapp;
+        }
+      }     if (!ownerPanel) {
         const { data: paySettings } = await supabase.rpc("get_effective_appointment_payment_settings", {
           p_barbearia_id: targetBarbeariaId,
         });
