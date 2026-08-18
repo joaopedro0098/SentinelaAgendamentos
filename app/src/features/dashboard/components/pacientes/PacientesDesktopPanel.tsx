@@ -1,6 +1,4 @@
-import { useEffect, useRef } from "react";
-import { Loader2, MoreHorizontal } from "lucide-react";
-import { Input } from "@/components/ui/input";
+
 import { cn } from "@/lib/utils";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import {
@@ -124,15 +122,7 @@ export default function PacientesDesktopPanel({
   return (
     <div className="flex flex-1 min-h-0 w-full overflow-hidden">
       <aside className="flex w-[240px] shrink-0 flex-col min-h-0 border-r border-border/60 bg-panel-canvas">
-        <div className="shrink-0 space-y-3 border-b border-border/60 p-3">
-          <Input
-            type="search"
-            placeholder="Nome ou WhatsApp"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 rounded-lg border-border/70 bg-panel-canvas text-sm placeholder:text-muted-foreground/70"
-            aria-label="Pesquisar paciente por nome ou WhatsApp"
-          />
+
           {showProfFilter && (
             <MinimalFilterSelect
               label="Profissional"

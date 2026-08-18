@@ -1,6 +1,4 @@
-import { useEffect, useRef } from "react";
-import { ChevronLeft, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
@@ -122,9 +120,7 @@ function PacienteMobileList({
 
   return (
     <div className="p-4 space-y-4 max-w-3xl mx-auto w-full">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Pacientes</h1>
-      </header>
+
 
       <Input
         type="search"

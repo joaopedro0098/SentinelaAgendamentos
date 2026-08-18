@@ -80,11 +80,7 @@ export default function Signup() {
   const [otpShopName, setOtpShopName] = useState("");
   const pendingSignupRef = useRef<z.infer<typeof schema> | null>(null);
 
-  useEffect(() => {
-    if (session && isEmailVerified(session.user)) {
-      navigate(getBarberPostLoginPath(), { replace: true });
-    }
-  }, [session, navigate]);
+
 
   function beginOtpStep(parsed: z.infer<typeof schema>, verification: FacialVerificationResult) {
     savePendingFaceEmbedding(verification.embedding, parsed.email);

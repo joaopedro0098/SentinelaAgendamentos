@@ -76,9 +76,7 @@ Deno.serve(async (req) => {
 
     const row = appointment as AppointmentRow;
 
-    if (row.status !== "confirmado" || row.origem !== "link_publico") {
-      return jsonResponse({ ok: true, skipped: true, reason: "not_public_booking" });
-    }
+
 
     if (row.barber_new_booking_push_sent_at) {
       return jsonResponse({ ok: true, skipped: true, reason: "already_sent" });

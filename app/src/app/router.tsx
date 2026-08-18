@@ -20,9 +20,7 @@ const PublicBookingPage = lazy(() => import("@/features/agenda/pages/PublicBooki
 const MeusAgendamentosPage = lazy(() => import("@agenda/pages/MeusAgendamentos"));
 const ConfirmAppointmentPage = lazy(() => import("@/features/agenda/pages/ConfirmAppointmentPage"));
 
-const LoginPage = lazy(() => import("@/features/auth/pages/Login"));
-const SignupPage = lazy(() => import("@/features/auth/pages/Signup"));
-const RecoverPage = lazy(() => import("@/features/auth/pages/Recover"));
+
 const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPassword"));
 const ResetPasswordSuccessPage = lazy(() => import("@/features/auth/pages/ResetPasswordSuccess"));
 const AuthCallbackPage = lazy(() => import("@/features/auth/pages/AuthCallback"));
@@ -46,9 +44,7 @@ export function AppRouter() {
           <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
           <Route path="/termos-de-servico" element={<TermosServicoPage />} />
           <Route path="/exclusao-de-dados-pessoais" element={<ExclusaoDadosPessoaisPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/signup/confirmar-codigo" element={<SignupConfirmEmailPage />} />
+
           <Route path="/verificacao-facial" element={<FacialVerificationHandoffPage />} />
           <Route path="/recover" element={<RecoverPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

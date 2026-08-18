@@ -1107,32 +1107,7 @@ const PublicBooking = ({
 
     const targetBarbeariaId = barbeiroSel?.barbearia_id ?? barbearia.id;
 
-    try {
-      const { data: cliId } = await supabase.rpc("upsert_cliente_por_whatsapp", {
-        _barbearia_id: targetBarbeariaId,
-        _whatsapp: whatsClean,
-        _nome: nome.trim(),
-      });
 
-      let nomeParaAgendamento = nome.trim();
-      const { data: cadastro } = await supabase.rpc("get_cliente_cadastro_por_whatsapp", {
-        p_barbearia_id: targetBarbeariaId,
-        p_whatsapp: whatsClean,
-      });
-      if (cadastro && typeof cadastro === "object" && "nome" in cadastro) {
-        const cadastroNome = String((cadastro as { nome?: string }).nome ?? "").trim();
-        if (cadastroNome) nomeParaAgendamento = cadastroNome;
-      }
-
-      let whatsStored = whatsClean;
-      if (ownerPanel && cliId) {
-        const { data: cliente } = await supabase
-          .from("clientes")
-          .select("whatsapp")
-          .eq("id", cliId)
-          .maybeSingle();
-        if (cliente?.whatsapp) whatsStored = cliente.whatsapp;
-      }
 
       if (!ownerPanel) {
         const { data: paySettings } = await supabase.rpc("get_effective_appointment_payment_settings", {
@@ -1235,10 +1210,7 @@ const PublicBooking = ({
           cliente_id: cliId ?? null,
           duracao_minutos: duracaoTotal,
           servicos_nomes: servicosNomes,
-          status: "confirmado",
-          observacao: obs,
-          origem: ownerPanel ? "painel" : "link_publico",
-          requires_client_confirmation: true,
+
         })
         .select("id, confirmation_token")
         .single();
