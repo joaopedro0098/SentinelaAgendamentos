@@ -1,11 +1,8 @@
 import { useEffect, useRef } from "react";
-import { Loader2, MoreHorizontal, Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MinimalFilterSelect } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
-import {
-  PacienteNomeEditButton,
-} from "@/features/dashboard/components/PacienteNomeEditModal";
 import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/PacienteCadastroTab";
 import { PacienteDocumentosTab } from "@/features/dashboard/components/pacientes/PacienteDocumentosTab";
 import { PacientesSearchEmptyState } from "@/features/dashboard/components/pacientes/PacientesSearchEmptyState";
@@ -46,9 +43,10 @@ type Props = {
   documentosLoading: boolean;
   onReloadDocumentos: () => void;
   onOpenAnotacao: (item: PacienteAnotacaoItem) => void;
-  onOpenNomeEdit: (p: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) => void;
+  onNomeSaved: (whatsapp: string, nome: string) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
+  onCadastroDeleted: (whatsapp: string) => void;
   caLabel: (barbeariaId: string) => string;
   onOpenCreateCadastro: () => void;
 };
@@ -98,9 +96,10 @@ export default function PacientesDesktopPanel({
   documentosLoading,
   onReloadDocumentos,
   onOpenAnotacao,
-  onOpenNomeEdit,
+  onNomeSaved,
   onDataNascimentoSaved,
   onAvatarSaved,
+  onCadastroDeleted,
   caLabel,
   onOpenCreateCadastro,
 }: Props) {
@@ -220,31 +219,11 @@ export default function PacientesDesktopPanel({
                   fallbackClassName="text-base"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-semibold tracking-tight truncate">
-                      {selectedPaciente.cliente_nome}
-                    </h1>
-                    {selectedPaciente.can_rename_nome === true && (
-                      <PacienteNomeEditButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenNomeEdit(selectedPaciente);
-                        }}
-                      />
-                    )}
-                  </div>
+                  <h1 className="text-xl font-semibold tracking-tight truncate">
+                    {selectedPaciente.cliente_nome}
+                  </h1>
                   <PacienteHeaderMeta paciente={selectedPaciente} />
                 </div>
-                {selectedPaciente.can_rename_nome === true && (
-                  <button
-                    type="button"
-                    aria-label="Opções do paciente"
-                    onClick={() => onOpenNomeEdit(selectedPaciente)}
-                    className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary/60"
-                  >
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
-                )}
               </div>
 
               <nav className="mt-5 flex gap-6 border-b border-transparent" aria-label="Seções do paciente">
@@ -288,9 +267,11 @@ export default function PacientesDesktopPanel({
               {detailTab === "cadastro" && (
                 <PacienteCadastroTab
                   paciente={selectedPaciente}
-                  onOpenNomeEdit={onOpenNomeEdit}
+                  canDeleteCadastro={!isCA}
+                  onNomeSaved={onNomeSaved}
                   onDataNascimentoSaved={onDataNascimentoSaved}
                   onAvatarSaved={onAvatarSaved}
+                  onCadastroDeleted={onCadastroDeleted}
                 />
               )}
             </div>

@@ -8,9 +8,6 @@ import { PacienteCadastroTab } from "@/features/dashboard/components/pacientes/P
 import { PacienteDocumentosTab } from "@/features/dashboard/components/pacientes/PacienteDocumentosTab";
 import { PacientesSearchEmptyState } from "@/features/dashboard/components/pacientes/PacientesSearchEmptyState";
 import { PacienteAvatar } from "@/features/dashboard/components/pacientes/PacienteAvatar";
-import {
-  PacienteNomeEditButton,
-} from "@/features/dashboard/components/PacienteNomeEditModal";
 import type { PacienteAnotacaoItem, PacientePainelItem } from "@/features/dashboard/lib/agendamentoAnotacao";
 import type { PacienteDocumentoItem } from "@/features/dashboard/lib/pacienteDocumentos";
 import {
@@ -48,9 +45,10 @@ type Props = {
   documentosLoading: boolean;
   onReloadDocumentos: () => void;
   onOpenAnotacao: (item: PacienteAnotacaoItem) => void;
-  onOpenNomeEdit: (p: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) => void;
+  onNomeSaved: (whatsapp: string, nome: string) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
+  onCadastroDeleted: (whatsapp: string) => void;
   caLabel: (barbeariaId: string) => string;
   onOpenCreateCadastro: () => void;
 };
@@ -98,9 +96,10 @@ function PacienteMobileList({
   | "documentosLoading"
   | "onReloadDocumentos"
   | "onOpenAnotacao"
-  | "onOpenNomeEdit"
+  | "onNomeSaved"
   | "onDataNascimentoSaved"
   | "onAvatarSaved"
+  | "onCadastroDeleted"
   | "caLabel"
   | "barbeariaId"
 >) {
@@ -223,9 +222,10 @@ function PacienteMobileDetail({
   documentosLoading,
   onReloadDocumentos,
   onOpenAnotacao,
-  onOpenNomeEdit,
+  onNomeSaved,
   onDataNascimentoSaved,
   onAvatarSaved,
+  onCadastroDeleted,
   isCA,
   barbeariaId,
   caLabel,
@@ -251,12 +251,7 @@ function PacienteMobileDetail({
               fallbackClassName="text-xs"
             />
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold truncate flex items-center gap-1">
-                <span className="truncate">{paciente.cliente_nome}</span>
-                {paciente.can_rename_nome === true && (
-                  <PacienteNomeEditButton onClick={() => onOpenNomeEdit(paciente)} />
-                )}
-              </h1>
+              <h1 className="text-lg font-semibold truncate">{paciente.cliente_nome}</h1>
               <p className="text-xs text-muted-foreground truncate">{metaParts.join(" | ")}</p>
             </div>
           </div>
@@ -336,9 +331,11 @@ function PacienteMobileDetail({
         {detailTab === "cadastro" && (
           <PacienteCadastroTab
             paciente={paciente}
-            onOpenNomeEdit={onOpenNomeEdit}
+            canDeleteCadastro={!isCA}
+            onNomeSaved={onNomeSaved}
             onDataNascimentoSaved={onDataNascimentoSaved}
             onAvatarSaved={onAvatarSaved}
+            onCadastroDeleted={onCadastroDeleted}
           />
         )}
       </div>

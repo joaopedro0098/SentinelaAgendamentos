@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Camera, Loader2, X } from "lucide-react";
+import { maskPhone } from "@agenda/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,54 +9,72 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import {
+  deletePacienteCadastroPainel,
   updatePacienteAvatar,
   updatePacienteDataNascimento,
+  updatePacienteNome,
   type PacientePainelItem,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
-import { formatWhatsAppDisplay } from "@/features/dashboard/lib/pacienteFormat";
-import { PacienteNomeEditButton } from "@/features/dashboard/components/PacienteNomeEditModal";
 
 type Props = {
   paciente: PacientePainelItem;
-  onOpenNomeEdit: (p: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) => void;
+  canDeleteCadastro: boolean;
+  onNomeSaved: (whatsapp: string, nome: string) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
+  onCadastroDeleted: (whatsapp: string) => void;
 };
 
 export function PacienteCadastroTab({
   paciente,
-  onOpenNomeEdit,
+  canDeleteCadastro,
+  onNomeSaved,
   onDataNascimentoSaved,
   onAvatarSaved,
+  onCadastroDeleted,
 }: Props) {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [nome, setNome] = useState(paciente.cliente_nome);
   const [dataNascimento, setDataNascimento] = useState(paciente.data_nascimento ?? "");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [pendingAvatarBlob, setPendingAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
 
-  const canEditPhoto = paciente.can_rename_nome === true;
+  const canEdit = paciente.can_rename_nome === true;
   const displayedAvatarUrl = avatarPreviewUrl ?? paciente.avatar_url ?? null;
+  const whatsappDisplay = maskPhone(
+    paciente.whatsapp_digits.startsWith("55")
+      ? paciente.whatsapp_digits.slice(2)
+      : paciente.whatsapp_digits,
+  );
 
   useEffect(() => {
+    setNome(paciente.cliente_nome);
     setDataNascimento(paciente.data_nascimento ?? "");
     setPendingAvatarBlob(null);
     setAvatarPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return null;
     });
-  }, [paciente.whatsapp_digits, paciente.data_nascimento, paciente.avatar_url]);
+  }, [paciente.whatsapp_digits, paciente.cliente_nome, paciente.data_nascimento, paciente.avatar_url]);
 
   useEffect(() => {
     return () => {
       if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
     };
   }, [avatarPreviewUrl]);
+
+  const nomeChanged = nome.trim() !== paciente.cliente_nome.trim();
+  const dataChanged = (paciente.data_nascimento ?? "") !== dataNascimento.trim();
+  const hasChanges = nomeChanged || dataChanged || Boolean(pendingAvatarBlob);
 
   function stageAvatarBlob(blob: Blob) {
     setPendingAvatarBlob(blob);
@@ -81,21 +101,36 @@ export function PacienteCadastroTab({
   }
 
   async function handleSave() {
-    const dataValue = dataNascimento.trim() || null;
-    const dataChanged = (paciente.data_nascimento ?? "") !== (dataValue ?? "");
+    if (!hasChanges) {
+      toast({ title: "Nenhuma alteração para salvar" });
+      return;
+    }
 
+    const trimmedNome = nome.trim();
+    if (nomeChanged && !trimmedNome) {
+      toast({ title: "Informe o nome do paciente", variant: "destructive" });
+      return;
+    }
+
+    const dataValue = dataNascimento.trim() || null;
     if (dataChanged && dataValue && !/^\d{4}-\d{2}-\d{2}$/.test(dataValue)) {
       toast({ title: "Data inválida", description: "Use o formato correto.", variant: "destructive" });
       return;
     }
 
-    if (!dataChanged && !pendingAvatarBlob) return;
-
     setSaving(true);
 
-    let nextAvatarUrl = paciente.avatar_url ?? null;
+    if (nomeChanged && canEdit) {
+      const nomeResult = await updatePacienteNome(paciente.whatsapp_digits, trimmedNome);
+      if (nomeResult.error) {
+        setSaving(false);
+        toast({ title: "Erro ao salvar nome", description: nomeResult.error, variant: "destructive" });
+        return;
+      }
+      onNomeSaved(paciente.whatsapp_digits, nomeResult.nome ?? trimmedNome);
+    }
 
-    if (pendingAvatarBlob && canEditPhoto) {
+    if (pendingAvatarBlob && canEdit) {
       if (!user) {
         setSaving(false);
         toast({ title: "Sessão expirada", variant: "destructive" });
@@ -113,7 +148,7 @@ export function PacienteCadastroTab({
         return;
       }
       const { data: urlData } = supabase.storage.from("barbershop-avatars").getPublicUrl(path);
-      nextAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      const nextAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       const avatarResult = await updatePacienteAvatar(paciente.whatsapp_digits, nextAvatarUrl);
       if (avatarResult.error) {
@@ -122,6 +157,11 @@ export function PacienteCadastroTab({
         return;
       }
       onAvatarSaved(paciente.whatsapp_digits, nextAvatarUrl);
+      setPendingAvatarBlob(null);
+      setAvatarPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
     }
 
     if (dataChanged) {
@@ -135,24 +175,27 @@ export function PacienteCadastroTab({
     }
 
     setSaving(false);
-    const hadPendingAvatar = Boolean(pendingAvatarBlob);
-    setPendingAvatarBlob(null);
-    setAvatarPreviewUrl((current) => {
-      if (current && hadPendingAvatar) URL.revokeObjectURL(current);
-      return null;
-    });
-
-    if (pendingAvatarBlob && dataChanged) {
-      toast({ title: "Dados salvos" });
-    } else if (pendingAvatarBlob) {
-      toast({ title: "Foto salva" });
-    } else {
-      toast({ title: "Data de nascimento salva" });
-    }
+    toast({ title: "Dados salvos" });
   }
 
-  const dataChanged = (paciente.data_nascimento ?? "") !== dataNascimento.trim();
-  const hasChanges = dataChanged || Boolean(pendingAvatarBlob);
+  async function handleConfirmDelete() {
+    setDeleting(true);
+    const result = await deletePacienteCadastroPainel(paciente.whatsapp_digits);
+    setDeleting(false);
+    if ("error" in result && result.error) {
+      const message =
+        result.error === "forbidden"
+          ? "Somente o titular da clínica pode excluir cadastros."
+          : result.error === "not_found"
+            ? "Paciente não encontrado na sua conta."
+            : result.error;
+      toast({ title: "Não foi possível excluir", description: message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Paciente removido da lista" });
+    setDeleteOpen(false);
+    onCadastroDeleted(paciente.whatsapp_digits);
+  }
 
   return (
     <>
@@ -168,9 +211,63 @@ export function PacienteCadastroTab({
         }}
       />
 
+      {deleteOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <button
+              type="button"
+              aria-label="Fechar"
+              className="absolute inset-0 bg-black/60"
+              onClick={() => !deleting && setDeleteOpen(false)}
+            />
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-cadastro-title"
+              className="relative z-10 w-full max-w-sm rounded-xl border border-destructive/40 bg-background p-5 shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <p
+                  id="delete-cadastro-title"
+                  className="text-sm font-bold uppercase tracking-wide text-red-600"
+                >
+                  Zona de perigo
+                </p>
+                <button
+                  type="button"
+                  aria-label="Fechar"
+                  disabled={deleting}
+                  onClick={() => setDeleteOpen(false)}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary/70"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">
+                Esta ação excluirá permanentemente o cadastro de{" "}
+                <span className="font-semibold">{paciente.cliente_nome}</span>. Não será possível desfazer.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button type="button" variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={() => void handleConfirmDelete()}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir cadastro"}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       <div className="max-w-md space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          {canEditPhoto ? (
+          {canEdit ? (
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -204,33 +301,37 @@ export function PacienteCadastroTab({
           <div className="flex-1 space-y-1.5">
             <Label>Foto do paciente</Label>
             <p className="text-xs text-muted-foreground">
-              {canEditPhoto
+              {canEdit
                 ? "Toque na foto para escolher, ajustar e salvar abaixo."
                 : "Somente leitura para pacientes de outras contas."}
             </p>
-            {canEditPhoto && (
+            {canEdit && (
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
             )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Nome</Label>
-          <div className="flex items-center gap-2">
-            <p className="flex-1 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5 text-sm font-medium">
-              {paciente.cliente_nome}
-            </p>
-            {paciente.can_rename_nome === true && (
-              <PacienteNomeEditButton onClick={() => onOpenNomeEdit(paciente)} />
-            )}
-          </div>
+          <Label htmlFor="paciente-nome">Nome</Label>
+          <Input
+            id="paciente-nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            maxLength={120}
+            disabled={!canEdit || saving}
+            className="rounded-xl"
+          />
         </div>
 
         <div className="space-y-2">
-          <Label>WhatsApp</Label>
-          <p className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground">
-            {formatWhatsAppDisplay(paciente.whatsapp_digits)}
-          </p>
+          <Label htmlFor="paciente-contato">Contato (WhatsApp)</Label>
+          <Input
+            id="paciente-contato"
+            value={whatsappDisplay}
+            readOnly
+            disabled
+            className="rounded-xl bg-muted/20 text-muted-foreground"
+          />
         </div>
 
         <div className="space-y-2">
@@ -240,20 +341,35 @@ export function PacienteCadastroTab({
             type="date"
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
-            disabled={saving}
+            disabled={!canEdit || saving}
             className="rounded-xl"
           />
         </div>
 
-        {hasChanges && (
-          <Button
-            type="button"
-            disabled={saving}
-            onClick={() => void handleSave()}
-            className="rounded-full"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-          </Button>
+        <Button
+          type="button"
+          disabled={saving || !canEdit}
+          onClick={() => void handleSave()}
+          className={cn(
+            "rounded-full bg-emerald-600 text-white hover:bg-emerald-700",
+            !hasChanges && "opacity-50 hover:bg-emerald-600",
+          )}
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+        </Button>
+
+        {canDeleteCadastro && (
+          <div className="pt-4 border-t border-border/60">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={saving || deleting}
+              onClick={() => setDeleteOpen(true)}
+            >
+              Excluir cadastro
+            </Button>
+          </div>
         )}
       </div>
     </>

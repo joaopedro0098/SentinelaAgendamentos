@@ -125,6 +125,17 @@ export async function updatePacienteNome(whatsappDigits: string, nome: string) {
   return { ok: true, nome: nomeFinal };
 }
 
+export async function deletePacienteCadastroPainel(whatsappDigits: string) {
+  const { data, error } = await supabase.rpc("delete_paciente_cadastro_painel", {
+    p_whatsapp_digits: whatsappDigits,
+  });
+  if (error) return { error: error.message };
+  const row = data as { error?: string; ok?: boolean } | null;
+  if (row?.error) return { error: row.error };
+  notifyPanelPacientesChanged();
+  return { ok: true as const };
+}
+
 function parseJsonArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (typeof value === "string") {

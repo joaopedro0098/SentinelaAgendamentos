@@ -80,10 +80,6 @@ export function usePacientesPanel() {
   const [documentosLoading, setDocumentosLoading] = useState(false);
   const [anotacaoAgendamentoId, setAnotacaoAgendamentoId] = useState<string | null>(null);
   const [anotacaoClienteNome, setAnotacaoClienteNome] = useState<string | undefined>();
-  const [nomeEditTarget, setNomeEditTarget] = useState<{
-    whatsapp_digits: string;
-    cliente_nome: string;
-  } | null>(null);
   const [createCadastroOpen, setCreateCadastroOpen] = useState(false);
 
   const profFilterRef = useRef(profFilter);
@@ -238,11 +234,12 @@ export function usePacientesPanel() {
     void reloadFirstPage();
   }
 
-  function openNomeEdit(paciente: Pick<PacientePainelItem, "whatsapp_digits" | "cliente_nome">) {
-    setNomeEditTarget({
-      whatsapp_digits: paciente.whatsapp_digits,
-      cliente_nome: paciente.cliente_nome,
-    });
+  function handlePacienteCadastroDeleted(whatsapp: string) {
+    setSelectedPaciente(null);
+    setPacientes((prev) => prev.filter((p) => p.whatsapp_digits !== whatsapp));
+    setFolderItems([]);
+    setDocumentosItems([]);
+    void reloadFirstPage();
   }
 
   const applyClienteNomeSync = useCallback(
@@ -266,6 +263,10 @@ export function usePacientesPanel() {
   );
 
   useClienteNomeSyncListener(applyClienteNomeSync);
+
+  function patchPacienteNome(whatsapp: string, nome: string) {
+    applyClienteNomeSync({ whatsapp_digits: whatsapp, nome });
+  }
 
   useEffect(() => {
     if (!pacientesBarbeariaIds.length) return;
@@ -393,11 +394,10 @@ export function usePacientesPanel() {
     setAnotacaoAgendamentoId,
     anotacaoClienteNome,
     setAnotacaoClienteNome,
-    nomeEditTarget,
-    setNomeEditTarget,
     openAnotacao,
     handleAnotacaoSaved,
-    openNomeEdit,
+    patchPacienteNome,
+    handlePacienteCadastroDeleted,
     caLabel,
     patchPacienteDataNascimento,
     patchPacienteAvatar,

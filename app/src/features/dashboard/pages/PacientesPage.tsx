@@ -4,7 +4,6 @@ import { usePacientesPanel } from "@/features/dashboard/hooks/usePacientesPanel"
 import PacientesDesktopPanel from "@/features/dashboard/components/pacientes/PacientesDesktopPanel";
 import PacientesMobilePanel from "@/features/dashboard/components/pacientes/PacientesMobilePanel";
 import { AgendamentoAnotacaoModal } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
-import { PacienteNomeEditModal } from "@/features/dashboard/components/PacienteNomeEditModal";
 import { PacienteCadastroCreateModal } from "@/features/dashboard/components/pacientes/PacienteCadastroCreateModal";
 
 export default function PacientesPage() {
@@ -39,9 +38,10 @@ export default function PacientesPage() {
     documentosLoading: panel.documentosLoading,
     onReloadDocumentos: panel.reloadDocumentos,
     onOpenAnotacao: panel.openAnotacao,
-    onOpenNomeEdit: panel.openNomeEdit,
+    onNomeSaved: panel.patchPacienteNome,
     onDataNascimentoSaved: panel.patchPacienteDataNascimento,
     onAvatarSaved: panel.patchPacienteAvatar,
+    onCadastroDeleted: panel.handlePacienteCadastroDeleted,
     caLabel: panel.caLabel,
     onOpenCreateCadastro: () => panel.setCreateCadastroOpen(true),
   };
@@ -70,14 +70,6 @@ export default function PacientesPage() {
           panel.setAnotacaoClienteNome(undefined);
         }}
         onSaved={panel.handleAnotacaoSaved}
-      />
-
-      <PacienteNomeEditModal
-        open={!!panel.nomeEditTarget}
-        whatsappDigits={panel.nomeEditTarget?.whatsapp_digits ?? null}
-        initialNome={panel.nomeEditTarget?.cliente_nome ?? ""}
-        onClose={() => panel.setNomeEditTarget(null)}
-        onSaved={() => undefined}
       />
 
       <PacienteCadastroCreateModal
