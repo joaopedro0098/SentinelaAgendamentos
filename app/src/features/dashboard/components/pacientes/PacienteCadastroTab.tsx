@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, Link2, Loader2, X } from "lucide-react";
 import { maskPhone } from "@agenda/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import {
   deletePacienteCadastroPainel,
+  getPatientActivationLink,
   updatePacienteAvatar,
   updatePacienteDataNascimento,
   updatePacienteNome,
@@ -42,6 +43,7 @@ export function PacienteCadastroTab({
   const [dataNascimento, setDataNascimento] = useState(paciente.data_nascimento ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sharingLink, setSharingLink] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
@@ -49,6 +51,9 @@ export function PacienteCadastroTab({
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
 
   const canEdit = paciente.can_rename_nome === true;
+  const hasFormalCadastro = Boolean(paciente.cliente_id);
+  const contaAtivada = paciente.conta_ativada === true;
+  const showActivationSection = hasFormalCadastro || contaAtivada || canDeleteCadastro;
   const displayedAvatarUrl = avatarPreviewUrl ?? paciente.avatar_url ?? null;
   const whatsappDisplay = maskPhone(
     paciente.whatsapp_digits.startsWith("55")
@@ -176,6 +181,26 @@ export function PacienteCadastroTab({
 
     setSaving(false);
     toast({ title: "Dados salvos" });
+  }
+
+  async function handleShareActivationLink() {
+    setSharingLink(true);
+    const result = await getPatientActivationLink(paciente.whatsapp_digits);
+    setSharingLink(false);
+    if ("error" in result) {
+      toast({ title: "Não foi possível gerar o link", description: result.error, variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(result.url);
+      toast({ title: "Link copiado", description: "Cole e envie ao paciente como preferir." });
+    } catch {
+      toast({
+        title: "Não foi possível copiar",
+        description: result.url,
+        variant: "destructive",
+      });
+    }
   }
 
   async function handleConfirmDelete() {
@@ -358,17 +383,56 @@ export function PacienteCadastroTab({
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
         </Button>
 
-        {canDeleteCadastro && (
-          <div className="pt-4 border-t border-border/60">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              disabled={saving || deleting}
-              onClick={() => setDeleteOpen(true)}
-            >
-              Excluir cadastro
-            </Button>
+        {showActivationSection && (
+          <div className="pt-4 border-t border-border/60 space-y-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0 space-y-2">
+                {contaAtivada ? (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Este paciente já possui conta própria e pode acessar agendamentos pelo login{" "}
+                    <span className="font-medium text-foreground">Sou Paciente</span>. O que ele pode fazer
+                    online depende de{" "}
+                    <span className="font-medium text-foreground">Cliente agenda pelo link</span> e{" "}
+                    <span className="font-medium text-foreground">Cliente altera ou cancela pelo link</span>{" "}
+                    em Configurações.
+                  </p>
+                ) : hasFormalCadastro ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full gap-2"
+                      disabled={saving || deleting || sharingLink}
+                      onClick={() => void handleShareActivationLink()}
+                    >
+                      {sharingLink ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Link2 className="h-4 w-4" />
+                          Compartilhar Link
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Compartilhe este link com seu paciente caso ele queira criar uma conta e visualizar e
+                      gerenciar seus agendamentos.
+                    </p>
+                  </>
+                ) : null}
+              </div>
+              {canDeleteCadastro && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 rounded-full border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={saving || deleting || sharingLink}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Excluir cadastro
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

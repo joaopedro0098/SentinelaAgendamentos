@@ -11,7 +11,7 @@ import {
 } from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
-import { getPatientPostLoginPath } from "@/features/auth/lib/postLoginPaths";
+import { getPatientActivationSuccessPath, getPatientPostLoginPath } from "@/features/auth/lib/postLoginPaths";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import {
   clearPendingFaceEmbedding,
@@ -106,21 +106,22 @@ export default function AuthCallback() {
       const userId = session.user.id;
 
       if (flow === "patient-activation" && token) {
-        const { error } = await supabase.rpc("concluir_ativacao_paciente", {
+        const { data, error } = await supabase.rpc("concluir_ativacao_paciente", {
           p_token: token,
           p_auth_user_id: userId,
         });
-        if (error) {
+        const row = data as { error?: string; barbearia_slug?: string | null } | null;
+        if (error || row?.error) {
           toast({
             title: "Falha ao vincular paciente",
-            description: error.message,
+            description: error?.message ?? row?.error ?? "Erro desconhecido",
             variant: "destructive",
           });
           go(`/ativar-paciente?token=${encodeURIComponent(token)}`);
           return;
         }
         authInfoToast("Conta ativada com sucesso!");
-        go("/login?role=patient");
+        go(getPatientActivationSuccessPath(row?.barbearia_slug));
         return;
       }
 

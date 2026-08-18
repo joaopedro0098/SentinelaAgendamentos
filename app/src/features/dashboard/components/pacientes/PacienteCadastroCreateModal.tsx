@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import {
   createPacienteCadastroPainel,
   type PacientePainelItem,
@@ -87,32 +86,8 @@ export function PacienteCadastroCreateModal({
       return;
     }
 
-    // Gera o token de ativação para o paciente cadastrado
-    const { data: tokenData } = await supabase.rpc("create_patient_activation_token", {
-      p_cliente_id: result.patient.id,
-    });
-
     setSaving(false);
-
-    let activationUrl = `${window.location.origin}/ativar-paciente`;
-    if (tokenData && typeof tokenData === "object" && "token" in tokenData) {
-      const token = String((tokenData as { token?: string }).token ?? "");
-      if (token) {
-        activationUrl = `${window.location.origin}/ativar-paciente?token=${token}`;
-      }
-    }
-
-    const waMsg = `Olá, ${trimmedNome}! Conclua a ativação da sua conta para acessar seus agendamentos: ${activationUrl}`;
-    const waLink = `https://wa.me/${fullPhoneDigits}?text=${encodeURIComponent(waMsg)}`;
-    
-    // Dispara link do WhatsApp em nova aba
-    window.open(waLink, "_blank");
-
-    toast({
-      title: "Paciente cadastrado",
-      description: "Link de ativação gerado e aberto no WhatsApp.",
-    });
-
+    toast({ title: "Paciente cadastrado" });
     onCreated(result.patient);
     onClose();
   }
@@ -142,7 +117,7 @@ export function PacienteCadastroCreateModal({
               Criar paciente
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Cadastre o nome e o número com WhatsApp. O paciente receberá o link de ativação.
+              Cadastre o nome e o número com WhatsApp. O link de ativação pode ser compartilhado depois na ficha do paciente.
             </p>
           </div>
           <button

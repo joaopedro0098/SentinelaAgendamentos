@@ -16,6 +16,8 @@ type AgendamentoAnotacaoPayload = {
 export type PacientePainelItem = {
   whatsapp_digits: string;
   cliente_nome: string;
+  cliente_id?: string | null;
+  conta_ativada?: boolean;
   data_nascimento?: string | null;
   avatar_url?: string | null;
   ultimo_atendimento: string;
@@ -134,6 +136,33 @@ export async function deletePacienteCadastroPainel(whatsappDigits: string) {
   if (row?.error) return { error: row.error };
   notifyPanelPacientesChanged();
   return { ok: true as const };
+}
+
+export async function getPatientActivationLink(
+  whatsappDigits: string,
+): Promise<{ ok: true; url: string } | { error: string }> {
+  const { data, error } = await supabase.rpc("get_or_create_patient_activation_link", {
+    p_whatsapp_digits: whatsappDigits,
+  });
+  if (error) return { error: error.message };
+  const row = data as { error?: string; token?: string } | null;
+  if (!row || row.error) {
+    const code = row?.error ?? "unknown";
+    if (code === "no_formal_cadastro") {
+      return { error: "Este paciente não possui cadastro formal para ativação." };
+    }
+    if (code === "already_activated") {
+      return { error: "Este paciente já possui conta ativada." };
+    }
+    if (code === "forbidden") {
+      return { error: "Sem permissão para gerar o link de ativação." };
+    }
+    return { error: String(code) };
+  }
+  const token = row.token?.trim();
+  if (!token) return { error: "Resposta inválida" };
+  const url = `${window.location.origin}/ativar-paciente?token=${encodeURIComponent(token)}`;
+  return { ok: true, url };
 }
 
 function parseJsonArray(value: unknown): unknown[] {
