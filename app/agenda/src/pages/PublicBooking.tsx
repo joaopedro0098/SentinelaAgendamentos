@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { ArrowLeft, Check, Loader2, X } from "lucide-react";
+import { BookingMonthNav } from "@/components/booking/BookingMonthNav";
 import { ShopAvatar } from "@/components/ShopAvatar";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
@@ -319,20 +320,6 @@ const BOOKING_MONTHS = 2;
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-const MESES_COMPLETOS = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
 
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -792,8 +779,32 @@ const PublicBooking = ({
   const isDayInBookableRange = (d: Date) =>
     d.getTime() >= bookableRange.first.getTime() && d.getTime() <= bookableRange.last.getTime();
 
-  const canGoPrevDesktopMonth = desktopViewMonth.getTime() > allowedMonths.first.getTime();
-  const canGoNextDesktopMonth = desktopViewMonth.getTime() < allowedMonths.second.getTime();
+  const mobileDias = useMemo(() => {
+    const year = desktopViewMonth.getFullYear();
+    const month = desktopViewMonth.getMonth();
+    return dias.filter((d) => d.getFullYear() === year && d.getMonth() === month);
+  }, [dias, desktopViewMonth]);
+
+  const handleBookingMonthChange = useCallback(
+    (month: Date) => {
+      const next = monthStart(month);
+      setDesktopViewMonth(next);
+      const selected = parseYmd(data);
+      if (selected.getFullYear() !== next.getFullYear() || selected.getMonth() !== next.getMonth()) {
+        const firstInMonth = dias.find(
+          (d) => d.getFullYear() === next.getFullYear() && d.getMonth() === next.getMonth(),
+        );
+        if (firstInMonth) {
+          setData(ymd(firstInMonth));
+          if (barbeiros.length !== 1) setBarbeiroId("");
+          setHora("");
+          setServSel([]);
+        }
+      }
+    },
+    [data, dias, barbeiros.length],
+  );
+
   const showDesktopSplit = servSel.length > 0;
 
   const singleProfessional = barbeiros.length === 1;
@@ -1920,41 +1931,24 @@ const PublicBooking = ({
               {/* DIAS */}
               <section>
                 <h2 className="font-display text-base font-semibold mb-2.5 md:hidden">Selecione o dia</h2>
+                <BookingMonthNav
+                  className="md:hidden mb-2.5"
+                  viewMonth={desktopViewMonth}
+                  allowedMonths={allowedMonths}
+                  onViewMonthChange={handleBookingMonthChange}
+                />
                 <div className={cn("md:hidden", bookingScrollBleed)}>
                   <HorizontalScrollStrip centerOn={`[data-day="${data}"]`} className={bookingScrollPad}>
-                    {dias.map(renderDayButton)}
+                    {mobileDias.map(renderDayButton)}
                   </HorizontalScrollStrip>
                 </div>
                 <div className="hidden md:block">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="w-28">
-                      {canGoPrevDesktopMonth ? (
-                        <button
-                          type="button"
-                          onClick={() => setDesktopViewMonth(allowedMonths.first)}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          {MESES_COMPLETOS[allowedMonths.first.getMonth()]}
-                        </button>
-                      ) : null}
-                    </div>
-                    <p className="font-display text-sm font-semibold text-center">
-                      {MESES_COMPLETOS[desktopViewMonth.getMonth()]} {desktopViewMonth.getFullYear()}
-                    </p>
-                    <div className="w-28 text-right">
-                      {canGoNextDesktopMonth ? (
-                        <button
-                          type="button"
-                          onClick={() => setDesktopViewMonth(allowedMonths.second)}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground ml-auto"
-                        >
-                          {MESES_COMPLETOS[allowedMonths.second.getMonth()]}
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
+                  <BookingMonthNav
+                    className="mb-2"
+                    viewMonth={desktopViewMonth}
+                    allowedMonths={allowedMonths}
+                    onViewMonthChange={handleBookingMonthChange}
+                  />
                   <div className="grid grid-cols-7 gap-1 mb-1">
                     {DIAS.map((label) => (
                       <span key={label} className="text-[10px] text-center text-muted-foreground font-medium">
