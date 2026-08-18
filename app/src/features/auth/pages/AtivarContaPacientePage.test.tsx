@@ -98,7 +98,10 @@ describe("AtivarContaPacientePage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: /esta conta já existe/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^entrar$/i })).toHaveAttribute("href", "/login?role=patient");
+    expect(screen.getByRole("link", { name: /^entrar$/i })).toHaveAttribute(
+      "href",
+      "/login?role=patient&activation_token=test-token",
+    );
   });
 
   it("verify already_used mostra link já utilizado", async () => {

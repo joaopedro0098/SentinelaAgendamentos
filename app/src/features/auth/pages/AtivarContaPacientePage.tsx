@@ -19,6 +19,10 @@ import { resendSignupEmailOtp } from "@/features/auth/lib/signupEmailOtp";
 import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import { getPatientActivationSuccessPath } from "@/features/auth/lib/postLoginPaths";
 import {
+  buildPatientActivationLoginPath,
+  finishPatientActivation,
+} from "@/features/auth/lib/patientActivationFinish";
+import {
   PASSWORDS_MISMATCH_MESSAGE,
   patientActivationSchema,
 } from "@/features/auth/lib/patientActivationSchema";
@@ -49,23 +53,6 @@ type VerifyTokenResponse = {
   barbearia_nome?: string;
   barbearia_slug?: string | null;
 };
-
-type ConcluirAtivacaoResponse = {
-  error?: string;
-  success?: boolean;
-  barbearia_slug?: string | null;
-};
-
-async function finishPatientActivation(token: string, authUserId: string) {
-  const { data, error } = await supabase.rpc("concluir_ativacao_paciente", {
-    p_token: token,
-    p_auth_user_id: authUserId,
-  });
-  if (error) return { error: error.message };
-  const row = data as ConcluirAtivacaoResponse | null;
-  if (row?.error) return { error: row.error };
-  return { slug: row?.barbearia_slug ?? null };
-}
 
 export default function AtivarContaPacientePage() {
   const [searchParams] = useSearchParams();
@@ -161,7 +148,7 @@ export default function AtivarContaPacientePage() {
     }
 
     const result = await finishPatientActivation(token, authUserId);
-    if (result.error) {
+    if (!result.ok) {
       toast({ title: "Falha ao vincular paciente", description: result.error, variant: "destructive" });
       return false;
     }
@@ -274,18 +261,19 @@ export default function AtivarContaPacientePage() {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {tokenInfo?.nome ? (
               <>
-                Olá, <strong>{tokenInfo.nome}</strong>! Este e-mail já está cadastrado. Faça login
-                normalmente na opção <strong>Sou Paciente</strong>.
+                Olá, <strong>{tokenInfo.nome}</strong>! Use o mesmo e-mail e senha da sua conta
+                (profissional ou paciente). Ao entrar, vinculamos seu cadastro de paciente
+                automaticamente.
               </>
             ) : (
               <>
-                Este e-mail já está cadastrado. Faça login normalmente na opção{" "}
-                <strong>Sou Paciente</strong>.
+                Use o mesmo e-mail e senha da sua conta existente. Ao entrar, vinculamos seu
+                cadastro de paciente automaticamente.
               </>
             )}
           </p>
           <Button asChild className="w-full rounded-full bg-gradient-brand text-white shadow-glow">
-            <Link to="/login?role=patient">Entrar</Link>
+            <Link to={buildPatientActivationLoginPath(token)}>Entrar</Link>
           </Button>
         </div>
       </main>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,9 +22,11 @@ import { isInvalidLoginCredentials } from "@/features/auth/lib/loginErrors";
 import { PageReveal } from "@/components/layout/PageReveal";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import {
+  getPatientActivationSuccessPath,
   getPostLoginPathForRole,
   type LoginRole,
 } from "@/features/auth/lib/postLoginPaths";
+import { finishPatientActivation } from "@/features/auth/lib/patientActivationFinish";
 import { cn } from "@/lib/utils";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
@@ -52,10 +54,15 @@ function loginRoleFromLocation(search: string, stateRole?: unknown): LoginRole {
   return "professional";
 }
 
+function activationTokenFromSearch(search: string) {
+  return new URLSearchParams(search).get("activation_token")?.trim() ?? "";
+}
+
 export default function Login() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const activationToken = activationTokenFromSearch(location.search);
   const [role, setRole] = useState<LoginRole>(() =>
     loginRoleFromLocation(location.search, (location.state as { role?: LoginRole } | null)?.role),
   );
@@ -64,10 +71,42 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [entering, setEntering] = useState(false);
+  const handledSessionRef = useRef(false);
+
+  const googleCallbackUrl = activationToken
+    ? `${window.location.origin}/auth/callback?flow=patient-activation&token=${encodeURIComponent(activationToken)}`
+    : undefined;
+
+  async function completePatientActivation(userId: string) {
+    const result = await finishPatientActivation(activationToken, userId);
+    if (!result.ok) {
+      toast({
+        title: "Falha ao vincular paciente",
+        description: result.error,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    toast({ title: "Conta ativada com sucesso!" });
+    navigate(getPatientActivationSuccessPath(result.slug), { replace: true });
+    return true;
+  }
 
   useEffect(() => {
-    if (session) navigate(postLoginPath, { replace: true });
-  }, [session, navigate, postLoginPath]);
+    if (!session?.user?.id || handledSessionRef.current) return;
+    handledSessionRef.current = true;
+
+    void (async () => {
+      if (activationToken) {
+        setEntering(true);
+        const linked = await completePatientActivation(session.user.id);
+        if (!linked) setEntering(false);
+        return;
+      }
+      navigate(postLoginPath, { replace: true });
+    })();
+  }, [session, activationToken, navigate, postLoginPath]);
 
   useEffect(() => {
     if (role === "professional") {
@@ -147,6 +186,18 @@ export default function Login() {
       return;
     }
 
+    setLoading(false);
+
+    if (activationToken) {
+      handledSessionRef.current = true;
+      setEntering(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (userId && (await completePatientActivation(userId))) return;
+      setEntering(false);
+      return;
+    }
+
     setEntering(true);
     navigate(postLoginPath, { replace: true });
   }
@@ -165,9 +216,11 @@ export default function Login() {
           <div className="text-center sm:text-left">
             <h1 className="font-display text-2xl font-semibold tracking-tight">Entrar</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              {isPatient
-                ? "Acesse sua conta para agendar e ver seus atendimentos."
-                : "Acesse seu painel de agenda e consultório."}
+              {activationToken
+                ? "Entre com sua conta existente para concluir a ativação como paciente."
+                : isPatient
+                  ? "Acesse sua conta para agendar e ver seus atendimentos."
+                  : "Acesse seu painel de agenda e consultório."}
             </p>
           </div>
 
@@ -209,6 +262,7 @@ export default function Login() {
           <GoogleButton
             label="Entrar com Google"
             authFlow={googleFlow}
+            redirectTo={googleCallbackUrl}
             className="h-11 rounded-xl border-border/80 bg-secondary/40 hover:bg-secondary/70 text-foreground"
           />
 
