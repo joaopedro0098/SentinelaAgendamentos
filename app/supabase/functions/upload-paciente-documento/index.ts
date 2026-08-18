@@ -7,19 +7,56 @@ const corsHeaders = {
 };
 
 const MAX_BYTES = 10 * 1024 * 1024;
+const SIZE_LIMIT_MESSAGE =
+  "Limite de 10MB por upload excedido. Suba uma quantidade menor e depois suba o restante.";
 
 const ALLOWED_MIME = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/pdf",
+  "application/rtf",
+  "text/plain",
+  "text/csv",
+  "text/comma-separated-values",
+  "application/csv",
   "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
 ]);
 
 const EXT_BY_MIME: Record<string, string> = {
   "application/msword": ".doc",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
   "application/pdf": ".pdf",
+  "application/rtf": ".rtf",
+  "text/plain": ".txt",
+  "text/csv": ".csv",
+  "text/comma-separated-values": ".csv",
+  "application/csv": ".csv",
   "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/bmp": ".bmp",
+};
+
+const EXTENSION_MIME: Record<string, string> = {
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".pdf": "application/pdf",
+  ".rtf": "application/rtf",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+  ".md": "text/plain",
+  ".log": "text/plain",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -27,6 +64,11 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
 }
 
 function isPdf(bytes: Uint8Array) {
@@ -41,6 +83,43 @@ function isPdf(bytes: Uint8Array) {
 
 function isJpeg(bytes: Uint8Array) {
   return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+}
+
+function isPng(bytes: Uint8Array) {
+  return (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  );
+}
+
+function isGif(bytes: Uint8Array) {
+  return (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46
+  );
+}
+
+function isWebp(bytes: Uint8Array) {
+  return (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  );
+}
+
+function isBmp(bytes: Uint8Array) {
+  return bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d;
 }
 
 function isOleDoc(bytes: Uint8Array) {
@@ -72,12 +151,18 @@ function isDocx(bytes: Uint8Array) {
   return sample.includes("word/") || sample.includes("[Content_Types].xml");
 }
 
-function detectMimeFromBytes(bytes: Uint8Array): string | null {
+function detectMimeFromBytes(bytes: Uint8Array, fileName: string): string | null {
   if (isPdf(bytes)) return "application/pdf";
   if (isJpeg(bytes)) return "image/jpeg";
+  if (isPng(bytes)) return "image/png";
+  if (isGif(bytes)) return "image/gif";
+  if (isWebp(bytes)) return "image/webp";
+  if (isBmp(bytes)) return "image/bmp";
   if (isOleDoc(bytes)) return "application/msword";
   if (isDocx(bytes)) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  return null;
+
+  const ext = fileExtension(fileName);
+  return EXTENSION_MIME[ext] ?? null;
 }
 
 function sanitizeFileName(name: string): string {
@@ -125,27 +210,26 @@ Deno.serve(async (req) => {
     }
 
     if (file.size > MAX_BYTES) {
-      return jsonResponse({
-        error: "file_too_large",
-        message: "O arquivo excede o limite de 10 MB.",
-      }, 400);
+      return jsonResponse({ error: "file_too_large", message: SIZE_LIMIT_MESSAGE }, 400);
     }
 
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const detectedMime = detectMimeFromBytes(bytes);
+    const detectedMime = detectMimeFromBytes(bytes, file.name);
 
     if (!detectedMime || !ALLOWED_MIME.has(detectedMime)) {
       return jsonResponse({
         error: "invalid_mime_type",
-        message: "Formato não suportado. Envie Word (.doc, .docx), PDF (.pdf) ou imagem (.jpg, .jpeg).",
+        message: "Formato não suportado. Envie imagens, PDF, Word ou arquivos de texto (.txt, .csv).",
       }, 400);
     }
 
     const declaredMime = file.type.trim().toLowerCase();
     if (declaredMime && declaredMime !== detectedMime) {
-      // Alguns navegadores reportam application/zip para .docx — aceitar se assinatura for docx.
       const zipDeclared = declaredMime === "application/zip" || declaredMime === "application/x-zip-compressed";
-      if (!(zipDeclared && detectedMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+      const textFamily =
+        (declaredMime.startsWith("text/") || declaredMime === "application/csv") &&
+        (detectedMime.startsWith("text/") || detectedMime === "application/csv");
+      if (!(zipDeclared && detectedMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") && !textFamily) {
         return jsonResponse({
           error: "mime_mismatch",
           message: "O conteúdo do arquivo não corresponde ao formato informado.",
@@ -154,7 +238,7 @@ Deno.serve(async (req) => {
     }
 
     const docId = crypto.randomUUID();
-    const ext = EXT_BY_MIME[detectedMime];
+    const ext = EXT_BY_MIME[detectedMime] ?? fileExtension(file.name) ?? "";
     const storagePath = `${userId}/patients/${whatsappDigits}/${docId}${ext}`;
     const fileName = sanitizeFileName(file.name);
 
@@ -170,10 +254,12 @@ Deno.serve(async (req) => {
       const message =
         uploadErr.message?.toLowerCase().includes("too large") ||
         uploadErr.message?.toLowerCase().includes("payload")
-          ? "O arquivo excede o limite de 10 MB."
+          ? SIZE_LIMIT_MESSAGE
           : uploadErr.message?.toLowerCase().includes("mime")
             ? "Formato de arquivo não suportado."
-            : "Não foi possível enviar o arquivo.";
+            : uploadErr.message?.toLowerCase().includes("forbidden")
+              ? "Sem permissão para anexar documentos a este paciente."
+              : "Não foi possível enviar o arquivo.";
       return jsonResponse({ error: "upload_failed", message }, 400);
     }
 
@@ -202,11 +288,13 @@ Deno.serve(async (req) => {
       const message =
         typeof row.message === "string"
           ? row.message
-          : row.error === "file_too_large"
-            ? "O arquivo excede o limite de 10 MB."
+          : row.error === "forbidden"
+            ? "Sem permissão para anexar documentos a este paciente."
             : row.error === "invalid_mime_type"
               ? "Formato de arquivo não suportado."
-              : "Não foi possível registrar o documento.";
+              : row.error === "file_too_large"
+                ? SIZE_LIMIT_MESSAGE
+                : "Não foi possível registrar o documento.";
       return jsonResponse({ error: String(row.error), message }, 400);
     }
 

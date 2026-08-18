@@ -11,7 +11,7 @@ function fileExtension(fileName: string): string {
   return dot >= 0 ? fileName.slice(dot).toLowerCase() : "";
 }
 
-function resolveKind(mimeType: string, fileName: string): "pdf" | "word" | "image" {
+function resolveKind(mimeType: string, fileName: string): "pdf" | "word" | "text" | "image" {
   const ext = fileExtension(fileName);
   if (mimeType === "application/pdf" || ext === ".pdf") return "pdf";
   if (
@@ -21,6 +21,17 @@ function resolveKind(mimeType: string, fileName: string): "pdf" | "word" | "imag
     ext === ".docx"
   ) {
     return "word";
+  }
+  if (
+    mimeType.startsWith("text/") ||
+    mimeType === "application/csv" ||
+    ext === ".txt" ||
+    ext === ".csv" ||
+    ext === ".md" ||
+    ext === ".log" ||
+    ext === ".rtf"
+  ) {
+    return "text";
   }
   return "image";
 }
@@ -80,6 +91,25 @@ export function PacienteDocumentoFileIcon({ mimeType, fileName, className }: Pro
         >
           W
         </text>
+      </svg>
+    );
+  }
+
+  if (kind === "text") {
+    return (
+      <svg
+        viewBox="0 0 32 40"
+        aria-hidden
+        className={cn("h-10 w-8 shrink-0 drop-shadow-sm", className)}
+      >
+        <path
+          d="M6 2h12l8 8v28a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+          fill="#6B7280"
+        />
+        <path d="M18 2v8h8" fill="#4B5563" />
+        <rect x="8" y="18" width="16" height="2" rx="1" fill="#fff" opacity="0.9" />
+        <rect x="8" y="22" width="12" height="2" rx="1" fill="#fff" opacity="0.75" />
+        <rect x="8" y="26" width="14" height="2" rx="1" fill="#fff" opacity="0.75" />
       </svg>
     );
   }

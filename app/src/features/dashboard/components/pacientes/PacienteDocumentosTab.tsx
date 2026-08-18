@@ -152,7 +152,7 @@ export function PacienteDocumentosTab({ paciente, documentos, loading, onRefresh
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Arraste um arquivo aqui ou use Enviar — Word, PDF ou imagem (.jpg, .jpeg), máx. 10 MB
+              Arraste um arquivo aqui ou use Enviar — imagens, PDF, Word, texto (.txt, .csv) e similares, máx. 10 MB por upload
             </p>
             <Button
               type="button"

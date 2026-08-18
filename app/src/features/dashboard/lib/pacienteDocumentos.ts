@@ -2,17 +2,63 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const PACIENTE_DOCUMENTO_MAX_BYTES = 10 * 1024 * 1024;
 
-export const PACIENTE_DOCUMENTO_ACCEPT =
-  ".doc,.docx,.pdf,.jpg,.jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,image/jpeg";
+export const PACIENTE_DOCUMENTO_SIZE_LIMIT_MESSAGE =
+  "Limite de 10MB por upload excedido. Suba uma quantidade menor e depois suba o restante.";
 
-const ALLOWED_EXTENSIONS = new Set([".doc", ".docx", ".pdf", ".jpg", ".jpeg"]);
+export const PACIENTE_DOCUMENTO_ACCEPT =
+  ".doc,.docx,.pdf,.rtf,.txt,.csv,.md,.log,.jpg,.jpeg,.png,.gif,.webp,.bmp," +
+  "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+  "application/pdf,application/rtf,text/plain,text/csv,image/jpeg,image/png,image/gif,image/webp,image/bmp";
+
+const ALLOWED_EXTENSIONS = new Set([
+  ".doc",
+  ".docx",
+  ".pdf",
+  ".rtf",
+  ".txt",
+  ".csv",
+  ".md",
+  ".log",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".bmp",
+]);
 
 const ALLOWED_MIME = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/pdf",
+  "application/rtf",
+  "text/plain",
+  "text/csv",
+  "text/comma-separated-values",
+  "application/csv",
   "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
 ]);
+
+const EXTENSION_MIME: Record<string, string> = {
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".pdf": "application/pdf",
+  ".rtf": "application/rtf",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+  ".md": "text/plain",
+  ".log": "text/plain",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+};
 
 export type PacienteDocumentoItem = {
   id: string;
@@ -29,6 +75,22 @@ function fileExtension(name: string): string {
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
 }
 
+export function resolvePacienteDocumentoMime(file: File): string | null {
+  const ext = fileExtension(file.name);
+  const declared = file.type.trim().toLowerCase();
+
+  if (declared && ALLOWED_MIME.has(declared)) return declared;
+
+  if (
+    (declared === "application/zip" || declared === "application/x-zip-compressed") &&
+    ext === ".docx"
+  ) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+
+  return EXTENSION_MIME[ext] ?? null;
+}
+
 export function validatePacienteDocumentoFile(
   file: File,
 ): { ok: true } | { ok: false; message: string } {
@@ -36,7 +98,8 @@ export function validatePacienteDocumentoFile(
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     return {
       ok: false,
-      message: "Formato não suportado. Envie Word (.doc, .docx), PDF (.pdf) ou imagem (.jpg, .jpeg).",
+      message:
+        "Formato não suportado. Envie imagens, PDF, Word, texto (.txt, .csv) ou similar.",
     };
   }
 
@@ -45,19 +108,16 @@ export function validatePacienteDocumentoFile(
   }
 
   if (file.size > PACIENTE_DOCUMENTO_MAX_BYTES) {
-    return { ok: false, message: "O arquivo excede o limite de 10 MB." };
+    return { ok: false, message: PACIENTE_DOCUMENTO_SIZE_LIMIT_MESSAGE };
   }
 
-  if (file.type && !ALLOWED_MIME.has(file.type)) {
-    const zipOk =
-      (file.type === "application/zip" || file.type === "application/x-zip-compressed") &&
-      ext === ".docx";
-    if (!zipOk) {
-      return {
-        ok: false,
-        message: "Formato não suportado. Envie Word (.doc, .docx), PDF (.pdf) ou imagem (.jpg, .jpeg).",
-      };
-    }
+  const mime = resolvePacienteDocumentoMime(file);
+  if (!mime) {
+    return {
+      ok: false,
+      message:
+        "Formato não suportado. Envie imagens, PDF, Word, texto (.txt, .csv) ou similar.",
+    };
   }
 
   return { ok: true };
@@ -160,7 +220,8 @@ export async function getPacienteDocumentoSignedUrl(storagePath: string, expires
 export function formatDocumentoSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 export function formatDocumentoDate(iso: string): string {
