@@ -49,7 +49,7 @@ BEGIN
   VALUES (
     _barbearia, _barbeiro, CURRENT_DATE + 30, '23:59',
     'Smoke K Anon', '5511999887766', _cliente,
-    30, ARRAY['Smoke']::text[], 'confirmado'::public.agendamento_status, 'link_publico'
+    30, ARRAY['Smoke']::text[], 'confirmado'::public.agendamento_status, 'paciente_logado'
   )
   RETURNING id INTO _new_id;
 

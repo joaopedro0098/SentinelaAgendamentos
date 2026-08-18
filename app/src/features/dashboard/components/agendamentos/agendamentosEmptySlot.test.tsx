@@ -9,6 +9,11 @@ const panelSource = readFileSync(
   "utf8",
 );
 
+const obsIndicatorSource = readFileSync(
+  resolve(__dirname, "AgendamentoObsIndicator.tsx"),
+  "utf8",
+);
+
 describe("slots vazios — bloqueio de clique", () => {
   it("painel usa pointer-events-none no overlay para não bloquear cliques", () => {
     expect(panelSource).toContain("pointer-events-none absolute inset-0 z-10");
@@ -36,6 +41,6 @@ describe("slots vazios — bloqueio de clique", () => {
   it("painel exibe indicador OBS clicável quando há observação", () => {
     expect(panelSource).toContain("AgendamentoObsIndicator");
     expect(panelSource).toContain("AgendamentoObservacaoViewModal");
-    expect(panelSource).toContain('aria-label="Ver observação"');
+    expect(obsIndicatorSource).toContain('aria-label="Ver observação"');
   });
 });

@@ -27,7 +27,7 @@ BEGIN
   INSERT INTO _fase_k_results VALUES (1, 'anon SELECT grade', _n > 0, format('%s rows', _n));
 
   INSERT INTO public.agendamentos (barbearia_id, barbeiro_id, data, hora, cliente_nome, cliente_whatsapp, cliente_id, duracao_minutos, servicos_nomes, status, origem)
-  VALUES (_barbearia, _barbeiro, CURRENT_DATE + 30, '23:59', 'Smoke K', '5511999887766', _cliente, 30, ARRAY['Smoke']::text[], 'confirmado', 'link_publico')
+  VALUES (_barbearia, _barbeiro, CURRENT_DATE + 30, '23:59', 'Smoke K', '5511999887766', _cliente, 30, ARRAY['Smoke']::text[], 'confirmado', 'paciente_logado')
   RETURNING id INTO _new_id;
   INSERT INTO _fase_k_results VALUES (1, 'anon INSERT confirmado', _new_id IS NOT NULL, coalesce(_new_id::text, 'null'));
 

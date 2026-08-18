@@ -23,8 +23,3 @@ export async function checkProfessionalAccount(): Promise<ProfessionalAccountChe
   }
   return { status: "professional" };
 }
-
-export async function userHasProfessionalAccount(): Promise<boolean> {
-  const result = await checkProfessionalAccount();
-  return result.status === "professional";
-}

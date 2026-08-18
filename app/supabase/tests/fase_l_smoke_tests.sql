@@ -198,7 +198,7 @@ BEGIN
     duracao_minutos, servicos_nomes, status, origem, titular_user_id
   ) VALUES (
     _barbearia, _barbeiro, CURRENT_DATE + 5, '10:00', 'Smoke L Hold', '5511999776655', _cliente,
-    30, ARRAY['Smoke']::text[], 'aguardando_pagamento'::public.agendamento_status, 'link_publico', _ct
+    30, ARRAY['Smoke']::text[], 'aguardando_pagamento'::public.agendamento_status, 'paciente_logado', _ct
   ) RETURNING id INTO _hold_id;
 
   INSERT INTO public.agendamento_anotacoes (agendamento_id, conteudo, created_by, titular_user_id)

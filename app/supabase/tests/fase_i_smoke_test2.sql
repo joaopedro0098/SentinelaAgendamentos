@@ -27,7 +27,7 @@ BEGIN
   VALUES (
     _barbearia, _barbeiro, '2099-01-15'::date, '10:30'::time,
     'Smoke Hold Fase I', '5511999990001', 30, ARRAY['Teste']::text[],
-    'aguardando_pagamento'::public.agendamento_status, 'link_publico', _titular,
+    'aguardando_pagamento'::public.agendamento_status, 'paciente_logado', _titular,
     now() + interval '15 minutes'
   )
   RETURNING id INTO _hold_id;

@@ -29,3 +29,9 @@ dist-ssr
 
 # Cache local do Supabase CLI
 supabase/.temp/
+
+# Payloads de debug local (facial/WABA) — nunca commitar
+/co1.json
+/c1.json
+/s1.json
+/payload.json

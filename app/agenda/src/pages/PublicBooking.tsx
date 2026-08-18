@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { maskPhone, unmaskPhone, isValidPhone, whatsappHref } from "@/lib/phone";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, Scissors, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { ShopAvatar } from "@/components/ShopAvatar";
 import { cn } from "@/lib/utils";
 import { ServicosCarousel } from "@/components/agenda/ServicosCarousel";
 import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip";
@@ -89,23 +90,6 @@ function horarioChipClass(livre: boolean, sel: boolean) {
     "snap-start shrink-0 w-[72px] h-12 rounded-xl flex items-center justify-center font-semibold text-sm transition-all cursor-pointer md:w-[4.5rem] md:h-10",
     livre ? "bg-available text-available-foreground active:scale-95" : "bg-unavailable text-unavailable-foreground opacity-90",
     sel && livre && "ring-2 ring-foreground ring-offset-2 ring-offset-surface",
-  );
-}
-
-function ShopAvatar({ logoUrl, name, className }: { logoUrl: string | null; name: string; className?: string }) {
-  if (logoUrl) {
-    return (
-      <img
-        src={logoUrl}
-        alt={name}
-        className={cn("rounded-full object-cover bg-foreground shrink-0", className)}
-      />
-    );
-  }
-  return (
-    <div className={cn("rounded-full bg-foreground text-background flex items-center justify-center shrink-0", className)}>
-      <Scissors className="h-5 w-5" />
-    </div>
   );
 }
 
