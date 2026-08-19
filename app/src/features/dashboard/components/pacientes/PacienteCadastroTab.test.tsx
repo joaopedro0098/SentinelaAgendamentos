@@ -67,6 +67,7 @@ describe("PacienteCadastroTab — compartilhar link e excluir", () => {
         paciente={basePaciente}
         canDeleteCadastro
         onNomeSaved={vi.fn()}
+        onWhatsappSaved={vi.fn()}
         onDataNascimentoSaved={vi.fn()}
         onAvatarSaved={vi.fn()}
         onCadastroDeleted={vi.fn()}
@@ -83,6 +84,7 @@ describe("PacienteCadastroTab — compartilhar link e excluir", () => {
         paciente={basePaciente}
         canDeleteCadastro={false}
         onNomeSaved={vi.fn()}
+        onWhatsappSaved={vi.fn()}
         onDataNascimentoSaved={vi.fn()}
         onAvatarSaved={vi.fn()}
         onCadastroDeleted={vi.fn()}
@@ -93,12 +95,13 @@ describe("PacienteCadastroTab — compartilhar link e excluir", () => {
     expect(screen.queryByRole("button", { name: /excluir cadastro/i })).not.toBeInTheDocument();
   });
 
-  it("conta_ativada oculta botão e mostra texto dos toggles de Configurações", () => {
+  it("conta_ativada oculta botão Compartilhar Link e texto de ativação", () => {
     render(
       <PacienteCadastroTab
         paciente={{ ...basePaciente, conta_ativada: true }}
-        canDeleteCadastro
+        canDeleteCadastro={false}
         onNomeSaved={vi.fn()}
+        onWhatsappSaved={vi.fn()}
         onDataNascimentoSaved={vi.fn()}
         onAvatarSaved={vi.fn()}
         onCadastroDeleted={vi.fn()}
@@ -106,8 +109,8 @@ describe("PacienteCadastroTab — compartilhar link e excluir", () => {
     );
 
     expect(screen.queryByRole("button", { name: /compartilhar link/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/cliente agenda pelo link/i)).toBeInTheDocument();
-    expect(screen.getByText(/cliente altera ou cancela pelo link/i)).toBeInTheDocument();
+    expect(screen.queryByText(/sou paciente/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cliente agenda pelo link/i)).not.toBeInTheDocument();
   });
 
   it("clique em Compartilhar Link chama RPC e copia pro clipboard", async () => {
@@ -116,6 +119,7 @@ describe("PacienteCadastroTab — compartilhar link e excluir", () => {
         paciente={basePaciente}
         canDeleteCadastro={false}
         onNomeSaved={vi.fn()}
+        onWhatsappSaved={vi.fn()}
         onDataNascimentoSaved={vi.fn()}
         onAvatarSaved={vi.fn()}
         onCadastroDeleted={vi.fn()}

@@ -338,6 +338,30 @@ export function usePacientesPanel() {
     return caBarbearias.find((ca) => ca.barbeariaId === itemBarbeariaId)?.shopName ?? "CA";
   }
 
+  function patchPacienteWhatsapp(previousWhatsapp: string, newWhatsapp: string) {
+    setPacientes((prev) =>
+      prev.map((p) =>
+        p.whatsapp_digits === previousWhatsapp ? { ...p, whatsapp_digits: newWhatsapp } : p,
+      ),
+    );
+    setSelectedPaciente((prev) =>
+      prev?.whatsapp_digits === previousWhatsapp ? { ...prev, whatsapp_digits: newWhatsapp } : prev,
+    );
+    setFolderItems((prev) =>
+      prev.map((item) =>
+        whatsappMatches(item.cliente_whatsapp, previousWhatsapp)
+          ? { ...item, cliente_whatsapp: newWhatsapp }
+          : item,
+      ),
+    );
+    setDocumentosItems([]);
+    void reloadFirstPage();
+    if (selectedPaciente?.whatsapp_digits === previousWhatsapp) {
+      void loadFolder({ ...selectedPaciente, whatsapp_digits: newWhatsapp });
+      void loadDocumentos({ ...selectedPaciente, whatsapp_digits: newWhatsapp });
+    }
+  }
+
   function patchPacienteDataNascimento(whatsapp: string, dataNascimento: string | null) {
     setPacientes((prev) => patchPacienteInList(prev, whatsapp, { data_nascimento: dataNascimento }));
     setSelectedPaciente((prev) =>
@@ -397,6 +421,7 @@ export function usePacientesPanel() {
     openAnotacao,
     handleAnotacaoSaved,
     patchPacienteNome,
+    patchPacienteWhatsapp,
     handlePacienteCadastroDeleted,
     caLabel,
     patchPacienteDataNascimento,

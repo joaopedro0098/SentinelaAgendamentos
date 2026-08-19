@@ -42,11 +42,20 @@ Deno.serve(async (req) => {
   const inboundMessageSid = (formParams["MessageSid"] ?? "").trim();
   const from = formParams["From"] ?? "";
   const body = (formParams["Body"] ?? "").trim();
+  const buttonText = (formParams["ButtonText"] ?? "").trim();
+  const buttonPayload = (formParams["ButtonPayload"] ?? "").trim();
   const telefoneDigits = phoneDigitsFromWhatsAppAddress(from);
 
   console.log(
     "twilio-whatsapp-webhook: assinatura válida — mensagem recebida",
-    JSON.stringify({ From: from, Body: body, MessageSid: inboundMessageSid, telefoneDigits }),
+    JSON.stringify({
+      From: from,
+      Body: body,
+      ButtonText: buttonText,
+      ButtonPayload: buttonPayload,
+      MessageSid: inboundMessageSid,
+      telefoneDigits,
+    }),
   );
 
   if (!inboundMessageSid) {
@@ -66,6 +75,7 @@ Deno.serve(async (req) => {
     inboundMessageSid,
     telefone: telefoneDigits,
     body,
+    buttonPayload,
   });
 
   if (!enqueueResult.ok) {

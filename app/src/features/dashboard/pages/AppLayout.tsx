@@ -14,6 +14,8 @@ import { MobileBottomNav } from "@/features/dashboard/components/MobileBottomNav
 import { usePendingPaymentExceptions } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import { useAdminFailedWebhookJobsCount } from "@/hooks/useAdminFailedWebhookJobsCount";
+import { useAdminIntegracaoAlertasCount } from "@/hooks/useAdminIntegracaoAlertasCount";
+import { useIntegracaoAlertasProfissional } from "@/features/dashboard/hooks/useIntegracaoAlertasProfissional";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
@@ -85,7 +87,10 @@ export default function AppLayout() {
   const showSuporteNav = subscriptionInfo != null && !subscriptionInfo.is_admin;
   const isDesktop = useMediaMdUp();
   const failedWebhookJobsCount = useAdminFailedWebhookJobsCount(Boolean(subscriptionInfo?.is_admin && isDesktop));
-  const showAdminAttention = failedWebhookJobsCount > 0;
+  const integracaoAlertasAdminCount = useAdminIntegracaoAlertasCount(Boolean(subscriptionInfo?.is_admin && isDesktop));
+  const showAdminAttention = failedWebhookJobsCount > 0 || integracaoAlertasAdminCount > 0;
+  const { count: integracaoAlertasProfissionalCount } = useIntegracaoAlertasProfissional(shop?.id ?? null);
+  const showIntegracoesAttention = integracaoAlertasProfissionalCount > 0;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
@@ -116,7 +121,7 @@ export default function AppLayout() {
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pacientes" icon={<Users className="h-5 w-5" />} label="Pacientes" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/profissionais" icon={<UserCog className="h-5 w-5" />} label="Profissionais" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/connect" icon={<Plug2 className="h-5 w-5" />} label="Connect" />
-            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/integracoes" icon={<Blocks className="h-5 w-5" />} label="Integrações" />
+            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/integracoes" icon={<Blocks className="h-5 w-5" />} label="Integrações" showAttentionDot={showIntegracoesAttention} attentionDotColor="amber" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/perfil" icon={<User className="h-5 w-5" />} label="Conta" />
             {showPagamentosNav && (
@@ -247,13 +252,24 @@ function ShopPanelBrand({
   );
 }
 
-function NavIconWithAttention({ icon, showAttentionDot }: { icon: ReactNode; showAttentionDot?: boolean }) {
+function NavIconWithAttention({
+  icon,
+  showAttentionDot,
+  attentionDotColor = "red",
+}: {
+  icon: ReactNode;
+  showAttentionDot?: boolean;
+  attentionDotColor?: "red" | "amber";
+}) {
   return (
     <span className="relative inline-flex shrink-0">
       {icon}
       {showAttentionDot && (
         <span
-          className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-card"
+          className={cn(
+            "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card",
+            attentionDotColor === "amber" ? "bg-amber-400" : "bg-red-500",
+          )}
           aria-hidden
         />
       )}
@@ -268,6 +284,7 @@ function DesktopNavItem({
   end,
   collapsed,
   showAttentionDot,
+  attentionDotColor,
 }: {
   to: string;
   icon: ReactNode;
@@ -275,6 +292,7 @@ function DesktopNavItem({
   end?: boolean;
   collapsed?: boolean;
   showAttentionDot?: boolean;
+  attentionDotColor?: "red" | "amber";
 }) {
   return (
     <NavLink
@@ -291,7 +309,7 @@ function DesktopNavItem({
         )
       }
     >
-      <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} />
+      <NavIconWithAttention icon={icon} showAttentionDot={showAttentionDot} attentionDotColor={attentionDotColor} />
       {!collapsed && <span>{label}</span>}
     </NavLink>
   );

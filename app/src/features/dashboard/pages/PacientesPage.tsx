@@ -39,6 +39,7 @@ export default function PacientesPage() {
     onReloadDocumentos: panel.reloadDocumentos,
     onOpenAnotacao: panel.openAnotacao,
     onNomeSaved: panel.patchPacienteNome,
+    onWhatsappSaved: panel.patchPacienteWhatsapp,
     onDataNascimentoSaved: panel.patchPacienteDataNascimento,
     onAvatarSaved: panel.patchPacienteAvatar,
     onCadastroDeleted: panel.handlePacienteCadastroDeleted,

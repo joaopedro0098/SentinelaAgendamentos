@@ -26,6 +26,14 @@ function twilioBasicAuth(sid: string, token: string): string {
   return "Basic " + btoa(`${sid}:${token}`);
 }
 
+function senderPhoneFromTwilioRecord(
+  phoneNumber: string,
+  record?: Record<string, unknown>,
+): string {
+  const fromApi = String(record?.sender_id ?? record?.senderId ?? "").trim();
+  return fromApi || `whatsapp:${phoneNumber}`;
+}
+
 async function twilioFetch(
   url: string,
   options: {
@@ -182,9 +190,11 @@ Deno.serve(async (req) => {
         const twilioStatus = String(checkSenderRes.data.status ?? "").toUpperCase();
         if (twilioStatus === "ONLINE") {
           // Ativação concluída! Atualiza o banco para connected e retorna sucesso
+          const recoveredSenderPhone = senderPhoneFromTwilioRecord(phoneNumber, checkSenderRes.data);
           await serviceClient.from("barbershops").update({
             waba_connect_status: "connected",
             waba_connected_at: new Date().toISOString(),
+            sender_phone_e164: recoveredSenderPhone,
             updated_at: new Date().toISOString(),
           }).eq("id", shopId);
 
@@ -309,6 +319,7 @@ Deno.serve(async (req) => {
     let senderSid: string = shop.sender_sid ?? "";
     let senderStatus = "";
     let senderWasReused = false;
+    let senderPhoneE164 = `whatsapp:${phoneNumber}`;
 
     if (senderSid) {
       // Consulta o status do Sender existente
@@ -325,9 +336,11 @@ Deno.serve(async (req) => {
 
         if (existingStatus === "ONLINE") {
           // Sender já está ativo — atualiza o banco para connected e libera lock
+          senderPhoneE164 = senderPhoneFromTwilioRecord(phoneNumber, getSenderRes.data);
           await serviceClient.from("barbershops").update({
             waba_connect_status: "connected",
             waba_connected_at: new Date().toISOString(),
+            sender_phone_e164: senderPhoneE164,
             updated_at: new Date().toISOString(),
           }).eq("id", shopId);
 
@@ -355,6 +368,7 @@ Deno.serve(async (req) => {
         // Limpa sender_sid obsoleto no banco
         await serviceClient.from("barbershops").update({
           sender_sid: null,
+          sender_phone_e164: null,
           updated_at: new Date().toISOString(),
         }).eq("id", shopId);
       }
@@ -408,6 +422,7 @@ Deno.serve(async (req) => {
           if (existingSender) {
             senderSid = String(existingSender.sid ?? "");
             senderStatus = String(existingSender.status ?? "").toUpperCase();
+            senderPhoneE164 = senderPhoneFromTwilioRecord(phoneNumber, existingSender);
             senderWasReused = true;
             console.log(`[waba-connect-start] Sender já existia, reaproveitando via fallback: ${senderSid} (status: ${senderStatus})`);
           }
@@ -423,6 +438,7 @@ Deno.serve(async (req) => {
     } else {
       senderSid = String(createSenderRes.data.sid ?? "");
       senderStatus = String(createSenderRes.data.status ?? "").toUpperCase();
+      senderPhoneE164 = senderPhoneFromTwilioRecord(phoneNumber, createSenderRes.data);
     }
 
     if (senderStatus === "ONLINE") {
@@ -430,6 +446,7 @@ Deno.serve(async (req) => {
         waba_id: wabaId,
         waba_phone_number_id: phoneNumberId,
         sender_sid: senderSid,
+        sender_phone_e164: senderPhoneE164,
         waba_connect_status: "connected",
         waba_connected_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -446,6 +463,7 @@ Deno.serve(async (req) => {
         waba_id: wabaId,
         waba_phone_number_id: phoneNumberId,
         sender_sid: senderSid,
+        sender_phone_e164: senderPhoneE164,
         waba_connect_status: "pending",
         updated_at: new Date().toISOString(),
       })

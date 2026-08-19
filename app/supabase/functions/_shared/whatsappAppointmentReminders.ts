@@ -9,6 +9,7 @@ import {
   normalizeBrazilPhoneE164Digits,
   phoneDigitsFromWhatsAppAddress,
 } from "./twilioWhatsapp.ts";
+import { resolveBarbershopTwilioCredentials } from "./barbershopTwilioCredentials.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { formatAppointmentDateTimeBr } from "./appointmentAlertMessage.ts";
 import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
@@ -71,6 +72,8 @@ async function sendOneReminder(
   }
   const phoneDigits = normalizeBrazilPhoneE164Digits(localDigits);
 
+  const shopCredentials = await resolveBarbershopTwilioCredentials(supabase, row.barbearia_id);
+
   const result = await sendWhatsAppTemplate({
     to: phoneDigits,
     contentSid,
@@ -78,7 +81,9 @@ async function sendOneReminder(
       "1": row.cliente_nome,
       "2": shopNameFromRow(row),
       "3": formatAppointmentDateTimeBr(row.data, row.hora.slice(0, 5)),
+      "4": row.id,
     },
+    credentials: shopCredentials,
   });
 
   await supabase.from("whatsapp_mensagens_enviadas").insert({

@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
       const result = await processWhatsAppInboundReply(supabase, {
         telefone: job.telefone,
         body: job.body,
+        buttonPayload: job.button_payload ?? "",
       });
 
       if (result.ok) {

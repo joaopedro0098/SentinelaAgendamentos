@@ -1,15 +1,17 @@
 /**
- * Lógica de negócio para processar uma resposta de paciente (Confirmar/Alterar/Cancelar).
+ * Lógica de negócio para processar uma resposta de paciente (Confirmar/Remarcar/Cancelar).
  * Consumida pelo worker process-whatsapp-webhook-jobs — não pelo webhook diretamente.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { normalizeBrazilPhoneE164Digits, sendWhatsAppTemplate } from "./twilioWhatsapp.ts";
+import { resolveBarbershopTwilioCredentials } from "./barbershopTwilioCredentials.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { buildAppointmentAlertMessage } from "./appointmentAlertMessage.ts";
 
 export type InboundReplyPayload = {
   telefone: string;
   body: string;
+  buttonPayload: string;
 };
 
 export type ProcessInboundReplyResult =
@@ -34,6 +36,28 @@ type AppointmentRow = {
   barbearia_id: string;
   barbeiros: BarbeiroRef | BarbeiroRef[] | null;
 };
+
+const ACTION_PREFIXES = ["confirmar", "remarcar", "cancelar"] as const;
+type ParsedAction = (typeof ACTION_PREFIXES)[number];
+
+const APPOINTMENT_SELECT =
+  "id, data, hora, cliente_nome, status, barbeiro_id, barbearia_id, barbeiros(id, nome, whatsapp)";
+
+function parseButtonPayload(payload: string): { action: ParsedAction; agendamentoId: string } | null {
+  for (const prefix of ACTION_PREFIXES) {
+    if (payload.startsWith(prefix)) {
+      return { action: prefix, agendamentoId: payload.slice(prefix.length) };
+    }
+  }
+  return null;
+}
+
+function parseBodyAction(body: string): ParsedAction | null {
+  if (body === "Confirmar") return "confirmar";
+  if (body === "Cancelar") return "cancelar";
+  if (body === "Remarcar") return "remarcar";
+  return null;
+}
 
 function barbeiroFromRow(row: AppointmentRow): BarbeiroRef | null {
   const value = row.barbeiros;
@@ -61,14 +85,8 @@ function logProcessamentoConcluido(params: { action: string; agendamentoId?: str
   }
 }
 
-export async function processWhatsAppInboundReply(
-  supabase: SupabaseClient,
-  payload: InboundReplyPayload,
-): Promise<ProcessInboundReplyResult> {
-  const telefoneDigits = normalizeBrazilPhoneE164Digits(payload.telefone);
-  const body = payload.body.trim();
-
-  const { data: pending, error: pendingError } = await supabase
+async function fetchPendingOutboundByPhone(supabase: SupabaseClient, telefoneDigits: string) {
+  return supabase
     .from("whatsapp_mensagens_enviadas")
     .select("id, agendamento_id, barbearia_id")
     .eq("telefone", telefoneDigits)
@@ -76,6 +94,285 @@ export async function processWhatsAppInboundReply(
     .order("enviado_em", { ascending: false })
     .limit(1)
     .maybeSingle();
+}
+
+async function fetchPendingOutboundByAppointment(
+  supabase: SupabaseClient,
+  agendamentoId: string,
+  telefoneDigits: string,
+) {
+  return supabase
+    .from("whatsapp_mensagens_enviadas")
+    .select("id, agendamento_id, barbearia_id")
+    .eq("agendamento_id", agendamentoId)
+    .eq("telefone", telefoneDigits)
+    .eq("status", "aguardando_resposta")
+    .order("enviado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+async function fetchAppointment(supabase: SupabaseClient, agendamentoId: string) {
+  return supabase
+    .from("agendamentos")
+    .select(APPOINTMENT_SELECT)
+    .eq("id", agendamentoId)
+    .maybeSingle();
+}
+
+async function processConfirmAction(
+  supabase: SupabaseClient,
+  ag: AppointmentRow,
+  outboundRow: PendingMessageRow | null,
+): Promise<ProcessInboundReplyResult> {
+  const { error: confirmError } = await supabase
+    .from("agendamentos")
+    .update({ client_confirmed_at: new Date().toISOString() })
+    .eq("id", ag.id)
+    .eq("status", "confirmado")
+    .eq("requires_client_confirmation", true)
+    .is("client_confirmed_at", null);
+
+  if (confirmError) {
+    return { ok: false, error: confirmError.message, retryable: true };
+  }
+  if (outboundRow) {
+    await markOutboundMessageResponded(supabase, outboundRow.id);
+  }
+  logProcessamentoConcluido({ action: "confirmado", agendamentoId: ag.id });
+  return { ok: true, action: "confirmado" };
+}
+
+async function processAlertAction(
+  supabase: SupabaseClient,
+  ag: AppointmentRow,
+  outboundRow: PendingMessageRow | null,
+  action: "cancelar" | "remarcar",
+): Promise<ProcessInboundReplyResult> {
+  const tipo = action === "cancelar" ? "cancelamento" : "alteracao";
+  const mensagem = buildAppointmentAlertMessage({
+    tipo,
+    clienteNome: ag.cliente_nome,
+    data: ag.data,
+    hora: ag.hora,
+  });
+
+  const { data: existingAlert } = await supabase
+    .from("alertas_agendamento")
+    .select("id, mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
+    .eq("agendamento_id", ag.id)
+    .eq("tipo", tipo)
+    .eq("status", "pendente")
+    .maybeSingle();
+
+  let alertId: string;
+
+  if (existingAlert) {
+    alertId = existingAlert.id;
+  } else {
+    const { data: inserted, error: alertError } = await supabase
+      .from("alertas_agendamento")
+      .insert({
+        agendamento_id: ag.id,
+        barbearia_id: ag.barbearia_id,
+        barbeiro_id: ag.barbeiro_id,
+        tipo,
+        mensagem,
+      })
+      .select("id")
+      .single();
+
+    if (alertError) {
+      return { ok: false, error: alertError.message, retryable: true };
+    }
+    alertId = inserted.id;
+  }
+
+  const { data: alertState, error: alertStateError } = await supabase
+    .from("alertas_agendamento")
+    .select("mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
+    .eq("id", alertId)
+    .single();
+
+  if (alertStateError) {
+    return { ok: false, error: alertStateError.message, retryable: true };
+  }
+
+  const barbeiroWhatsapp = barbeiroFromRow(ag)?.whatsapp?.trim();
+  if (!barbeiroWhatsapp) {
+    console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
+    if (outboundRow) {
+      await markOutboundMessageResponded(supabase, outboundRow.id);
+    }
+    logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
+    return { ok: true, action: "alerta" };
+  }
+
+  const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
+  if (!contentSid) {
+    console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
+    if (outboundRow) {
+      await markOutboundMessageResponded(supabase, outboundRow.id);
+    }
+    logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
+    return { ok: true, action: "alerta" };
+  }
+
+  let messageSent = Boolean(alertState?.mensagem_profissional_enviada_em);
+  let billingDone = Boolean(alertState?.billing_registrado_em);
+  const storedTwilioSid = alertState?.twilio_message_sid?.trim() || null;
+  let twilioMessageSid: string | null = storedTwilioSid;
+
+  if (storedTwilioSid && !messageSent) {
+    console.info(
+      "processWhatsAppInboundReply: twilio_message_sid presente sem mensagem_profissional_enviada_em — tratando como enviada, pulando reenvio.",
+    );
+    const { error: repairTimestampError } = await supabase
+      .from("alertas_agendamento")
+      .update({ mensagem_profissional_enviada_em: new Date().toISOString() })
+      .eq("id", alertId)
+      .is("mensagem_profissional_enviada_em", null);
+
+    if (repairTimestampError) {
+      return { ok: false, error: repairTimestampError.message, retryable: true };
+    }
+    messageSent = true;
+  }
+
+  if (!messageSent) {
+    try {
+      const shopCredentials = await resolveBarbershopTwilioCredentials(supabase, ag.barbearia_id);
+      const result = await sendWhatsAppTemplate({
+        to: barbeiroWhatsapp,
+        contentSid,
+        contentVariables: { "1": mensagem },
+        credentials: shopCredentials,
+      });
+      twilioMessageSid = result.sid;
+
+      const sentAt = new Date().toISOString();
+      const { error: markMessageError } = await supabase
+        .from("alertas_agendamento")
+        .update({
+          mensagem_profissional_enviada_em: sentAt,
+          twilio_message_sid: result.sid,
+        })
+        .eq("id", alertId)
+        .is("mensagem_profissional_enviada_em", null);
+
+      if (markMessageError) {
+        return { ok: false, error: markMessageError.message, retryable: true };
+      }
+      messageSent = true;
+    } catch (sendError) {
+      const message = sendError instanceof Error ? sendError.message : "Falha ao notificar profissional";
+      return { ok: false, error: message, retryable: true };
+    }
+  } else {
+    console.info("processWhatsAppInboundReply: mensagem ao profissional já enviada, pulando reenvio (retry).");
+  }
+
+  if (!billingDone) {
+    const billingResult = await registrarUsoMensageria(supabase, {
+      barbeariaId: ag.barbearia_id,
+      tipo: "alerta_profissional",
+      profissionalId: ag.barbeiro_id,
+      agendamentoId: ag.id,
+      twilioMessageSid,
+    });
+
+    if (!billingResult.ok) {
+      return { ok: false, error: billingResult.error, retryable: true };
+    }
+
+    const { error: markBillingError } = await supabase
+      .from("alertas_agendamento")
+      .update({ billing_registrado_em: new Date().toISOString() })
+      .eq("id", alertId)
+      .is("billing_registrado_em", null);
+
+    if (markBillingError) {
+      return { ok: false, error: markBillingError.message, retryable: true };
+    }
+    billingDone = true;
+  } else {
+    console.info("processWhatsAppInboundReply: billing já registrado, pulando (retry).");
+  }
+
+  if (!messageSent || !billingDone) {
+    return {
+      ok: false,
+      error: "Alerta ao profissional incompleto (mensagem ou billing pendente).",
+      retryable: true,
+    };
+  }
+
+  if (outboundRow) {
+    await markOutboundMessageResponded(supabase, outboundRow.id);
+  }
+  logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
+  return { ok: true, action: "alerta" };
+}
+
+async function finishIgnorado(
+  supabase: SupabaseClient,
+  outboundRow: PendingMessageRow | null,
+  agendamentoId?: string,
+  telefone?: string,
+): Promise<ProcessInboundReplyResult> {
+  if (outboundRow) {
+    await markOutboundMessageResponded(supabase, outboundRow.id);
+  }
+  logProcessamentoConcluido({ action: "ignorado", agendamentoId, telefone });
+  return { ok: true, action: "ignorado" };
+}
+
+export async function processWhatsAppInboundReply(
+  supabase: SupabaseClient,
+  payload: InboundReplyPayload,
+): Promise<ProcessInboundReplyResult> {
+  const telefoneDigits = normalizeBrazilPhoneE164Digits(payload.telefone);
+  const body = payload.body.trim();
+  const parsedPayload = parseButtonPayload(payload.buttonPayload.trim());
+
+  if (parsedPayload) {
+    const { data: appointment, error: appointmentError } = await fetchAppointment(
+      supabase,
+      parsedPayload.agendamentoId,
+    );
+
+    if (appointmentError) {
+      return { ok: false, error: appointmentError.message, retryable: true };
+    }
+    if (!appointment) {
+      return finishIgnorado(supabase, null, parsedPayload.agendamentoId);
+    }
+
+    const ag = appointment as unknown as AppointmentRow;
+    const { data: outbound, error: outboundError } = await fetchPendingOutboundByAppointment(
+      supabase,
+      parsedPayload.agendamentoId,
+      telefoneDigits,
+    );
+
+    if (outboundError) {
+      return { ok: false, error: outboundError.message, retryable: true };
+    }
+
+    const outboundRow = (outbound as PendingMessageRow | null) ?? null;
+
+    if (parsedPayload.action === "confirmar") {
+      return processConfirmAction(supabase, ag, outboundRow);
+    }
+    if (parsedPayload.action === "cancelar" || parsedPayload.action === "remarcar") {
+      return processAlertAction(supabase, ag, outboundRow, parsedPayload.action);
+    }
+
+    return finishIgnorado(supabase, outboundRow, ag.id);
+  }
+
+  const bodyAction = parseBodyAction(body);
+  const { data: pending, error: pendingError } = await fetchPendingOutboundByPhone(supabase, telefoneDigits);
 
   if (pendingError) {
     return { ok: false, error: pendingError.message, retryable: true };
@@ -85,201 +382,29 @@ export async function processWhatsAppInboundReply(
     return { ok: true, action: "sem_pendencia" };
   }
 
-  const row = pending as PendingMessageRow;
+  const outboundRow = pending as PendingMessageRow;
 
-  const { data: appointment, error: appointmentError } = await supabase
-    .from("agendamentos")
-    .select("id, data, hora, cliente_nome, status, barbeiro_id, barbearia_id, barbeiros(id, nome, whatsapp)")
-    .eq("id", row.agendamento_id)
-    .maybeSingle();
+  const { data: appointment, error: appointmentError } = await fetchAppointment(
+    supabase,
+    outboundRow.agendamento_id,
+  );
 
   if (appointmentError) {
     return { ok: false, error: appointmentError.message, retryable: true };
   }
   if (!appointment) {
-    await markOutboundMessageResponded(supabase, row.id);
-    logProcessamentoConcluido({ action: "ignorado", agendamentoId: row.agendamento_id });
-    return { ok: true, action: "ignorado" };
+    return finishIgnorado(supabase, outboundRow, outboundRow.agendamento_id);
   }
 
   const ag = appointment as unknown as AppointmentRow;
 
-  if (body === "Confirmar") {
-    const { error: confirmError } = await supabase
-      .from("agendamentos")
-      .update({ client_confirmed_at: new Date().toISOString() })
-      .eq("id", ag.id)
-      .eq("status", "confirmado")
-      .eq("requires_client_confirmation", true)
-      .is("client_confirmed_at", null);
-
-    if (confirmError) {
-      return { ok: false, error: confirmError.message, retryable: true };
-    }
-    await markOutboundMessageResponded(supabase, row.id);
-    logProcessamentoConcluido({ action: "confirmado", agendamentoId: ag.id });
-    return { ok: true, action: "confirmado" };
+  if (!bodyAction) {
+    return finishIgnorado(supabase, outboundRow, ag.id);
   }
 
-  if (body === "Cancelar" || body === "Alterar") {
-    const tipo = body === "Cancelar" ? "cancelamento" : "alteracao";
-    const mensagem = buildAppointmentAlertMessage({
-      tipo,
-      clienteNome: ag.cliente_nome,
-      data: ag.data,
-      hora: ag.hora,
-    });
-
-    const { data: existingAlert } = await supabase
-      .from("alertas_agendamento")
-      .select("id, mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
-      .eq("agendamento_id", ag.id)
-      .eq("tipo", tipo)
-      .eq("status", "pendente")
-      .maybeSingle();
-
-    let alertId: string;
-
-    if (existingAlert) {
-      alertId = existingAlert.id;
-    } else {
-      const { data: inserted, error: alertError } = await supabase
-        .from("alertas_agendamento")
-        .insert({
-          agendamento_id: ag.id,
-          barbearia_id: ag.barbearia_id,
-          barbeiro_id: ag.barbeiro_id,
-          tipo,
-          mensagem,
-        })
-        .select("id")
-        .single();
-
-      if (alertError) {
-        return { ok: false, error: alertError.message, retryable: true };
-      }
-      alertId = inserted.id;
-    }
-
-    const { data: alertState, error: alertStateError } = await supabase
-      .from("alertas_agendamento")
-      .select("mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
-      .eq("id", alertId)
-      .single();
-
-    if (alertStateError) {
-      return { ok: false, error: alertStateError.message, retryable: true };
-    }
-
-    const barbeiroWhatsapp = barbeiroFromRow(ag)?.whatsapp?.trim();
-    if (!barbeiroWhatsapp) {
-      console.error("processWhatsAppInboundReply: profissional sem WhatsApp cadastrado, alerta só no painel.");
-      await markOutboundMessageResponded(supabase, row.id);
-      logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
-      return { ok: true, action: "alerta" };
-    }
-
-    const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
-    if (!contentSid) {
-      console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
-      await markOutboundMessageResponded(supabase, row.id);
-      logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
-      return { ok: true, action: "alerta" };
-    }
-
-    let messageSent = Boolean(alertState?.mensagem_profissional_enviada_em);
-    let billingDone = Boolean(alertState?.billing_registrado_em);
-    const storedTwilioSid = alertState?.twilio_message_sid?.trim() || null;
-    let twilioMessageSid: string | null = storedTwilioSid;
-
-    if (storedTwilioSid && !messageSent) {
-      console.info(
-        "processWhatsAppInboundReply: twilio_message_sid presente sem mensagem_profissional_enviada_em — tratando como enviada, pulando reenvio.",
-      );
-      const { error: repairTimestampError } = await supabase
-        .from("alertas_agendamento")
-        .update({ mensagem_profissional_enviada_em: new Date().toISOString() })
-        .eq("id", alertId)
-        .is("mensagem_profissional_enviada_em", null);
-
-      if (repairTimestampError) {
-        return { ok: false, error: repairTimestampError.message, retryable: true };
-      }
-      messageSent = true;
-    }
-
-    if (!messageSent) {
-      try {
-        const result = await sendWhatsAppTemplate({
-          to: barbeiroWhatsapp,
-          contentSid,
-          contentVariables: { "1": mensagem },
-        });
-        twilioMessageSid = result.sid;
-
-        const sentAt = new Date().toISOString();
-        const { error: markMessageError } = await supabase
-          .from("alertas_agendamento")
-          .update({
-            mensagem_profissional_enviada_em: sentAt,
-            twilio_message_sid: result.sid,
-          })
-          .eq("id", alertId)
-          .is("mensagem_profissional_enviada_em", null);
-
-        if (markMessageError) {
-          return { ok: false, error: markMessageError.message, retryable: true };
-        }
-        messageSent = true;
-      } catch (sendError) {
-        const message = sendError instanceof Error ? sendError.message : "Falha ao notificar profissional";
-        return { ok: false, error: message, retryable: true };
-      }
-    } else {
-      console.info("processWhatsAppInboundReply: mensagem ao profissional já enviada, pulando reenvio (retry).");
-    }
-
-    if (!billingDone) {
-      const billingResult = await registrarUsoMensageria(supabase, {
-        barbeariaId: ag.barbearia_id,
-        tipo: "alerta_profissional",
-        profissionalId: ag.barbeiro_id,
-        agendamentoId: ag.id,
-        twilioMessageSid,
-      });
-
-      if (!billingResult.ok) {
-        return { ok: false, error: billingResult.error, retryable: true };
-      }
-
-      const { error: markBillingError } = await supabase
-        .from("alertas_agendamento")
-        .update({ billing_registrado_em: new Date().toISOString() })
-        .eq("id", alertId)
-        .is("billing_registrado_em", null);
-
-      if (markBillingError) {
-        return { ok: false, error: markBillingError.message, retryable: true };
-      }
-      billingDone = true;
-    } else {
-      console.info("processWhatsAppInboundReply: billing já registrado, pulando (retry).");
-    }
-
-    if (!messageSent || !billingDone) {
-      return {
-        ok: false,
-        error: "Alerta ao profissional incompleto (mensagem ou billing pendente).",
-        retryable: true,
-      };
-    }
-
-    await markOutboundMessageResponded(supabase, row.id);
-    logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
-    return { ok: true, action: "alerta" };
+  if (bodyAction === "confirmar") {
+    return processConfirmAction(supabase, ag, outboundRow);
   }
 
-  await markOutboundMessageResponded(supabase, row.id);
-  logProcessamentoConcluido({ action: "ignorado", agendamentoId: ag.id });
-  return { ok: true, action: "ignorado" };
+  return processAlertAction(supabase, ag, outboundRow, bodyAction);
 }

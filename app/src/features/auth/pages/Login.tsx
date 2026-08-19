@@ -27,6 +27,7 @@ import {
   type LoginRole,
 } from "@/features/auth/lib/postLoginPaths";
 import { finishPatientActivation } from "@/features/auth/lib/patientActivationFinish";
+import { resolvePatientPostLoginPath } from "@/features/auth/lib/resolvePatientPostLoginPath";
 import { cn } from "@/lib/utils";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
@@ -77,6 +78,24 @@ export default function Login() {
     ? `${window.location.origin}/auth/callback?flow=patient-activation&token=${encodeURIComponent(activationToken)}`
     : undefined;
 
+  async function navigatePatientPostLogin(userId: string) {
+    setEntering(true);
+    const result = await resolvePatientPostLoginPath(userId, location.state?.from);
+    if (result.ok) {
+      navigate(result.path, { replace: true });
+      return true;
+    }
+
+    setEntering(false);
+    handledSessionRef.current = false;
+    toast({
+      title: "Não foi possível entrar como paciente",
+      description: result.error,
+      variant: "destructive",
+    });
+    return false;
+  }
+
   async function completePatientActivation(userId: string) {
     const result = await finishPatientActivation(activationToken, userId);
     if (!result.ok) {
@@ -104,9 +123,14 @@ export default function Login() {
         if (!linked) setEntering(false);
         return;
       }
+      if (role === "patient") {
+        handledSessionRef.current = true;
+        await navigatePatientPostLogin(session.user.id);
+        return;
+      }
       navigate(postLoginPath, { replace: true });
     })();
-  }, [session, activationToken, navigate, postLoginPath]);
+  }, [session, activationToken, navigate, postLoginPath, role]);
 
   useEffect(() => {
     if (role === "professional") {
@@ -195,6 +219,14 @@ export default function Login() {
       const userId = sessionData.session?.user?.id;
       if (userId && (await completePatientActivation(userId))) return;
       setEntering(false);
+      return;
+    }
+
+    if (role === "patient") {
+      handledSessionRef.current = true;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (userId && (await navigatePatientPostLogin(userId))) return;
       return;
     }
 

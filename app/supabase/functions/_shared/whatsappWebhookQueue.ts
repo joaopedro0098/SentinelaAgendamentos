@@ -12,6 +12,7 @@ export type EnqueueInboundReplyParams = {
   inboundMessageSid: string;
   telefone: string;
   body: string;
+  buttonPayload?: string;
 };
 
 export type EnqueueInboundReplyResult =
@@ -43,6 +44,7 @@ export async function enqueueInboundWhatsAppReply(
       inbound_message_sid: sid,
       telefone: params.telefone,
       body: params.body,
+      button_payload: params.buttonPayload?.trim() || null,
       status: "pending",
     })
     .select("id")
@@ -63,6 +65,7 @@ export type WebhookJobRow = {
   inbound_message_sid: string;
   telefone: string;
   body: string;
+  button_payload: string | null;
   status: string;
   attempts: number;
   max_attempts: number;
@@ -77,7 +80,7 @@ export async function claimPendingWebhookJobs(
 ): Promise<WebhookJobRow[]> {
   const { data: candidates, error: selectError } = await supabase
     .from("whatsapp_webhook_jobs")
-    .select("id, inbound_message_sid, telefone, body, status, attempts, max_attempts")
+    .select("id, inbound_message_sid, telefone, body, button_payload, status, attempts, max_attempts")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -99,7 +102,7 @@ export async function claimPendingWebhookJobs(
       })
       .eq("id", job.id)
       .eq("status", "pending")
-      .select("id, inbound_message_sid, telefone, body, status, attempts, max_attempts")
+      .select("id, inbound_message_sid, telefone, body, button_payload, status, attempts, max_attempts")
       .maybeSingle();
 
     if (lockError) {

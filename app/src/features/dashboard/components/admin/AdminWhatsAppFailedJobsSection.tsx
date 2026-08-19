@@ -38,6 +38,8 @@ function labelResposta(body: string) {
       return "Cancelar";
     case "Alterar":
       return "Alterar";
+    case "Remarcar":
+      return "Remarcar";
     default:
       return body.trim() || "—";
   }

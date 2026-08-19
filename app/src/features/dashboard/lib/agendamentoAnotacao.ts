@@ -112,6 +112,32 @@ export async function updatePacienteAvatar(whatsappDigits: string, avatarUrl: st
   return { ok: true, avatar_url: row?.avatar_url ?? avatarUrl };
 }
 
+export async function updatePacienteWhatsapp(whatsappDigits: string, newWhatsappDigits: string) {
+  const { data, error } = await supabase.rpc("update_paciente_whatsapp_painel", {
+    p_whatsapp_digits: whatsappDigits,
+    p_new_whatsapp: newWhatsappDigits,
+  });
+  if (error) return { error: error.message };
+  const row = data as {
+    error?: string;
+    ok?: boolean;
+    whatsapp_digits?: string;
+    previous_whatsapp_digits?: string;
+  } | null;
+  if (row?.error) {
+    if (row.error === "already_exists") {
+      return { error: "Já existe um paciente com este WhatsApp." };
+    }
+    return { error: row.error };
+  }
+  notifyPanelPacientesChanged();
+  return {
+    ok: true as const,
+    whatsapp_digits: row?.whatsapp_digits ?? newWhatsappDigits,
+    previous_whatsapp_digits: row?.previous_whatsapp_digits ?? whatsappDigits,
+  };
+}
+
 export async function updatePacienteNome(whatsappDigits: string, nome: string) {
   const { data, error } = await supabase.rpc("update_paciente_nome_painel", {
     p_whatsapp_digits: whatsappDigits,

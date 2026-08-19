@@ -6,6 +6,7 @@
  *   TWILIO_AUTH_TOKEN
  *   TWILIO_WHATSAPP_FROM        (ex.: whatsapp:+551199999999 — número aprovado na Twilio)
  *   TWILIO_CONTENT_SID_REMINDER            (Content Template do lembrete D-1, com os 3 quick reply buttons)
+ *   TWILIO_CONTENT_SID_LEMBRETE_3H         (Content Template do lembrete ~3h antes, sem botões)
  *   TWILIO_CONTENT_SID_PROFESSIONAL_ALERT  (Content Template do alerta ao profissional)
  */
 
@@ -42,10 +43,16 @@ export function phoneDigitsFromWhatsAppAddress(value: string): string {
   return digitsOnly(value);
 }
 
-function getTwilioCredentials() {
-  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
-  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
-  const from = Deno.env.get("TWILIO_WHATSAPP_FROM")?.trim();
+export type TwilioSendCredentials = {
+  accountSid: string;
+  authToken: string;
+  from: string;
+};
+
+function getTwilioCredentials(override?: Partial<TwilioSendCredentials>): TwilioSendCredentials {
+  const accountSid = override?.accountSid ?? Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
+  const authToken = override?.authToken ?? Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
+  const from = override?.from ?? Deno.env.get("TWILIO_WHATSAPP_FROM")?.trim();
   if (!accountSid || !authToken || !from) {
     throw new Error("Twilio não configurado (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM).");
   }
@@ -66,8 +73,9 @@ export async function sendWhatsAppTemplate(params: {
   to: string;
   contentSid: string;
   contentVariables?: Record<string, string>;
+  credentials?: TwilioSendCredentials;
 }): Promise<SendTemplateResult> {
-  const { accountSid, authToken, from } = getTwilioCredentials();
+  const { accountSid, authToken, from } = getTwilioCredentials(params.credentials);
 
   const body = new URLSearchParams({
     From: from,

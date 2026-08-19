@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, Link2, Loader2, X } from "lucide-react";
-import { maskPhone } from "@agenda/lib/phone";
+import { maskPhone, unmaskPhone, isValidPhone } from "@agenda/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +17,7 @@ import {
   updatePacienteAvatar,
   updatePacienteDataNascimento,
   updatePacienteNome,
+  updatePacienteWhatsapp,
   type PacientePainelItem,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
 
@@ -24,15 +25,28 @@ type Props = {
   paciente: PacientePainelItem;
   canDeleteCadastro: boolean;
   onNomeSaved: (whatsapp: string, nome: string) => void;
+  onWhatsappSaved: (previousWhatsapp: string, newWhatsapp: string) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
   onCadastroDeleted: (whatsapp: string) => void;
 };
 
+function whatsappToLocalInput(digits: string) {
+  const local = digits.startsWith("55") ? digits.slice(2) : digits;
+  return maskPhone(local);
+}
+
+function localInputToWhatsappDigits(localMasked: string) {
+  const raw = unmaskPhone(localMasked);
+  if (!raw) return "";
+  return raw.startsWith("55") ? raw : `55${raw}`;
+}
+
 export function PacienteCadastroTab({
   paciente,
   canDeleteCadastro,
   onNomeSaved,
+  onWhatsappSaved,
   onDataNascimentoSaved,
   onAvatarSaved,
   onCadastroDeleted,
@@ -40,6 +54,7 @@ export function PacienteCadastroTab({
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [nome, setNome] = useState(paciente.cliente_nome);
+  const [whatsappLocal, setWhatsappLocal] = useState(() => whatsappToLocalInput(paciente.whatsapp_digits));
   const [dataNascimento, setDataNascimento] = useState(paciente.data_nascimento ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -53,16 +68,13 @@ export function PacienteCadastroTab({
   const canEdit = paciente.can_rename_nome === true;
   const hasFormalCadastro = Boolean(paciente.cliente_id);
   const contaAtivada = paciente.conta_ativada === true;
-  const showActivationSection = hasFormalCadastro || contaAtivada || canDeleteCadastro;
+  const showShareActivation = hasFormalCadastro && !contaAtivada;
+  const showActivationSection = showShareActivation || canDeleteCadastro;
   const displayedAvatarUrl = avatarPreviewUrl ?? paciente.avatar_url ?? null;
-  const whatsappDisplay = maskPhone(
-    paciente.whatsapp_digits.startsWith("55")
-      ? paciente.whatsapp_digits.slice(2)
-      : paciente.whatsapp_digits,
-  );
 
   useEffect(() => {
     setNome(paciente.cliente_nome);
+    setWhatsappLocal(whatsappToLocalInput(paciente.whatsapp_digits));
     setDataNascimento(paciente.data_nascimento ?? "");
     setPendingAvatarBlob(null);
     setAvatarPreviewUrl((current) => {
@@ -78,8 +90,10 @@ export function PacienteCadastroTab({
   }, [avatarPreviewUrl]);
 
   const nomeChanged = nome.trim() !== paciente.cliente_nome.trim();
+  const whatsappChanged =
+    localInputToWhatsappDigits(whatsappLocal) !== paciente.whatsapp_digits;
   const dataChanged = (paciente.data_nascimento ?? "") !== dataNascimento.trim();
-  const hasChanges = nomeChanged || dataChanged || Boolean(pendingAvatarBlob);
+  const hasChanges = nomeChanged || whatsappChanged || dataChanged || Boolean(pendingAvatarBlob);
 
   function stageAvatarBlob(blob: Blob) {
     setPendingAvatarBlob(blob);
@@ -123,16 +137,27 @@ export function PacienteCadastroTab({
       return;
     }
 
+    const nextWhatsappDigits = localInputToWhatsappDigits(whatsappLocal);
+    if (whatsappChanged && !isValidPhone(whatsappLocal)) {
+      toast({
+        title: "WhatsApp inválido",
+        description: "Informe DDD + número com pelo menos 10 dígitos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
+    const currentWhatsapp = paciente.whatsapp_digits;
 
     if (nomeChanged && canEdit) {
-      const nomeResult = await updatePacienteNome(paciente.whatsapp_digits, trimmedNome);
+      const nomeResult = await updatePacienteNome(currentWhatsapp, trimmedNome);
       if (nomeResult.error) {
         setSaving(false);
         toast({ title: "Erro ao salvar nome", description: nomeResult.error, variant: "destructive" });
         return;
       }
-      onNomeSaved(paciente.whatsapp_digits, nomeResult.nome ?? trimmedNome);
+      onNomeSaved(currentWhatsapp, nomeResult.nome ?? trimmedNome);
     }
 
     if (pendingAvatarBlob && canEdit) {
@@ -141,7 +166,7 @@ export function PacienteCadastroTab({
         toast({ title: "Sessão expirada", variant: "destructive" });
         return;
       }
-      const path = `${user.id}/patients/${paciente.whatsapp_digits}.jpg`;
+      const path = `${user.id}/patients/${currentWhatsapp}.jpg`;
       const { error: upErr } = await supabase.storage.from("barbershop-avatars").upload(path, pendingAvatarBlob, {
         upsert: true,
         contentType: "image/jpeg",
@@ -155,13 +180,13 @@ export function PacienteCadastroTab({
       const { data: urlData } = supabase.storage.from("barbershop-avatars").getPublicUrl(path);
       const nextAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-      const avatarResult = await updatePacienteAvatar(paciente.whatsapp_digits, nextAvatarUrl);
+      const avatarResult = await updatePacienteAvatar(currentWhatsapp, nextAvatarUrl);
       if (avatarResult.error) {
         setSaving(false);
         toast({ title: "Erro ao salvar foto", description: avatarResult.error, variant: "destructive" });
         return;
       }
-      onAvatarSaved(paciente.whatsapp_digits, nextAvatarUrl);
+      onAvatarSaved(currentWhatsapp, nextAvatarUrl);
       setPendingAvatarBlob(null);
       setAvatarPreviewUrl((current) => {
         if (current) URL.revokeObjectURL(current);
@@ -170,13 +195,23 @@ export function PacienteCadastroTab({
     }
 
     if (dataChanged) {
-      const result = await updatePacienteDataNascimento(paciente.whatsapp_digits, dataValue);
+      const result = await updatePacienteDataNascimento(currentWhatsapp, dataValue);
       if (result.error) {
         setSaving(false);
         toast({ title: "Erro ao salvar", description: result.error, variant: "destructive" });
         return;
       }
-      onDataNascimentoSaved(paciente.whatsapp_digits, dataValue);
+      onDataNascimentoSaved(currentWhatsapp, dataValue);
+    }
+
+    if (whatsappChanged && canEdit) {
+      const whatsappResult = await updatePacienteWhatsapp(currentWhatsapp, nextWhatsappDigits);
+      if (whatsappResult.error) {
+        setSaving(false);
+        toast({ title: "Erro ao salvar WhatsApp", description: whatsappResult.error, variant: "destructive" });
+        return;
+      }
+      onWhatsappSaved(currentWhatsapp, whatsappResult.whatsapp_digits);
     }
 
     setSaving(false);
@@ -353,10 +388,14 @@ export function PacienteCadastroTab({
           <Label htmlFor="paciente-contato">Contato (WhatsApp)</Label>
           <Input
             id="paciente-contato"
-            value={whatsappDisplay}
-            readOnly
-            disabled
-            className="rounded-xl bg-muted/20 text-muted-foreground"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={whatsappLocal}
+            onChange={(e) => setWhatsappLocal(maskPhone(e.target.value))}
+            disabled={!canEdit || saving}
+            placeholder="(11) 99999-9999"
+            className="rounded-xl"
           />
         </div>
 
@@ -387,41 +426,32 @@ export function PacienteCadastroTab({
         {showActivationSection && (
           <div className="pt-4 border-t border-border/60 space-y-0">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0 space-y-2">
-                {contaAtivada ? (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Este paciente já possui conta própria e pode acessar agendamentos pelo login{" "}
-                    <span className="font-medium text-foreground">Sou Paciente</span>. O que ele pode fazer
-                    online depende de{" "}
-                    <span className="font-medium text-foreground">Cliente agenda pelo link</span> e{" "}
-                    <span className="font-medium text-foreground">Cliente altera ou cancela pelo link</span>{" "}
-                    em Configurações.
+              {showShareActivation ? (
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full gap-2"
+                    disabled={saving || deleting || sharingLink}
+                    onClick={() => void handleShareActivationLink()}
+                  >
+                    {sharingLink ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4" />
+                        Compartilhar Link
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Compartilhe este link com seu paciente caso ele queira criar uma conta e visualizar e
+                    gerenciar seus agendamentos.
                   </p>
-                ) : hasFormalCadastro ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full gap-2"
-                      disabled={saving || deleting || sharingLink}
-                      onClick={() => void handleShareActivationLink()}
-                    >
-                      {sharingLink ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Link2 className="h-4 w-4" />
-                          Compartilhar Link
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Compartilhe este link com seu paciente caso ele queira criar uma conta e visualizar e
-                      gerenciar seus agendamentos.
-                    </p>
-                  </>
-                ) : null}
-              </div>
+                </div>
+              ) : (
+                <div className="flex-1 min-w-0" />
+              )}
               {canDeleteCadastro && (
                 <Button
                   type="button"

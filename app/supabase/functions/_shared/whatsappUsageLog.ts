@@ -11,8 +11,8 @@
  *     payload: { stripe_customer_id: <resolver a partir de barbeariaId>, value: "1" },
  *   });
  *
- * IMPORTANTE: toda mensagem WhatsApp disparada pelo backend (lembrete D-1 ou alerta ao
- * profissional) DEVE passar por esta função — não chame o Twilio em nenhum outro lugar
+ * IMPORTANTE: toda mensagem WhatsApp disparada pelo backend (lembrete D-1, lembrete 3h ou
+ * alerta ao profissional) DEVE passar por esta função — não chame o Twilio em nenhum outro lugar
  * sem também chamar `registrarUsoMensageria`. Isso mantém a lógica de billing isolada
  * num único lugar, para facilitar a troca de "log interno" -> "Stripe Meter Events"
  * sem refactor grande.
@@ -20,7 +20,7 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-export type WhatsAppUsageTipo = "lembrete_d1" | "alerta_profissional";
+export type WhatsAppUsageTipo = "lembrete_d1" | "lembrete_3h" | "alerta_profissional";
 
 export async function registrarUsoMensageria(
   supabase: SupabaseClient,

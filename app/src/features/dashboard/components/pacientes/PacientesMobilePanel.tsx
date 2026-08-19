@@ -46,6 +46,7 @@ type Props = {
   onReloadDocumentos: () => void;
   onOpenAnotacao: (item: PacienteAnotacaoItem) => void;
   onNomeSaved: (whatsapp: string, nome: string) => void;
+  onWhatsappSaved: (previousWhatsapp: string, newWhatsapp: string) => void;
   onDataNascimentoSaved: (whatsapp: string, data: string | null) => void;
   onAvatarSaved: (whatsapp: string, avatarUrl: string | null) => void;
   onCadastroDeleted: (whatsapp: string) => void;
@@ -97,6 +98,7 @@ function PacienteMobileList({
   | "onReloadDocumentos"
   | "onOpenAnotacao"
   | "onNomeSaved"
+  | "onWhatsappSaved"
   | "onDataNascimentoSaved"
   | "onAvatarSaved"
   | "onCadastroDeleted"
@@ -223,6 +225,7 @@ function PacienteMobileDetail({
   onReloadDocumentos,
   onOpenAnotacao,
   onNomeSaved,
+  onWhatsappSaved,
   onDataNascimentoSaved,
   onAvatarSaved,
   onCadastroDeleted,
@@ -333,6 +336,7 @@ function PacienteMobileDetail({
             paciente={paciente}
             canDeleteCadastro={!isCA}
             onNomeSaved={onNomeSaved}
+            onWhatsappSaved={onWhatsappSaved}
             onDataNascimentoSaved={onDataNascimentoSaved}
             onAvatarSaved={onAvatarSaved}
             onCadastroDeleted={onCadastroDeleted}

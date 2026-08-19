@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import Login from "@/features/auth/pages/Login";
 import { toast } from "@/hooks/use-toast";
 
-const { supabaseMock, navigateMock, useAuthMock } = vi.hoisted(() => ({
+const { supabaseMock, navigateMock, useAuthMock, resolvePatientPostLoginPathMock } = vi.hoisted(() => ({
   supabaseMock: {
     rpc: vi.fn(),
     auth: {
@@ -16,6 +16,11 @@ const { supabaseMock, navigateMock, useAuthMock } = vi.hoisted(() => ({
   useAuthMock: {
     session: null as { user: { id: string } } | null,
   },
+  resolvePatientPostLoginPathMock: vi.fn(),
+}));
+
+vi.mock("@/features/auth/lib/resolvePatientPostLoginPath", () => ({
+  resolvePatientPostLoginPath: (...args: unknown[]) => resolvePatientPostLoginPathMock(...args),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -59,6 +64,7 @@ describe("Login — ativação de paciente", () => {
     supabaseMock.rpc.mockReset();
     supabaseMock.auth.signInWithPassword.mockReset();
     supabaseMock.auth.getSession.mockReset();
+    resolvePatientPostLoginPathMock.mockReset();
   });
 
   it("após login com activation_token vincula paciente e redireciona", async () => {
@@ -105,5 +111,28 @@ describe("Login — ativação de paciente", () => {
       expect(navigateMock).toHaveBeenCalledWith("/agendar/clinica-y", { replace: true });
     });
     expect(supabaseMock.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("login paciente sem token redireciona para clínica vinculada", async () => {
+    supabaseMock.auth.signInWithPassword.mockResolvedValueOnce({ error: null });
+    supabaseMock.auth.getSession.mockResolvedValueOnce({
+      data: { session: { user: { id: "patient-user" } } },
+      error: null,
+    });
+    resolvePatientPostLoginPathMock.mockResolvedValueOnce({
+      ok: true,
+      path: "/agendar/clinica-z",
+    });
+
+    renderLogin("?role=patient");
+
+    fireEvent.change(screen.getByLabelText(/^e-mail$/i), { target: { value: "paciente@test.com" } });
+    fireEvent.change(screen.getByLabelText(/^senha$/i), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: /^entrar$/i }));
+
+    await waitFor(() => {
+      expect(resolvePatientPostLoginPathMock).toHaveBeenCalledWith("patient-user", undefined);
+    });
+    expect(navigateMock).toHaveBeenCalledWith("/agendar/clinica-z", { replace: true });
   });
 });

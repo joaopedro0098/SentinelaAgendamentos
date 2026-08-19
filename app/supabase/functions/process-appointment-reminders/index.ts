@@ -3,6 +3,10 @@ import { isCronAuthorized } from "../_shared/cronAuth.ts";
 import { configureWebPush } from "../_shared/webPush.ts";
 import { sendDueClientConfirmationPushes } from "../_shared/clientConfirmationPush.ts";
 import { sendDueClientReminderWhatsApp } from "../_shared/whatsappAppointmentReminders.ts";
+import {
+  registrarOkTwilioTemplateD1,
+  registrarSkipTwilioTemplateD1Ausente,
+} from "../_shared/integracaoAlertas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,7 +50,9 @@ Deno.serve(async (req) => {
     // Lembrete D-1 via WhatsApp (Twilio) roda em paralelo ao Web Push. Só dispara se o
     // Content Template já estiver configurado — enquanto não estiver, fica um no-op.
     let whatsappResult: unknown = { skipped: true, reason: "twilio_not_configured" };
-    if (Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim() && !pushResult.skipped) {
+    const twilioReminderSid = Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim();
+    if (twilioReminderSid && !pushResult.skipped) {
+      await registrarOkTwilioTemplateD1(supabase);
       try {
         whatsappResult = await sendDueClientReminderWhatsApp(supabase);
       } catch (whatsappError) {
@@ -58,6 +64,11 @@ Deno.serve(async (req) => {
           error: whatsappError instanceof Error ? whatsappError.message : "Falha ao enviar lembrete WhatsApp",
         };
       }
+    } else if (!twilioReminderSid) {
+      console.warn(
+        "process-appointment-reminders: lembrete D-1 WhatsApp ignorado — TWILIO_CONTENT_SID_REMINDER não configurado no ambiente.",
+      );
+      await registrarSkipTwilioTemplateD1Ausente(supabase);
     }
 
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");

@@ -11,8 +11,9 @@ import {
 } from "@/features/auth/face-verification/facialVerificationStatus";
 import { clearSubscriptionCache } from "@/providers/SubscriptionProvider";
 import { getBarberPostLoginPath } from "@/lib/pwaInstall";
-import { getPatientActivationSuccessPath, getPatientPostLoginPath } from "@/features/auth/lib/postLoginPaths";
+import { getPatientActivationSuccessPath } from "@/features/auth/lib/postLoginPaths";
 import { finishPatientActivation } from "@/features/auth/lib/patientActivationFinish";
+import { resolvePatientPostLoginPath } from "@/features/auth/lib/resolvePatientPostLoginPath";
 import { AppBootSkeleton } from "@/components/layout/AppBootSkeleton";
 import {
   clearPendingFaceEmbedding,
@@ -123,7 +124,17 @@ export default function AuthCallback() {
       }
 
       if (flow === "patient-login") {
-        go(getPatientPostLoginPath());
+        const result = await resolvePatientPostLoginPath(userId);
+        if (result.ok) {
+          go(result.path);
+          return;
+        }
+        toast({
+          title: "Não foi possível entrar como paciente",
+          description: result.error,
+          variant: "destructive",
+        });
+        go("/login?role=patient");
         return;
       }
 
