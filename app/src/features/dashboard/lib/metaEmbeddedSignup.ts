@@ -11,9 +11,11 @@ export function getMetaEmbeddedSignupConfig() {
   };
 }
 
-/** Normaliza DDD + número local BR para E.164 (ex.: +5511999999999). */
-export function toBrazilE164Phone(phoneInput: string): string {
-  return `+55${unmaskPhone(phoneInput)}`;
+/** Monta E.164 a partir do DDI selecionado e do número local digitado (ex.: +5511999999999). */
+export function toE164Phone(countryDialCode: string, phoneInput: string): string {
+  const dialDigits = countryDialCode.replace(/\D/g, "");
+  const localDigits = unmaskPhone(phoneInput);
+  return `+${dialDigits}${localDigits}`;
 }
 
 type FbLoginOptions = {

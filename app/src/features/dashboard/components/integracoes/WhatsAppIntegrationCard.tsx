@@ -15,6 +15,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import {
+  COUNTRY_DIAL_CODES,
+  DEFAULT_COUNTRY_ISO2,
+  findCountryByIso2,
+} from "@/lib/countryDialCodes";
 import {
   fetchWabaConnectStatus,
   invokeWabaConnectStart,
@@ -27,7 +33,7 @@ import {
 import {
   getMetaEmbeddedSignupConfig,
   runEmbeddedSignup,
-  toBrazilE164Phone,
+  toE164Phone,
 } from "@/features/dashboard/lib/metaEmbeddedSignup";
 
 const CONNECTABLE_STATUSES = new Set<WabaConnectStatus>(["not_connected", "error", "token_expired"]);
@@ -58,11 +64,29 @@ export function WhatsAppIntegrationCard() {
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [countryIso2, setCountryIso2] = useState(DEFAULT_COUNTRY_ISO2);
   const [phoneInput, setPhoneInput] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const initialResumeDone = useRef(false);
 
   const metaConfigured = getMetaEmbeddedSignupConfig().isConfigured;
+
+  const selectedCountry = useMemo(
+    () => findCountryByIso2(countryIso2) ?? COUNTRY_DIAL_CODES[0],
+    [countryIso2],
+  );
+  const isBrazilCountry = countryIso2 === DEFAULT_COUNTRY_ISO2;
+  const isPhoneInputValid = useMemo(() => {
+    const digits = unmaskPhone(phoneInput);
+    if (isBrazilCountry) return isValidPhone(phoneInput);
+    return digits.length >= 8;
+  }, [isBrazilCountry, phoneInput]);
+
+  useEffect(() => {
+    if (!phoneDialogOpen) return;
+    setCountryIso2(DEFAULT_COUNTRY_ISO2);
+    setPhoneInput("");
+  }, [phoneDialogOpen]);
 
   const refreshStatus = useCallback(async () => {
     const next = await fetchWabaConnectStatus();
@@ -176,11 +200,30 @@ export function WhatsAppIntegrationCard() {
   const showSpinner = busy || loadingStatus || Boolean(connectingPhase);
   const badgeText = statusBadgeLabel(status, busy, connectingPhase);
 
+  function handleCountryChange(nextIso2: string) {
+    setCountryIso2(nextIso2);
+    setPhoneInput((prev) => {
+      const digits = unmaskPhone(prev);
+      if (!digits) return "";
+      return nextIso2 === DEFAULT_COUNTRY_ISO2 ? maskPhone(digits) : digits;
+    });
+  }
+
+  function handlePhoneInputChange(value: string) {
+    if (countryIso2 === DEFAULT_COUNTRY_ISO2) {
+      setPhoneInput(maskPhone(value));
+      return;
+    }
+    setPhoneInput(value.replace(/\D/g, "").slice(0, 15));
+  }
+
   async function handlePhoneContinue() {
-    if (!isValidPhone(phoneInput)) {
+    if (!isPhoneInputValid) {
       toast({
         title: "Número inválido",
-        description: "Informe o WhatsApp com DDD (10 ou 11 dígitos).",
+        description: isBrazilCountry
+          ? "Informe o WhatsApp com DDD (10 ou 11 dígitos)."
+          : "Informe o número local completo.",
         variant: "destructive",
       });
       return;
@@ -217,7 +260,7 @@ export function WhatsAppIntegrationCard() {
       const start = await invokeWabaConnectStart({
         waba_id: signup.waba_id,
         phone_number_id: signup.phone_number_id,
-        phone_number: toBrazilE164Phone(phoneInput),
+        phone_number: toE164Phone(selectedCountry.dialCode, phoneInput),
         verification_method: "sms",
       });
 
@@ -396,33 +439,46 @@ export function WhatsAppIntegrationCard() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="waba-phone">Número (WhatsApp com DDD)</Label>
+            <Label htmlFor="waba-phone">
+              {isBrazilCountry ? "Número (WhatsApp com DDD)" : "Número local do WhatsApp"}
+            </Label>
             <div className="flex gap-2">
-              <div
-                aria-hidden="true"
-                className="flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground"
+              <select
+                value={countryIso2}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                disabled={busy}
+                aria-label="País do número"
+                className={cn(
+                  "flex h-10 min-w-[9.5rem] max-w-[11rem] shrink-0 items-center rounded-md border border-input bg-background px-2 py-2 text-sm shadow-xs",
+                  "focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                )}
               >
-                <span>🇧🇷</span>
-                <span>+55</span>
-              </div>
+                {COUNTRY_DIAL_CODES.map((country) => (
+                  <option key={country.iso2} value={country.iso2}>
+                    {country.flag} {country.name} ({country.dialCode})
+                  </option>
+                ))}
+              </select>
               <Input
                 id="waba-phone"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder="(11) 99999-9999"
+                placeholder={isBrazilCountry ? "(11) 99999-9999" : "Número com DDD"}
                 value={phoneInput}
-                onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
+                onChange={(e) => handlePhoneInputChange(e.target.value)}
+                disabled={busy}
                 className="flex-1"
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Será enviado no formato internacional (+55…) para a Twilio.
+              País: {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.dialCode}). Será enviado no
+              formato internacional para a Twilio.
             </p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={busy || !isValidPhone(phoneInput)}
+              disabled={busy || !isPhoneInputValid}
               onClick={(e) => {
                 e.preventDefault();
                 void handlePhoneContinue();
@@ -441,7 +497,7 @@ export function WhatsAppIntegrationCard() {
             <AlertDialogDescription>
               Digite o código enviado por SMS para o número{" "}
               <span className="font-medium text-foreground">
-                {phoneInput || maskPhone(unmaskPhone(phoneInput))}
+                {toE164Phone(selectedCountry.dialCode, phoneInput)}
               </span>
               . Depois disso, aguardamos a ativação do WhatsApp (pode levar alguns minutos).
             </AlertDialogDescription>
