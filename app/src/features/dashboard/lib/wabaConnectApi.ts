@@ -27,6 +27,10 @@ export type WabaConnectCheckStatusResult =
   | { ok: true; status: "connected" | "pending"; message?: string; sender_status?: string }
   | { ok: false; error: string; status?: string };
 
+export type WabaDisconnectResult =
+  | { ok: true; status: "not_connected"; message?: string }
+  | { ok: false; error: string };
+
 function parseFnError(error: unknown, data: unknown): string {
   if (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string") {
     return (data as { error: string }).error;
@@ -84,6 +88,23 @@ export async function invokeWabaConnectVerifyOtp(verificationCode: string): Prom
     return { ok: true, status: body.status, message: body.message };
   }
   return { ok: false, error: body.message || "Resposta inesperada ao validar código." };
+}
+
+export async function invokeWabaDisconnect(): Promise<WabaDisconnectResult> {
+  const { data, error } = await supabase.functions.invoke("waba-disconnect", { body: {} });
+
+  if (error) {
+    return { ok: false, error: parseFnError(error, data) };
+  }
+
+  const body = data as { success?: boolean; status?: string; error?: string; message?: string };
+  if (body.error) {
+    return { ok: false, error: body.error };
+  }
+  if (body.success && body.status === "not_connected") {
+    return { ok: true, status: "not_connected", message: body.message };
+  }
+  return { ok: false, error: body.message || "Resposta inesperada ao desconectar." };
 }
 
 export async function invokeWabaConnectCheckStatus(): Promise<WabaConnectCheckStatusResult> {

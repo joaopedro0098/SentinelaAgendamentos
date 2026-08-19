@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { maskPhone, unmaskPhone, isValidPhone } from "@agenda/lib/phone";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,6 +19,7 @@ import {
   fetchWabaConnectStatus,
   invokeWabaConnectStart,
   invokeWabaConnectVerifyOtp,
+  invokeWabaDisconnect,
   pollWabaConnectStatusFromDb,
   pollWabaConnectUntilOnline,
   type WabaConnectStatus,
@@ -54,6 +56,8 @@ export function WhatsAppIntegrationCard() {
 
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const initialResumeDone = useRef(false);
@@ -164,10 +168,10 @@ export function WhatsAppIntegrationCard() {
   }, [completeConnected, resetToConnect, toast]);
 
   const isClickable = useMemo(() => {
-    if (busy || loadingStatus || connectingPhase) return false;
+    if (busy || loadingStatus || connectingPhase || disconnecting) return false;
     if (status === "connected") return false;
     return CONNECTABLE_STATUSES.has(status) || IN_PROGRESS_STATUSES.has(status);
-  }, [busy, connectingPhase, loadingStatus, status]);
+  }, [busy, connectingPhase, disconnecting, loadingStatus, status]);
 
   const showSpinner = busy || loadingStatus || Boolean(connectingPhase);
   const badgeText = statusBadgeLabel(status, busy, connectingPhase);
@@ -279,13 +283,37 @@ export function WhatsAppIntegrationCard() {
     setPhoneDialogOpen(true);
   }
 
+  async function handleDisconnectConfirm() {
+    setDisconnecting(true);
+    const result = await invokeWabaDisconnect();
+    setDisconnecting(false);
+
+    if (!result.ok) {
+      toast({
+        title: "Não foi possível desconectar",
+        description: result.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDisconnectDialogOpen(false);
+    setFlowError(null);
+    setStatus("not_connected");
+    toast({
+      title: "WhatsApp desconectado",
+      description: result.message || "Você pode conectar novamente quando quiser.",
+    });
+    await refreshStatus();
+  }
+
   return (
-    <>
+    <div className="flex flex-col items-center gap-2 w-56">
       <button
         type="button"
         disabled={!isClickable}
         onClick={handleCardClick}
-        className="w-56 p-4 flex flex-col items-center justify-center text-center space-y-1.5 rounded-xl hover:bg-accent/40 transition-colors disabled:opacity-70 disabled:hover:bg-transparent disabled:cursor-default"
+        className="w-full p-4 flex flex-col items-center justify-center text-center space-y-1.5 rounded-xl hover:bg-accent/40 transition-colors disabled:opacity-70 disabled:hover:bg-transparent disabled:cursor-default"
       >
         <img src="/whatsapp-icon.png" alt="WhatsApp" className="h-28 w-28 object-contain" />
         <div className="space-y-1">
@@ -305,6 +333,58 @@ export function WhatsAppIntegrationCard() {
           )}
         </div>
       </button>
+
+      {status === "connected" && !loadingStatus && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-full text-muted-foreground"
+          disabled={disconnecting || busy}
+          onClick={() => setDisconnectDialogOpen(true)}
+        >
+          {disconnecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Desconectando…
+            </>
+          ) : (
+            "Desconectar"
+          )}
+        </Button>
+      )}
+
+      <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar WhatsApp</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai desconectar o número atual do WhatsApp. Para conectar um número diferente, use o
+              fluxo normal depois. Para reconectar o mesmo número, pode ser necessário desativar a
+              verificação em duas etapas dele no WhatsApp Manager da Meta antes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={disconnecting}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDisconnectConfirm();
+              }}
+            >
+              {disconnecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Desconectando…
+                </>
+              ) : (
+                "Desconectar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
         <AlertDialogContent className="max-w-sm">
@@ -388,6 +468,6 @@ export function WhatsAppIntegrationCard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
