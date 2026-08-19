@@ -6,12 +6,13 @@ const ULTIMA_ATUALIZACAO = "11 de agosto de 2026";
 
 const ExclusaoDadosPessoais = () => (
   <LegalPageShell title="Exclusão de dados pessoais" subtitle={`Última atualização: ${ULTIMA_ATUALIZACAO}`}>
+    <h2>Como ter meus dados alterados ou excluídos</h2>
     <p>
       Para solicitar a exclusão dos seus dados pessoais do Sentinela Agendamentos, envie um e-mail para{" "}
       <a href="mailto:joaopedro.suporte98@gmail.com" className="text-foreground hover:underline">
         joaopedro.suporte98@gmail.com
       </a>{" "}
-      com o assunto &quot;Exclusão de dados&quot;, informando seu nome e e-mail/telefone cadastrado. Processaremos a solicitação em até 15
+      com o assunto &quot;Exclusão de dados&quot;, informando seu nome e e-mail/telefone cadastrado. Processaremos a solicitação em até 7
       dias corridos e enviaremos uma confirmação por e-mail quando a exclusão for concluída, conforme nossa{" "}
       <Link to="/politica-de-privacidade" className="text-foreground hover:underline">
         Política de Privacidade
@@ -44,11 +45,17 @@ const ExclusaoDadosPessoais = () => (
         WhatsApp
       </a>
       ), informando no pedido que se trata de dados da integração com WhatsApp Business. Processaremos essa solicitação dentro do mesmo
-      prazo de 15 dias corridos.
+      prazo de 7 dias corridos.
     </p>
     <p>
       Alternativamente, você pode revogar o acesso do Sentinela Agendamentos à sua conta diretamente nas configurações de
       segurança/privacidade do Facebook, na seção de aplicativos conectados (o caminho exato pode variar conforme atualizações da Meta).
+    </p>
+    <p>
+      Ao desautorizar o acesso do Sentinela Agendamentos à sua conta do WhatsApp Business, o Sentinela deixa de acessar novos dados dessa
+      integração. Os dados já processados até o momento da desautorização permanecem armazenados até que você solicite a exclusão,
+      conforme instruções acima. Independentemente do canal ou do tipo de dado envolvido, todo pedido formal de exclusão é processado em
+      até 7 dias corridos, com confirmação enviada quando a exclusão for concluída.
     </p>
   </LegalPageShell>
 );
