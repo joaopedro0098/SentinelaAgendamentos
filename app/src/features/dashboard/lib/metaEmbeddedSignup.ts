@@ -11,19 +11,9 @@ export function getMetaEmbeddedSignupConfig() {
   };
 }
 
-/** Normaliza dígitos BR para E.164 com prefixo + (ex.: +5511999999999). */
+/** Normaliza DDD + número local BR para E.164 (ex.: +5511999999999). */
 export function toBrazilE164Phone(phoneInput: string): string {
-  let digits = unmaskPhone(phoneInput);
-  if (digits.startsWith("0") && digits.length > 11) {
-    digits = digits.replace(/^0+/, "");
-  }
-  if (digits.length >= 12 && digits.startsWith("55")) {
-    return `+${digits}`;
-  }
-  if (digits.length >= 10 && digits.length <= 11) {
-    return `+55${digits}`;
-  }
-  return digits.startsWith("+") ? digits : `+${digits}`;
+  return `+55${unmaskPhone(phoneInput)}`;
 }
 
 type FbLoginOptions = {

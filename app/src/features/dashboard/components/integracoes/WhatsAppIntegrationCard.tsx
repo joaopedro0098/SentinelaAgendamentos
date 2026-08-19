@@ -397,14 +397,24 @@ export function WhatsAppIntegrationCard() {
           </AlertDialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="waba-phone">Número (WhatsApp com DDD)</Label>
-            <Input
-              id="waba-phone"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="(11) 99999-9999"
-              value={phoneInput}
-              onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
-            />
+            <div className="flex gap-2">
+              <div
+                aria-hidden="true"
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground"
+              >
+                <span>🇧🇷</span>
+                <span>+55</span>
+              </div>
+              <Input
+                id="waba-phone"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="(11) 99999-9999"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(maskPhone(e.target.value))}
+                className="flex-1"
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               Será enviado no formato internacional (+55…) para a Twilio.
             </p>
