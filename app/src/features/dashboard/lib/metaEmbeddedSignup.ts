@@ -3,6 +3,11 @@ import { unmaskPhone } from "@agenda/lib/phone";
 const META_APP_ID = String(import.meta.env.VITE_META_APP_ID ?? "").trim();
 const META_EMBEDDED_SIGNUP_CONFIG_ID = String(import.meta.env.VITE_META_EMBEDDED_SIGNUP_CONFIG_ID ?? "").trim();
 
+/** Timeout de engenharia: aguardar FB.init após injetar/carregar sdk.js */
+const SDK_INIT_TIMEOUT_MS = 15_000;
+/** Timeout de engenharia: aguardar postMessage WA_EMBEDDED_SIGNUP após FB.login */
+const EMBEDDED_SIGNUP_TIMEOUT_MS = 120_000;
+
 export function getMetaEmbeddedSignupConfig() {
   return {
     appId: META_APP_ID,
@@ -45,27 +50,42 @@ function loadFacebookSdkScript(appId: string): Promise<void> {
   if (sdkLoadPromise) return sdkLoadPromise;
 
   sdkLoadPromise = new Promise((resolve, reject) => {
+    let settled = false;
+
+    const complete = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(initTimeoutId);
+      window.clearInterval(waitForFbIntervalId);
+      fn();
+    };
+
+    const initTimeoutId = window.setTimeout(() => {
+      complete(() => reject(new Error("SDK do Facebook não inicializou.")));
+    }, SDK_INIT_TIMEOUT_MS);
+
+    let waitForFbIntervalId = 0;
+
     window.fbAsyncInit = () => {
-      window.FB?.init({
+      if (!window.FB) {
+        complete(() => reject(new Error("SDK do Facebook não inicializou.")));
+        return;
+      }
+      window.FB.init({
         appId,
         cookie: true,
         xfbml: false,
         version: "v21.0",
       });
-      resolve();
+      complete(resolve);
     };
 
     if (document.getElementById("facebook-jssdk")) {
-      const waitForFb = window.setInterval(() => {
+      waitForFbIntervalId = window.setInterval(() => {
         if (window.FB) {
-          window.clearInterval(waitForFb);
-          resolve();
+          complete(resolve);
         }
       }, 50);
-      window.setTimeout(() => {
-        window.clearInterval(waitForFb);
-        if (!window.FB) reject(new Error("SDK do Facebook não inicializou."));
-      }, 15_000);
       return;
     }
 
@@ -74,7 +94,7 @@ function loadFacebookSdkScript(appId: string): Promise<void> {
     script.async = true;
     script.defer = true;
     script.src = "https://connect.facebook.net/pt_BR/sdk.js";
-    script.onerror = () => reject(new Error("Não foi possível carregar o SDK do Facebook."));
+    script.onerror = () => complete(() => reject(new Error("Não foi possível carregar o SDK do Facebook.")));
     document.body.appendChild(script);
   });
 
@@ -105,12 +125,20 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
 
   return new Promise((resolve) => {
     let settled = false;
+    let signupTimeoutId = 0;
 
     const finish = (outcome: EmbeddedSignupOutcome) => {
       if (settled) return;
       settled = true;
+      window.clearTimeout(signupTimeoutId);
       window.removeEventListener("message", listener);
+      window.removeEventListener("beforeunload", beforeUnloadCleanup);
       resolve(outcome);
+    };
+
+    const beforeUnloadCleanup = () => {
+      window.removeEventListener("message", listener);
+      window.clearTimeout(signupTimeoutId);
     };
 
     const listener = (event: MessageEvent) => {
@@ -152,10 +180,23 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     };
 
     window.addEventListener("message", listener);
+    window.addEventListener("beforeunload", beforeUnloadCleanup);
 
-    window.FB?.login(
+    if (!window.FB) {
+      finish({
+        kind: "error",
+        message: "SDK do Facebook indisponível. Recarregue a página e tente novamente.",
+      });
+      return;
+    }
+
+    signupTimeoutId = window.setTimeout(() => {
+      finish({ kind: "error", message: "Tempo esgotado aguardando resposta da Meta." });
+    }, EMBEDDED_SIGNUP_TIMEOUT_MS);
+
+    window.FB.login(
       () => {
-        /* dados vêm via postMessage */
+        /* dados vêm via postMessage — Twilio: não tratar response aqui */
       },
       {
         config_id: configId,
