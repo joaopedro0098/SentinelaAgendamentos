@@ -1,18 +1,18 @@
 /**
- * Lembrete D-1 via WhatsApp (Twilio Content Template com 3 quick reply buttons:
+ * Lembrete D-1 via WhatsApp (template com 3 quick reply buttons:
  * "Confirmar", "Alterar", "Cancelar"). Paralelo ao lembrete por Web Push
  * (clientConfirmationPush.ts) — mesma janela/critério de agendamentos, canal diferente.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
-  sendWhatsAppTemplate,
   normalizeBrazilPhoneE164Digits,
   phoneDigitsFromWhatsAppAddress,
 } from "./twilioWhatsapp.ts";
-import { resolveBarbershopTwilioCredentials } from "./barbershopTwilioCredentials.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { formatAppointmentDateTimeBr } from "./appointmentAlertMessage.ts";
 import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
+import { sendWhatsAppTemplateForBarbershop } from "./whatsappMessaging.ts";
+import { isWhatsAppTemplateSendEnabled } from "./barbershopMessagingProvider.ts";
 
 const SAO_PAULO = "America/Sao_Paulo";
 
@@ -56,6 +56,7 @@ export type WhatsAppReminderResult = {
   processed: number;
   no_phone: number;
   send_failed: number;
+  skipped_templates_disabled: number;
   failures: Array<{ agendamento_id: string; reason: string }>;
 };
 
@@ -64,7 +65,6 @@ type SendReminderOutcome = { kind: "sent" } | { kind: "no_phone" } | { kind: "fa
 async function sendOneReminder(
   supabase: SupabaseClient,
   row: AppointmentForReminder,
-  contentSid: string,
 ): Promise<SendReminderOutcome> {
   const localDigits = phoneDigitsFromWhatsAppAddress(row.cliente_whatsapp ?? "");
   if (localDigits.length < 10) {
@@ -72,18 +72,16 @@ async function sendOneReminder(
   }
   const phoneDigits = normalizeBrazilPhoneE164Digits(localDigits);
 
-  const shopCredentials = await resolveBarbershopTwilioCredentials(supabase, row.barbearia_id);
-
-  const result = await sendWhatsAppTemplate({
+  const result = await sendWhatsAppTemplateForBarbershop(supabase, {
     to: phoneDigits,
-    contentSid,
-    contentVariables: {
-      "1": row.cliente_nome,
-      "2": shopNameFromRow(row),
-      "3": formatAppointmentDateTimeBr(row.data, row.hora.slice(0, 5)),
-      "4": row.id,
+    templateKind: "lembrete_d1",
+    variables: {
+      clienteNome: row.cliente_nome,
+      barbeariaNome: shopNameFromRow(row),
+      dataHora: formatAppointmentDateTimeBr(row.data, row.hora.slice(0, 5)),
+      agendamentoId: row.id,
     },
-    credentials: shopCredentials,
+    barbeariaId: row.barbearia_id,
   });
 
   await supabase.from("whatsapp_mensagens_enviadas").insert({
@@ -91,7 +89,8 @@ async function sendOneReminder(
     barbearia_id: row.barbearia_id,
     telefone: phoneDigits,
     tipo: "lembrete_d1",
-    twilio_message_sid: result.sid,
+    provider: result.provider,
+    external_message_id: result.externalMessageId,
     status: "aguardando_resposta",
   });
 
@@ -104,7 +103,8 @@ async function sendOneReminder(
     barbeariaId: row.barbearia_id,
     tipo: "lembrete_d1",
     agendamentoId: row.id,
-    twilioMessageSid: result.sid,
+    externalMessageId: result.externalMessageId,
+    provider: result.provider,
   });
 
   return { kind: "sent" };
@@ -113,9 +113,18 @@ async function sendOneReminder(
 export async function sendDueClientReminderWhatsApp(
   supabase: SupabaseClient,
 ): Promise<WhatsAppReminderResult> {
-  const contentSid = Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim();
-  if (!contentSid) {
-    throw new Error("TWILIO_CONTENT_SID_REMINDER não configurado.");
+  if (!isWhatsAppTemplateSendEnabled()) {
+    console.info(
+      "sendDueClientReminderWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio de templates D-1 ignorado (aguardando aprovação Meta/Infobip).",
+    );
+    return {
+      sent: 0,
+      processed: 0,
+      no_phone: 0,
+      send_failed: 0,
+      skipped_templates_disabled: 0,
+      failures: [],
+    };
   }
 
   const tomorrow = saoPauloTomorrowYmd();
@@ -141,7 +150,7 @@ export async function sendDueClientReminderWhatsApp(
 
   await processInBatches(rows, throttle, async (row) => {
     try {
-      const outcome = await sendOneReminder(supabase, row, contentSid);
+      const outcome = await sendOneReminder(supabase, row);
       if (outcome.kind === "sent") sent += 1;
       else if (outcome.kind === "no_phone") noPhone += 1;
       else if (outcome.kind === "failed") {
@@ -157,5 +166,12 @@ export async function sendDueClientReminderWhatsApp(
     }
   });
 
-  return { sent, processed: rows.length, no_phone: noPhone, send_failed: sendFailed, failures };
+  return {
+    sent,
+    processed: rows.length,
+    no_phone: noPhone,
+    send_failed: sendFailed,
+    skipped_templates_disabled: 0,
+    failures,
+  };
 }

@@ -7,12 +7,14 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import type { WhatsAppMessagingProvider } from "./barbershopMessagingProvider.ts";
 
 export type EnqueueInboundReplyParams = {
-  inboundMessageSid: string;
+  inboundMessageId: string;
   telefone: string;
   body: string;
   buttonPayload?: string;
+  provider?: WhatsAppMessagingProvider;
 };
 
 export type EnqueueInboundReplyResult =
@@ -26,22 +28,24 @@ function isUniqueViolation(error: { code?: string }) {
 
 /**
  * Enfileira um job para processamento assíncrono.
- * `inboundMessageSid` (MessageSid RECEBIDO da Twilio) é a chave de idempotência:
- * se já existir, retorna `{ duplicate: true }` sem criar job novo.
+ * `(provider, inboundMessageId)` é a chave de idempotência composta.
  */
 export async function enqueueInboundWhatsAppReply(
   supabase: SupabaseClient,
   params: EnqueueInboundReplyParams,
 ): Promise<EnqueueInboundReplyResult> {
-  const sid = params.inboundMessageSid.trim();
-  if (!sid) {
-    return { ok: false, error: "inbound_message_sid ausente" };
+  const messageId = params.inboundMessageId.trim();
+  if (!messageId) {
+    return { ok: false, error: "inbound_message_id ausente" };
   }
+
+  const provider: WhatsAppMessagingProvider = params.provider ?? "twilio";
 
   const { data, error } = await supabase
     .from("whatsapp_webhook_jobs")
     .insert({
-      inbound_message_sid: sid,
+      inbound_message_id: messageId,
+      provider,
       telefone: params.telefone,
       body: params.body,
       button_payload: params.buttonPayload?.trim() || null,
@@ -62,7 +66,8 @@ export async function enqueueInboundWhatsAppReply(
 
 export type WebhookJobRow = {
   id: string;
-  inbound_message_sid: string;
+  inbound_message_id: string;
+  provider: WhatsAppMessagingProvider;
   telefone: string;
   body: string;
   button_payload: string | null;
@@ -80,7 +85,9 @@ export async function claimPendingWebhookJobs(
 ): Promise<WebhookJobRow[]> {
   const { data: candidates, error: selectError } = await supabase
     .from("whatsapp_webhook_jobs")
-    .select("id, inbound_message_sid, telefone, body, button_payload, status, attempts, max_attempts")
+    .select(
+      "id, inbound_message_id, provider, telefone, body, button_payload, status, attempts, max_attempts",
+    )
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -102,7 +109,9 @@ export async function claimPendingWebhookJobs(
       })
       .eq("id", job.id)
       .eq("status", "pending")
-      .select("id, inbound_message_sid, telefone, body, button_payload, status, attempts, max_attempts")
+      .select(
+        "id, inbound_message_id, provider, telefone, body, button_payload, status, attempts, max_attempts",
+      )
       .maybeSingle();
 
     if (lockError) {

@@ -47,12 +47,17 @@ Deno.serve(async (req) => {
 
     const pushResult = await sendDueClientConfirmationPushes(supabase, { force });
 
-    // Lembrete D-1 via WhatsApp (Twilio) roda em paralelo ao Web Push. Só dispara se o
-    // Content Template já estiver configurado — enquanto não estiver, fica um no-op.
-    let whatsappResult: unknown = { skipped: true, reason: "twilio_not_configured" };
-    const twilioReminderSid = Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim();
-    if (twilioReminderSid && !pushResult.skipped) {
-      await registrarOkTwilioTemplateD1(supabase);
+    // Lembrete D-1 via WhatsApp — roda em paralelo ao Web Push.
+    // Envio real só ocorre com WHATSAPP_TEMPLATE_SEND_ENABLED=true e template configurado (Twilio ou Infobip).
+    let whatsappResult: unknown = { skipped: true, reason: "templates_disabled_or_not_configured" };
+    const templateSendEnabled = Deno.env.get("WHATSAPP_TEMPLATE_SEND_ENABLED") === "true";
+    const hasTwilioTemplate = Boolean(Deno.env.get("TWILIO_CONTENT_SID_REMINDER")?.trim());
+    const hasInfobipTemplate = Boolean(Deno.env.get("INFOBIP_TEMPLATE_REMINDER")?.trim());
+
+    if (!pushResult.skipped && (templateSendEnabled || hasTwilioTemplate || hasInfobipTemplate)) {
+      if (hasTwilioTemplate) {
+        await registrarOkTwilioTemplateD1(supabase);
+      }
       try {
         whatsappResult = await sendDueClientReminderWhatsApp(supabase);
       } catch (whatsappError) {
@@ -64,11 +69,15 @@ Deno.serve(async (req) => {
           error: whatsappError instanceof Error ? whatsappError.message : "Falha ao enviar lembrete WhatsApp",
         };
       }
-    } else if (!twilioReminderSid) {
+    } else if (!hasTwilioTemplate && !hasInfobipTemplate) {
       console.warn(
-        "process-appointment-reminders: lembrete D-1 WhatsApp ignorado — TWILIO_CONTENT_SID_REMINDER não configurado no ambiente.",
+        "process-appointment-reminders: lembrete D-1 WhatsApp ignorado — nenhum template configurado (Twilio ou Infobip).",
       );
       await registrarSkipTwilioTemplateD1Ausente(supabase);
+    } else if (!templateSendEnabled) {
+      console.info(
+        "process-appointment-reminders: WHATSAPP_TEMPLATE_SEND_ENABLED != true — lembrete D-1 não enviado (aguardando aprovação).",
+      );
     }
 
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");

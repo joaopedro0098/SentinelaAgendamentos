@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
   );
 
   const enqueueResult = await enqueueInboundWhatsAppReply(supabase, {
-    inboundMessageSid,
+    inboundMessageId: inboundMessageSid,
+    provider: "twilio",
     telefone: telefoneDigits,
     body,
     buttonPayload,

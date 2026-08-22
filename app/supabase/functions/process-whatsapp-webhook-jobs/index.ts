@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
         telefone: job.telefone,
         body: job.body,
         buttonPayload: job.button_payload ?? "",
+        provider: job.provider ?? "twilio",
       });
 
       if (result.ok) {

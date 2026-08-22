@@ -50,6 +50,12 @@ verify_jwt = false
 [functions.twilio-whatsapp-webhook]
 verify_jwt = false
 
+[functions.infobip-whatsapp-webhook]
+verify_jwt = false
+
+[functions.infobip-send-test]
+verify_jwt = false
+
 [functions.process-whatsapp-webhook-jobs]
 verify_jwt = false
 

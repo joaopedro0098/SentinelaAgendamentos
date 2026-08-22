@@ -31,10 +31,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    let reminder3hResult: unknown = { skipped: true, reason: "twilio_not_configured" };
-    const twilioLembrete3hSid = Deno.env.get("TWILIO_CONTENT_SID_LEMBRETE_3H")?.trim();
-    if (twilioLembrete3hSid) {
-      await registrarOkTwilioTemplate3h(supabase);
+    let reminder3hResult: unknown = { skipped: true, reason: "templates_disabled_or_not_configured" };
+    const templateSendEnabled = Deno.env.get("WHATSAPP_TEMPLATE_SEND_ENABLED") === "true";
+    const hasTwilioTemplate = Boolean(Deno.env.get("TWILIO_CONTENT_SID_LEMBRETE_3H")?.trim());
+    const hasInfobipTemplate = Boolean(Deno.env.get("INFOBIP_TEMPLATE_LEMBRETE_3H")?.trim());
+
+    if (templateSendEnabled || hasTwilioTemplate || hasInfobipTemplate) {
+      if (hasTwilioTemplate) {
+        await registrarOkTwilioTemplate3h(supabase);
+      }
       try {
         reminder3hResult = await sendDueReminder3hWhatsApp(supabase);
       } catch (whatsappError) {
@@ -46,11 +51,15 @@ Deno.serve(async (req) => {
           error: whatsappError instanceof Error ? whatsappError.message : "Falha ao enviar lembrete WhatsApp",
         };
       }
-    } else {
+    } else if (!hasTwilioTemplate && !hasInfobipTemplate) {
       console.warn(
-        "process-appointment-reminder-3h: lembrete ~3h WhatsApp ignorado — TWILIO_CONTENT_SID_LEMBRETE_3H não configurado no ambiente.",
+        "process-appointment-reminder-3h: lembrete ~3h WhatsApp ignorado — nenhum template configurado (Twilio ou Infobip).",
       );
       await registrarSkipTwilioTemplate3hAusente(supabase);
+    } else if (!templateSendEnabled) {
+      console.info(
+        "process-appointment-reminder-3h: WHATSAPP_TEMPLATE_SEND_ENABLED != true — lembrete ~3h não enviado (aguardando aprovação).",
+      );
     }
 
     return jsonResponse({ ok: true, reminder_3h_whatsapp: reminder3hResult });

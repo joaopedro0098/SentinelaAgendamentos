@@ -3,15 +3,17 @@
  * Consumida pelo worker process-whatsapp-webhook-jobs — não pelo webhook diretamente.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { normalizeBrazilPhoneE164Digits, sendWhatsAppTemplate } from "./twilioWhatsapp.ts";
-import { resolveBarbershopTwilioCredentials } from "./barbershopTwilioCredentials.ts";
+import { normalizeBrazilPhoneE164Digits } from "./twilioWhatsapp.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { buildAppointmentAlertMessage } from "./appointmentAlertMessage.ts";
+import { sendWhatsAppTemplateForBarbershop } from "./whatsappMessaging.ts";
+import type { WhatsAppMessagingProvider } from "./barbershopMessagingProvider.ts";
 
 export type InboundReplyPayload = {
   telefone: string;
   body: string;
   buttonPayload: string;
+  provider?: WhatsAppMessagingProvider;
 };
 
 export type ProcessInboundReplyResult =
@@ -85,11 +87,16 @@ function logProcessamentoConcluido(params: { action: string; agendamentoId?: str
   }
 }
 
-async function fetchPendingOutboundByPhone(supabase: SupabaseClient, telefoneDigits: string) {
+async function fetchPendingOutboundByPhone(
+  supabase: SupabaseClient,
+  telefoneDigits: string,
+  provider: WhatsAppMessagingProvider,
+) {
   return supabase
     .from("whatsapp_mensagens_enviadas")
     .select("id, agendamento_id, barbearia_id")
     .eq("telefone", telefoneDigits)
+    .eq("provider", provider)
     .eq("status", "aguardando_resposta")
     .order("enviado_em", { ascending: false })
     .limit(1)
@@ -100,12 +107,14 @@ async function fetchPendingOutboundByAppointment(
   supabase: SupabaseClient,
   agendamentoId: string,
   telefoneDigits: string,
+  provider: WhatsAppMessagingProvider,
 ) {
   return supabase
     .from("whatsapp_mensagens_enviadas")
     .select("id, agendamento_id, barbearia_id")
     .eq("agendamento_id", agendamentoId)
     .eq("telefone", telefoneDigits)
+    .eq("provider", provider)
     .eq("status", "aguardando_resposta")
     .order("enviado_em", { ascending: false })
     .limit(1)
@@ -148,6 +157,7 @@ async function processAlertAction(
   ag: AppointmentRow,
   outboundRow: PendingMessageRow | null,
   action: "cancelar" | "remarcar",
+  inboundProvider: WhatsAppMessagingProvider,
 ): Promise<ProcessInboundReplyResult> {
   const tipo = action === "cancelar" ? "cancelamento" : "alteracao";
   const mensagem = buildAppointmentAlertMessage({
@@ -159,7 +169,7 @@ async function processAlertAction(
 
   const { data: existingAlert } = await supabase
     .from("alertas_agendamento")
-    .select("id, mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
+    .select("id, mensagem_profissional_enviada_em, billing_registrado_em, external_message_id, provider")
     .eq("agendamento_id", ag.id)
     .eq("tipo", tipo)
     .eq("status", "pendente")
@@ -178,6 +188,7 @@ async function processAlertAction(
         barbeiro_id: ag.barbeiro_id,
         tipo,
         mensagem,
+        provider: inboundProvider,
       })
       .select("id")
       .single();
@@ -190,7 +201,7 @@ async function processAlertAction(
 
   const { data: alertState, error: alertStateError } = await supabase
     .from("alertas_agendamento")
-    .select("mensagem_profissional_enviada_em, billing_registrado_em, twilio_message_sid")
+    .select("mensagem_profissional_enviada_em, billing_registrado_em, external_message_id, provider")
     .eq("id", alertId)
     .single();
 
@@ -208,24 +219,15 @@ async function processAlertAction(
     return { ok: true, action: "alerta" };
   }
 
-  const contentSid = Deno.env.get("TWILIO_CONTENT_SID_PROFESSIONAL_ALERT")?.trim();
-  if (!contentSid) {
-    console.error("processWhatsAppInboundReply: TWILIO_CONTENT_SID_PROFESSIONAL_ALERT não configurado.");
-    if (outboundRow) {
-      await markOutboundMessageResponded(supabase, outboundRow.id);
-    }
-    logProcessamentoConcluido({ action: "alerta", agendamentoId: ag.id });
-    return { ok: true, action: "alerta" };
-  }
-
   let messageSent = Boolean(alertState?.mensagem_profissional_enviada_em);
   let billingDone = Boolean(alertState?.billing_registrado_em);
-  const storedTwilioSid = alertState?.twilio_message_sid?.trim() || null;
-  let twilioMessageSid: string | null = storedTwilioSid;
+  const storedExternalMessageId = alertState?.external_message_id?.trim() || null;
+  let externalMessageId: string | null = storedExternalMessageId;
+  const alertProvider = (alertState?.provider as WhatsAppMessagingProvider | undefined) ?? inboundProvider;
 
-  if (storedTwilioSid && !messageSent) {
+  if (storedExternalMessageId && !messageSent) {
     console.info(
-      "processWhatsAppInboundReply: twilio_message_sid presente sem mensagem_profissional_enviada_em — tratando como enviada, pulando reenvio.",
+      "processWhatsAppInboundReply: external_message_id presente sem mensagem_profissional_enviada_em — tratando como enviada, pulando reenvio.",
     );
     const { error: repairTimestampError } = await supabase
       .from("alertas_agendamento")
@@ -241,21 +243,22 @@ async function processAlertAction(
 
   if (!messageSent) {
     try {
-      const shopCredentials = await resolveBarbershopTwilioCredentials(supabase, ag.barbearia_id);
-      const result = await sendWhatsAppTemplate({
+      const result = await sendWhatsAppTemplateForBarbershop(supabase, {
         to: barbeiroWhatsapp,
-        contentSid,
-        contentVariables: { "1": mensagem },
-        credentials: shopCredentials,
+        templateKind: "alerta_profissional",
+        variables: { mensagem },
+        barbeariaId: ag.barbearia_id,
+        overrideProvider: inboundProvider,
       });
-      twilioMessageSid = result.sid;
+      externalMessageId = result.externalMessageId;
 
       const sentAt = new Date().toISOString();
       const { error: markMessageError } = await supabase
         .from("alertas_agendamento")
         .update({
           mensagem_profissional_enviada_em: sentAt,
-          twilio_message_sid: result.sid,
+          external_message_id: result.externalMessageId,
+          provider: result.provider,
         })
         .eq("id", alertId)
         .is("mensagem_profissional_enviada_em", null);
@@ -278,7 +281,8 @@ async function processAlertAction(
       tipo: "alerta_profissional",
       profissionalId: ag.barbeiro_id,
       agendamentoId: ag.id,
-      twilioMessageSid,
+      externalMessageId,
+      provider: alertProvider,
     });
 
     if (!billingResult.ok) {
@@ -333,6 +337,7 @@ export async function processWhatsAppInboundReply(
 ): Promise<ProcessInboundReplyResult> {
   const telefoneDigits = normalizeBrazilPhoneE164Digits(payload.telefone);
   const body = payload.body.trim();
+  const provider: WhatsAppMessagingProvider = payload.provider ?? "twilio";
   const parsedPayload = parseButtonPayload(payload.buttonPayload.trim());
 
   if (parsedPayload) {
@@ -353,6 +358,7 @@ export async function processWhatsAppInboundReply(
       supabase,
       parsedPayload.agendamentoId,
       telefoneDigits,
+      provider,
     );
 
     if (outboundError) {
@@ -365,14 +371,18 @@ export async function processWhatsAppInboundReply(
       return processConfirmAction(supabase, ag, outboundRow);
     }
     if (parsedPayload.action === "cancelar" || parsedPayload.action === "remarcar") {
-      return processAlertAction(supabase, ag, outboundRow, parsedPayload.action);
+      return processAlertAction(supabase, ag, outboundRow, parsedPayload.action, provider);
     }
 
     return finishIgnorado(supabase, outboundRow, ag.id);
   }
 
   const bodyAction = parseBodyAction(body);
-  const { data: pending, error: pendingError } = await fetchPendingOutboundByPhone(supabase, telefoneDigits);
+  const { data: pending, error: pendingError } = await fetchPendingOutboundByPhone(
+    supabase,
+    telefoneDigits,
+    provider,
+  );
 
   if (pendingError) {
     return { ok: false, error: pendingError.message, retryable: true };
@@ -406,5 +416,5 @@ export async function processWhatsAppInboundReply(
     return processConfirmAction(supabase, ag, outboundRow);
   }
 
-  return processAlertAction(supabase, ag, outboundRow, bodyAction);
+  return processAlertAction(supabase, ag, outboundRow, bodyAction, provider);
 }

@@ -4,13 +4,13 @@
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
-  sendWhatsAppTemplate,
   normalizeBrazilPhoneE164Digits,
   phoneDigitsFromWhatsAppAddress,
 } from "./twilioWhatsapp.ts";
-import { resolveBarbershopTwilioCredentials } from "./barbershopTwilioCredentials.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
+import { sendWhatsAppTemplateForBarbershop } from "./whatsappMessaging.ts";
+import { isWhatsAppTemplateSendEnabled } from "./barbershopMessagingProvider.ts";
 
 const SAO_PAULO = "America/Sao_Paulo";
 const REMINDER_LEAD_MINUTES = 180;
@@ -61,6 +61,7 @@ export type WhatsAppReminder3hResult = {
   no_phone: number;
   send_failed: number;
   already_claimed: number;
+  skipped_templates_disabled: number;
   failures: Array<{ agendamento_id: string; reason: string }>;
 };
 
@@ -111,7 +112,6 @@ async function releaseReminder3hSlot(
 async function sendOneReminder3h(
   supabase: SupabaseClient,
   row: AppointmentForReminder3h,
-  contentSid: string,
 ): Promise<SendReminderOutcome> {
   const localDigits = phoneDigitsFromWhatsAppAddress(row.cliente_whatsapp ?? "");
   if (localDigits.length < 10) {
@@ -124,25 +124,25 @@ async function sendOneReminder3h(
   }
 
   const phoneDigits = normalizeBrazilPhoneE164Digits(localDigits);
-  const shopCredentials = await resolveBarbershopTwilioCredentials(supabase, row.barbearia_id);
   const horaFormatada = row.hora.slice(0, 5);
 
   try {
-    const result = await sendWhatsAppTemplate({
+    const result = await sendWhatsAppTemplateForBarbershop(supabase, {
       to: phoneDigits,
-      contentSid,
-      contentVariables: {
-        "1": row.cliente_nome,
-        "2": horaFormatada,
+      templateKind: "lembrete_3h",
+      variables: {
+        clienteNome: row.cliente_nome,
+        hora: horaFormatada,
       },
-      credentials: shopCredentials,
+      barbeariaId: row.barbearia_id,
     });
 
     const billingResult = await registrarUsoMensageria(supabase, {
       barbeariaId: row.barbearia_id,
       tipo: "lembrete_3h",
       agendamentoId: row.id,
-      twilioMessageSid: result.sid,
+      externalMessageId: result.externalMessageId,
+      provider: result.provider,
     });
 
     if (!billingResult.ok) {
@@ -164,9 +164,19 @@ async function sendOneReminder3h(
 export async function sendDueReminder3hWhatsApp(
   supabase: SupabaseClient,
 ): Promise<WhatsAppReminder3hResult> {
-  const contentSid = Deno.env.get("TWILIO_CONTENT_SID_LEMBRETE_3H")?.trim();
-  if (!contentSid) {
-    throw new Error("TWILIO_CONTENT_SID_LEMBRETE_3H não configurado.");
+  if (!isWhatsAppTemplateSendEnabled()) {
+    console.info(
+      "sendDueReminder3hWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio de templates ~3h ignorado (aguardando aprovação Meta/Infobip).",
+    );
+    return {
+      sent: 0,
+      processed: 0,
+      no_phone: 0,
+      send_failed: 0,
+      already_claimed: 0,
+      skipped_templates_disabled: 0,
+      failures: [],
+    };
   }
 
   const today = saoPauloTodayYmd();
@@ -195,7 +205,7 @@ export async function sendDueReminder3hWhatsApp(
 
   await processInBatches(rows, throttle, async (row) => {
     try {
-      const outcome = await sendOneReminder3h(supabase, row, contentSid);
+      const outcome = await sendOneReminder3h(supabase, row);
       if (outcome.kind === "sent") sent += 1;
       else if (outcome.kind === "no_phone") noPhone += 1;
       else if (outcome.kind === "already_claimed") alreadyClaimed += 1;
@@ -218,6 +228,7 @@ export async function sendDueReminder3hWhatsApp(
     no_phone: noPhone,
     send_failed: sendFailed,
     already_claimed: alreadyClaimed,
+    skipped_templates_disabled: 0,
     failures,
   };
 }
