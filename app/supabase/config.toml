@@ -53,6 +53,9 @@ verify_jwt = false
 [functions.infobip-whatsapp-webhook]
 verify_jwt = false
 
+[functions.infobip-embedded-signup-webhook]
+verify_jwt = false
+
 [functions.infobip-send-test]
 verify_jwt = false
 
