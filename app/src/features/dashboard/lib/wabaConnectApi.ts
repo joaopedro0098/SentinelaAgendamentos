@@ -8,23 +8,13 @@ export type WabaConnectStatus =
   | "token_expired"
   | "provisioning";
 
-export type WabaConnectStartPayload = {
+export type InfobipWabaConnectStartPayload = {
   waba_id: string;
   phone_number_id: string;
-  phone_number: string;
-  verification_method?: "sms" | "voice";
 };
 
-export type WabaConnectStartResult =
-  | { ok: true; status: "connected" | "pending"; message?: string }
-  | { ok: false; error: string; status?: string };
-
-export type WabaConnectVerifyOtpResult =
-  | { ok: true; status: "pending" | "connected"; message?: string }
-  | { ok: false; error: string };
-
-export type WabaConnectCheckStatusResult =
-  | { ok: true; status: "connected" | "pending"; message?: string; sender_status?: string }
+export type InfobipWabaConnectStartResult =
+  | { ok: true; status: "connected" | "provisioning"; message?: string }
   | { ok: false; error: string; status?: string };
 
 export type WabaDisconnectResult =
@@ -54,8 +44,11 @@ export async function fetchWabaConnectStatus(): Promise<WabaConnectStatus | null
   return (data.waba_connect_status as WabaConnectStatus | null) ?? "not_connected";
 }
 
-export async function invokeWabaConnectStart(payload: WabaConnectStartPayload): Promise<WabaConnectStartResult> {
-  const { data, error } = await supabase.functions.invoke("waba-connect-start", { body: payload });
+/** POST infobip-waba-connect-start (share-waba Infobip após Embedded Signup Meta). */
+export async function invokeInfobipWabaConnectStart(
+  payload: InfobipWabaConnectStartPayload,
+): Promise<InfobipWabaConnectStartResult> {
+  const { data, error } = await supabase.functions.invoke("infobip-waba-connect-start", { body: payload });
 
   if (error) {
     return { ok: false, error: parseFnError(error, data), status: (data as { status?: string })?.status };
@@ -65,29 +58,10 @@ export async function invokeWabaConnectStart(payload: WabaConnectStartPayload): 
   if (body.error) {
     return { ok: false, error: body.error, status: body.status };
   }
-  if (body.success && (body.status === "connected" || body.status === "pending")) {
+  if (body.success && (body.status === "connected" || body.status === "provisioning")) {
     return { ok: true, status: body.status, message: body.message };
   }
   return { ok: false, error: body.message || "Resposta inesperada ao iniciar conexão." };
-}
-
-export async function invokeWabaConnectVerifyOtp(verificationCode: string): Promise<WabaConnectVerifyOtpResult> {
-  const { data, error } = await supabase.functions.invoke("waba-connect-verify-otp", {
-    body: { verification_code: verificationCode },
-  });
-
-  if (error) {
-    return { ok: false, error: parseFnError(error, data) };
-  }
-
-  const body = data as { success?: boolean; status?: string; error?: string; message?: string };
-  if (body.error) {
-    return { ok: false, error: body.error };
-  }
-  if (body.success && (body.status === "pending" || body.status === "connected")) {
-    return { ok: true, status: body.status, message: body.message };
-  }
-  return { ok: false, error: body.message || "Resposta inesperada ao validar código." };
 }
 
 export async function invokeWabaDisconnect(): Promise<WabaDisconnectResult> {
@@ -107,59 +81,17 @@ export async function invokeWabaDisconnect(): Promise<WabaDisconnectResult> {
   return { ok: false, error: body.message || "Resposta inesperada ao desconectar." };
 }
 
-export async function invokeWabaConnectCheckStatus(): Promise<WabaConnectCheckStatusResult> {
-  const { data, error } = await supabase.functions.invoke("waba-connect-check-status", { body: {} });
-
-  if (error) {
-    return { ok: false, error: parseFnError(error, data), status: (data as { status?: string })?.status };
-  }
-
-  const body = data as { success?: boolean; status?: string; error?: string; message?: string; sender_status?: string };
-  if (body.error) {
-    return { ok: false, error: body.error, status: body.status };
-  }
-  if (body.success && (body.status === "connected" || body.status === "pending")) {
-    return { ok: true, status: body.status, message: body.message, sender_status: body.sender_status };
-  }
-  return { ok: false, error: body.message || "Resposta inesperada ao verificar status." };
-}
-
-export async function pollWabaConnectUntilOnline(options?: {
-  maxAttempts?: number;
-  intervalMs?: number;
-  onAttempt?: (attempt: number) => void;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const maxAttempts = options?.maxAttempts ?? 12;
-  const intervalMs = options?.intervalMs ?? 15_000;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    options?.onAttempt?.(attempt);
-    const result = await invokeWabaConnectCheckStatus();
-    if (!result.ok) {
-      return { ok: false, error: result.error };
-    }
-    if (result.status === "connected") {
-      return { ok: true };
-    }
-    if (attempt < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-  }
-
-  return { ok: false, error: "Tempo esgotado aguardando ativação do número pelo WhatsApp. Tente conectar novamente." };
-}
-
 const PROVISIONING_DB_POLL_INTERVAL_MS = 20_000;
 const PROVISIONING_DB_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const PROVISIONING_DB_NULL_STREAK_LIMIT = 2;
 
-/** Aguarda o backend sair de `provisioning` (só leitura no Postgres, sem Twilio). */
+/** Aguarda `waba_connect_status === connected` via leitura no Postgres (webhook Infobip). */
 export async function pollWabaConnectStatusFromDb(options?: {
   intervalMs?: number;
   timeoutMs?: number;
   isCancelled?: () => boolean;
 }): Promise<
-  | { ok: true; status: "pending" | "connected" }
+  | { ok: true; status: "connected" }
   | { ok: false; error: string; reason: "timeout" | "unexpected_status" | "fetch_failed" }
 > {
   const intervalMs = options?.intervalMs ?? PROVISIONING_DB_POLL_INTERVAL_MS;
@@ -189,10 +121,7 @@ export async function pollWabaConnectStatusFromDb(options?: {
       if (current === "connected") {
         return { ok: true, status: "connected" };
       }
-      if (current === "pending") {
-        return { ok: true, status: "pending" };
-      }
-      if (current !== "provisioning") {
+      if (current !== "provisioning" && current !== "pending") {
         return {
           ok: false,
           error: "A conexão foi interrompida. Tente novamente.",

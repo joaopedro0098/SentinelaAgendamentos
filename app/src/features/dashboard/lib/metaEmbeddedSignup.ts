@@ -1,5 +1,3 @@
-import { unmaskPhone } from "@agenda/lib/phone";
-
 const META_APP_ID = String(import.meta.env.VITE_META_APP_ID ?? "").trim();
 const META_EMBEDDED_SIGNUP_CONFIG_ID = String(import.meta.env.VITE_META_EMBEDDED_SIGNUP_CONFIG_ID ?? "").trim();
 
@@ -14,13 +12,6 @@ export function getMetaEmbeddedSignupConfig() {
     configId: META_EMBEDDED_SIGNUP_CONFIG_ID,
     isConfigured: Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID),
   };
-}
-
-/** Monta E.164 a partir do DDI selecionado e do número local digitado (ex.: +5511999999999). */
-export function toE164Phone(countryDialCode: string, phoneInput: string): string {
-  const dialDigits = countryDialCode.replace(/\D/g, "");
-  const localDigits = unmaskPhone(phoneInput);
-  return `+${dialDigits}${localDigits}`;
 }
 
 type FbLoginOptions = {
@@ -196,7 +187,7 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
 
     window.FB.login(
       () => {
-        /* dados vêm via postMessage — Twilio: não tratar response aqui */
+        /* dados vêm via postMessage WA_EMBEDDED_SIGNUP — não tratar response aqui */
       },
       {
         config_id: configId,

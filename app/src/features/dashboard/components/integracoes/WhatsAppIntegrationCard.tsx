@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { maskPhone, unmaskPhone, isValidPhone } from "@agenda/lib/phone";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,25 +12,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import {
-  COUNTRY_DIAL_CODES,
-  DEFAULT_COUNTRY_ISO2,
-  findCountryByIso2,
-} from "@/lib/countryDialCodes";
 import {
   fetchWabaConnectStatus,
-  invokeWabaConnectStart,
-  invokeWabaConnectVerifyOtp,
+  invokeInfobipWabaConnectStart,
   invokeWabaDisconnect,
   pollWabaConnectStatusFromDb,
-  pollWabaConnectUntilOnline,
   type WabaConnectStatus,
 } from "@/features/dashboard/lib/wabaConnectApi";
 import {
   getMetaEmbeddedSignupConfig,
   runEmbeddedSignup,
-  toE164Phone,
 } from "@/features/dashboard/lib/metaEmbeddedSignup";
 
 const CONNECTABLE_STATUSES = new Set<WabaConnectStatus>(["not_connected", "error", "token_expired"]);
@@ -59,34 +47,11 @@ export function WhatsAppIntegrationCard() {
   const [busy, setBusy] = useState(false);
   const [connectingPhase, setConnectingPhase] = useState<ConnectingPhase>(null);
   const [flowError, setFlowError] = useState<string | null>(null);
-
-  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
-  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [countryIso2, setCountryIso2] = useState(DEFAULT_COUNTRY_ISO2);
-  const [phoneInput, setPhoneInput] = useState("");
-  const [otpInput, setOtpInput] = useState("");
   const initialResumeDone = useRef(false);
 
   const metaConfigured = getMetaEmbeddedSignupConfig().isConfigured;
-
-  const selectedCountry = useMemo(
-    () => findCountryByIso2(countryIso2) ?? COUNTRY_DIAL_CODES[0],
-    [countryIso2],
-  );
-  const isBrazilCountry = countryIso2 === DEFAULT_COUNTRY_ISO2;
-  const isPhoneInputValid = useMemo(() => {
-    const digits = unmaskPhone(phoneInput);
-    if (isBrazilCountry) return isValidPhone(phoneInput);
-    return digits.length >= 8;
-  }, [isBrazilCountry, phoneInput]);
-
-  useEffect(() => {
-    if (!phoneDialogOpen) return;
-    setCountryIso2(DEFAULT_COUNTRY_ISO2);
-    setPhoneInput("");
-  }, [phoneDialogOpen]);
 
   const refreshStatus = useCallback(async () => {
     const next = await fetchWabaConnectStatus();
@@ -97,9 +62,6 @@ export function WhatsAppIntegrationCard() {
   const resetToConnect = useCallback((message?: string) => {
     setBusy(false);
     setConnectingPhase(null);
-    setOtpDialogOpen(false);
-    setPhoneDialogOpen(false);
-    setOtpInput("");
     setStatus("not_connected");
     if (message) {
       setFlowError(message);
@@ -112,19 +74,15 @@ export function WhatsAppIntegrationCard() {
   const completeConnected = useCallback(async () => {
     setBusy(false);
     setConnectingPhase(null);
-    setOtpDialogOpen(false);
-    setPhoneDialogOpen(false);
-    setOtpInput("");
     setFlowError(null);
     setStatus("connected");
     toast({ title: "WhatsApp conectado", description: "Seu número Business está ativo." });
     await refreshStatus();
   }, [refreshStatus, toast]);
 
-  const runPolling = useCallback(async () => {
+  const waitForConnectedFromDb = useCallback(async (isCancelled?: () => boolean) => {
     setBusy(true);
-    setStatus("pending");
-    const poll = await pollWabaConnectUntilOnline();
+    const poll = await pollWabaConnectStatusFromDb({ isCancelled });
     if (poll.ok) {
       await completeConnected();
       return;
@@ -132,103 +90,7 @@ export function WhatsAppIntegrationCard() {
     resetToConnect(poll.error);
   }, [completeConnected, resetToConnect]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      setLoadingStatus(true);
-      const next = await fetchWabaConnectStatus();
-      if (!cancelled && next) {
-        setStatus(next);
-
-        if (!initialResumeDone.current && next === "pending") {
-          initialResumeDone.current = true;
-          setOtpDialogOpen(true);
-          setBusy(true);
-          const poll = await pollWabaConnectUntilOnline();
-          if (cancelled) return;
-          if (poll.ok) {
-            setBusy(false);
-            setOtpDialogOpen(false);
-            setStatus("connected");
-            toast({ title: "WhatsApp conectado", description: "Seu número Business está ativo." });
-          } else {
-            setBusy(false);
-            setStatus("not_connected");
-            setFlowError(poll.error);
-          }
-        }
-
-        if (!initialResumeDone.current && next === "provisioning") {
-          initialResumeDone.current = true;
-          setBusy(true);
-          const dbPoll = await pollWabaConnectStatusFromDb({
-            isCancelled: () => cancelled,
-          });
-          if (cancelled) return;
-
-          if (!dbPoll.ok) {
-            resetToConnect(dbPoll.error);
-            return;
-          }
-
-          if (dbPoll.status === "connected") {
-            await completeConnected();
-            return;
-          }
-
-          setStatus("pending");
-          setBusy(false);
-          setOtpDialogOpen(true);
-        }
-      }
-
-      if (!cancelled) setLoadingStatus(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [completeConnected, resetToConnect, toast]);
-
-  const isClickable = useMemo(() => {
-    if (busy || loadingStatus || connectingPhase || disconnecting) return false;
-    if (status === "connected") return false;
-    return CONNECTABLE_STATUSES.has(status) || IN_PROGRESS_STATUSES.has(status);
-  }, [busy, connectingPhase, disconnecting, loadingStatus, status]);
-
-  const showSpinner = busy || loadingStatus || Boolean(connectingPhase);
-  const badgeText = statusBadgeLabel(status, busy, connectingPhase);
-
-  function handleCountryChange(nextIso2: string) {
-    setCountryIso2(nextIso2);
-    setPhoneInput((prev) => {
-      const digits = unmaskPhone(prev);
-      if (!digits) return "";
-      return nextIso2 === DEFAULT_COUNTRY_ISO2 ? maskPhone(digits) : digits;
-    });
-  }
-
-  function handlePhoneInputChange(value: string) {
-    if (countryIso2 === DEFAULT_COUNTRY_ISO2) {
-      setPhoneInput(maskPhone(value));
-      return;
-    }
-    setPhoneInput(value.replace(/\D/g, "").slice(0, 15));
-  }
-
-  async function handlePhoneContinue() {
-    if (!isPhoneInputValid) {
-      toast({
-        title: "Número inválido",
-        description: isBrazilCountry
-          ? "Informe o WhatsApp com DDD (10 ou 11 dígitos)."
-          : "Informe o número local completo.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const runConnectFlow = useCallback(async () => {
     if (!metaConfigured) {
       toast({
         title: "Integração indisponível",
@@ -238,7 +100,6 @@ export function WhatsAppIntegrationCard() {
       return;
     }
 
-    setPhoneDialogOpen(false);
     setBusy(true);
     setFlowError(null);
     setConnectingPhase("meta");
@@ -257,11 +118,9 @@ export function WhatsAppIntegrationCard() {
 
       setConnectingPhase("backend");
 
-      const start = await invokeWabaConnectStart({
+      const start = await invokeInfobipWabaConnectStart({
         waba_id: signup.waba_id,
         phone_number_id: signup.phone_number_id,
-        phone_number: toE164Phone(selectedCountry.dialCode, phoneInput),
-        verification_method: "sms",
       });
 
       setConnectingPhase(null);
@@ -276,13 +135,8 @@ export function WhatsAppIntegrationCard() {
         return;
       }
 
-      setStatus("pending");
-      setBusy(false);
-      setOtpDialogOpen(true);
-      toast({
-        title: "Código enviado",
-        description: start.message || "Digite o código recebido por SMS.",
-      });
+      setStatus("provisioning");
+      await waitForConnectedFromDb();
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       const metaLoadFailed =
@@ -294,36 +148,51 @@ export function WhatsAppIntegrationCard() {
           : raw || "Erro inesperado ao conectar WhatsApp.",
       );
     }
-  }
+  }, [completeConnected, metaConfigured, resetToConnect, toast, waitForConnectedFromDb]);
 
-  async function handleOtpSubmit() {
-    const code = otpInput.trim();
-    if (!code) {
-      toast({ title: "Informe o código", variant: "destructive" });
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    setBusy(true);
-    const verify = await invokeWabaConnectVerifyOtp(code);
-    if (!verify.ok) {
-      setBusy(false);
-      toast({ title: "Código inválido", description: verify.error, variant: "destructive" });
-      return;
-    }
+    void (async () => {
+      setLoadingStatus(true);
+      const next = await fetchWabaConnectStatus();
+      if (!cancelled && next) {
+        setStatus(next);
 
-    setOtpDialogOpen(false);
-    setOtpInput("");
-    await runPolling();
-  }
+        if (
+          !initialResumeDone.current &&
+          (next === "pending" || next === "provisioning")
+        ) {
+          initialResumeDone.current = true;
+          await waitForConnectedFromDb(() => cancelled);
+        }
+      }
+
+      if (!cancelled) setLoadingStatus(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [waitForConnectedFromDb]);
+
+  const isClickable = useMemo(() => {
+    if (busy || loadingStatus || connectingPhase || disconnecting) return false;
+    if (status === "connected") return false;
+    return CONNECTABLE_STATUSES.has(status) || IN_PROGRESS_STATUSES.has(status);
+  }, [busy, connectingPhase, disconnecting, loadingStatus, status]);
+
+  const showSpinner = busy || loadingStatus || Boolean(connectingPhase);
+  const badgeText = statusBadgeLabel(status, busy, connectingPhase);
 
   function handleCardClick() {
     if (!isClickable) return;
     if (IN_PROGRESS_STATUSES.has(status)) {
-      setOtpDialogOpen(true);
+      void waitForConnectedFromDb();
       return;
     }
     setFlowError(null);
-    setPhoneDialogOpen(true);
+    void runConnectFlow();
   }
 
   async function handleDisconnectConfirm() {
@@ -423,112 +292,6 @@ export function WhatsAppIntegrationCard() {
                 </>
               ) : (
                 "Desconectar"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
-        <AlertDialogContent className="max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Conectar WhatsApp Business</AlertDialogTitle>
-            <AlertDialogDescription>
-              Informe o número que será usado para enviar confirmações e lembretes. Em seguida, você
-              autorizará a conta na Meta.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="waba-phone">
-              {isBrazilCountry ? "Número (WhatsApp com DDD)" : "Número local do WhatsApp"}
-            </Label>
-            <div className="flex gap-2">
-              <select
-                value={countryIso2}
-                onChange={(e) => handleCountryChange(e.target.value)}
-                disabled={busy}
-                aria-label="País do número"
-                className={cn(
-                  "flex h-10 min-w-[9.5rem] max-w-[11rem] shrink-0 items-center rounded-md border border-input bg-background px-2 py-2 text-sm shadow-xs",
-                  "focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-              >
-                {COUNTRY_DIAL_CODES.map((country) => (
-                  <option key={country.iso2} value={country.iso2}>
-                    {country.flag} {country.name} ({country.dialCode})
-                  </option>
-                ))}
-              </select>
-              <Input
-                id="waba-phone"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder={isBrazilCountry ? "(11) 99999-9999" : "Número com DDD"}
-                value={phoneInput}
-                onChange={(e) => handlePhoneInputChange(e.target.value)}
-                disabled={busy}
-                className="flex-1"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              País: {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.dialCode}). Será enviado no
-              formato internacional para a Twilio.
-            </p>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={busy || !isPhoneInputValid}
-              onClick={(e) => {
-                e.preventDefault();
-                void handlePhoneContinue();
-              }}
-            >
-              Continuar com Meta
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
-        <AlertDialogContent className="max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Código de verificação</AlertDialogTitle>
-            <AlertDialogDescription>
-              Digite o código enviado por SMS para o número{" "}
-              <span className="font-medium text-foreground">
-                {toE164Phone(selectedCountry.dialCode, phoneInput)}
-              </span>
-              . Depois disso, aguardamos a ativação do WhatsApp (pode levar alguns minutos).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="waba-otp">Código SMS</Label>
-            <Input
-              id="waba-otp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="000000"
-              value={otpInput}
-              onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 8))}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={busy || !otpInput.trim()}
-              onClick={(e) => {
-                e.preventDefault();
-                void handleOtpSubmit();
-              }}
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Validando…
-                </>
-              ) : (
-                "Confirmar código"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

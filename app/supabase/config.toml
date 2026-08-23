@@ -56,6 +56,9 @@ verify_jwt = false
 [functions.infobip-embedded-signup-webhook]
 verify_jwt = false
 
+[functions.infobip-waba-connect-start]
+verify_jwt = true
+
 [functions.infobip-send-test]
 verify_jwt = false
 
@@ -121,15 +124,6 @@ verify_jwt = true
 
 [functions.waba-account-webhook]
 verify_jwt = false
-
-[functions.waba-connect-start]
-verify_jwt = true
-
-[functions.waba-connect-verify-otp]
-verify_jwt = true
-
-[functions.waba-connect-check-status]
-verify_jwt = true
 
 [functions.waba-disconnect]
 verify_jwt = true
