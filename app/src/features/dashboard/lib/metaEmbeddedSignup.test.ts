@@ -58,6 +58,7 @@ describe("runEmbeddedSignup", () => {
     resetDomAndWindow();
     vi.stubEnv("VITE_META_APP_ID", "test-meta-app-id");
     vi.stubEnv("VITE_META_EMBEDDED_SIGNUP_CONFIG_ID", "test-embedded-config-id");
+    vi.stubEnv("VITE_INFOBIP_SOLUTION_ID", "test-infobip-solution-id");
     vi.resetModules();
   });
 
@@ -113,6 +114,32 @@ describe("runEmbeddedSignup", () => {
         kind: "error",
         message: "Falha Meta teste",
       });
+    });
+  });
+
+  describe("FB.login extras", () => {
+    it("envia sessionInfoVersion e setup.solutionID no extras", async () => {
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          config_id: "test-embedded-config-id",
+          extras: {
+            sessionInfoVersion: 3,
+            setup: {
+              solutionID: "test-infobip-solution-id",
+            },
+          },
+        }),
+      );
+
+      dispatchEmbeddedSignupMessage("CANCEL");
+      await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
     });
   });
 

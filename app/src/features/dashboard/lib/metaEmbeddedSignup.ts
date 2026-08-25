@@ -1,5 +1,6 @@
 const META_APP_ID = String(import.meta.env.VITE_META_APP_ID ?? "").trim();
 const META_EMBEDDED_SIGNUP_CONFIG_ID = String(import.meta.env.VITE_META_EMBEDDED_SIGNUP_CONFIG_ID ?? "").trim();
+const INFOBIP_SOLUTION_ID = String(import.meta.env.VITE_INFOBIP_SOLUTION_ID ?? "").trim();
 
 /** Timeout de engenharia: aguardar FB.init após injetar/carregar sdk.js */
 const SDK_INIT_TIMEOUT_MS = 15_000;
@@ -10,7 +11,8 @@ export function getMetaEmbeddedSignupConfig() {
   return {
     appId: META_APP_ID,
     configId: META_EMBEDDED_SIGNUP_CONFIG_ID,
-    isConfigured: Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID),
+    solutionId: INFOBIP_SOLUTION_ID,
+    isConfigured: Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID && INFOBIP_SOLUTION_ID),
   };
 }
 
@@ -19,7 +21,12 @@ type FbLoginOptions = {
   auth_type: string;
   response_type: string;
   override_default_response_type: boolean;
-  extras: { sessionInfoVersion: number };
+  extras: {
+    sessionInfoVersion: number;
+    setup: {
+      solutionID: string;
+    };
+  };
 };
 
 type FacebookSdk = {
@@ -104,11 +111,12 @@ export type EmbeddedSignupOutcome =
   | { kind: "error"; message: string };
 
 export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
-  const { appId, configId, isConfigured } = getMetaEmbeddedSignupConfig();
+  const { appId, configId, solutionId, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
     return {
       kind: "error",
-      message: "Integração Meta não configurada (VITE_META_APP_ID / VITE_META_EMBEDDED_SIGNUP_CONFIG_ID).",
+      message:
+        "Integração Meta não configurada (VITE_META_APP_ID / VITE_META_EMBEDDED_SIGNUP_CONFIG_ID / VITE_INFOBIP_SOLUTION_ID).",
     };
   }
 
@@ -196,6 +204,9 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         override_default_response_type: true,
         extras: {
           sessionInfoVersion: 3,
+          setup: {
+            solutionID: solutionId,
+          },
         },
       },
     );
