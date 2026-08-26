@@ -141,7 +141,12 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     };
 
     const listener = (event: MessageEvent) => {
-      if (!event.origin.endsWith("facebook.com")) return;
+      console.log("[EmbeddedSignup] postMessage recebido", { origin: event.origin, data: event.data }); // DEBUG TEMP
+
+      const originOk = event.origin.endsWith("facebook.com");
+      console.log("[EmbeddedSignup] filtro origin facebook.com:", originOk ? "PASSOU" : "FALHOU", event.origin); // DEBUG TEMP
+      if (!originOk) return;
+
       try {
         const data = JSON.parse(String(event.data)) as {
           type?: string;
@@ -149,12 +154,18 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
           data?: { phone_number_id?: string; waba_id?: string; current_step?: string; error_message?: string };
         };
 
-        if (data.type !== "WA_EMBEDDED_SIGNUP") return;
+        const typeOk = data.type === "WA_EMBEDDED_SIGNUP";
+        console.log("[EmbeddedSignup] filtro type WA_EMBEDDED_SIGNUP:", typeOk ? "PASSOU" : "FALHOU", data.type); // DEBUG TEMP
+        if (!typeOk) return;
 
-        if (data.event === "FINISH" || data.event === "FINISH_ONLY_WABA") {
+        const isFinish = data.event === "FINISH" || data.event === "FINISH_ONLY_WABA";
+        console.log("[EmbeddedSignup] filtro FINISH/FINISH_ONLY_WABA:", isFinish ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
+        if (isFinish) {
           const wabaId = String(data.data?.waba_id ?? "").trim();
           const phoneNumberId = String(data.data?.phone_number_id ?? "").trim();
-          if (!wabaId || !phoneNumberId) {
+          const idsOk = Boolean(wabaId && phoneNumberId);
+          console.log("[EmbeddedSignup] filtro waba_id + phone_number_id:", idsOk ? "PASSOU" : "FALHOU", { wabaId, phoneNumberId }); // DEBUG TEMP
+          if (!idsOk) {
             finish({ kind: "error", message: "Meta não retornou waba_id ou phone_number_id." });
             return;
           }
@@ -162,18 +173,23 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
           return;
         }
 
-        if (data.event === "CANCEL") {
+        const isCancel = data.event === "CANCEL";
+        console.log("[EmbeddedSignup] filtro CANCEL:", isCancel ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
+        if (isCancel) {
           finish({ kind: "cancelled" });
           return;
         }
 
-        if (data.event === "ERROR") {
+        const isError = data.event === "ERROR";
+        console.log("[EmbeddedSignup] filtro ERROR:", isError ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
+        if (isError) {
           finish({
             kind: "error",
             message: String(data.data?.error_message ?? "Erro no fluxo da Meta."),
           });
         }
-      } catch {
+      } catch (parseErr) {
+        console.log("[EmbeddedSignup] JSON.parse falhou (non-JSON):", parseErr, event.data); // DEBUG TEMP
         /* non-JSON */
       }
     };

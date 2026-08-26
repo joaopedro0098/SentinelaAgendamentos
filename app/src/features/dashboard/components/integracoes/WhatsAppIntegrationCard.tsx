@@ -118,10 +118,15 @@ export function WhatsAppIntegrationCard() {
 
       setConnectingPhase("backend");
 
+      console.log("[EmbeddedSignup] chamando invokeInfobipWabaConnectStart", { // DEBUG TEMP
+        waba_id: signup.waba_id,
+        phone_number_id: signup.phone_number_id,
+      });
       const start = await invokeInfobipWabaConnectStart({
         waba_id: signup.waba_id,
         phone_number_id: signup.phone_number_id,
       });
+      console.log("[EmbeddedSignup] invokeInfobipWabaConnectStart retornou", start); // DEBUG TEMP
 
       setConnectingPhase(null);
 
@@ -138,6 +143,7 @@ export function WhatsAppIntegrationCard() {
       setStatus("provisioning");
       await waitForConnectedFromDb();
     } catch (err) {
+      console.log("[EmbeddedSignup] runConnectFlow catch", err); // DEBUG TEMP
       const raw = err instanceof Error ? err.message : String(err);
       const metaLoadFailed =
         /facebook|sdk\.js|connect\.facebook\.net/i.test(raw) ||
