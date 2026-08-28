@@ -89,6 +89,25 @@ describe("runEmbeddedSignup", () => {
       });
     });
 
+    it("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING resolve com success", async () => {
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
+        waba_id: "waba-coexist",
+        phone_number_id: "phone-coexist",
+      });
+
+      await expect(resultPromise).resolves.toEqual({
+        kind: "success",
+        waba_id: "waba-coexist",
+        phone_number_id: "phone-coexist",
+      });
+    });
+
     it("B) CANCEL resolve com cancelled", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
@@ -129,12 +148,12 @@ describe("runEmbeddedSignup", () => {
         expect.any(Function),
         expect.objectContaining({
           config_id: "test-embedded-config-id",
-          extras: {
+          extras: expect.objectContaining({
             sessionInfoVersion: 3,
             setup: {
               solutionID: "test-infobip-solution-id",
             },
-          },
+          }),
         }),
       );
 

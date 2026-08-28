@@ -26,6 +26,7 @@ type FbLoginOptions = {
     setup: {
       solutionID: string;
     };
+    featureType: string;
   };
 };
 
@@ -158,7 +159,10 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         console.log("[EmbeddedSignup] filtro type WA_EMBEDDED_SIGNUP:", typeOk ? "PASSOU" : "FALHOU", data.type); // DEBUG TEMP
         if (!typeOk) return;
 
-        const isFinish = data.event === "FINISH" || data.event === "FINISH_ONLY_WABA";
+        const isFinish =
+          data.event === "FINISH" ||
+          data.event === "FINISH_ONLY_WABA" ||
+          data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
         console.log("[EmbeddedSignup] filtro FINISH/FINISH_ONLY_WABA:", isFinish ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
         if (isFinish) {
           const wabaId = String(data.data?.waba_id ?? "").trim();
@@ -223,6 +227,7 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
           setup: {
             solutionID: solutionId,
           },
+          featureType: "whatsapp_business_app_onboarding",
         },
       },
     );
