@@ -7,6 +7,8 @@ const META_TIMEOUT_MESSAGE = "Tempo esgotado aguardando resposta da Meta.";
 const FB_UNAVAILABLE_MESSAGE =
   "SDK do Facebook indisponível. Recarregue a página e tente novamente.";
 const SDK_INIT_ERROR_MESSAGE = "SDK do Facebook não inicializou.";
+const META_FLOW_ERROR_MESSAGE =
+  "Ocorreu um erro na Meta durante a conexão, tente novamente.";
 
 const TEST_AUTH_CODE = "test-oauth-code";
 
@@ -35,6 +37,10 @@ function dispatchEmbeddedSignupMessage(
     phone_number_id?: string;
     business_id?: string;
     error_message?: string;
+    error_code?: string | number;
+    current_step?: string;
+    session_id?: string;
+    timestamp?: string | number;
   },
 ) {
   window.dispatchEvent(
@@ -95,6 +101,7 @@ describe("runEmbeddedSignup", () => {
         waba_id: "waba-1",
         phone_number_id: "phone-1",
         code: TEST_AUTH_CODE,
+        code_captured_at_ms: expect.any(Number),
         flow_type: "new_phone_number",
       });
     });
@@ -117,6 +124,7 @@ describe("runEmbeddedSignup", () => {
         waba_id: "waba-coexist",
         phone_number_id: "phone-coexist",
         code: TEST_AUTH_CODE,
+        code_captured_at_ms: expect.any(Number),
         flow_type: "existing_phone_number",
         business_id: "biz-1",
       });
@@ -134,7 +142,36 @@ describe("runEmbeddedSignup", () => {
       await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
     });
 
-    it("C) ERROR resolve com error e mensagem da Meta", async () => {
+    it("CANCEL com current_step e error_code loga detalhes e resolve cancelled", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      dispatchEmbeddedSignupMessage("CANCEL", {
+        current_step: "PHONE_NUMBER_SETUP",
+        error_message: "User reported issue",
+        error_code: 12345,
+        session_id: "sess-abc",
+        timestamp: 1700000000,
+      });
+
+      await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
+      expect(logSpy).toHaveBeenCalledWith(
+        "[EmbeddedSignup] evento CANCEL da Meta",
+        expect.objectContaining({
+          current_step: "PHONE_NUMBER_SETUP",
+          error_code: 12345,
+          session_id: "sess-abc",
+        }),
+      );
+      logSpy.mockRestore();
+    });
+
+    it("C) ERROR resolve com error e mensagem amigável pro usuário", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -145,8 +182,13 @@ describe("runEmbeddedSignup", () => {
 
       await expect(resultPromise).resolves.toEqual({
         kind: "error",
-        message: "Falha Meta teste",
+        message: META_FLOW_ERROR_MESSAGE,
       });
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[EmbeddedSignup] evento ERROR da Meta",
+        expect.objectContaining({ error_message: "Falha Meta teste" }),
+      );
+      errorSpy.mockRestore();
     });
   });
 
@@ -172,6 +214,7 @@ describe("runEmbeddedSignup", () => {
         waba_id: "waba-delay",
         phone_number_id: "phone-delay",
         code: TEST_AUTH_CODE,
+        code_captured_at_ms: expect.any(Number),
         flow_type: "new_phone_number",
       });
     });

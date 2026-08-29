@@ -358,6 +358,26 @@ Deno.serve(async (req) => {
     }
 
     const lockedRow = lockData[0];
+
+    const codeCapturedAtMs = Number(body.code_captured_at_ms);
+    const codeAgeMs = Number.isFinite(codeCapturedAtMs) && codeCapturedAtMs > 0
+      ? Date.now() - codeCapturedAtMs
+      : null;
+    if (codeAgeMs !== null) {
+      console.log(
+        `[meta-waba-connect-start] code capturado há ${codeAgeMs}ms, iniciando troca oauth/access_token shop=${shopId}`,
+      );
+      if (codeAgeMs > 25_000) {
+        console.warn(
+          `[meta-waba-connect-start] code próximo ou expirado (>25s, limite Meta ~30s) shop=${shopId} age=${codeAgeMs}ms`,
+        );
+      }
+    } else {
+      console.log(
+        `[meta-waba-connect-start] code_captured_at_ms ausente, iniciando troca oauth/access_token shop=${shopId}`,
+      );
+    }
+
     const accessToken = await exchangeCodeForAccessToken(code);
     await subscribeWabaToApp(accessToken, wabaId);
 

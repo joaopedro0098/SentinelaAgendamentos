@@ -126,6 +126,7 @@ export function WhatsAppIntegrationCard() {
           waba_id: signup.waba_id,
           phone_number_id: signup.phone_number_id,
           flow_type: signup.flow_type,
+          codeAgeMs: Date.now() - signup.code_captured_at_ms,
         });
         const start = await invokeMetaWabaConnectStart({
           code: signup.code,
@@ -133,6 +134,7 @@ export function WhatsAppIntegrationCard() {
           phone_number_id: signup.phone_number_id,
           flow_type: signup.flow_type,
           business_id: signup.business_id,
+          code_captured_at_ms: signup.code_captured_at_ms,
         });
         console.log("[EmbeddedSignup] invokeMetaWabaConnectStart retornou", start); // DEBUG TEMP
 

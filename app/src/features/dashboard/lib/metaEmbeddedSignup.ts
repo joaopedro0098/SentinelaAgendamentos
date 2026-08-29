@@ -7,6 +7,10 @@ const SDK_INIT_TIMEOUT_MS = 15_000;
 /** Timeout de engenharia: aguardar postMessage WA_EMBEDDED_SIGNUP após FB.login */
 const EMBEDDED_SIGNUP_TIMEOUT_MS = 120_000;
 
+/** Mensagem exibida quando a Meta envia event: ERROR no postMessage do Embedded Signup. */
+export const META_EMBEDDED_SIGNUP_FLOW_ERROR_MESSAGE =
+  "Ocorreu um erro na Meta durante a conexão, tente novamente.";
+
 export type WabaConnectMode = "meta_direct" | "infobip";
 
 export function getWabaConnectMode(): WabaConnectMode {
@@ -131,6 +135,7 @@ export type EmbeddedSignupSuccess = {
   waba_id: string;
   phone_number_id: string;
   code: string;
+  code_captured_at_ms: number;
   flow_type: WabaFlowType;
   business_id?: string;
 };
@@ -163,6 +168,7 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     let sessionFlowType: WabaFlowType | null = null;
     let sessionBusinessId: string | undefined;
     let authCode: string | null = null;
+    let authCodeCapturedAtMs: number | null = null;
 
     const finish = (outcome: EmbeddedSignupOutcome) => {
       if (settled) return;
@@ -174,12 +180,15 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     };
 
     const tryCompleteSuccess = () => {
-      if (!sessionWabaId || !sessionPhoneNumberId || !sessionFlowType || !authCode) return;
+      if (!sessionWabaId || !sessionPhoneNumberId || !sessionFlowType || !authCode || authCodeCapturedAtMs === null) {
+        return;
+      }
       finish({
         kind: "success",
         waba_id: sessionWabaId,
         phone_number_id: sessionPhoneNumberId,
         code: authCode,
+        code_captured_at_ms: authCodeCapturedAtMs,
         flow_type: sessionFlowType,
         business_id: sessionBusinessId,
       });
@@ -207,6 +216,9 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
             business_id?: string;
             current_step?: string;
             error_message?: string;
+            error_code?: string | number;
+            session_id?: string;
+            timestamp?: string | number;
           };
         };
 
@@ -238,6 +250,13 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         const isCancel = data.event === "CANCEL";
         console.log("[EmbeddedSignup] filtro CANCEL:", isCancel ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
         if (isCancel) {
+          console.log("[EmbeddedSignup] evento CANCEL da Meta", {
+            current_step: data.data?.current_step ?? null,
+            error_message: data.data?.error_message ?? null,
+            error_code: data.data?.error_code ?? null,
+            session_id: data.data?.session_id ?? null,
+            timestamp: data.data?.timestamp ?? null,
+          });
           finish({ kind: "cancelled" });
           return;
         }
@@ -245,10 +264,18 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         const isError = data.event === "ERROR";
         console.log("[EmbeddedSignup] filtro ERROR:", isError ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
         if (isError) {
+          console.error("[EmbeddedSignup] evento ERROR da Meta", {
+            error_message: data.data?.error_message ?? null,
+            error_code: data.data?.error_code ?? null,
+            current_step: data.data?.current_step ?? null,
+            session_id: data.data?.session_id ?? null,
+            timestamp: data.data?.timestamp ?? null,
+          });
           finish({
             kind: "error",
-            message: String(data.data?.error_message ?? "Erro no fluxo da Meta."),
+            message: META_EMBEDDED_SIGNUP_FLOW_ERROR_MESSAGE,
           });
+          return;
         }
       } catch (parseErr) {
         console.log("[EmbeddedSignup] JSON.parse falhou (non-JSON):", parseErr, event.data); // DEBUG TEMP
@@ -278,6 +305,10 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         const code = String(response.authResponse?.code ?? "").trim();
         if (!code) return;
         authCode = code;
+        authCodeCapturedAtMs = Date.now();
+        console.log("[EmbeddedSignup] code capturado no callback FB.login", {
+          capturedAtMs: authCodeCapturedAtMs,
+        }); // DEBUG TEMP
         tryCompleteSuccess();
       },
       {

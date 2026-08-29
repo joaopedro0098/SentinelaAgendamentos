@@ -19,6 +19,8 @@ export type MetaWabaConnectStartPayload = {
   phone_number_id: string;
   flow_type: "new_phone_number" | "only_waba" | "existing_phone_number";
   business_id?: string;
+  /** Epoch ms quando o frontend capturou o code no callback FB.login (monitorar expiração 30s). */
+  code_captured_at_ms?: number;
 };
 
 export type InfobipWabaConnectStartResult =
