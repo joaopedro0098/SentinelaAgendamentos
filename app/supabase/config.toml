@@ -59,6 +59,9 @@ verify_jwt = false
 [functions.infobip-waba-connect-start]
 verify_jwt = true
 
+[functions.meta-waba-connect-start]
+verify_jwt = true
+
 [functions.infobip-send-test]
 verify_jwt = false
 

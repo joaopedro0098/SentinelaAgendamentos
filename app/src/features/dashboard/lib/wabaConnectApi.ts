@@ -13,8 +13,20 @@ export type InfobipWabaConnectStartPayload = {
   phone_number_id: string;
 };
 
+export type MetaWabaConnectStartPayload = {
+  code: string;
+  waba_id: string;
+  phone_number_id: string;
+  flow_type: "new_phone_number" | "only_waba" | "existing_phone_number";
+  business_id?: string;
+};
+
 export type InfobipWabaConnectStartResult =
   | { ok: true; status: "connected" | "provisioning"; message?: string }
+  | { ok: false; error: string; status?: string };
+
+export type MetaWabaConnectStartResult =
+  | { ok: true; status: "connected"; message?: string }
   | { ok: false; error: string; status?: string };
 
 export type WabaDisconnectResult =
@@ -42,6 +54,26 @@ export async function fetchWabaConnectStatus(): Promise<WabaConnectStatus | null
 
   if (error || !data) return null;
   return (data.waba_connect_status as WabaConnectStatus | null) ?? "not_connected";
+}
+
+/** POST meta-waba-connect-start (Embedded Signup Meta Direct / Tech Provider). */
+export async function invokeMetaWabaConnectStart(
+  payload: MetaWabaConnectStartPayload,
+): Promise<MetaWabaConnectStartResult> {
+  const { data, error } = await supabase.functions.invoke("meta-waba-connect-start", { body: payload });
+
+  if (error) {
+    return { ok: false, error: parseFnError(error, data), status: (data as { status?: string })?.status };
+  }
+
+  const body = data as { success?: boolean; status?: string; error?: string; message?: string };
+  if (body.error) {
+    return { ok: false, error: body.error, status: body.status };
+  }
+  if (body.success && body.status === "connected") {
+    return { ok: true, status: "connected", message: body.message };
+  }
+  return { ok: false, error: body.message || "Resposta inesperada ao conectar WhatsApp." };
 }
 
 /** POST infobip-waba-connect-start (share-waba Infobip após Embedded Signup Meta). */

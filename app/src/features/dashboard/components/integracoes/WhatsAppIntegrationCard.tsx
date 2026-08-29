@@ -15,12 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 import {
   fetchWabaConnectStatus,
   invokeInfobipWabaConnectStart,
+  invokeMetaWabaConnectStart,
   invokeWabaDisconnect,
   pollWabaConnectStatusFromDb,
   type WabaConnectStatus,
 } from "@/features/dashboard/lib/wabaConnectApi";
 import {
   getMetaEmbeddedSignupConfig,
+  getWabaConnectMode,
   runEmbeddedSignup,
 } from "@/features/dashboard/lib/metaEmbeddedSignup";
 
@@ -52,6 +54,7 @@ export function WhatsAppIntegrationCard() {
   const initialResumeDone = useRef(false);
 
   const metaConfigured = getMetaEmbeddedSignupConfig().isConfigured;
+  const wabaConnectMode = getWabaConnectMode();
 
   const refreshStatus = useCallback(async () => {
     const next = await fetchWabaConnectStatus();
@@ -118,6 +121,32 @@ export function WhatsAppIntegrationCard() {
 
       setConnectingPhase("backend");
 
+      if (wabaConnectMode === "meta_direct") {
+        console.log("[EmbeddedSignup] chamando invokeMetaWabaConnectStart", { // DEBUG TEMP
+          waba_id: signup.waba_id,
+          phone_number_id: signup.phone_number_id,
+          flow_type: signup.flow_type,
+        });
+        const start = await invokeMetaWabaConnectStart({
+          code: signup.code,
+          waba_id: signup.waba_id,
+          phone_number_id: signup.phone_number_id,
+          flow_type: signup.flow_type,
+          business_id: signup.business_id,
+        });
+        console.log("[EmbeddedSignup] invokeMetaWabaConnectStart retornou", start); // DEBUG TEMP
+
+        setConnectingPhase(null);
+
+        if (!start.ok) {
+          resetToConnect(start.error);
+          return;
+        }
+
+        await completeConnected();
+        return;
+      }
+
       console.log("[EmbeddedSignup] chamando invokeInfobipWabaConnectStart", { // DEBUG TEMP
         waba_id: signup.waba_id,
         phone_number_id: signup.phone_number_id,
@@ -154,7 +183,7 @@ export function WhatsAppIntegrationCard() {
           : raw || "Erro inesperado ao conectar WhatsApp.",
       );
     }
-  }, [completeConnected, metaConfigured, resetToConnect, toast, waitForConnectedFromDb]);
+  }, [completeConnected, metaConfigured, resetToConnect, toast, waitForConnectedFromDb, wabaConnectMode]);
 
   useEffect(() => {
     let cancelled = false;

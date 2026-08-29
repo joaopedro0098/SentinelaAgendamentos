@@ -44,6 +44,57 @@ async function verifyMetaSignature(rawBody: string, signatureHeader: string | nu
   return timingSafeEqualString(actualHash, expectedHash);
 }
 
+const HISTORY_DECLINED_ERROR_CODE = 2593109;
+
+function isHistoryDeclinedPayload(value: Record<string, unknown>): boolean {
+  const history = value.history;
+  if (!Array.isArray(history)) return false;
+
+  for (const chunk of history) {
+    if (!chunk || typeof chunk !== "object") continue;
+    const errors = (chunk as { errors?: unknown }).errors;
+    if (!Array.isArray(errors)) continue;
+    for (const err of errors) {
+      if (!err || typeof err !== "object") continue;
+      if ((err as { code?: number }).code === HISTORY_DECLINED_ERROR_CODE) return true;
+    }
+  }
+
+  return false;
+}
+
+async function handleHistoryWebhookChange(
+  value: Record<string, unknown>,
+  entryWabaId: string,
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  const phoneNumberId = String((value.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? "");
+
+  if (isHistoryDeclinedPayload(value)) {
+    console.log(
+      `[waba-account-webhook] history: negócio recusou compartilhar histórico (code ${HISTORY_DECLINED_ERROR_CODE}), sync concluída sem dados waba=${entryWabaId} phone=${phoneNumberId}`,
+    );
+    return;
+  }
+
+  console.log(
+    `[waba-account-webhook] history webhook recebido waba=${entryWabaId} phone=${phoneNumberId}`,
+    JSON.stringify(value).slice(0, 500),
+  );
+
+  if (!phoneNumberId) return;
+
+  const { data: shop } = await supabase
+    .from("barbershops")
+    .select("id")
+    .eq("waba_phone_number_id", phoneNumberId)
+    .maybeSingle();
+
+  if (shop?.id) {
+    console.log(`[waba-account-webhook] history associado à barbearia ${shop.id}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -119,6 +170,11 @@ Deno.serve(async (req) => {
         const entryWabaId = String(entry.id ?? "");
 
         for (const change of entry.changes ?? []) {
+          if (change.field === "history") {
+            await handleHistoryWebhookChange(change.value ?? {}, entryWabaId, supabase);
+            continue;
+          }
+
           if (change.field !== "account_update") continue;
 
           const value = change.value ?? {};

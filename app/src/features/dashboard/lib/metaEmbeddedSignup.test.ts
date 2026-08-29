@@ -8,6 +8,8 @@ const FB_UNAVAILABLE_MESSAGE =
   "SDK do Facebook indisponível. Recarregue a página e tente novamente.";
 const SDK_INIT_ERROR_MESSAGE = "SDK do Facebook não inicializou.";
 
+const TEST_AUTH_CODE = "test-oauth-code";
+
 type MockFb = {
   init: ReturnType<typeof vi.fn>;
   login: ReturnType<typeof vi.fn>;
@@ -21,14 +23,19 @@ function createMockFb(loginImpl?: (callback: (response: unknown) => void) => voi
         loginImpl(callback);
         return;
       }
-      callback({});
+      callback({ authResponse: { code: TEST_AUTH_CODE } });
     }),
   };
 }
 
 function dispatchEmbeddedSignupMessage(
   event: string,
-  payload?: { waba_id?: string; phone_number_id?: string; error_message?: string },
+  payload?: {
+    waba_id?: string;
+    phone_number_id?: string;
+    business_id?: string;
+    error_message?: string;
+  },
 ) {
   window.dispatchEvent(
     new MessageEvent("message", {
@@ -59,6 +66,7 @@ describe("runEmbeddedSignup", () => {
     vi.stubEnv("VITE_META_APP_ID", "test-meta-app-id");
     vi.stubEnv("VITE_META_EMBEDDED_SIGNUP_CONFIG_ID", "test-embedded-config-id");
     vi.stubEnv("VITE_INFOBIP_SOLUTION_ID", "test-infobip-solution-id");
+    vi.stubEnv("VITE_WABA_CONNECT_MODE", "infobip");
     vi.resetModules();
   });
 
@@ -70,7 +78,7 @@ describe("runEmbeddedSignup", () => {
   });
 
   describe("regressão postMessage (A/B/C)", () => {
-    it("A) FINISH resolve com success", async () => {
+    it("A) FINISH resolve com success quando code e postMessage chegam", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -86,10 +94,12 @@ describe("runEmbeddedSignup", () => {
         kind: "success",
         waba_id: "waba-1",
         phone_number_id: "phone-1",
+        code: TEST_AUTH_CODE,
+        flow_type: "new_phone_number",
       });
     });
 
-    it("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING resolve com success", async () => {
+    it("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING resolve com flow_type existing_phone_number", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -99,12 +109,16 @@ describe("runEmbeddedSignup", () => {
       dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
         waba_id: "waba-coexist",
         phone_number_id: "phone-coexist",
+        business_id: "biz-1",
       });
 
       await expect(resultPromise).resolves.toEqual({
         kind: "success",
         waba_id: "waba-coexist",
         phone_number_id: "phone-coexist",
+        code: TEST_AUTH_CODE,
+        flow_type: "existing_phone_number",
+        business_id: "biz-1",
       });
     });
 
@@ -136,8 +150,57 @@ describe("runEmbeddedSignup", () => {
     });
   });
 
+  describe("buffer code + postMessage", () => {
+    it("resolve quando code chega após postMessage FINISH", async () => {
+      window.FB = createMockFb((callback) => {
+        setTimeout(() => callback({ authResponse: { code: TEST_AUTH_CODE } }), 10);
+      });
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      dispatchEmbeddedSignupMessage("FINISH", {
+        waba_id: "waba-delay",
+        phone_number_id: "phone-delay",
+      });
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      await expect(resultPromise).resolves.toEqual({
+        kind: "success",
+        waba_id: "waba-delay",
+        phone_number_id: "phone-delay",
+        code: TEST_AUTH_CODE,
+        flow_type: "new_phone_number",
+      });
+    });
+
+    it("timeout se postMessage FINISH chega sem code", async () => {
+      window.FB = createMockFb((callback) => {
+        callback({});
+      });
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      dispatchEmbeddedSignupMessage("FINISH", {
+        waba_id: "waba-no-code",
+        phone_number_id: "phone-no-code",
+      });
+
+      await vi.advanceTimersByTimeAsync(EMBEDDED_SIGNUP_TIMEOUT_MS);
+
+      await expect(resultPromise).resolves.toEqual({
+        kind: "error",
+        message: META_TIMEOUT_MESSAGE,
+      });
+    });
+  });
+
   describe("FB.login extras", () => {
-    it("envia sessionInfoVersion e setup.solutionID no extras", async () => {
+    it("modo infobip envia setup.solutionID no extras", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -153,12 +216,54 @@ describe("runEmbeddedSignup", () => {
             setup: {
               solutionID: "test-infobip-solution-id",
             },
+            featureType: "whatsapp_business_app_onboarding",
           }),
         }),
       );
 
       dispatchEmbeddedSignupMessage("CANCEL");
       await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
+    });
+
+    it("modo meta_direct envia setup vazio (sem solutionID)", async () => {
+      vi.stubEnv("VITE_WABA_CONNECT_MODE", "meta_direct");
+      vi.resetModules();
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          extras: expect.objectContaining({
+            setup: {},
+            featureType: "whatsapp_business_app_onboarding",
+          }),
+        }),
+      );
+
+      dispatchEmbeddedSignupMessage("CANCEL");
+      await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
+    });
+  });
+
+  describe("getWabaConnectMode", () => {
+    it("default infobip quando env ausente ou inválido", async () => {
+      vi.unstubAllEnvs();
+      vi.stubEnv("VITE_META_APP_ID", "x");
+      vi.stubEnv("VITE_META_EMBEDDED_SIGNUP_CONFIG_ID", "y");
+      vi.resetModules();
+      const { getWabaConnectMode } = await importEmbeddedSignupModule();
+      expect(getWabaConnectMode()).toBe("infobip");
+    });
+
+    it("meta_direct quando env definido", async () => {
+      vi.stubEnv("VITE_WABA_CONNECT_MODE", "meta_direct");
+      vi.resetModules();
+      const { getWabaConnectMode } = await importEmbeddedSignupModule();
+      expect(getWabaConnectMode()).toBe("meta_direct");
     });
   });
 

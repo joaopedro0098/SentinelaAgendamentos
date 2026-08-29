@@ -7,12 +7,27 @@ const SDK_INIT_TIMEOUT_MS = 15_000;
 /** Timeout de engenharia: aguardar postMessage WA_EMBEDDED_SIGNUP após FB.login */
 const EMBEDDED_SIGNUP_TIMEOUT_MS = 120_000;
 
+export type WabaConnectMode = "meta_direct" | "infobip";
+
+export function getWabaConnectMode(): WabaConnectMode {
+  const raw = String(import.meta.env.VITE_WABA_CONNECT_MODE ?? "infobip").trim().toLowerCase();
+  if (raw === "meta_direct") return "meta_direct";
+  return "infobip";
+}
+
+export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
+
 export function getMetaEmbeddedSignupConfig() {
+  const mode = getWabaConnectMode();
+  const baseConfigured = Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID);
   return {
     appId: META_APP_ID,
     configId: META_EMBEDDED_SIGNUP_CONFIG_ID,
     solutionId: INFOBIP_SOLUTION_ID,
-    isConfigured: Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID && INFOBIP_SOLUTION_ID),
+    mode,
+    isConfigured: mode === "meta_direct"
+      ? baseConfigured
+      : baseConfigured && Boolean(INFOBIP_SOLUTION_ID),
   };
 }
 
@@ -23,16 +38,20 @@ type FbLoginOptions = {
   override_default_response_type: boolean;
   extras: {
     sessionInfoVersion: number;
-    setup: {
-      solutionID: string;
-    };
+    setup: Record<string, string>;
     featureType: string;
+  };
+};
+
+type FacebookLoginResponse = {
+  authResponse?: {
+    code?: string;
   };
 };
 
 type FacebookSdk = {
   init: (params: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
-  login: (callback: (response: unknown) => void, options: FbLoginOptions) => void;
+  login: (callback: (response: FacebookLoginResponse) => void, options: FbLoginOptions) => void;
 };
 
 declare global {
@@ -100,10 +119,20 @@ function loadFacebookSdkScript(appId: string): Promise<void> {
   return sdkLoadPromise;
 }
 
+function mapEventToFlowType(event: string): WabaFlowType | null {
+  if (event === "FINISH") return "new_phone_number";
+  if (event === "FINISH_ONLY_WABA") return "only_waba";
+  if (event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") return "existing_phone_number";
+  return null;
+}
+
 export type EmbeddedSignupSuccess = {
   kind: "success";
   waba_id: string;
   phone_number_id: string;
+  code: string;
+  flow_type: WabaFlowType;
+  business_id?: string;
 };
 
 export type EmbeddedSignupOutcome =
@@ -112,12 +141,14 @@ export type EmbeddedSignupOutcome =
   | { kind: "error"; message: string };
 
 export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
-  const { appId, configId, solutionId, isConfigured } = getMetaEmbeddedSignupConfig();
+  const { appId, configId, solutionId, mode, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
+    const missing = mode === "meta_direct"
+      ? "VITE_META_APP_ID / VITE_META_EMBEDDED_SIGNUP_CONFIG_ID"
+      : "VITE_META_APP_ID / VITE_META_EMBEDDED_SIGNUP_CONFIG_ID / VITE_INFOBIP_SOLUTION_ID";
     return {
       kind: "error",
-      message:
-        "Integração Meta não configurada (VITE_META_APP_ID / VITE_META_EMBEDDED_SIGNUP_CONFIG_ID / VITE_INFOBIP_SOLUTION_ID).",
+      message: `Integração Meta não configurada (${missing}).`,
     };
   }
 
@@ -127,6 +158,12 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     let settled = false;
     let signupTimeoutId = 0;
 
+    let sessionWabaId = "";
+    let sessionPhoneNumberId = "";
+    let sessionFlowType: WabaFlowType | null = null;
+    let sessionBusinessId: string | undefined;
+    let authCode: string | null = null;
+
     const finish = (outcome: EmbeddedSignupOutcome) => {
       if (settled) return;
       settled = true;
@@ -134,6 +171,18 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
       window.removeEventListener("message", listener);
       window.removeEventListener("beforeunload", beforeUnloadCleanup);
       resolve(outcome);
+    };
+
+    const tryCompleteSuccess = () => {
+      if (!sessionWabaId || !sessionPhoneNumberId || !sessionFlowType || !authCode) return;
+      finish({
+        kind: "success",
+        waba_id: sessionWabaId,
+        phone_number_id: sessionPhoneNumberId,
+        code: authCode,
+        flow_type: sessionFlowType,
+        business_id: sessionBusinessId,
+      });
     };
 
     const beforeUnloadCleanup = () => {
@@ -152,17 +201,21 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         const data = JSON.parse(String(event.data)) as {
           type?: string;
           event?: string;
-          data?: { phone_number_id?: string; waba_id?: string; current_step?: string; error_message?: string };
+          data?: {
+            phone_number_id?: string;
+            waba_id?: string;
+            business_id?: string;
+            current_step?: string;
+            error_message?: string;
+          };
         };
 
         const typeOk = data.type === "WA_EMBEDDED_SIGNUP";
         console.log("[EmbeddedSignup] filtro type WA_EMBEDDED_SIGNUP:", typeOk ? "PASSOU" : "FALHOU", data.type); // DEBUG TEMP
         if (!typeOk) return;
 
-        const isFinish =
-          data.event === "FINISH" ||
-          data.event === "FINISH_ONLY_WABA" ||
-          data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
+        const flowType = mapEventToFlowType(String(data.event ?? ""));
+        const isFinish = flowType !== null;
         console.log("[EmbeddedSignup] filtro FINISH/FINISH_ONLY_WABA:", isFinish ? "PASSOU" : "FALHOU", data.event); // DEBUG TEMP
         if (isFinish) {
           const wabaId = String(data.data?.waba_id ?? "").trim();
@@ -173,7 +226,12 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
             finish({ kind: "error", message: "Meta não retornou waba_id ou phone_number_id." });
             return;
           }
-          finish({ kind: "success", waba_id: wabaId, phone_number_id: phoneNumberId });
+          sessionWabaId = wabaId;
+          sessionPhoneNumberId = phoneNumberId;
+          sessionFlowType = flowType;
+          const businessId = String(data.data?.business_id ?? "").trim();
+          sessionBusinessId = businessId || undefined;
+          tryCompleteSuccess();
           return;
         }
 
@@ -213,9 +271,14 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
       finish({ kind: "error", message: "Tempo esgotado aguardando resposta da Meta." });
     }, EMBEDDED_SIGNUP_TIMEOUT_MS);
 
+    const extrasSetup = mode === "infobip" ? { solutionID: solutionId } : {};
+
     window.FB.login(
-      () => {
-        /* dados vêm via postMessage WA_EMBEDDED_SIGNUP — não tratar response aqui */
+      (response) => {
+        const code = String(response.authResponse?.code ?? "").trim();
+        if (!code) return;
+        authCode = code;
+        tryCompleteSuccess();
       },
       {
         config_id: configId,
@@ -224,9 +287,7 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         override_default_response_type: true,
         extras: {
           sessionInfoVersion: 3,
-          setup: {
-            solutionID: solutionId,
-          },
+          setup: extrasSetup,
           featureType: "whatsapp_business_app_onboarding",
         },
       },
