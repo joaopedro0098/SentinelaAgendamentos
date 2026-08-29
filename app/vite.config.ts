@@ -8,8 +8,10 @@ export default defineConfig({
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: ["slimy-terms-roll.loca.lt"],
     hmr: {
       overlay: false,
+      clientPort: 443,
     },
   },
   plugins: [projectAliases(__dirname), react()],
