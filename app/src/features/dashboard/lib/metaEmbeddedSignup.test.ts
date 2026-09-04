@@ -110,7 +110,7 @@ describe("runEmbeddedSignup", () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
-      const resultPromise = runEmbeddedSignup();
+      const resultPromise = runEmbeddedSignup({ flowIntent: "coexistence" });
       await vi.advanceTimersByTimeAsync(0);
 
       dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
@@ -127,6 +127,27 @@ describe("runEmbeddedSignup", () => {
         code_captured_at_ms: expect.any(Number),
         flow_type: "existing_phone_number",
         business_id: "biz-1",
+      });
+    });
+
+    it("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING aceita payload só com waba_id", async () => {
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup({ flowIntent: "coexistence" });
+      await vi.advanceTimersByTimeAsync(0);
+
+      dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
+        waba_id: "waba-coexist-only",
+      });
+
+      await expect(resultPromise).resolves.toEqual({
+        kind: "success",
+        waba_id: "waba-coexist-only",
+        phone_number_id: "",
+        code: TEST_AUTH_CODE,
+        code_captured_at_ms: expect.any(Number),
+        flow_type: "existing_phone_number",
       });
     });
 
@@ -259,6 +280,13 @@ describe("runEmbeddedSignup", () => {
             setup: {
               solutionID: "test-infobip-solution-id",
             },
+          }),
+        }),
+      );
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.not.objectContaining({
+          extras: expect.objectContaining({
             featureType: "whatsapp_business_app_onboarding",
           }),
         }),
@@ -282,6 +310,13 @@ describe("runEmbeddedSignup", () => {
         expect.objectContaining({
           extras: expect.objectContaining({
             setup: {},
+          }),
+        }),
+      );
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.not.objectContaining({
+          extras: expect.objectContaining({
             featureType: "whatsapp_business_app_onboarding",
           }),
         }),

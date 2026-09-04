@@ -21,6 +21,25 @@ export function getWabaConnectMode(): WabaConnectMode {
 
 export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
 
+/** Intenção do fluxo antes de abrir o Embedded Signup (reflete featureType nos extras do FB.login). */
+export type EmbeddedSignupFlowIntent = "standard" | "coexistence";
+
+export type RunEmbeddedSignupOptions = {
+  /** standard: número novo ou só WABA; coexistence: número já ativo no WhatsApp Business App. */
+  flowIntent?: EmbeddedSignupFlowIntent;
+};
+
+function resolveEmbeddedSignupFeatureType(flowIntent: EmbeddedSignupFlowIntent): string | undefined {
+  if (flowIntent === "coexistence") return "whatsapp_business_app_onboarding";
+  return undefined;
+}
+
+function hasRequiredSignupIds(flowType: WabaFlowType, wabaId: string, phoneNumberId: string): boolean {
+  if (!wabaId) return false;
+  if (flowType === "existing_phone_number") return true;
+  return Boolean(phoneNumberId);
+}
+
 export function getMetaEmbeddedSignupConfig() {
   const mode = getWabaConnectMode();
   const baseConfigured = Boolean(META_APP_ID && META_EMBEDDED_SIGNUP_CONFIG_ID);
@@ -43,7 +62,7 @@ type FbLoginOptions = {
   extras: {
     sessionInfoVersion: number;
     setup: Record<string, string>;
-    featureType: string;
+    featureType?: string;
   };
 };
 
@@ -145,7 +164,10 @@ export type EmbeddedSignupOutcome =
   | { kind: "cancelled" }
   | { kind: "error"; message: string };
 
-export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
+export async function runEmbeddedSignup(
+  options?: RunEmbeddedSignupOptions,
+): Promise<EmbeddedSignupOutcome> {
+  const flowIntent = options?.flowIntent ?? "standard";
   const { appId, configId, solutionId, mode, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
     const missing = mode === "meta_direct"
@@ -180,7 +202,10 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     };
 
     const tryCompleteSuccess = () => {
-      if (!sessionWabaId || !sessionPhoneNumberId || !sessionFlowType || !authCode || authCodeCapturedAtMs === null) {
+      if (!sessionFlowType || !authCode || authCodeCapturedAtMs === null) {
+        return;
+      }
+      if (!hasRequiredSignupIds(sessionFlowType, sessionWabaId, sessionPhoneNumberId)) {
         return;
       }
       finish({
@@ -232,10 +257,15 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         if (isFinish) {
           const wabaId = String(data.data?.waba_id ?? "").trim();
           const phoneNumberId = String(data.data?.phone_number_id ?? "").trim();
-          const idsOk = Boolean(wabaId && phoneNumberId);
-          console.log("[EmbeddedSignup] filtro waba_id + phone_number_id:", idsOk ? "PASSOU" : "FALHOU", { wabaId, phoneNumberId }); // DEBUG TEMP
+          const idsOk = hasRequiredSignupIds(flowType, wabaId, phoneNumberId);
+          console.log("[EmbeddedSignup] filtro waba_id + phone_number_id:", idsOk ? "PASSOU" : "FALHOU", { wabaId, phoneNumberId, flowType }); // DEBUG TEMP
           if (!idsOk) {
-            finish({ kind: "error", message: "Meta não retornou waba_id ou phone_number_id." });
+            finish({
+              kind: "error",
+              message: flowType === "existing_phone_number"
+                ? "Meta não retornou waba_id."
+                : "Meta não retornou waba_id ou phone_number_id.",
+            });
             return;
           }
           sessionWabaId = wabaId;
@@ -299,6 +329,14 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
     }, EMBEDDED_SIGNUP_TIMEOUT_MS);
 
     const extrasSetup = mode === "infobip" ? { solutionID: solutionId } : {};
+    const featureType = resolveEmbeddedSignupFeatureType(flowIntent);
+    const loginExtras: FbLoginOptions["extras"] = {
+      sessionInfoVersion: 3,
+      setup: extrasSetup,
+    };
+    if (featureType) {
+      loginExtras.featureType = featureType;
+    }
 
     window.FB.login(
       (response) => {
@@ -316,11 +354,7 @@ export async function runEmbeddedSignup(): Promise<EmbeddedSignupOutcome> {
         auth_type: "rerequest",
         response_type: "code",
         override_default_response_type: true,
-        extras: {
-          sessionInfoVersion: 3,
-          setup: extrasSetup,
-          featureType: "whatsapp_business_app_onboarding",
-        },
+        extras: loginExtras,
       },
     );
   });
