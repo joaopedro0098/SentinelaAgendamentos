@@ -5,11 +5,15 @@ const INFOBIP_SOLUTION_ID = String(import.meta.env.VITE_INFOBIP_SOLUTION_ID ?? "
 /** Timeout de engenharia: aguardar FB.init após injetar/carregar sdk.js */
 const SDK_INIT_TIMEOUT_MS = 15_000;
 /** Timeout de engenharia: aguardar postMessage WA_EMBEDDED_SIGNUP após FB.login */
-const EMBEDDED_SIGNUP_TIMEOUT_MS = 120_000;
+const EMBEDDED_SIGNUP_TIMEOUT_MS = 3_600_000;
 
 /** Mensagem exibida quando a Meta envia event: ERROR no postMessage do Embedded Signup. */
 export const META_EMBEDDED_SIGNUP_FLOW_ERROR_MESSAGE =
   "Ocorreu um erro na Meta durante a conexão, tente novamente.";
+
+/** Mensagem exibida quando o timeout de engenharia expira aguardando postMessage da Meta. */
+export const META_EMBEDDED_SIGNUP_TIMEOUT_MESSAGE =
+  "A conexão com a Meta não foi concluída dentro do tempo limite. Feche o popup e tente novamente.";
 
 export type WabaConnectMode = "meta_direct" | "infobip";
 
@@ -27,6 +31,8 @@ export type EmbeddedSignupFlowIntent = "standard" | "coexistence";
 export type RunEmbeddedSignupOptions = {
   /** standard: número novo ou só WABA; coexistence: número já ativo no WhatsApp Business App. */
   flowIntent?: EmbeddedSignupFlowIntent;
+  /** Disparado assim que FB.login retorna o code (fast path backend, fire-and-forget). */
+  onAuthCodeCaptured?: (payload: { code: string; code_captured_at_ms: number }) => void;
 };
 
 function resolveEmbeddedSignupFeatureType(flowIntent: EmbeddedSignupFlowIntent): string | undefined {
@@ -168,6 +174,7 @@ export async function runEmbeddedSignup(
   options?: RunEmbeddedSignupOptions,
 ): Promise<EmbeddedSignupOutcome> {
   const flowIntent = options?.flowIntent ?? "standard";
+  const onAuthCodeCaptured = options?.onAuthCodeCaptured;
   const { appId, configId, solutionId, mode, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
     const missing = mode === "meta_direct"
@@ -325,7 +332,7 @@ export async function runEmbeddedSignup(
     }
 
     signupTimeoutId = window.setTimeout(() => {
-      finish({ kind: "error", message: "Tempo esgotado aguardando resposta da Meta." });
+      finish({ kind: "error", message: META_EMBEDDED_SIGNUP_TIMEOUT_MESSAGE });
     }, EMBEDDED_SIGNUP_TIMEOUT_MS);
 
     const extrasSetup = mode === "infobip" ? { solutionID: solutionId } : {};
@@ -347,6 +354,7 @@ export async function runEmbeddedSignup(
         console.log("[EmbeddedSignup] code capturado no callback FB.login", {
           capturedAtMs: authCodeCapturedAtMs,
         }); // DEBUG TEMP
+        onAuthCodeCaptured?.({ code, code_captured_at_ms: authCodeCapturedAtMs });
         tryCompleteSuccess();
       },
       {

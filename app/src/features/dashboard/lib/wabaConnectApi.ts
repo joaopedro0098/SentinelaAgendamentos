@@ -31,6 +31,14 @@ export type MetaWabaConnectStartResult =
   | { ok: true; status: "connected"; message?: string }
   | { ok: false; error: string; status?: string };
 
+export type MetaWabaConnectAttemptStartResult =
+  | { ok: true; attempt_id: string; expires_at?: string }
+  | { ok: false; error: string; status?: string };
+
+export type MetaWabaConnectAttemptSubmitCodeResult =
+  | { ok: true; status: string; attempt_id?: string }
+  | { ok: false; error: string; status?: string };
+
 export type WabaDisconnectResult =
   | { ok: true; status: "not_connected"; message?: string }
   | { ok: false; error: string };
@@ -76,6 +84,64 @@ export async function invokeMetaWabaConnectStart(
     return { ok: true, status: "connected", message: body.message };
   }
   return { ok: false, error: body.message || "Resposta inesperada ao conectar WhatsApp." };
+}
+
+/** POST meta-waba-connect-attempt action=start (registra tentativa antes do popup). */
+export async function invokeMetaWabaConnectAttemptStart(): Promise<MetaWabaConnectAttemptStartResult> {
+  const { data, error } = await supabase.functions.invoke("meta-waba-connect-attempt", {
+    body: { action: "start" },
+  });
+
+  if (error) {
+    return { ok: false, error: parseFnError(error, data), status: (data as { status?: string })?.status };
+  }
+
+  const body = data as {
+    success?: boolean;
+    attempt_id?: string;
+    expires_at?: string;
+    error?: string;
+    status?: string;
+  };
+
+  if (body.error) {
+    return { ok: false, error: body.error, status: body.status };
+  }
+  if (body.success && body.attempt_id) {
+    return { ok: true, attempt_id: body.attempt_id, expires_at: body.expires_at };
+  }
+  if (body.success && body.status === "already_connected") {
+    return { ok: false, error: "WhatsApp já está conectado.", status: "connected" };
+  }
+  return { ok: false, error: "Resposta inesperada ao iniciar tentativa de conexão." };
+}
+
+/** POST meta-waba-connect-attempt action=submit_code (fast path, fire-and-forget). */
+export async function invokeMetaWabaConnectAttemptSubmitCode(payload: {
+  attempt_id: string;
+  code: string;
+  code_captured_at_ms: number;
+  waba_id?: string;
+  phone_number_id?: string;
+  flow_type?: MetaWabaConnectStartPayload["flow_type"];
+  business_id?: string;
+}): Promise<MetaWabaConnectAttemptSubmitCodeResult> {
+  const { data, error } = await supabase.functions.invoke("meta-waba-connect-attempt", {
+    body: { action: "submit_code", ...payload },
+  });
+
+  if (error) {
+    return { ok: false, error: parseFnError(error, data), status: (data as { status?: string })?.status };
+  }
+
+  const body = data as { success?: boolean; status?: string; error?: string; attempt_id?: string };
+  if (body.error && !body.success) {
+    return { ok: false, error: body.error, status: body.status };
+  }
+  if (body.success) {
+    return { ok: true, status: body.status ?? "accepted", attempt_id: body.attempt_id };
+  }
+  return { ok: false, error: body.error || "Resposta inesperada ao enviar code." };
 }
 
 /** POST infobip-waba-connect-start (share-waba Infobip após Embedded Signup Meta). */

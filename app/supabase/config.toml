@@ -62,6 +62,12 @@ verify_jwt = true
 [functions.meta-waba-connect-start]
 verify_jwt = true
 
+[functions.meta-waba-connect-attempt]
+verify_jwt = true
+
+[functions.poll-waba-connect-attempts]
+verify_jwt = false
+
 [functions.infobip-send-test]
 verify_jwt = false
 

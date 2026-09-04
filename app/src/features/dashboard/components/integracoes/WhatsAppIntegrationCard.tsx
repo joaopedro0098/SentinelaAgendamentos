@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   fetchWabaConnectStatus,
   invokeInfobipWabaConnectStart,
+  invokeMetaWabaConnectAttemptStart,
+  invokeMetaWabaConnectAttemptSubmitCode,
   invokeMetaWabaConnectStart,
   invokeWabaDisconnect,
   pollWabaConnectStatusFromDb,
@@ -108,13 +110,46 @@ export function WhatsAppIntegrationCard() {
     setConnectingPhase("meta");
 
     try {
-      const signup = await runEmbeddedSignup();
+      let attemptId: string | null = null;
+
+      if (wabaConnectMode === "meta_direct") {
+        const attemptStart = await invokeMetaWabaConnectAttemptStart();
+        if (attemptStart.ok) {
+          attemptId = attemptStart.attempt_id;
+        } else if (attemptStart.status === "connected") {
+          await completeConnected();
+          return;
+        } else {
+          console.warn("[EmbeddedSignup] falha ao registrar tentativa (continua fluxo normal):", attemptStart.error);
+        }
+      }
+
+      const signup = await runEmbeddedSignup({
+        onAuthCodeCaptured: attemptId
+          ? ({ code, code_captured_at_ms }) => {
+              void invokeMetaWabaConnectAttemptSubmitCode({
+                attempt_id: attemptId!,
+                code,
+                code_captured_at_ms,
+              }).then((result) => {
+                if (!result.ok) {
+                  console.warn("[EmbeddedSignup] fast path submit_code:", result.error);
+                }
+              });
+            }
+          : undefined,
+      });
 
       if (signup.kind === "cancelled") {
         resetToConnect();
         return;
       }
       if (signup.kind === "error") {
+        const currentAfterError = await fetchWabaConnectStatus();
+        if (currentAfterError === "connected") {
+          await completeConnected();
+          return;
+        }
         resetToConnect(signup.message);
         return;
       }

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SDK_INIT_TIMEOUT_MS = 15_000;
-const EMBEDDED_SIGNUP_TIMEOUT_MS = 120_000;
+const EMBEDDED_SIGNUP_TIMEOUT_MS = 3_600_000;
 
-const META_TIMEOUT_MESSAGE = "Tempo esgotado aguardando resposta da Meta.";
+const META_TIMEOUT_MESSAGE =
+  "A conexão com a Meta não foi concluída dentro do tempo limite. Feche o popup e tente novamente.";
 const FB_UNAVAILABLE_MESSAGE =
   "SDK do Facebook indisponível. Recarregue a página e tente novamente.";
 const SDK_INIT_ERROR_MESSAGE = "SDK do Facebook não inicializou.";
@@ -346,7 +347,7 @@ describe("runEmbeddedSignup", () => {
   });
 
   describe("proteções de engenharia (D/E/F/G)", () => {
-    it("D) timeout 120s sem postMessage — error e listener removido", async () => {
+    it("D) timeout 1h sem postMessage — error e listener removido", async () => {
       window.FB = createMockFb((callback) => {
         callback({});
       });
