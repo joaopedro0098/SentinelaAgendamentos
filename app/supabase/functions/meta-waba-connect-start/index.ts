@@ -59,9 +59,14 @@ Deno.serve(async (req) => {
     const businessId = String(body.business_id ?? "").trim() || null;
 
     const flowType = parseFlowType(flowTypeRaw);
-    if (!code || !wabaId || !phoneNumberId || !flowType) {
+    if (!code || !wabaId || !flowType) {
       return jsonResponse({
-        error: "Campos code, waba_id, phone_number_id e flow_type válido são obrigatórios.",
+        error: "Campos code, waba_id e flow_type válido são obrigatórios.",
+      }, 400);
+    }
+    if (flowType !== "existing_phone_number" && !phoneNumberId) {
+      return jsonResponse({
+        error: "phone_number_id é obrigatório para este fluxo.",
       }, 400);
     }
 

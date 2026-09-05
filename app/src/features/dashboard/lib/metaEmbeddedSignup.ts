@@ -25,20 +25,10 @@ export function getWabaConnectMode(): WabaConnectMode {
 
 export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
 
-/** Intenção do fluxo antes de abrir o Embedded Signup (reflete featureType nos extras do FB.login). */
-export type EmbeddedSignupFlowIntent = "standard" | "coexistence";
-
 export type RunEmbeddedSignupOptions = {
-  /** standard: número novo ou só WABA; coexistence: número já ativo no WhatsApp Business App. */
-  flowIntent?: EmbeddedSignupFlowIntent;
   /** Disparado assim que FB.login retorna o code (fast path backend, fire-and-forget). */
   onAuthCodeCaptured?: (payload: { code: string; code_captured_at_ms: number }) => void;
 };
-
-function resolveEmbeddedSignupFeatureType(flowIntent: EmbeddedSignupFlowIntent): string | undefined {
-  if (flowIntent === "coexistence") return "whatsapp_business_app_onboarding";
-  return undefined;
-}
 
 function hasRequiredSignupIds(flowType: WabaFlowType, wabaId: string, phoneNumberId: string): boolean {
   if (!wabaId) return false;
@@ -68,7 +58,7 @@ type FbLoginOptions = {
   extras: {
     sessionInfoVersion: number;
     setup: Record<string, string>;
-    featureType?: string;
+    featureType: string;
   };
 };
 
@@ -173,7 +163,6 @@ export type EmbeddedSignupOutcome =
 export async function runEmbeddedSignup(
   options?: RunEmbeddedSignupOptions,
 ): Promise<EmbeddedSignupOutcome> {
-  const flowIntent = options?.flowIntent ?? "standard";
   const onAuthCodeCaptured = options?.onAuthCodeCaptured;
   const { appId, configId, solutionId, mode, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
@@ -336,14 +325,11 @@ export async function runEmbeddedSignup(
     }, EMBEDDED_SIGNUP_TIMEOUT_MS);
 
     const extrasSetup = mode === "infobip" ? { solutionID: solutionId } : {};
-    const featureType = resolveEmbeddedSignupFeatureType(flowIntent);
     const loginExtras: FbLoginOptions["extras"] = {
       sessionInfoVersion: 3,
       setup: extrasSetup,
+      featureType: "whatsapp_business_app_onboarding",
     };
-    if (featureType) {
-      loginExtras.featureType = featureType;
-    }
 
     window.FB.login(
       (response) => {

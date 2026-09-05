@@ -111,7 +111,7 @@ describe("runEmbeddedSignup", () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
-      const resultPromise = runEmbeddedSignup({ flowIntent: "coexistence" });
+      const resultPromise = runEmbeddedSignup();
       await vi.advanceTimersByTimeAsync(0);
 
       dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
@@ -135,7 +135,7 @@ describe("runEmbeddedSignup", () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
-      const resultPromise = runEmbeddedSignup({ flowIntent: "coexistence" });
+      const resultPromise = runEmbeddedSignup();
       await vi.advanceTimersByTimeAsync(0);
 
       dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
@@ -281,13 +281,6 @@ describe("runEmbeddedSignup", () => {
             setup: {
               solutionID: "test-infobip-solution-id",
             },
-          }),
-        }),
-      );
-      expect(window.FB?.login).toHaveBeenCalledWith(
-        expect.any(Function),
-        expect.not.objectContaining({
-          extras: expect.objectContaining({
             featureType: "whatsapp_business_app_onboarding",
           }),
         }),
@@ -311,13 +304,6 @@ describe("runEmbeddedSignup", () => {
         expect.objectContaining({
           extras: expect.objectContaining({
             setup: {},
-          }),
-        }),
-      );
-      expect(window.FB?.login).toHaveBeenCalledWith(
-        expect.any(Function),
-        expect.not.objectContaining({
-          extras: expect.objectContaining({
             featureType: "whatsapp_business_app_onboarding",
           }),
         }),

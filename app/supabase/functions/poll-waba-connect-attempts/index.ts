@@ -130,20 +130,22 @@ Deno.serve(async (req) => {
       const flowType = parseFlowType(String(attempt.discovered_flow_type ?? "")) ?? "new_phone_number";
 
       try {
-        const phones = await fetchWabaPhoneNumbers(partner.systemUserAccessToken!, wabaId);
-        const phoneNumberId = String(attempt.discovered_phone_number_id ?? "").trim() ||
-          pickPhoneNumberIdForConnect(phones, flowType);
+        let phoneNumberId = String(attempt.discovered_phone_number_id ?? "").trim();
 
-        if (!phoneNumberId) {
-          awaitingPhone += 1;
-          await supabase
-            .from("waba_connect_attempts")
-            .update({
-              discovered_waba_id: wabaId,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", attempt.id);
-          continue;
+        if (!phoneNumberId && flowType !== "existing_phone_number") {
+          const phones = await fetchWabaPhoneNumbers(partner.systemUserAccessToken!, wabaId);
+          phoneNumberId = pickPhoneNumberIdForConnect(phones, flowType) ?? "";
+          if (!phoneNumberId) {
+            awaitingPhone += 1;
+            await supabase
+              .from("waba_connect_attempts")
+              .update({
+                discovered_waba_id: wabaId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", attempt.id);
+            continue;
+          }
         }
 
         const result = await completeMetaWabaConnect({

@@ -422,6 +422,36 @@ export async function discoverFromExchangeableCode(code: string): Promise<Discov
   };
 }
 
+/** Primeiro id em GET /{waba_id}/phone_numbers (Meta Client phone numbers). */
+export async function resolveFirstPhoneNumberIdFromWaba(
+  accessToken: string,
+  wabaId: string,
+): Promise<string> {
+  const phones = await fetchWabaPhoneNumbers(accessToken, wabaId);
+  const firstId = phones[0]?.id;
+  if (!firstId) {
+    throw new Error("Meta não retornou números em GET /{waba_id}/phone_numbers.");
+  }
+  return String(firstId);
+}
+
+/** Resolve phone_number_id; coexistência sem id no payload usa o primeiro número da WABA. */
+export async function resolvePhoneNumberIdForConnect(
+  accessToken: string,
+  wabaId: string,
+  flowType: WabaFlowType,
+  phoneNumberId: string,
+): Promise<string> {
+  const trimmed = String(phoneNumberId ?? "").trim();
+  if (trimmed) return trimmed;
+
+  if (flowType === "existing_phone_number") {
+    return await resolveFirstPhoneNumberIdFromWaba(accessToken, wabaId);
+  }
+
+  throw new Error("phone_number_id é obrigatório para este fluxo.");
+}
+
 export type CompleteMetaWabaConnectParams = {
   serviceClient: SupabaseClient;
   shopId: string;
@@ -482,6 +512,21 @@ export async function completeMetaWabaConnect(
     attemptId,
   } = params;
 
+  let resolvedPhoneNumberId: string;
+  try {
+    resolvedPhoneNumberId = await resolvePhoneNumberIdForConnect(
+      accessToken,
+      wabaId,
+      flowType,
+      phoneNumberId,
+    );
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+
   const { data: shop, error: shopErr } = await serviceClient
     .from("barbershops")
     .select("id, waba_id, waba_phone_number_id, waba_register_pin, waba_connect_status, updated_at")
@@ -518,7 +563,7 @@ export async function completeMetaWabaConnect(
     .update({
       waba_connect_status: "provisioning",
       waba_id: wabaId,
-      waba_phone_number_id: phoneNumberId,
+      waba_phone_number_id: resolvedPhoneNumberId,
       waba_connected_at: null,
       updated_at: new Date().toISOString(),
     })
@@ -557,16 +602,16 @@ export async function completeMetaWabaConnect(
 
     let registerPin = String(lockedRow.waba_register_pin ?? shop.waba_register_pin ?? "").trim();
     const samePhoneAsStored = String(lockedRow.waba_phone_number_id ?? shop.waba_phone_number_id ?? "") ===
-      phoneNumberId;
+      resolvedPhoneNumberId;
 
     if (flowType !== "existing_phone_number") {
       if (!registerPin || !samePhoneAsStored) {
         registerPin = generateRegisterPin();
       }
-      await registerPhoneNumber(accessToken, phoneNumberId, registerPin);
+      await registerPhoneNumber(accessToken, resolvedPhoneNumberId, registerPin);
     }
 
-    const phoneMeta = await fetchPhoneNumberMetadata(accessToken, phoneNumberId);
+    const phoneMeta = await fetchPhoneNumberMetadata(accessToken, resolvedPhoneNumberId);
     const encryptedToken = await encryptWabaToken(accessToken);
     const now = new Date().toISOString();
 
@@ -580,7 +625,7 @@ export async function completeMetaWabaConnect(
         waba_connect_status: "connected",
         waba_connected_at: now,
         waba_id: wabaId,
-        waba_phone_number_id: phoneNumberId,
+        waba_phone_number_id: resolvedPhoneNumberId,
         waba_access_token_encrypted: encryptedToken,
         waba_register_pin: flowType !== "existing_phone_number" ? registerPin : lockedRow.waba_register_pin,
         waba_flow_type: flowType,
@@ -601,7 +646,7 @@ export async function completeMetaWabaConnect(
     }
 
     if (flowType === "existing_phone_number") {
-      await runCoexistenceSyncBestEffort(accessToken, phoneNumberId, shopId, serviceClient);
+      await runCoexistenceSyncBestEffort(accessToken, resolvedPhoneNumberId, shopId, serviceClient);
     }
 
     await markConnectAttemptsCompleted(serviceClient, shopId, completedVia, attemptId);

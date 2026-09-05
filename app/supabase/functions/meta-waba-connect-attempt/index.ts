@@ -173,17 +173,18 @@ async function handleSubmitCode(
     const flowType = flowTypeHint ?? parseFlowType(String(attempt.discovered_flow_type ?? "")) ??
       "new_phone_number";
 
-    let phoneNumberId = phoneNumberIdHint ?? (String(attempt.discovered_phone_number_id ?? "").trim() || null);
-    if (!phoneNumberId) {
+    let phoneNumberId = phoneNumberIdHint ?? (String(attempt.discovered_phone_number_id ?? "").trim());
+
+    if (!phoneNumberId && flowType !== "existing_phone_number") {
       const phones = await fetchWabaPhoneNumbers(discovered.accessToken, wabaId);
-      phoneNumberId = pickPhoneNumberIdForConnect(phones, flowType);
+      phoneNumberId = pickPhoneNumberIdForConnect(phones, flowType) ?? "";
     }
 
     await serviceClient
       .from("waba_connect_attempts")
       .update({
         discovered_waba_id: wabaId,
-        discovered_phone_number_id: phoneNumberId,
+        discovered_phone_number_id: phoneNumberId || null,
         discovered_meta_user_id: discovered.metaUserId,
         discovered_business_id: businessIdHint ?? attempt.discovered_business_id,
         discovered_flow_type: flowType,
@@ -191,7 +192,7 @@ async function handleSubmitCode(
       })
       .eq("id", attemptId);
 
-    if (!phoneNumberId) {
+    if (!phoneNumberId && flowType !== "existing_phone_number") {
       console.log(
         `[meta-waba-connect-attempt] fast path aguardando phone_number_id shop=${shopId} waba=${wabaId}`,
       );
