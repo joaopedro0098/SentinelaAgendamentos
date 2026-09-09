@@ -225,6 +225,62 @@ export async function subscribeWabaToApp(accessToken: string, wabaId: string): P
   }
 }
 
+export type UnsubscribeWabaFromAppResult =
+  | { ok: true; alreadyUnsubscribed?: boolean }
+  | { ok: false; error: string };
+
+/** DELETE /{waba_id}/subscribed_apps — remove inscrição de webhooks do app na WABA. */
+export async function unsubscribeWabaFromApp(
+  accessToken: string,
+  wabaId: string,
+): Promise<UnsubscribeWabaFromAppResult> {
+  const trimmedWabaId = String(wabaId ?? "").trim();
+  if (!trimmedWabaId) {
+    return { ok: false, error: "waba_id ausente para unsubscribe." };
+  }
+
+  const { apiVersion } = getMetaGraphConfig();
+  const url = `https://graph.facebook.com/${apiVersion}/${trimmedWabaId}/subscribed_apps`;
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (res.status === 404) {
+    return { ok: true, alreadyUnsubscribed: true };
+  }
+
+  const data = await res.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } };
+  if (!res.ok || data.success === false) {
+    const message = data.error?.message || `Meta respondeu ${res.status} ao desinscrever webhooks.`;
+    console.error("[metaWabaConnect] unsubscribe subscribed_apps falhou:", { wabaId: trimmedWabaId, data });
+    return { ok: false, error: message };
+  }
+
+  return { ok: true };
+}
+
+/** Campos Postgres zerados ao desconectar WABA Meta (disconnect manual ou webhook offboarding). */
+export function buildMetaWabaDisconnectDbPatch(): Record<string, unknown> {
+  return {
+    waba_connect_status: "not_connected",
+    waba_id: null,
+    waba_phone_number_id: null,
+    waba_access_token_encrypted: null,
+    whatsapp_messaging_provider: null,
+    waba_connected_at: null,
+    waba_register_pin: null,
+    waba_flow_type: null,
+    waba_business_id: null,
+    waba_coex_contacts_sync_request_id: null,
+    waba_coex_history_sync_request_id: null,
+    sender_sid: null,
+    sender_phone_e164: null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 type SmbAppDataSyncResult =
   | { ok: true; request_id: string }
   | { ok: false; detail: unknown };

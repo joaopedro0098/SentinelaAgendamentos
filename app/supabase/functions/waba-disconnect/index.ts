@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { decryptWabaToken } from "../_shared/wabaCrypto.ts";
+import {
+  buildMetaWabaDisconnectDbPatch,
+  unsubscribeWabaFromApp,
+} from "../_shared/metaWabaConnect.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +19,19 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 
 function twilioBasicAuth(sid: string, token: string): string {
   return "Basic " + btoa(`${sid}:${token}`);
+}
+
+function isAlreadyDisconnected(shop: {
+  waba_connect_status: string | null;
+  sender_sid: string | null;
+  waba_id: string | null;
+  waba_access_token_encrypted: string | null;
+}): boolean {
+  const status = String(shop.waba_connect_status ?? "");
+  const senderSid = String(shop.sender_sid ?? "").trim();
+  const wabaId = String(shop.waba_id ?? "").trim();
+  const metaToken = String(shop.waba_access_token_encrypted ?? "").trim();
+  return status === "not_connected" && !senderSid && !wabaId && !metaToken;
 }
 
 Deno.serve(async (req) => {
@@ -44,7 +61,9 @@ Deno.serve(async (req) => {
 
     const { data: shop, error: shopErr } = await serviceClient
       .from("barbershops")
-      .select("id, sender_sid, twilio_subaccount_sid, twilio_subaccount_auth_token, waba_connect_status")
+      .select(
+        "id, sender_sid, twilio_subaccount_sid, twilio_subaccount_auth_token, waba_connect_status, whatsapp_messaging_provider, waba_id, waba_access_token_encrypted",
+      )
       .eq("owner_id", userId)
       .maybeSingle();
 
@@ -52,12 +71,12 @@ Deno.serve(async (req) => {
     if (!shop) return jsonResponse({ error: "Empresa não encontrada." }, 404);
 
     const shopId: string = shop.id;
+    const provider = String(shop.whatsapp_messaging_provider ?? "").trim().toLowerCase();
     const senderSid = String(shop.sender_sid ?? "").trim();
     const subaccountSid = String(shop.twilio_subaccount_sid ?? "").trim();
-    const encryptedToken = String(shop.twilio_subaccount_auth_token ?? "").trim();
-    const currentStatus = String(shop.waba_connect_status ?? "");
+    const twilioEncryptedToken = String(shop.twilio_subaccount_auth_token ?? "").trim();
 
-    if (currentStatus === "not_connected" && !senderSid) {
+    if (isAlreadyDisconnected(shop)) {
       return jsonResponse({
         success: true,
         status: "not_connected",
@@ -65,14 +84,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (senderSid) {
-      if (!subaccountSid || !encryptedToken) {
+    let metaUnsubscribeFailed = false;
+
+    if (provider === "meta") {
+      const wabaId = String(shop.waba_id ?? "").trim();
+      const metaEncryptedToken = String(shop.waba_access_token_encrypted ?? "").trim();
+
+      if (wabaId && metaEncryptedToken) {
+        try {
+          const accessToken = await decryptWabaToken(metaEncryptedToken);
+          const unsubscribe = await unsubscribeWabaFromApp(accessToken, wabaId);
+          if (!unsubscribe.ok) {
+            metaUnsubscribeFailed = true;
+            console.warn(
+              `[waba-disconnect] Meta unsubscribe falhou shop=${shopId} waba=${wabaId}: ${unsubscribe.error}`,
+            );
+          } else if (unsubscribe.alreadyUnsubscribed) {
+            console.log(`[waba-disconnect] Meta já estava desinscrita shop=${shopId} waba=${wabaId}`);
+          }
+        } catch (e) {
+          metaUnsubscribeFailed = true;
+          console.warn(
+            `[waba-disconnect] Meta unsubscribe erro shop=${shopId} waba=${wabaId}:`,
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      } else {
+        console.warn(
+          `[waba-disconnect] Meta disconnect sem waba_id/token — limpando apenas banco shop=${shopId}`,
+        );
+      }
+    } else if (senderSid) {
+      if (!subaccountSid || !twilioEncryptedToken) {
         return jsonResponse({
           error: "Credenciais da subconta Twilio ausentes. Não foi possível remover o sender na Twilio.",
         }, 409);
       }
 
-      const subaccountAuthToken = await decryptWabaToken(encryptedToken);
+      const subaccountAuthToken = await decryptWabaToken(twilioEncryptedToken);
 
       const res = await fetch(`https://messaging.twilio.com/v2/Channels/Senders/${senderSid}`, {
         method: "DELETE",
@@ -97,9 +146,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { error: updateErr } = await serviceClient
-      .from("barbershops")
-      .update({
+    const dbPatch = provider === "meta"
+      ? buildMetaWabaDisconnectDbPatch()
+      : {
         waba_connect_status: "not_connected",
         waba_id: null,
         waba_phone_number_id: null,
@@ -107,7 +156,11 @@ Deno.serve(async (req) => {
         sender_phone_e164: null,
         waba_connected_at: null,
         updated_at: new Date().toISOString(),
-      })
+      };
+
+    const { error: updateErr } = await serviceClient
+      .from("barbershops")
+      .update(dbPatch)
       .eq("id", shopId);
 
     if (updateErr) {
@@ -115,10 +168,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Erro ao atualizar status no banco." }, 500);
     }
 
+    const message = metaUnsubscribeFailed
+      ? "WhatsApp desconectado no Sentinela. Não foi possível confirmar a remoção dos webhooks na Meta — verifique no WhatsApp Manager se necessário."
+      : "WhatsApp desconectado com sucesso.";
+
     return jsonResponse({
       success: true,
       status: "not_connected",
-      message: "WhatsApp desconectado com sucesso.",
+      message,
+      meta_unsubscribe_failed: metaUnsubscribeFailed || undefined,
     });
   } catch (e) {
     console.error("[waba-disconnect] Erro interno:", e);

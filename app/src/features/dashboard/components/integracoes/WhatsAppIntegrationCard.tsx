@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
+  fetchBarbershopWhatsAppConnectInfo,
   fetchWabaConnectStatus,
   invokeInfobipWabaConnectStart,
   invokeMetaWabaConnectAttemptStart,
@@ -21,6 +22,7 @@ import {
   invokeWabaDisconnect,
   pollWabaConnectStatusFromDb,
   type WabaConnectStatus,
+  type WhatsAppMessagingProviderDb,
 } from "@/features/dashboard/lib/wabaConnectApi";
 import {
   getMetaEmbeddedSignupConfig,
@@ -53,15 +55,19 @@ export function WhatsAppIntegrationCard() {
   const [flowError, setFlowError] = useState<string | null>(null);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [messagingProvider, setMessagingProvider] = useState<WhatsAppMessagingProviderDb>(null);
   const initialResumeDone = useRef(false);
 
   const metaConfigured = getMetaEmbeddedSignupConfig().isConfigured;
   const wabaConnectMode = getWabaConnectMode();
 
   const refreshStatus = useCallback(async () => {
-    const next = await fetchWabaConnectStatus();
-    if (next) setStatus(next);
-    return next;
+    const info = await fetchBarbershopWhatsAppConnectInfo();
+    if (info) {
+      setStatus(info.status);
+      setMessagingProvider(info.messagingProvider);
+    }
+    return info?.status ?? null;
   }, []);
 
   const resetToConnect = useCallback((message?: string) => {
@@ -227,13 +233,14 @@ export function WhatsAppIntegrationCard() {
 
     void (async () => {
       setLoadingStatus(true);
-      const next = await fetchWabaConnectStatus();
-      if (!cancelled && next) {
-        setStatus(next);
+      const info = await fetchBarbershopWhatsAppConnectInfo();
+      if (!cancelled && info) {
+        setStatus(info.status);
+        setMessagingProvider(info.messagingProvider);
 
         if (
           !initialResumeDone.current &&
-          (next === "pending" || next === "provisioning")
+          (info.status === "pending" || info.status === "provisioning")
         ) {
           initialResumeDone.current = true;
           await waitForConnectedFromDb(() => cancelled);
@@ -284,6 +291,7 @@ export function WhatsAppIntegrationCard() {
     setDisconnectDialogOpen(false);
     setFlowError(null);
     setStatus("not_connected");
+    setMessagingProvider(null);
     toast({
       title: "WhatsApp desconectado",
       description: result.message || "Você pode conectar novamente quando quiser.",
@@ -343,9 +351,22 @@ export function WhatsAppIntegrationCard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Desconectar WhatsApp</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso vai desconectar o número atual do WhatsApp. Para conectar um número diferente, use o
-              fluxo normal depois. Para reconectar o mesmo número, pode ser necessário desativar a
-              verificação em duas etapas dele no WhatsApp Manager da Meta antes.
+              {messagingProvider === "meta" ? (
+                <>
+                  Isso desconecta o WhatsApp no Sentinela e remove a inscrição de webhooks do app na Meta
+                  para esta conta WhatsApp Business. O compartilhamento da WABA com o parceiro, se existir,
+                  continua sendo administrado pelo cliente no Meta Business Manager — o Sentinela não
+                  revoga isso por aqui. Para reconectar o mesmo número depois, use o fluxo normal de
+                  conexão; pode ser necessário desativar a verificação em duas etapas no WhatsApp Manager
+                  da Meta antes.
+                </>
+              ) : (
+                <>
+                  Isso vai desconectar o número atual do WhatsApp. Para conectar um número diferente, use o
+                  fluxo normal depois. Para reconectar o mesmo número, pode ser necessário desativar a
+                  verificação em duas etapas dele no WhatsApp Manager da Meta antes.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

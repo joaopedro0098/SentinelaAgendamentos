@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildMetaWabaDisconnectDbPatch } from "../_shared/metaWabaConnect.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -191,11 +192,7 @@ Deno.serve(async (req) => {
             case "ACCOUNT_DELETED": {
               const { error } = await supabase
                 .from("barbershops")
-                .update({
-                  waba_connect_status: "not_connected",
-                  waba_connected_at: null,
-                  updated_at: new Date().toISOString(),
-                })
+                .update(buildMetaWabaDisconnectDbPatch())
                 .eq("waba_id", targetWabaId);
 
               if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
@@ -218,14 +215,23 @@ Deno.serve(async (req) => {
               break;
             }
 
-            case "ACCOUNT_RESTRICTION":
-            case "PARTNER_REMOVED": {
+            case "ACCOUNT_RESTRICTION": {
               const { error } = await supabase
                 .from("barbershops")
                 .update({
                   waba_connect_status: "error",
                   updated_at: new Date().toISOString(),
                 })
+                .eq("waba_id", targetWabaId);
+
+              if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
+              break;
+            }
+
+            case "PARTNER_REMOVED": {
+              const { error } = await supabase
+                .from("barbershops")
+                .update(buildMetaWabaDisconnectDbPatch())
                 .eq("waba_id", targetWabaId);
 
               if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);

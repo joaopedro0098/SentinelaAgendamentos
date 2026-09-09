@@ -51,19 +51,39 @@ function parseFnError(error: unknown, data: unknown): string {
   return "Falha na comunicação com o servidor.";
 }
 
-export async function fetchWabaConnectStatus(): Promise<WabaConnectStatus | null> {
+export type WhatsAppMessagingProviderDb = "twilio" | "infobip" | "meta" | null;
+
+export type BarbershopWhatsAppConnectInfo = {
+  status: WabaConnectStatus;
+  messagingProvider: WhatsAppMessagingProviderDb;
+};
+
+export async function fetchBarbershopWhatsAppConnectInfo(): Promise<BarbershopWhatsAppConnectInfo | null> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user?.id;
   if (!userId) return null;
 
   const { data, error } = await supabase
     .from("barbershops")
-    .select("waba_connect_status")
+    .select("waba_connect_status, whatsapp_messaging_provider")
     .eq("owner_id", userId)
     .maybeSingle();
 
   if (error || !data) return null;
-  return (data.waba_connect_status as WabaConnectStatus | null) ?? "not_connected";
+
+  const provider = data.whatsapp_messaging_provider;
+  const messagingProvider =
+    provider === "twilio" || provider === "infobip" || provider === "meta" ? provider : null;
+
+  return {
+    status: (data.waba_connect_status as WabaConnectStatus | null) ?? "not_connected",
+    messagingProvider,
+  };
+}
+
+export async function fetchWabaConnectStatus(): Promise<WabaConnectStatus | null> {
+  const info = await fetchBarbershopWhatsAppConnectInfo();
+  return info?.status ?? null;
 }
 
 /** POST meta-waba-connect-start (Embedded Signup Meta Direct / Tech Provider). */
