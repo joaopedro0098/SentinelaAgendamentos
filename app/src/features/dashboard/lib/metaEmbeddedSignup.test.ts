@@ -265,7 +265,7 @@ describe("runEmbeddedSignup", () => {
   });
 
   describe("FB.login extras", () => {
-    it("modo infobip envia setup.solutionID no extras", async () => {
+    it("modo infobip (standard) envia setup.solutionID sem featureType", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -276,13 +276,12 @@ describe("runEmbeddedSignup", () => {
         expect.any(Function),
         expect.objectContaining({
           config_id: "test-embedded-config-id",
-          extras: expect.objectContaining({
+          extras: {
             sessionInfoVersion: 3,
             setup: {
               solutionID: "test-infobip-solution-id",
             },
-            featureType: "whatsapp_business_app_onboarding",
-          }),
+          },
         }),
       );
 
@@ -290,7 +289,7 @@ describe("runEmbeddedSignup", () => {
       await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
     });
 
-    it("modo meta_direct envia setup vazio (sem solutionID)", async () => {
+    it("modo meta_direct (standard) envia setup vazio sem featureType", async () => {
       vi.stubEnv("VITE_WABA_CONNECT_MODE", "meta_direct");
       vi.resetModules();
       window.FB = createMockFb();
@@ -302,8 +301,29 @@ describe("runEmbeddedSignup", () => {
       expect(window.FB?.login).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({
-          extras: expect.objectContaining({
+          extras: {
+            sessionInfoVersion: 3,
             setup: {},
+          },
+        }),
+      );
+
+      dispatchEmbeddedSignupMessage("CANCEL");
+      await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
+    });
+
+    it("flowIntent coexistence inclui featureType whatsapp_business_app_onboarding", async () => {
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup({ flowIntent: "coexistence" });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          extras: expect.objectContaining({
+            sessionInfoVersion: 3,
             featureType: "whatsapp_business_app_onboarding",
           }),
         }),
