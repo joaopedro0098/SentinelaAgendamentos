@@ -20,8 +20,8 @@ const PROJECT_URL = "https://zdmecbyyfubpmwrzzbqf.supabase.co";
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkbWVjYnl5ZnVicG13cnp6YnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MTk3NzQsImV4cCI6MjA5Mjk5NTc3NH0.Tn24dRo-fwvlKWO_7Qd_YzEq4VDtP1efEZrrapFtgjY";
 
-const SHOP_ID = process.env.META_SMOKE_SHOP_ID ?? "cf17c582-16ba-4b16-941c-3a9a67dd0917";
-const OWNER_ID = process.env.META_SMOKE_OWNER_ID ?? "6a21f0d0-bfd0-4307-9215-2cfefde8672d";
+const SHOP_ID = process.env.META_SMOKE_SHOP_ID ?? "78d6e7e3-b8a9-45f3-b421-9e567bf24458";
+const OWNER_ID = process.env.META_SMOKE_OWNER_ID ?? "b31a6a89-55a8-431b-b0c4-764071270390";
 const META_APP_ID = process.env.META_APP_ID ?? "2136245233992856";
 const API_VERSION = process.env.META_GRAPH_API_VERSION ?? "v21.0";
 

@@ -1,3 +1,12 @@
+﻿node.exe : npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm 
+help npmrc` for supported config options.
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Initialising login role...
 export type Json =
   | string
   | number
@@ -274,13 +283,14 @@ export type Database = {
           barbeiro_id: string | null
           billing_registrado_em: string | null
           criado_em: string
+          external_message_id: string | null
           id: string
           mensagem: string
           mensagem_profissional_enviada_em: string | null
+          provider: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           resolvido_em: string | null
           status: string
           tipo: string
-          twilio_message_sid: string | null
         }
         Insert: {
           agendamento_id: string
@@ -288,13 +298,14 @@ export type Database = {
           barbeiro_id?: string | null
           billing_registrado_em?: string | null
           criado_em?: string
+          external_message_id?: string | null
           id?: string
           mensagem: string
           mensagem_profissional_enviada_em?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           resolvido_em?: string | null
           status?: string
           tipo: string
-          twilio_message_sid?: string | null
         }
         Update: {
           agendamento_id?: string
@@ -302,13 +313,14 @@ export type Database = {
           barbeiro_id?: string | null
           billing_registrado_em?: string | null
           criado_em?: string
+          external_message_id?: string | null
           id?: string
           mensagem?: string
           mensagem_profissional_enviada_em?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           resolvido_em?: string | null
           status?: string
           tipo?: string
-          twilio_message_sid?: string | null
         }
         Relationships: [
           {
@@ -641,6 +653,8 @@ export type Database = {
           face_verification_pending: boolean
           grace_until: string | null
           id: string
+          infobip_api_key_encrypted: string | null
+          infobip_sender_number: string | null
           is_admin_aggregated: boolean
           last_payment_method: string | null
           mp_access_token: string | null
@@ -674,12 +688,21 @@ export type Database = {
           twilio_subaccount_auth_token: string | null
           twilio_subaccount_sid: string | null
           updated_at: string
+          waba_access_token_encrypted: string | null
+          waba_business_id: string | null
+          waba_coex_contacts_sync_request_id: string | null
+          waba_coex_history_sync_request_id: string | null
           waba_connect_status: Database["public"]["Enums"]["waba_connect_status"]
           waba_connected_at: string | null
+          waba_flow_type: string | null
           waba_id: string | null
           waba_phone_number_id: string | null
+          waba_register_pin: string | null
           welcome_message: string
           welcome_support_pending: boolean
+          whatsapp_messaging_provider:
+            | Database["public"]["Enums"]["whatsapp_messaging_provider"]
+            | null
           whatsapp_number: string | null
         }
         Insert: {
@@ -698,6 +721,8 @@ export type Database = {
           face_verification_pending?: boolean
           grace_until?: string | null
           id?: string
+          infobip_api_key_encrypted?: string | null
+          infobip_sender_number?: string | null
           is_admin_aggregated?: boolean
           last_payment_method?: string | null
           mp_access_token?: string | null
@@ -731,12 +756,21 @@ export type Database = {
           twilio_subaccount_auth_token?: string | null
           twilio_subaccount_sid?: string | null
           updated_at?: string
+          waba_access_token_encrypted?: string | null
+          waba_business_id?: string | null
+          waba_coex_contacts_sync_request_id?: string | null
+          waba_coex_history_sync_request_id?: string | null
           waba_connect_status?: Database["public"]["Enums"]["waba_connect_status"]
           waba_connected_at?: string | null
+          waba_flow_type?: string | null
           waba_id?: string | null
           waba_phone_number_id?: string | null
+          waba_register_pin?: string | null
           welcome_message?: string
           welcome_support_pending?: boolean
+          whatsapp_messaging_provider?:
+            | Database["public"]["Enums"]["whatsapp_messaging_provider"]
+            | null
           whatsapp_number?: string | null
         }
         Update: {
@@ -755,6 +789,8 @@ export type Database = {
           face_verification_pending?: boolean
           grace_until?: string | null
           id?: string
+          infobip_api_key_encrypted?: string | null
+          infobip_sender_number?: string | null
           is_admin_aggregated?: boolean
           last_payment_method?: string | null
           mp_access_token?: string | null
@@ -788,12 +824,21 @@ export type Database = {
           twilio_subaccount_auth_token?: string | null
           twilio_subaccount_sid?: string | null
           updated_at?: string
+          waba_access_token_encrypted?: string | null
+          waba_business_id?: string | null
+          waba_coex_contacts_sync_request_id?: string | null
+          waba_coex_history_sync_request_id?: string | null
           waba_connect_status?: Database["public"]["Enums"]["waba_connect_status"]
           waba_connected_at?: string | null
+          waba_flow_type?: string | null
           waba_id?: string | null
           waba_phone_number_id?: string | null
+          waba_register_pin?: string | null
           welcome_message?: string
           welcome_support_pending?: boolean
+          whatsapp_messaging_provider?:
+            | Database["public"]["Enums"]["whatsapp_messaging_provider"]
+            | null
           whatsapp_number?: string | null
         }
         Relationships: []
@@ -1685,39 +1730,110 @@ export type Database = {
         }
         Relationships: []
       }
+      waba_connect_attempts: {
+        Row: {
+          code_received_at: string | null
+          completed_at: string | null
+          completed_via: string | null
+          discovered_business_id: string | null
+          discovered_flow_type: string | null
+          discovered_meta_user_id: string | null
+          discovered_phone_number_id: string | null
+          discovered_waba_id: string | null
+          error_message: string | null
+          expires_at: string
+          id: string
+          known_waba_ids_snapshot: Json
+          owner_id: string
+          shop_id: string
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code_received_at?: string | null
+          completed_at?: string | null
+          completed_via?: string | null
+          discovered_business_id?: string | null
+          discovered_flow_type?: string | null
+          discovered_meta_user_id?: string | null
+          discovered_phone_number_id?: string | null
+          discovered_waba_id?: string | null
+          error_message?: string | null
+          expires_at?: string
+          id?: string
+          known_waba_ids_snapshot?: Json
+          owner_id: string
+          shop_id: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code_received_at?: string | null
+          completed_at?: string | null
+          completed_via?: string | null
+          discovered_business_id?: string | null
+          discovered_flow_type?: string | null
+          discovered_meta_user_id?: string | null
+          discovered_phone_number_id?: string | null
+          discovered_waba_id?: string | null
+          error_message?: string | null
+          expires_at?: string
+          id?: string
+          known_waba_ids_snapshot?: Json
+          owner_id?: string
+          shop_id?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waba_connect_attempts_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "barbershops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_mensagens_enviadas: {
         Row: {
           agendamento_id: string
           barbearia_id: string
           enviado_em: string
+          external_message_id: string | null
           id: string
+          provider: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           respondido_em: string | null
           status: string
           telefone: string
           tipo: string
-          twilio_message_sid: string | null
         }
         Insert: {
           agendamento_id: string
           barbearia_id: string
           enviado_em?: string
+          external_message_id?: string | null
           id?: string
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           respondido_em?: string | null
           status?: string
           telefone: string
           tipo?: string
-          twilio_message_sid?: string | null
         }
         Update: {
           agendamento_id?: string
           barbearia_id?: string
           enviado_em?: string
+          external_message_id?: string | null
           id?: string
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           respondido_em?: string | null
           status?: string
           telefone?: string
           tipo?: string
-          twilio_message_sid?: string | null
         }
         Relationships: [
           {
@@ -1741,28 +1857,31 @@ export type Database = {
           agendamento_id: string | null
           barbearia_id: string
           criado_em: string
+          external_message_id: string | null
           id: string
           profissional_id: string | null
+          provider: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           tipo: string
-          twilio_message_sid: string | null
         }
         Insert: {
           agendamento_id?: string | null
           barbearia_id: string
           criado_em?: string
+          external_message_id?: string | null
           id?: string
           profissional_id?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           tipo: string
-          twilio_message_sid?: string | null
         }
         Update: {
           agendamento_id?: string | null
           barbearia_id?: string
           criado_em?: string
+          external_message_id?: string | null
           id?: string
           profissional_id?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           tipo?: string
-          twilio_message_sid?: string | null
         }
         Relationships: [
           {
@@ -1795,10 +1914,11 @@ export type Database = {
           button_payload: string | null
           created_at: string
           id: string
-          inbound_message_sid: string
+          inbound_message_id: string
           last_error: string | null
           max_attempts: number
           processed_at: string | null
+          provider: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           started_at: string | null
           status: string
           telefone: string
@@ -1809,10 +1929,11 @@ export type Database = {
           button_payload?: string | null
           created_at?: string
           id?: string
-          inbound_message_sid: string
+          inbound_message_id: string
           last_error?: string | null
           max_attempts?: number
           processed_at?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           started_at?: string | null
           status?: string
           telefone: string
@@ -1823,10 +1944,11 @@ export type Database = {
           button_payload?: string | null
           created_at?: string
           id?: string
-          inbound_message_sid?: string
+          inbound_message_id?: string
           last_error?: string | null
           max_attempts?: number
           processed_at?: string | null
+          provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           started_at?: string | null
           status?: string
           telefone?: string
@@ -2315,6 +2437,7 @@ export type Database = {
         Returns: boolean
       }
       invite_aggregated_account: { Args: { p_email: string }; Returns: Json }
+      invoke_poll_waba_connect_attempts_cron: { Args: never; Returns: number }
       invoke_process_appointment_reminder_3h_cron: {
         Args: never
         Returns: number
@@ -2596,9 +2719,10 @@ export type Database = {
         Args: {
           p_agendamento_id?: string
           p_barbearia_id: string
+          p_external_message_id?: string
           p_profissional_id?: string
+          p_provider?: Database["public"]["Enums"]["whatsapp_messaging_provider"]
           p_tipo: string
-          p_twilio_message_sid?: string
         }
         Returns: string
       }
@@ -2805,6 +2929,7 @@ export type Database = {
         | "connected"
         | "error"
         | "token_expired"
+      whatsapp_messaging_provider: "twilio" | "infobip" | "meta"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2820,12 +2945,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2849,11 +2974,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2874,11 +2999,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2899,11 +3024,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2916,11 +3041,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2970,6 +3095,10 @@ export const Constants = {
         "error",
         "token_expired",
       ],
+      whatsapp_messaging_provider: ["twilio", "infobip", "meta"],
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.117.0 (currently installed v2.101.0)
+We recommend updating regularly for new features and bug fixes: 
+https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
