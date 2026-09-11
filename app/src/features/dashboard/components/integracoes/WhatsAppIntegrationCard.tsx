@@ -29,6 +29,7 @@ import {
   getWabaConnectMode,
   runEmbeddedSignup,
 } from "@/features/dashboard/lib/metaEmbeddedSignup";
+import { WhatsAppTemplatesDialog } from "@/features/dashboard/components/integracoes/WhatsAppTemplatesDialog";
 
 const CONNECTABLE_STATUSES = new Set<WabaConnectStatus>(["not_connected", "error", "token_expired"]);
 const IN_PROGRESS_STATUSES = new Set<WabaConnectStatus>(["pending", "provisioning"]);
@@ -54,6 +55,7 @@ export function WhatsAppIntegrationCard() {
   const [connectingPhase, setConnectingPhase] = useState<ConnectingPhase>(null);
   const [flowError, setFlowError] = useState<string | null>(null);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+  const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [messagingProvider, setMessagingProvider] = useState<WhatsAppMessagingProviderDb>(null);
   const initialResumeDone = useRef(false);
@@ -327,24 +329,40 @@ export function WhatsAppIntegrationCard() {
       </button>
 
       {status === "connected" && !loadingStatus && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-full text-muted-foreground"
-          disabled={disconnecting || busy}
-          onClick={() => setDisconnectDialogOpen(true)}
-        >
-          {disconnecting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Desconectando…
-            </>
-          ) : (
-            "Desconectar"
+        <div className="flex flex-col gap-2 w-full">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full text-muted-foreground"
+            disabled={disconnecting || busy}
+            onClick={() => setDisconnectDialogOpen(true)}
+          >
+            {disconnecting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Desconectando…
+              </>
+            ) : (
+              "Desconectar"
+            )}
+          </Button>
+          {messagingProvider === "meta" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={disconnecting || busy}
+              onClick={() => setTemplatesDialogOpen(true)}
+            >
+              Templates
+            </Button>
           )}
-        </Button>
+        </div>
       )}
+
+      <WhatsAppTemplatesDialog open={templatesDialogOpen} onOpenChange={setTemplatesDialogOpen} />
 
       <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
         <AlertDialogContent className="max-w-sm">

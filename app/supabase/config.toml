@@ -137,3 +137,6 @@ verify_jwt = false
 [functions.waba-disconnect]
 verify_jwt = true
 
+[functions.meta-waba-message-templates]
+verify_jwt = true
+

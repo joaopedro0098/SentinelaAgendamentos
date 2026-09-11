@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildMetaWabaDisconnectDbPatch } from "../_shared/metaWabaConnect.ts";
+import { applyTemplateStatusWebhook } from "../_shared/metaWabaTemplatesService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,6 +174,11 @@ Deno.serve(async (req) => {
         for (const change of entry.changes ?? []) {
           if (change.field === "history") {
             await handleHistoryWebhookChange(change.value ?? {}, entryWabaId, supabase);
+            continue;
+          }
+
+          if (change.field === "message_template_status_update") {
+            await applyTemplateStatusWebhook(supabase, entryWabaId, change.value ?? {});
             continue;
           }
 

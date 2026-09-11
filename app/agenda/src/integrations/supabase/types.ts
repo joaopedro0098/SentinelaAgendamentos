@@ -1798,6 +1798,68 @@ export type Database = {
           },
         ]
       }
+      whatsapp_waba_message_templates: {
+        Row: {
+          barbershop_id: string
+          body_display_text: string
+          created_at: string
+          id: string
+          language: string
+          last_synced_at: string | null
+          meta_category: string
+          meta_rejection_reason: string | null
+          meta_status: string
+          meta_template_id: string | null
+          meta_template_name: string
+          quick_reply_labels: string[]
+          sentinela_category: string
+          updated_at: string
+          waba_id: string
+        }
+        Insert: {
+          barbershop_id: string
+          body_display_text: string
+          created_at?: string
+          id?: string
+          language: string
+          last_synced_at?: string | null
+          meta_category?: string
+          meta_rejection_reason?: string | null
+          meta_status?: string
+          meta_template_id?: string | null
+          meta_template_name: string
+          quick_reply_labels?: string[]
+          sentinela_category: string
+          updated_at?: string
+          waba_id: string
+        }
+        Update: {
+          barbershop_id?: string
+          body_display_text?: string
+          created_at?: string
+          id?: string
+          language?: string
+          last_synced_at?: string | null
+          meta_category?: string
+          meta_rejection_reason?: string | null
+          meta_status?: string
+          meta_template_id?: string | null
+          meta_template_name?: string
+          quick_reply_labels?: string[]
+          sentinela_category?: string
+          updated_at?: string
+          waba_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_waba_message_templates_barbershop_id_fkey"
+            columns: ["barbershop_id"]
+            isOneToOne: false
+            referencedRelation: "barbershops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_mensagens_enviadas: {
         Row: {
           agendamento_id: string

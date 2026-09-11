@@ -14,6 +14,7 @@ type CoexSyncType = "smb_app_state_sync" | "history";
 /** Campos WABA inscritos programaticamente (inclui coexistência). */
 const WABA_SUBSCRIBED_FIELDS = [
   "account_update",
+  "message_template_status_update",
   "messages",
   "history",
   "smb_app_state_sync",
