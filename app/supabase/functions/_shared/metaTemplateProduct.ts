@@ -27,45 +27,65 @@ export const VARIABLE_UI_LABELS: Record<TemplateLanguage, Record<TemplateVariabl
   pt_BR: {
     cliente: "Nome do cliente",
     estabelecimento: "Estabelecimento",
-    data: "Data",
+    data: "Dia da semana",
     hora: "Hora",
   },
   es: {
     cliente: "Nombre del cliente",
     estabelecimento: "Establecimiento",
-    data: "Fecha",
+    data: "Día de la semana",
     hora: "Hora",
   },
   en_US: {
     cliente: "Client name",
     estabelecimento: "Business name",
-    data: "Date",
+    data: "Day of week",
     hora: "Time",
   },
 };
 
-const VARIABLE_ORDER: TemplateVariableKey[] = ["cliente", "estabelecimento", "data", "hora"];
+export const VARIABLE_ORDER: TemplateVariableKey[] = ["cliente", "estabelecimento", "data", "hora"];
 
-const EXAMPLE_VALUES: Record<TemplateLanguage, Record<TemplateVariableKey, string>> = {
+const EXAMPLE_VALUES: Record<TemplateLanguage, Record<Exclude<TemplateVariableKey, "data">, string>> = {
   pt_BR: {
     cliente: "Maria",
     estabelecimento: "Barbearia Central",
-    data: "15/09/2026",
     hora: "14:00",
   },
   es: {
     cliente: "María",
     estabelecimento: "Barbería Central",
-    data: "15/09/2026",
     hora: "14:00",
   },
   en_US: {
     cliente: "Mary",
     estabelecimento: "Central Barbershop",
-    data: "09/15/2026",
     hora: "2:00 PM",
   },
 };
+
+function intlLocaleForTemplateLanguage(language: TemplateLanguage): string {
+  if (language === "pt_BR") return "pt-BR";
+  if (language === "es") return "es";
+  return "en-US";
+}
+
+/** Exemplo da variável ⟦data⟧: nome do dia da semana (padrão: amanhã). */
+export function exampleWeekdayForTemplate(
+  language: TemplateLanguage,
+  daysAfterToday = 1,
+  referenceDate = new Date(),
+): string {
+  const d = new Date(referenceDate);
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + daysAfterToday);
+  return new Intl.DateTimeFormat(intlLocaleForTemplateLanguage(language), { weekday: "long" }).format(d);
+}
+
+function exampleValueForVariable(key: TemplateVariableKey, language: TemplateLanguage): string {
+  if (key === "data") return exampleWeekdayForTemplate(language, 1);
+  return EXAMPLE_VALUES[language][key];
+}
 
 export const CATEGORY_DISPLAY_LABEL: Record<SentinelaTemplateCategory, string> = {
   confirmacao: "Template de confirmação",
@@ -138,10 +158,35 @@ export function normalizeMetaTemplateLanguage(value: string): TemplateLanguage {
   return parseTemplateLanguage(value) ?? "pt_BR";
 }
 
-export function validateBodyDisplayText(bodyDisplayText: string): string | null {
+export function listVariableKeysInBody(bodyDisplayText: string): TemplateVariableKey[] {
+  return VARIABLE_ORDER.filter((key) => bodyDisplayText.includes(VARIABLE_MARKERS[key]));
+}
+
+export function validateBodyDisplayText(
+  bodyDisplayText: string,
+  enabledKeys: TemplateVariableKey[] = listVariableKeysInBody(bodyDisplayText),
+): string | null {
+  if (bodyDisplayText.trim().length === 0) {
+    return "O texto do template não pode ficar vazio.";
+  }
+  if (enabledKeys.length === 0) {
+    return "Selecione ao menos uma variável para usar no template.";
+  }
   for (const key of VARIABLE_ORDER) {
-    if (!bodyDisplayText.includes(VARIABLE_MARKERS[key])) {
+    const present = bodyDisplayText.includes(VARIABLE_MARKERS[key]);
+    const enabled = enabledKeys.includes(key);
+    if (enabled && !present) {
       return `O texto deve incluir a variável "${VARIABLE_UI_LABELS.pt_BR[key]}".`;
+    }
+    if (!enabled && present) {
+      return `Remova a variável "${VARIABLE_UI_LABELS.pt_BR[key]}" do texto ou marque-a novamente.`;
+    }
+  }
+  for (const key of enabledKeys) {
+    const marker = VARIABLE_MARKERS[key];
+    const count = bodyDisplayText.split(marker).length - 1;
+    if (count !== 1) {
+      return `A variável "${VARIABLE_UI_LABELS.pt_BR[key]}" deve aparecer exatamente uma vez no texto.`;
     }
   }
   if (bodyDisplayText.length > 1024) {
@@ -159,21 +204,22 @@ export type MetaBodyBuildResult = {
 export function buildMetaBodyPayload(
   bodyDisplayText: string,
   language: TemplateLanguage,
+  enabledKeys: TemplateVariableKey[] = listVariableKeysInBody(bodyDisplayText),
 ): MetaBodyBuildResult {
-  const validation = validateBodyDisplayText(bodyDisplayText);
+  const validation = validateBodyDisplayText(bodyDisplayText, enabledKeys);
   if (validation) throw new Error(validation);
 
   let metaText = bodyDisplayText;
   const examples: string[] = [];
+  let paramIndex = 1;
 
-  VARIABLE_ORDER.forEach((key, index) => {
+  for (const key of VARIABLE_ORDER) {
+    if (!enabledKeys.includes(key)) continue;
     const marker = VARIABLE_MARKERS[key];
-    if (!metaText.includes(marker)) {
-      throw new Error(`Variável obrigatória ausente: ${key}`);
-    }
-    metaText = metaText.split(marker).join(`{{${index + 1}}}`);
-    examples.push(EXAMPLE_VALUES[language][key]);
-  });
+    metaText = metaText.split(marker).join(`{{${paramIndex}}}`);
+    examples.push(exampleValueForVariable(key, language));
+    paramIndex += 1;
+  }
 
   return {
     text: metaText,

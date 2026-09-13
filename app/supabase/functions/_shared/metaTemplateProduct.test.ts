@@ -5,6 +5,7 @@ import {
 import {
   buildMetaBodyPayload,
   buildMetaTemplateComponents,
+  exampleWeekdayForTemplate,
   generateMetaTemplateName,
   inferCategoryFromMetaTemplateName,
   translateRejectionReason,
@@ -32,13 +33,23 @@ Deno.test("buildMetaBodyPayload converte marcadores para {{n}}", () => {
     "Olá {{1}}, confirme em {{2}} no dia {{3}} às {{4}}.",
   );
   assertEquals(result.example.body_text[0].length, 4);
+  assertEquals(result.example.body_text[0][2], exampleWeekdayForTemplate("pt_BR", 1));
 });
 
-Deno.test("validateBodyDisplayText exige todas as variáveis", () => {
+Deno.test("validateBodyDisplayText exige variáveis habilitadas coerentes", () => {
   const full = "Olá ⟦cliente⟧ em ⟦estabelecimento⟧ dia ⟦data⟧ ⟦hora⟧";
   assertEquals(validateBodyDisplayText(full), null);
   const err = validateBodyDisplayText("Olá cliente");
   assertEquals(typeof err, "string");
+  const partial = "Olá ⟦cliente⟧, horário às ⟦hora⟧.";
+  assertEquals(validateBodyDisplayText(partial, ["cliente", "hora"]), null);
+});
+
+Deno.test("buildMetaBodyPayload renumerar só variáveis presentes", () => {
+  const body = "Olá ⟦cliente⟧, horário às ⟦hora⟧.";
+  const result = buildMetaBodyPayload(body, "pt_BR", ["cliente", "hora"]);
+  assertEquals(result.text, "Olá {{1}}, horário às {{2}}.");
+  assertEquals(result.example.body_text[0], ["Maria", exampleWeekdayForTemplate("pt_BR", 1), "14:00"]);
 });
 
 Deno.test("buildMetaTemplateComponents inclui BUTTONS QUICK_REPLY", () => {

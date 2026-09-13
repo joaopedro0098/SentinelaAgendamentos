@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,19 +10,32 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogOverlay,
+  AlertDialogPortal,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { TemplateBodyEditor } from "@/features/dashboard/components/integracoes/TemplateBodyEditor";
+import {
+  TemplateBodyEditor,
+  type TemplateBodyEditorHandle,
+} from "@/features/dashboard/components/integracoes/TemplateBodyEditor";
+import { WhatsAppTemplatePhonePreview } from "@/features/dashboard/components/integracoes/WhatsAppTemplatePhonePreview";
 import {
   CATEGORY_BUTTON_OPTIONS,
   CATEGORY_DISPLAY_LABEL,
   DEFAULT_BODY_TEXT,
   TEMPLATE_LANGUAGE_OPTIONS,
+  VARIABLE_ORDER,
+  VARIABLE_UI_LABELS,
+  addVariableToBody,
+  enabledVariablesRecordFromBody,
+  removeVariableFromBody,
   validateBodyDisplayText,
   statusBadgeLabel,
   type SentinelaTemplateCategory,
   type TemplateLanguage,
+  type TemplateVariableKey,
 } from "@/features/dashboard/lib/metaTemplateProduct";
 import {
   createWabaMessageTemplate,
@@ -32,6 +46,13 @@ import {
   type UnlinkedApprovedTemplate,
   type WabaTemplatesSyncResult,
 } from "@/features/dashboard/lib/wabaTemplatesApi";
+import {
+  clearWabaTemplateDraft,
+  loadWabaTemplateDraft,
+  saveAllWabaTemplateDrafts,
+  saveWabaTemplateDraft,
+  type WabaTemplateFormDraft,
+} from "@/features/dashboard/lib/wabaTemplateFormDraft";
 
 type WhatsAppTemplatesDialogProps = {
   open: boolean;
@@ -51,14 +72,17 @@ type FormState = {
   body: string;
   language: TemplateLanguage;
   enabledButtons: Record<string, boolean>;
+  enabledVariables: Record<TemplateVariableKey, boolean>;
 };
 
 function defaultForm(category: SentinelaTemplateCategory, language: TemplateLanguage): FormState {
   const buttons = CATEGORY_BUTTON_OPTIONS[category];
+  const body = DEFAULT_BODY_TEXT[category][language];
   return {
-    body: DEFAULT_BODY_TEXT[category][language],
+    body,
     language,
     enabledButtons: Object.fromEntries(buttons.map((b) => [b.id, true])),
+    enabledVariables: enabledVariablesRecordFromBody(body),
   };
 }
 
@@ -76,7 +100,12 @@ function formFromLinked(
     body: linked.body_display_text,
     language: (linked.language as TemplateLanguage) ?? "pt_BR",
     enabledButtons: enabled,
+    enabledVariables: enabledVariablesRecordFromBody(linked.body_display_text),
   };
+}
+
+function enabledVariableKeys(form: FormState): TemplateVariableKey[] {
+  return VARIABLE_ORDER.filter((k) => form.enabledVariables[k]);
 }
 
 export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplatesDialogProps) {
@@ -89,6 +118,64 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     confirmacao: defaultForm("confirmacao", "pt_BR"),
     lembrete: defaultForm("lembrete", "pt_BR"),
   });
+  const formsRef = useRef(forms);
+  formsRef.current = forms;
+  const activeFormRef = useRef(activeForm);
+  activeFormRef.current = activeForm;
+  const editorRef = useRef<TemplateBodyEditorHandle>(null);
+  const wabaIdRef = useRef<string | null>(null);
+  wabaIdRef.current =
+    syncData?.waba_id ??
+    syncData?.slots.confirmacao.linked?.waba_id ??
+    syncData?.slots.lembrete.linked?.waba_id ??
+    null;
+
+  const buildFormsSnapshot = useCallback((): Record<SentinelaTemplateCategory, FormState> => {
+    const snapshot: Record<SentinelaTemplateCategory, FormState> = {
+      confirmacao: { ...formsRef.current.confirmacao },
+      lembrete: { ...formsRef.current.lembrete },
+    };
+    const editing = activeFormRef.current;
+    if (!editing) return snapshot;
+
+    const bodyFromEditor = editorRef.current?.readDisplayText();
+    if (bodyFromEditor == null) return snapshot;
+
+    snapshot[editing] = {
+      ...snapshot[editing],
+      body: bodyFromEditor,
+      enabledVariables: enabledVariablesRecordFromBody(bodyFromEditor),
+    };
+    return snapshot;
+  }, []);
+
+  const persistAllDraftsNow = useCallback(() => {
+    const id = wabaIdRef.current;
+    if (!id) return;
+    const snapshot = buildFormsSnapshot();
+    saveAllWabaTemplateDrafts(id, snapshot);
+    formsRef.current = snapshot;
+    setForms(snapshot);
+  }, [buildFormsSnapshot]);
+
+  const closeEditor = useCallback(
+    (_category: SentinelaTemplateCategory) => {
+      persistAllDraftsNow();
+      setActiveForm(null);
+    },
+    [persistAllDraftsNow],
+  );
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        persistAllDraftsNow();
+        setActiveForm(null);
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, persistAllDraftsNow],
+  );
 
   const runSync = useCallback(async () => {
     setLoading(true);
@@ -101,6 +188,16 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     }
 
     setSyncData(result);
+    if (result.ok && result.waba_id) {
+      setForms((prev) => {
+        const next = { ...prev };
+        for (const category of CATEGORIES) {
+          const draft = loadWabaTemplateDraft(result.waba_id, category);
+          if (draft) next[category] = draft;
+        }
+        return next;
+      });
+    }
   }, [toast]);
 
   useEffect(() => {
@@ -111,20 +208,27 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   }, [open, runSync]);
 
   function updateForm(category: SentinelaTemplateCategory, patch: Partial<FormState>) {
-    setForms((prev) => ({ ...prev, [category]: { ...prev[category], ...patch } }));
+    setForms((prev) => {
+      const updated = { ...prev, [category]: { ...prev[category], ...patch } };
+      const id = wabaIdRef.current;
+      if (id) {
+        saveWabaTemplateDraft(id, category, updated[category]);
+      }
+      return updated;
+    });
   }
 
   function openCreateForm(category: SentinelaTemplateCategory) {
     const slot = syncData?.slots[category];
-    if (slot?.linked && slot.linked.meta_status === "REJECTED") {
+    const id = wabaIdRef.current;
+    const draft = id ? loadWabaTemplateDraft(id, category) : null;
+
+    if (draft) {
+      setForms((prev) => ({ ...prev, [category]: draft }));
+    } else if (slot?.linked && slot.linked.meta_status === "REJECTED") {
       setForms((prev) => ({
         ...prev,
         [category]: formFromLinked(category, slot.linked!),
-      }));
-    } else {
-      setForms((prev) => ({
-        ...prev,
-        [category]: defaultForm(category, prev[category].language),
       }));
     }
     setActiveForm(category);
@@ -132,7 +236,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
 
   async function handleSubmit(category: SentinelaTemplateCategory) {
     const form = forms[category];
-    const validation = validateBodyDisplayText(form.body, form.language);
+    const validation = validateBodyDisplayText(form.body, form.language, enabledVariableKeys(form));
     if (validation) {
       toast({ title: "Revise o texto", description: validation, variant: "destructive" });
       return;
@@ -170,6 +274,9 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
       description: "A Meta vai analisar em breve. Você será avisado quando houver atualização.",
     });
     setSyncData(result);
+    if (result.waba_id) {
+      clearWabaTemplateDraft(result.waba_id, category);
+    }
     setActiveForm(null);
   }
 
@@ -199,8 +306,6 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     const slot = syncData?.slots[category];
     const form = forms[category];
     const linked = slot?.linked;
-    const showForm = activeForm === category;
-
     return (
       <div key={category} className="rounded-lg border p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -214,7 +319,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
               </span>
             )}
           </div>
-          {slot?.can_create && !showForm && (
+          {slot?.can_create && (
             <Button type="button" size="sm" variant="outline" onClick={() => openCreateForm(category)}>
               {linked?.meta_status === "REJECTED" ? "Editar e reenviar" : "Criar"}
             </Button>
@@ -227,7 +332,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
           </p>
         )}
 
-        {linked && !showForm && (
+        {linked && (
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="whitespace-pre-wrap text-foreground/80">{linked.body_display_text.replace(/⟦(\w+)⟧/g, "[$1]")}</p>
             {linked.quick_reply_labels.length > 0 && (
@@ -237,46 +342,75 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
           </div>
         )}
 
-        {linked?.meta_status === "REJECTED" && linked.rejection_user_message && !showForm && (
+        {linked?.meta_status === "REJECTED" && linked.rejection_user_message && (
           <p className="text-xs text-destructive bg-destructive/10 rounded-md px-2 py-1.5">
             {linked.rejection_user_message}
           </p>
         )}
 
-        {showForm && (
-          <div className="space-y-3 pt-1 border-t">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Idioma</Label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.language}
-                disabled={submitting}
-                onChange={(e) => {
-                  const lang = e.target.value as TemplateLanguage;
-                  updateForm(category, {
-                    language: lang,
-                    body: DEFAULT_BODY_TEXT[category][lang],
-                  });
-                }}
-              >
-                {TEMPLATE_LANGUAGE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+      </div>
+    );
+  }
 
+  function renderEditorPanel(category: SentinelaTemplateCategory) {
+    const form = forms[category];
+    const linked = syncData?.slots[category]?.linked;
+
+    return (
+      <>
+        <AlertDialogHeader className="shrink-0 space-y-1.5 text-left">
+          <AlertDialogTitle className="text-xl">{CATEGORY_DISPLAY_LABEL[category]}</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm">
+            Texto, variáveis e botões. O celular ao lado atualiza em tempo real.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div className="shrink-0 space-y-1.5">
+            <Label className="text-sm">Idioma</Label>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.language}
+              disabled={submitting}
+              onChange={(e) => {
+                const lang = e.target.value as TemplateLanguage;
+                const body = DEFAULT_BODY_TEXT[category][lang];
+                updateForm(category, {
+                  language: lang,
+                  body,
+                  enabledVariables: enabledVariablesRecordFromBody(body),
+                });
+              }}
+            >
+              {TEMPLATE_LANGUAGE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
             <TemplateBodyEditor
+              ref={editorRef}
+              layout="compact"
               value={form.body}
               language={form.language}
+              enabledVariableKeys={enabledVariableKeys(form)}
               disabled={submitting}
-              onChange={(body) => updateForm(category, { body })}
+              onChange={(body) =>
+                updateForm(category, {
+                  body,
+                  enabledVariables: enabledVariablesRecordFromBody(body),
+                })
+              }
             />
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs">Botões de resposta rápida</Label>
-              <div className="space-y-2">
+          <div className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-1.5 border-t pt-3">
+            <div>
+              <Label className="text-sm text-muted-foreground">Botões</Label>
+              <div className="mt-1 space-y-1">
                 {CATEGORY_BUTTON_OPTIONS[category].map((btn) => (
                   <label key={btn.id} className="flex items-center gap-2 text-sm">
                     <input
@@ -295,27 +429,61 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
                 ))}
               </div>
             </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="ghost" size="sm" disabled={submitting} onClick={() => setActiveForm(null)}>
-                Cancelar
-              </Button>
-              <Button type="button" size="sm" disabled={submitting} onClick={() => void handleSubmit(category)}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Enviando…
-                  </>
-                ) : linked?.meta_status === "REJECTED" ? (
-                  "Reenviar para aprovação"
-                ) : (
-                  "Enviar para aprovação"
-                )}
-              </Button>
+            <div>
+              <Label className="text-sm text-muted-foreground">Variáveis</Label>
+              <div className="mt-1 space-y-1">
+                {VARIABLE_ORDER.map((varKey) => (
+                  <label key={varKey} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.enabledVariables[varKey])}
+                      disabled={submitting}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        const nextVars = { ...form.enabledVariables, [varKey]: checked };
+                        const nextBody = checked
+                          ? addVariableToBody(form.body, varKey)
+                          : removeVariableFromBody(form.body, varKey);
+                        updateForm(category, {
+                          enabledVariables: nextVars,
+                          body: nextBody,
+                        });
+                      }}
+                      className="rounded border-input"
+                    />
+                    <span>{VARIABLE_UI_LABELS[form.language][varKey]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+
+        <AlertDialogFooter className="shrink-0 flex-row justify-end gap-2 border-t pt-2 sm:justify-end">
+          <Button type="button" variant="outline" size="sm" disabled={submitting} onClick={() => closeEditor(category)}>
+            Voltar
+          </Button>
+          <AlertDialogCancel
+            disabled={submitting}
+            className="mt-0"
+            onClick={() => persistAllDraftsNow()}
+          >
+            Fechar
+          </AlertDialogCancel>
+          <Button type="button" size="sm" disabled={submitting} onClick={() => void handleSubmit(category)}>
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Enviando…
+              </>
+            ) : linked?.meta_status === "REJECTED" ? (
+              "Reenviar"
+            ) : (
+              "Enviar"
+            )}
+          </Button>
+        </AlertDialogFooter>
+      </>
     );
   }
 
@@ -344,34 +512,82 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     );
   }
 
+  const editingCategory = activeForm;
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
-          <AlertDialogDescription>
-            Crie ou vincule templates de confirmação e lembrete. A Meta precisa aprovar antes do uso nas mensagens.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+    <AlertDialog open={open} onOpenChange={handleDialogOpenChange}>
+      {editingCategory ? (
+        <AlertDialogPortal>
+          <AlertDialogOverlay />
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 sm:p-6">
+            <div className="flex max-h-full w-full max-w-[min(100%,72rem)] items-center justify-center gap-6 min-[1080px]:gap-8 pointer-events-none">
+              <AlertDialogPrimitive.Content
+                className={cn(
+                  "pointer-events-auto relative flex max-h-[calc(100vh-2rem)] w-full max-w-[min(720px,48vw)] min-w-[min(100%,320px)] flex-col gap-3 overflow-hidden",
+                  "translate-x-0 translate-y-0 border bg-background p-5 shadow-lg sm:rounded-lg sm:p-6",
+                  "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+                )}
+              >
+                {loading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  renderEditorPanel(editingCategory)
+                )}
+              </AlertDialogPrimitive.Content>
 
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              {!loading ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none hidden min-[1080px]:block shrink-0 self-center"
+                  style={{
+                    height: "min(660px, calc(100vh - 2rem))",
+                    aspectRatio: "340 / 640",
+                    width: "auto",
+                  }}
+                >
+                  <WhatsAppTemplatePhonePreview
+                    size="viewport"
+                    body={forms[editingCategory].body}
+                    language={forms[editingCategory].language}
+                    quickReplyLabels={CATEGORY_BUTTON_OPTIONS[editingCategory]
+                      .filter((b) => forms[editingCategory].enabledButtons[b.id])
+                      .map((b) => b.label[forms[editingCategory].language])}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {CATEGORIES.map(renderSlot)}
-            {renderUnlinked()}
-          </div>
-        )}
+        </AlertDialogPortal>
+      ) : (
+        <AlertDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
+            <AlertDialogDescription>
+              Crie ou vincule templates de confirmação e lembrete. A Meta precisa aprovar antes do uso nas mensagens.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={submitting}>Fechar</AlertDialogCancel>
-          <Button type="button" variant="outline" disabled={loading || submitting} onClick={() => void runSync()}>
-            Atualizar
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {CATEGORIES.map(renderSlot)}
+              {renderUnlinked()}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Fechar</AlertDialogCancel>
+            <Button type="button" variant="outline" disabled={loading || submitting} onClick={() => void runSync()}>
+              Atualizar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      )}
     </AlertDialog>
   );
 }

@@ -1,220 +1,369 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
-import { GripVertical } from "lucide-react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import {
   type BodySegment,
   type TemplateLanguage,
   type TemplateVariableKey,
+  VARIABLE_MARKERS,
   VARIABLE_UI_LABELS,
   parseBodyDisplayText,
-  serializeBodySegments,
+  validateBodyDisplayText,
 } from "@/features/dashboard/lib/metaTemplateProduct";
+import {
+  caretDisplayOffsetFromPoint,
+  insertMarkerAtOffset,
+  mapFullTextOffsetToWithoutMarker,
+  mapWithoutMarkerOffsetToFull,
+  rangeFromDisplayOffset,
+  readDisplayTextFromEditor,
+  removeVariableMarker,
+  snapOffsetToWordBoundary,
+} from "@/features/dashboard/components/integracoes/templateEditorDragUtils";
 
 type TemplateBodyEditorProps = {
   value: string;
   onChange: (next: string) => void;
   language: TemplateLanguage;
+  enabledVariableKeys: TemplateVariableKey[];
   disabled?: boolean;
+  /** Menos altura e texto de ajuda — cabe na janela do editor sem scroll da página. */
+  layout?: "default" | "compact";
 };
 
-const DRAG_MIME = "application/x-template-segment-index";
+export type TemplateBodyEditorHandle = {
+  readDisplayText: () => string | null;
+};
 
-function reorderSegments(segments: BodySegment[], fromIndex: number, toIndex: number): BodySegment[] {
-  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= segments.length) {
-    return segments;
+const DRAG_MIME = "application/x-template-variable-key";
+
+function createVariableChip(key: TemplateVariableKey, language: TemplateLanguage): HTMLSpanElement {
+  const chip = document.createElement("span");
+  chip.contentEditable = "false";
+  chip.dataset.variable = key;
+  chip.draggable = true;
+  chip.title = "Arraste para reposicionar";
+  chip.className =
+    "inline-flex items-center gap-0.5 align-baseline mx-0.5 rounded-md bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium select-none border border-primary/20 cursor-grab active:cursor-grabbing hover:bg-primary/15";
+
+  const grip = document.createElement("span");
+  grip.className = "text-[10px] opacity-60 leading-none";
+  grip.setAttribute("aria-hidden", "true");
+  grip.textContent = "⋮⋮";
+
+  const label = document.createElement("span");
+  label.textContent = VARIABLE_UI_LABELS[language][key];
+
+  chip.append(grip, label);
+  return chip;
+}
+
+function populateEditor(root: HTMLElement, segments: BodySegment[], language: TemplateLanguage) {
+  root.innerHTML = "";
+  for (const segment of segments) {
+    if (segment.type === "text") {
+      if (segment.value) root.appendChild(document.createTextNode(segment.value));
+    } else {
+      root.appendChild(createVariableChip(segment.key, language));
+    }
   }
-  const next = segments.slice();
-  const [moved] = next.splice(fromIndex, 1);
-  const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
-  next.splice(insertAt, 0, moved);
-  return next;
 }
 
-function updateTextSegment(segments: BodySegment[], index: number, text: string): BodySegment[] {
-  return segments.map((s, i) => (i === index && s.type === "text" ? { ...s, value: text } : s));
-}
-
-type DropSide = "before" | "after";
-
-function resolveInsertIndex(targetIndex: number, side: DropSide, segmentCount: number): number {
-  return side === "before" ? targetIndex : Math.min(targetIndex + 1, segmentCount);
-}
-
-export function TemplateBodyEditor({ value, onChange, language, disabled }: TemplateBodyEditorProps) {
-  const [segments, setSegments] = useState<BodySegment[]>(() => parseBodyDisplayText(value));
+export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateBodyEditorProps>(function TemplateBodyEditor(
+  {
+  value,
+  onChange,
+  language,
+  enabledVariableKeys,
+  disabled,
+  layout = "default",
+  },
+  ref,
+) {
+  const compact = layout === "compact";
+  const editorRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
   const lastEmittedValue = useRef(value);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [dropHint, setDropHint] = useState<{ index: number; side: DropSide } | null>(null);
+  const lastValidValue = useRef(value);
+  const dragStateRef = useRef<{
+    key: TemplateVariableKey;
+    textWithout: string;
+    snapOffset: number;
+  } | null>(null);
+  const dropCommittedRef = useRef(false);
+  const draggedChipRef = useRef<HTMLElement | null>(null);
+  const isComposingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    readDisplayText: () => {
+      const el = editorRef.current;
+      if (!el) return null;
+      return readDisplayTextFromEditor(el);
+    },
+  }));
+
+  const rebuildFromValue = useCallback(
+    (text: string) => {
+      const el = editorRef.current;
+      if (!el) return;
+      populateEditor(el, parseBodyDisplayText(text), language);
+    },
+    [language],
+  );
+
+  const hideDropIndicator = useCallback(() => {
+    const indicator = indicatorRef.current;
+    if (indicator) indicator.style.display = "none";
+  }, []);
+
+  const showDropIndicatorAtOffset = useCallback(
+    (offset: number) => {
+      const editor = editorRef.current;
+      const shell = shellRef.current;
+      const indicator = indicatorRef.current;
+      if (!editor || !shell || !indicator) return;
+
+      const range = rangeFromDisplayOffset(editor, offset);
+      if (!range) return;
+
+      const rect = range.getBoundingClientRect();
+      const shellRect = shell.getBoundingClientRect();
+      indicator.style.display = "block";
+      indicator.style.left = `${rect.left - shellRect.left}px`;
+      indicator.style.top = `${rect.top - shellRect.top}px`;
+      indicator.style.height = `${Math.max(rect.height, 18)}px`;
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    if (value !== lastEmittedValue.current && !dragStateRef.current) {
+      lastEmittedValue.current = value;
+      lastValidValue.current = value;
+      rebuildFromValue(value);
+    }
+  }, [value, rebuildFromValue]);
 
   useEffect(() => {
-    if (value !== lastEmittedValue.current) {
-      lastEmittedValue.current = value;
-      setSegments(parseBodyDisplayText(value));
+    if (!dragStateRef.current) {
+      rebuildFromValue(lastValidValue.current);
     }
-  }, [value]);
+  }, [language, rebuildFromValue]);
 
-  function emit(next: BodySegment[]) {
-    setSegments(next);
-    const serialized = serializeBodySegments(next);
-    lastEmittedValue.current = serialized;
-    onChange(serialized);
+  function emitBody(text: string) {
+    lastValidValue.current = text;
+    lastEmittedValue.current = text;
+    onChange(text);
   }
 
-  function handleTextChange(index: number, text: string) {
-    emit(updateTextSegment(segments, index, text));
+  function commitDisplayText(text: string, revertIfInvalid = false) {
+    const validationError = validateBodyDisplayText(text, language, enabledVariableKeys);
+    if (validationError && revertIfInvalid) {
+      rebuildFromValue(lastValidValue.current);
+      return;
+    }
+    emitBody(text);
   }
 
-  function handleDropOnSlot(targetIndex: number, side: DropSide, fromIndex: number) {
-    const insertAt = resolveInsertIndex(targetIndex, side, segments.length);
-    emit(reorderSegments(segments, fromIndex, insertAt));
-    setDraggingIndex(null);
-    setDropHint(null);
+  function syncFromEditor() {
+    const el = editorRef.current;
+    if (!el || dragStateRef.current) return;
+    emitBody(readDisplayTextFromEditor(el));
   }
 
-  function handleDragStart(index: number, e: DragEvent) {
+  function handleInput() {
+    if (disabled || isComposingRef.current || dragStateRef.current) return;
+    syncFromEditor();
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (disabled) return;
-    e.dataTransfer.setData(DRAG_MIME, String(index));
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key !== "Backspace" && e.key !== "Delete") return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const chips = editor.querySelectorAll("[data-variable]");
+    for (const chip of chips) {
+      if (range.intersectsNode(chip)) {
+        e.preventDefault();
+        return;
+      }
+    }
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLDivElement>) {
+    if (disabled) return;
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
+    syncFromEditor();
+  }
+
+  function handleDragStart(e: DragEvent<HTMLDivElement>) {
+    if (disabled) return;
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const chip = target.closest("[data-variable]") as HTMLElement | null;
+    if (!chip || !editorRef.current?.contains(chip)) return;
+
+    const key = chip.dataset.variable as TemplateVariableKey | undefined;
+    if (!key || !VARIABLE_MARKERS[key]) return;
+
+    const fullText = readDisplayTextFromEditor(editorRef.current);
+    const textWithout = removeVariableMarker(fullText, key);
+
+    dropCommittedRef.current = false;
+    dragStateRef.current = { key, textWithout, snapOffset: 0 };
+    draggedChipRef.current = chip;
+    chip.classList.add("opacity-50", "ring-2", "ring-[#00a884]/50");
+    setIsDragging(true);
+
     e.dataTransfer.effectAllowed = "move";
-    setDraggingIndex(index);
+    e.dataTransfer.setData(DRAG_MIME, key);
+
+    const ghost = chip.cloneNode(true) as HTMLElement;
+    ghost.style.position = "absolute";
+    ghost.style.top = "-9999px";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2);
+    requestAnimationFrame(() => ghost.remove());
   }
 
-  function handleDragEnd() {
-    setDraggingIndex(null);
-    setDropHint(null);
-  }
-
-  function handleDragOverSlot(index: number, e: DragEvent) {
-    if (disabled) return;
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    const drag = dragStateRef.current;
+    if (disabled || !drag) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const side: DropSide = e.clientX < rect.left + rect.width / 2 ? "before" : "after";
-    setDropHint({ index, side });
+    const editor = editorRef.current!;
+    const fullText = readDisplayTextFromEditor(editor);
+    const textWithout = removeVariableMarker(fullText, drag.key);
+    drag.textWithout = textWithout;
+
+    const rawFull = caretDisplayOffsetFromPoint(editor, e.clientX, e.clientY);
+    const rawInWithout = mapFullTextOffsetToWithoutMarker(fullText, rawFull, drag.key);
+    const snap = snapOffsetToWordBoundary(textWithout, rawInWithout);
+    drag.snapOffset = snap;
+
+    const indicatorOffset = mapWithoutMarkerOffsetToFull(fullText, snap, drag.key);
+    showDropIndicatorAtOffset(indicatorOffset);
   }
 
-  function handleDropOnSegment(targetIndex: number, e: DragEvent) {
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    if (!shellRef.current?.contains(e.relatedTarget as Node)) {
+      hideDropIndicator();
+    }
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
     if (disabled) return;
     e.preventDefault();
-    e.stopPropagation();
 
-    const raw = e.dataTransfer.getData(DRAG_MIME);
-    const fromIndex = Number(raw);
-    if (!Number.isFinite(fromIndex)) return;
+    const drag = dragStateRef.current;
+    hideDropIndicator();
 
-    const side = dropHint?.index === targetIndex ? dropHint.side : "after";
-    handleDropOnSlot(targetIndex, side, fromIndex);
+    if (!drag) return;
+
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const fullText = readDisplayTextFromEditor(editor);
+    const textWithout = removeVariableMarker(fullText, drag.key);
+    const marker = VARIABLE_MARKERS[drag.key];
+    const next = insertMarkerAtOffset(textWithout, drag.snapOffset, marker);
+    dropCommittedRef.current = true;
+    dragStateRef.current = null;
+    setIsDragging(false);
+
+    rebuildFromValue(next);
+    commitDisplayText(next, true);
+  }
+
+  function handleDragEnd() {
+    hideDropIndicator();
+    const chip = draggedChipRef.current;
+    if (chip) {
+      chip.classList.remove("opacity-50", "ring-2", "ring-[#00a884]/50");
+    }
+    draggedChipRef.current = null;
+    if (!dropCommittedRef.current && dragStateRef.current) {
+      rebuildFromValue(lastValidValue.current);
+    }
+    dragStateRef.current = null;
+    setIsDragging(false);
   }
 
   return (
-    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-      <p className="text-sm text-muted-foreground">
-        Edite o texto livremente. Arraste variáveis ou blocos de texto para reorganizar a mensagem.
+    <div className={cn("rounded-lg border bg-muted/30", compact ? "space-y-2 p-2.5" : "space-y-2 p-3")}>
+      <p className={cn("text-muted-foreground leading-snug", compact ? "text-sm" : "text-sm")}>
+        {compact
+          ? "Edite abaixo; arraste variáveis entre palavras (marcador verde)."
+          : "Edite o texto na caixa abaixo. Arraste as variáveis entre as palavras — o marcador verde indica onde elas serão soltas."}
       </p>
 
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-1.5 text-base leading-relaxed min-h-[2.75rem] rounded-md p-1",
-          draggingIndex !== null && "bg-background/60 ring-1 ring-primary/20",
-        )}
-        onDragOver={(e) => {
-          if (disabled || segments.length > 0) return;
-          e.preventDefault();
-        }}
-        onDrop={(e) => {
-          if (disabled || segments.length > 0) return;
-          e.preventDefault();
-          const fromIndex = Number(e.dataTransfer.getData(DRAG_MIME));
-          if (!Number.isFinite(fromIndex)) return;
-          handleDropOnSlot(0, "before", fromIndex);
-        }}
-      >
-        {segments.map((segment, index) => {
-          const isDragging = draggingIndex === index;
-          const showBefore =
-            dropHint?.index === index && dropHint.side === "before" && draggingIndex !== null;
-          const showAfter =
-            dropHint?.index === index && dropHint.side === "after" && draggingIndex !== null;
-
-          if (segment.type === "variable") {
-            return (
-              <div
-                key={`seg-${index}-${segment.key}`}
-                className="relative inline-flex items-center"
-                onDragOver={(e) => handleDragOverSlot(index, e)}
-                onDrop={(e) => handleDropOnSegment(index, e)}
-              >
-                {showBefore && <DropIndicator position="before" />}
-                <span
-                  draggable={!disabled}
-                  onDragStart={(e) => handleDragStart(index, e)}
-                  onDragEnd={handleDragEnd}
-                  className={cn(
-                    "inline-flex items-center gap-0.5 rounded-md bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium select-none border border-primary/20",
-                    !disabled && "cursor-grab active:cursor-grabbing hover:bg-primary/15",
-                    isDragging && "opacity-40",
-                  )}
-                  title="Arraste para reposicionar"
-                >
-                  <GripVertical className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
-                  {VARIABLE_UI_LABELS[language][segment.key as TemplateVariableKey]}
-                </span>
-                {showAfter && <DropIndicator position="after" />}
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={`seg-${index}-text`}
-              className="relative inline-flex items-start gap-0.5 min-w-[8rem] flex-1"
-              onDragOver={(e) => handleDragOverSlot(index, e)}
-              onDrop={(e) => handleDropOnSegment(index, e)}
-            >
-              {showBefore && <DropIndicator position="before" />}
-              <span
-                draggable={!disabled}
-                onDragStart={(e) => handleDragStart(index, e)}
-                onDragEnd={handleDragEnd}
-                className={cn(
-                  "mt-1.5 inline-flex shrink-0 rounded p-0.5 text-muted-foreground",
-                  !disabled && "cursor-grab active:cursor-grabbing hover:bg-muted hover:text-foreground",
-                  isDragging && "opacity-40",
-                )}
-                title="Arraste para reposicionar este bloco"
-                aria-label="Arrastar bloco de texto"
-              >
-                <GripVertical className="h-4 w-4" />
-              </span>
-              <textarea
-                value={segment.value}
-                disabled={disabled}
-                rows={1}
-                onChange={(e) => handleTextChange(index, e.target.value)}
-                className={cn(
-                  "min-w-[6rem] flex-1 resize-y overflow-y-auto rounded-md border border-input bg-background px-2 py-1 text-base leading-normal",
-                  "min-h-[calc(1lh+0.5rem)] max-h-[calc(3lh+0.5rem)]",
-                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50",
-                  isDragging && "opacity-60",
-                )}
-              />
-              {showAfter && <DropIndicator position="after" />}
-            </div>
-          );
-        })}
+      <div ref={shellRef} className="relative">
+        <div
+          ref={editorRef}
+          role="textbox"
+          aria-multiline="true"
+          contentEditable={!disabled}
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false;
+            syncFromEditor();
+          }}
+          className={cn(
+            "w-full overflow-y-auto rounded-md border border-input bg-background px-3 py-2 leading-normal",
+            compact
+              ? "text-base min-h-[calc(3lh+0.5rem)] max-h-[calc(6lh+0.5rem)]"
+              : "text-base min-h-[calc(3lh+0.5rem)] max-h-[calc(8lh+0.5rem)]",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "whitespace-pre-wrap break-words",
+            disabled && "opacity-50 pointer-events-none",
+            isDragging && "ring-1 ring-[#00a884]/40",
+          )}
+        />
+        <div
+          ref={indicatorRef}
+          className="pointer-events-none absolute w-[2px] rounded-full bg-[#00a884] shadow-[0_0_6px_rgba(0,168,132,0.65)]"
+          style={{ display: "none" }}
+          aria-hidden
+        />
       </div>
     </div>
   );
-}
-
-function DropIndicator({ position }: { position: DropSide }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "pointer-events-none absolute top-0 bottom-0 w-0.5 rounded-full bg-primary z-10",
-        position === "before" ? "-left-1" : "-right-1",
-      )}
-    />
-  );
-}
+});

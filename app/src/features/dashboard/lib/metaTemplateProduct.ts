@@ -25,19 +25,19 @@ export const VARIABLE_UI_LABELS: Record<TemplateLanguage, Record<TemplateVariabl
   pt_BR: {
     cliente: "Nome do cliente",
     estabelecimento: "Estabelecimento",
-    data: "Data",
+    data: "Dia da semana",
     hora: "Hora",
   },
   es: {
     cliente: "Nombre del cliente",
     estabelecimento: "Establecimiento",
-    data: "Fecha",
+    data: "Día de la semana",
     hora: "Hora",
   },
   en_US: {
     cliente: "Client name",
     estabelecimento: "Business name",
-    data: "Date",
+    data: "Day of week",
     hora: "Time",
   },
 };
@@ -82,10 +82,107 @@ export const DEFAULT_BODY_TEXT: Record<SentinelaTemplateCategory, Record<Templat
   },
 };
 
-export function validateBodyDisplayText(bodyDisplayText: string, language: TemplateLanguage): string | null {
+const PREVIEW_STATIC_EXAMPLES: Record<TemplateLanguage, Record<Exclude<TemplateVariableKey, "data">, string>> = {
+  pt_BR: {
+    cliente: "Maria",
+    estabelecimento: "Barbearia Central",
+    hora: "14:00",
+  },
+  es: {
+    cliente: "María",
+    estabelecimento: "Barbería Central",
+    hora: "14:00",
+  },
+  en_US: {
+    cliente: "Mary",
+    estabelecimento: "Central Barbershop",
+    hora: "2:00 PM",
+  },
+};
+
+function intlLocaleForTemplateLanguage(language: TemplateLanguage): string {
+  if (language === "pt_BR") return "pt-BR";
+  if (language === "es") return "es";
+  return "en-US";
+}
+
+/** Nome do dia da semana para preview e exemplos (padrão: amanhã). */
+export function exampleWeekdayForTemplate(
+  language: TemplateLanguage,
+  daysAfterToday = 1,
+  referenceDate = new Date(),
+): string {
+  const d = new Date(referenceDate);
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + daysAfterToday);
+  return new Intl.DateTimeFormat(intlLocaleForTemplateLanguage(language), { weekday: "long" }).format(d);
+}
+
+export function previewExampleForVariable(key: TemplateVariableKey, language: TemplateLanguage): string {
+  if (key === "data") return exampleWeekdayForTemplate(language, 1);
+  return PREVIEW_STATIC_EXAMPLES[language][key];
+}
+
+export function listVariableKeysInBody(bodyDisplayText: string): TemplateVariableKey[] {
+  return VARIABLE_ORDER.filter((key) => bodyDisplayText.includes(VARIABLE_MARKERS[key]));
+}
+
+export function enabledVariablesRecordFromBody(body: string): Record<TemplateVariableKey, boolean> {
+  const present = new Set(listVariableKeysInBody(body));
+  return Object.fromEntries(VARIABLE_ORDER.map((k) => [k, present.has(k)])) as Record<
+    TemplateVariableKey,
+    boolean
+  >;
+}
+
+export function removeVariableFromBody(body: string, key: TemplateVariableKey): string {
+  const marker = VARIABLE_MARKERS[key];
+  return body.replace(marker, "").replace(/\s{2,}/g, " ").trim();
+}
+
+export function addVariableToBody(body: string, key: TemplateVariableKey): string {
+  const marker = VARIABLE_MARKERS[key];
+  if (body.includes(marker)) return body;
+  const trimmed = body.trimEnd();
+  if (!trimmed) return marker;
+  const needsSpace = !trimmed.endsWith(" ") && !trimmed.endsWith(",") && !trimmed.endsWith(".");
+  return `${trimmed}${needsSpace ? " " : ""}${marker}`;
+}
+
+export function bodyToPreviewText(body: string, language: TemplateLanguage): string {
+  let out = body;
   for (const key of VARIABLE_ORDER) {
-    if (!bodyDisplayText.includes(VARIABLE_MARKERS[key])) {
+    out = out.split(VARIABLE_MARKERS[key]).join(previewExampleForVariable(key, language));
+  }
+  return out;
+}
+
+export function validateBodyDisplayText(
+  bodyDisplayText: string,
+  language: TemplateLanguage,
+  enabledKeys: TemplateVariableKey[] = listVariableKeysInBody(bodyDisplayText),
+): string | null {
+  if (bodyDisplayText.trim().length === 0) {
+    return "O texto do template não pode ficar vazio.";
+  }
+  if (enabledKeys.length === 0) {
+    return "Selecione ao menos uma variável para usar no template.";
+  }
+  for (const key of VARIABLE_ORDER) {
+    const present = bodyDisplayText.includes(VARIABLE_MARKERS[key]);
+    const enabled = enabledKeys.includes(key);
+    if (enabled && !present) {
       return `Mantenha a variável "${VARIABLE_UI_LABELS[language][key]}" no texto.`;
+    }
+    if (!enabled && present) {
+      return `Desmarque ou remova a variável "${VARIABLE_UI_LABELS[language][key]}" do texto.`;
+    }
+  }
+  for (const key of enabledKeys) {
+    const marker = VARIABLE_MARKERS[key];
+    const count = bodyDisplayText.split(marker).length - 1;
+    if (count !== 1) {
+      return `A variável "${VARIABLE_UI_LABELS[language][key]}" deve aparecer uma vez no texto.`;
     }
   }
   if (bodyDisplayText.length > 1024) {
