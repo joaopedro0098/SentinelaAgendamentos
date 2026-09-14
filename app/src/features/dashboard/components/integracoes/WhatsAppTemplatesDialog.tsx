@@ -83,9 +83,14 @@ const TAB_LABELS: Record<TemplateBrowseTab, string> = {
 };
 
 const CATEGORY_PICKER_HINT: Record<SentinelaTemplateCategory, string> = {
-  confirmacao: "Enviado ~1 dia antes do horário; o cliente confirma, remarca ou cancela.",
-  lembrete: "Enviado ~3 horas antes do horário, apenas como lembrete.",
+  confirmacao:
+    "Enviado 1 dia antes do dia agendado, o cliente clica em confirmar, remarcar ou cancelar.",
+  lembrete:
+    "Enviado cerca de 3 horas antes do horário agendado, apenas como lembrete para o cliente.",
 };
+
+const PENDING_CATEGORY_TOAST_MESSAGE =
+  "Aguarde o template anterior ser aprovado pela Meta; após, você poderá enviar outro.";
 
 function statusBadgeClass(status: string): string {
   if (status === "APPROVED") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400";
@@ -329,9 +334,8 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   function tryOpenCreateForCategory(category: SentinelaTemplateCategory) {
     if (!syncData?.can_create_by_category[category]) {
       toast({
-        title: "Aguarde a análise da Meta",
-        description: `Já existe um template de ${CATEGORY_DISPLAY_LABEL[category].toLowerCase()} em análise. Você pode criar outro na outra categoria ou esperar a resposta.`,
-        variant: "destructive",
+        title: CATEGORY_DISPLAY_LABEL[category],
+        description: PENDING_CATEGORY_TOAST_MESSAGE,
       });
       return;
     }
@@ -492,31 +496,18 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">Escolha qual template deseja criar:</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {CATEGORIES.map((category) => {
-            const canCreate = syncData.can_create_by_category[category];
-            return (
+          {CATEGORIES.map((category) => (
               <button
                 key={category}
                 type="button"
                 disabled={submitting}
                 onClick={() => tryOpenCreateForCategory(category)}
-                className={cn(
-                  "rounded-lg border p-4 text-left transition-colors",
-                  canCreate
-                    ? "hover:border-primary/50 hover:bg-muted/40"
-                    : "opacity-60 cursor-not-allowed",
-                )}
+                className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
               >
                 <span className="font-medium text-sm block">{CATEGORY_DISPLAY_LABEL[category]}</span>
                 <span className="text-xs text-muted-foreground mt-1 block">{CATEGORY_PICKER_HINT[category]}</span>
-                {!canCreate && (
-                  <span className="text-xs text-amber-700 dark:text-amber-400 mt-2 block">
-                    Há um template deste tipo em análise na Meta.
-                  </span>
-                )}
               </button>
-            );
-          })}
+            ))}
         </div>
         <Button type="button" variant="ghost" size="sm" className="px-0" onClick={() => setCategoryPickerOpen(false)}>
           Voltar para a lista
