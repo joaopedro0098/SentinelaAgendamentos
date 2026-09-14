@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isCronAuthorized } from "../_shared/cronAuth.ts";
 import { sendDueReminder3hWhatsApp } from "../_shared/whatsappReminder3h.ts";
+import { finalizePendingTemplateDeletionsGlobal } from "../_shared/metaWabaTemplatesService.ts";
 import {
   registrarOkTwilioTemplate3h,
   registrarSkipTwilioTemplate3hAusente,
@@ -60,6 +61,12 @@ Deno.serve(async (req) => {
       console.info(
         "process-appointment-reminder-3h: WHATSAPP_TEMPLATE_SEND_ENABLED != true — lembrete ~3h não enviado (aguardando aprovação).",
       );
+    }
+
+    try {
+      await finalizePendingTemplateDeletionsGlobal(supabase);
+    } catch (finalizeErr) {
+      console.error("process-appointment-reminder-3h: finalize template deletions:", finalizeErr);
     }
 
     return jsonResponse({ ok: true, reminder_3h_whatsapp: reminder3hResult });

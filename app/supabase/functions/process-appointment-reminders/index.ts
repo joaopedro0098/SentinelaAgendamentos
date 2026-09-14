@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isCronAuthorized } from "../_shared/cronAuth.ts";
 import { sendDueClientReminderWhatsApp } from "../_shared/whatsappAppointmentReminders.ts";
+import { finalizePendingTemplateDeletionsGlobal } from "../_shared/metaWabaTemplatesService.ts";
 import {
   registrarOkTwilioTemplateD1,
   registrarSkipTwilioTemplateD1Ausente,
@@ -63,6 +64,12 @@ Deno.serve(async (req) => {
     }
 
     const { data: canceledCount } = await supabase.rpc("cancel_unconfirmed_appointments");
+
+    try {
+      await finalizePendingTemplateDeletionsGlobal(supabase);
+    } catch (finalizeErr) {
+      console.error("process-appointment-reminders: finalize template deletions:", finalizeErr);
+    }
 
     return jsonResponse({
       ok: true,

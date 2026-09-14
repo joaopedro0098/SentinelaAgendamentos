@@ -6,8 +6,10 @@ import {
   buildMetaBodyPayload,
   buildMetaTemplateComponents,
   exampleWeekdayForTemplate,
+  allocateMetaTemplateName,
   generateMetaTemplateName,
   inferCategoryFromMetaTemplateName,
+  sentinelaCategoryForWhatsAppTemplateKind,
   translateRejectionReason,
   validateBodyDisplayText,
   validateMetaTemplateName,
@@ -26,6 +28,26 @@ Deno.test("generateMetaTemplateName é estável e compatível com Meta", () => {
   const shopId = "78d6e7e3-b8a9-45f3-b421-9e567bf24458";
   assertEquals(generateMetaTemplateName("confirmacao", shopId), "sentinela_confirmacao_78d6e7e3");
   assertEquals(generateMetaTemplateName("lembrete", shopId), "sentinela_lembrete_78d6e7e3");
+  assertEquals(generateMetaTemplateName("lembrete", shopId, 2), "sentinela_lembrete_78d6e7e3_2");
+});
+
+Deno.test("allocateMetaTemplateName evita colisão com nomes existentes", () => {
+  const shopId = "78d6e7e3-b8a9-45f3-b421-9e567bf24458";
+  const base = generateMetaTemplateName("confirmacao", shopId);
+  assertEquals(allocateMetaTemplateName("confirmacao", shopId, [base]), `${base}_1`);
+});
+
+Deno.test("sentinelaCategoryForWhatsAppTemplateKind mapeia D-1 e 3h", () => {
+  assertEquals(sentinelaCategoryForWhatsAppTemplateKind("lembrete_d1"), "confirmacao");
+  assertEquals(sentinelaCategoryForWhatsAppTemplateKind("lembrete_3h"), "lembrete");
+  assertEquals(sentinelaCategoryForWhatsAppTemplateKind("alerta_profissional"), null);
+});
+
+Deno.test("buildMetaTemplateComponents lembrete sem botões", () => {
+  const body = DEFAULT_BODY("lembrete", "pt_BR");
+  const components = buildMetaTemplateComponents(body, "pt_BR", "lembrete", []);
+  assertEquals(components.length, 1);
+  assertEquals(components[0]?.type, "BODY");
 });
 
 Deno.test("inferCategoryFromMetaTemplateName reconhece prefixos Sentinela", () => {

@@ -11,7 +11,15 @@ import {
   type WhatsAppMessagingProvider,
 } from "./barbershopMessagingProvider.ts";
 
-export type WhatsAppTemplateKind = "lembrete_d1" | "lembrete_3h" | "alerta_profissional";
+import {
+  sentinelaCategoryForWhatsAppTemplateKind,
+  type WhatsAppOperationalTemplateKind,
+} from "./metaTemplateProduct.ts";
+
+export type WhatsAppTemplateKind = WhatsAppOperationalTemplateKind;
+
+/** @see sentinelaCategoryForWhatsAppTemplateKind — D-1 → confirmacao, 3h → lembrete */
+export { sentinelaCategoryForWhatsAppTemplateKind };
 
 export type SendTemplateResult = {
   externalMessageId: string;

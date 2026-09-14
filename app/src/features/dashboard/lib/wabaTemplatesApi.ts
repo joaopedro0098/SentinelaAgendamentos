@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { SentinelaTemplateCategory, TemplateLanguage } from "@/features/dashboard/lib/metaTemplateProduct";
 
-export type LinkedTemplateSlot = {
+export type WabaTemplateRecord = {
   id: string;
   sentinela_category: SentinelaTemplateCategory;
   meta_template_id: string | null;
@@ -15,12 +15,11 @@ export type LinkedTemplateSlot = {
   waba_id: string;
   needs_reconnect: boolean;
   last_synced_at: string | null;
-};
-
-export type TemplateSlotState = {
-  linked: LinkedTemplateSlot | null;
-  can_create: boolean;
-  needs_reconnect: boolean;
+  is_selected: boolean;
+  deletion_pending_at: string | null;
+  deletion_last_appointment_at: string | null;
+  deletion_meta_error: string | null;
+  pending_appointment_count: number;
 };
 
 export type UnlinkedApprovedTemplate = {
@@ -35,12 +34,12 @@ export type WabaTemplatesSyncResult =
   | {
       ok: true;
       waba_id: string;
-      slots: {
-        confirmacao: TemplateSlotState;
-        lembrete: TemplateSlotState;
+      templates: WabaTemplateRecord[];
+      can_create_by_category: {
+        confirmacao: boolean;
+        lembrete: boolean;
       };
       meta_approved_unlinked: UnlinkedApprovedTemplate[];
-      pending_local: { id: string; sentinela_category: SentinelaTemplateCategory; meta_status: string }[];
     }
   | { ok: false; error: string };
 
@@ -80,6 +79,10 @@ export async function linkWabaMessageTemplate(payload: {
   return invokeTemplates({ action: "link", ...payload });
 }
 
+export async function selectWabaMessageTemplate(templateId: string): Promise<WabaTemplatesSyncResult> {
+  return invokeTemplates({ action: "select", template_id: templateId });
+}
+
 export async function createWabaMessageTemplate(payload: {
   sentinela_category: SentinelaTemplateCategory;
   body_display_text: string;
@@ -90,6 +93,7 @@ export async function createWabaMessageTemplate(payload: {
 }
 
 export async function resubmitWabaMessageTemplate(payload: {
+  template_id: string;
   sentinela_category: SentinelaTemplateCategory;
   body_display_text: string;
   language: TemplateLanguage;
@@ -98,8 +102,6 @@ export async function resubmitWabaMessageTemplate(payload: {
   return invokeTemplates({ action: "resubmit", ...payload });
 }
 
-export async function deleteWabaMessageTemplate(
-  sentinela_category: SentinelaTemplateCategory,
-): Promise<WabaTemplatesSyncResult> {
-  return invokeTemplates({ action: "delete", sentinela_category });
+export async function deleteWabaMessageTemplate(templateId: string): Promise<WabaTemplatesSyncResult> {
+  return invokeTemplates({ action: "delete", template_id: templateId });
 }

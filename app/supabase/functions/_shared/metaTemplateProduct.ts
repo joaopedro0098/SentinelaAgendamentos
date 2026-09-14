@@ -95,11 +95,7 @@ export const CATEGORY_BUTTON_OPTIONS: Record<
     { id: "remarcar", label: { pt_BR: "Remarcar", es: "Reprogramar", en_US: "Reschedule" } },
     { id: "cancelar", label: { pt_BR: "Cancelar", es: "Cancelar", en_US: "Cancel" } },
   ],
-  lembrete: [
-    { id: "confirmar", label: { pt_BR: "Confirmar", es: "Confirmar", en_US: "Confirm" } },
-    { id: "remarcar", label: { pt_BR: "Remarcar", es: "Reprogramar", en_US: "Reschedule" } },
-    { id: "cancelar", label: { pt_BR: "Cancelar", es: "Cancelar", en_US: "Cancel" } },
-  ],
+  lembrete: [],
 };
 
 export const DEFAULT_BODY_TEXT: Record<SentinelaTemplateCategory, Record<TemplateLanguage, string>> = {
@@ -139,14 +135,42 @@ export function validateMetaTemplateName(name: string): string | null {
   return null;
 }
 
-/** Nome técnico Meta (lowercase + underscores). Estável por barbearia/categoria. */
+/** Nome técnico Meta (lowercase + underscores). sequence=0 é o nome legado estável. */
 export function generateMetaTemplateName(
   category: SentinelaTemplateCategory,
   barbershopId: string,
+  sequence = 0,
 ): string {
   const prefix = category === "confirmacao" ? "sentinela_confirmacao" : "sentinela_lembrete";
   const shortId = barbershopId.replace(/-/g, "").slice(0, 8).toLowerCase();
-  return `${prefix}_${shortId}`;
+  const base = `${prefix}_${shortId}`;
+  if (sequence <= 0) return base;
+  return `${base}_${sequence}`;
+}
+
+/** Escolhe nome Meta único entre os já usados na barbearia. */
+export function allocateMetaTemplateName(
+  category: SentinelaTemplateCategory,
+  barbershopId: string,
+  existingNames: Iterable<string>,
+): string {
+  const used = new Set(Array.from(existingNames).map((n) => n.toLowerCase()));
+  for (let seq = 0; seq < 500; seq += 1) {
+    const candidate = generateMetaTemplateName(category, barbershopId, seq);
+    if (!used.has(candidate)) return candidate;
+  }
+  throw new Error("Não foi possível gerar um nome único para o template.");
+}
+
+export type WhatsAppOperationalTemplateKind = "lembrete_d1" | "lembrete_3h" | "alerta_profissional";
+
+/** Mapeamento envio operacional → categoria Sentinela (Meta WABA). */
+export function sentinelaCategoryForWhatsAppTemplateKind(
+  kind: WhatsAppOperationalTemplateKind,
+): SentinelaTemplateCategory | null {
+  if (kind === "lembrete_d1") return "confirmacao";
+  if (kind === "lembrete_3h") return "lembrete";
+  return null;
 }
 
 export function inferCategoryFromMetaTemplateName(name: string): SentinelaTemplateCategory | null {

@@ -128,6 +128,8 @@ export type Database = {
           valor_cobranca_base_centavos: number | null
           valor_pago_centavos: number | null
           valor_restante_centavos: number | null
+          waba_confirmacao_template_id: string | null
+          waba_lembrete_template_id: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -164,6 +166,8 @@ export type Database = {
           valor_cobranca_base_centavos?: number | null
           valor_pago_centavos?: number | null
           valor_restante_centavos?: number | null
+          waba_confirmacao_template_id?: string | null
+          waba_lembrete_template_id?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -200,6 +204,8 @@ export type Database = {
           valor_cobranca_base_centavos?: number | null
           valor_pago_centavos?: number | null
           valor_restante_centavos?: number | null
+          waba_confirmacao_template_id?: string | null
+          waba_lembrete_template_id?: string | null
         }
         Relationships: [
           {
@@ -1697,7 +1703,11 @@ export type Database = {
           barbershop_id: string
           body_display_text: string
           created_at: string
+          deletion_last_appointment_at: string | null
+          deletion_meta_error: string | null
+          deletion_pending_at: string | null
           id: string
+          is_selected: boolean
           language: string
           last_synced_at: string | null
           meta_category: string

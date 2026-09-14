@@ -4,6 +4,7 @@ import {
   deleteWabaTemplate,
   linkWabaTemplate,
   resolveMetaShopForOwner,
+  selectWabaTemplate,
   syncWabaTemplates,
 } from "../_shared/metaWabaTemplatesService.ts";
 import type { SentinelaTemplateCategory } from "../_shared/metaTemplateProduct.ts";
@@ -23,6 +24,11 @@ function json(body: Record<string, unknown>, status = 200) {
 function parseCategory(value: unknown): SentinelaTemplateCategory | null {
   if (value === "confirmacao" || value === "lembrete") return value;
   return null;
+}
+
+function parseTemplateId(body: Record<string, unknown>): string | null {
+  const id = String(body.template_id ?? "").trim();
+  return id || null;
 }
 
 Deno.serve(async (req) => {
@@ -67,6 +73,15 @@ Deno.serve(async (req) => {
       return json(result);
     }
 
+    if (action === "select") {
+      const templateId = parseTemplateId(body);
+      if (!templateId) return json({ ok: false, error: "template_id obrigatório." }, 422);
+
+      const result = await selectWabaTemplate(serviceClient, ctx, templateId);
+      if (result.ok === false) return json(result, 422);
+      return json(result);
+    }
+
     if (action === "link") {
       const category = parseCategory(body.sentinela_category);
       if (!category) return json({ ok: false, error: "Categoria inválida." }, 422);
@@ -87,10 +102,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
-      const category = parseCategory(body.sentinela_category);
-      if (!category) return json({ ok: false, error: "Categoria inválida." }, 422);
+      const templateId = parseTemplateId(body);
+      if (!templateId) return json({ ok: false, error: "template_id obrigatório." }, 422);
 
-      const result = await deleteWabaTemplate(serviceClient, ctx, category);
+      const result = await deleteWabaTemplate(serviceClient, ctx, templateId);
       if (result.ok === false) return json(result, 422);
       return json(result);
     }
@@ -103,7 +118,10 @@ Deno.serve(async (req) => {
         ? body.enabled_button_ids.map(String)
         : [];
 
+      const templateId = parseTemplateId(body);
+
       const result = await createOrResubmitWabaTemplate(serviceClient, ctx, {
+        template_id: templateId ?? undefined,
         sentinela_category: category,
         body_display_text: String(body.body_display_text ?? ""),
         language: String(body.language ?? ""),

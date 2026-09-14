@@ -1,5 +1,5 @@
 /**
- * Orquestração sync/link/create/resubmit de templates Meta por barbearia.
+ * Orquestração sync/link/create/resubmit/select/delete de templates Meta por barbearia.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { decryptWabaToken } from "./wabaCrypto.ts";
@@ -19,8 +19,13 @@ import {
   recordMetaTemplateCreation,
 } from "./metaTemplateLimits.ts";
 import {
+  countPinnedPendingForTemplate,
+  listUnpinnedEligibleAppointments,
+  pinAppointmentsToTemplate,
+} from "./metaWabaTemplateAppointments.ts";
+import {
+  allocateMetaTemplateName,
   buildMetaTemplateComponents,
-  generateMetaTemplateName,
   inferCategoryFromMetaTemplateName,
   mapGraphErrorToUserMessage,
   parseTemplateLanguage,
@@ -46,6 +51,10 @@ export type WabaTemplateRow = {
   body_display_text: string;
   quick_reply_labels: string[];
   meta_rejection_reason: string | null;
+  is_selected: boolean;
+  deletion_pending_at: string | null;
+  deletion_last_appointment_at: string | null;
+  deletion_meta_error: string | null;
   created_at: string;
   updated_at: string;
   last_synced_at: string | null;
@@ -57,6 +66,27 @@ export type MetaShopContext = {
   accessToken: string;
   wabaConnected: boolean;
   provider: string;
+};
+
+export type SerializedWabaTemplate = {
+  id: string;
+  sentinela_category: SentinelaTemplateCategory;
+  meta_template_id: string | null;
+  meta_template_name: string;
+  language: string;
+  meta_status: string;
+  body_display_text: string;
+  quick_reply_labels: string[];
+  meta_rejection_reason: string | null;
+  rejection_user_message: string | null;
+  waba_id: string;
+  needs_reconnect: boolean;
+  last_synced_at: string | null;
+  is_selected: boolean;
+  deletion_pending_at: string | null;
+  deletion_last_appointment_at: string | null;
+  deletion_meta_error: string | null;
+  pending_appointment_count: number;
 };
 
 export async function resolveMetaShopForOwner(
@@ -123,39 +153,74 @@ async function loadLocalTemplates(
   const { data, error } = await serviceClient
     .from("whatsapp_waba_message_templates")
     .select("*")
-    .eq("barbershop_id", shopId);
+    .eq("barbershop_id", shopId)
+    .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
   return (data ?? []) as WabaTemplateRow[];
 }
 
-function serializeSlot(row: WabaTemplateRow | null, wabaIdCurrent: string) {
-  if (!row) {
-    return { linked: null, can_create: true, needs_reconnect: false };
+async function getTemplateById(
+  serviceClient: SupabaseClient,
+  shopId: string,
+  templateId: string,
+): Promise<WabaTemplateRow | null> {
+  const { data, error } = await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .select("*")
+    .eq("barbershop_id", shopId)
+    .eq("id", templateId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as WabaTemplateRow | null) ?? null;
+}
+
+function categoryHasPendingReview(rows: WabaTemplateRow[], category: SentinelaTemplateCategory): boolean {
+  return rows.some(
+    (r) =>
+      r.sentinela_category === category &&
+      (r.meta_status === "PENDING" || r.meta_status === "IN_APPEAL"),
+  );
+}
+
+async function serializeTemplate(
+  serviceClient: SupabaseClient,
+  row: WabaTemplateRow,
+  wabaIdCurrent: string,
+): Promise<SerializedWabaTemplate> {
+  const needsReconnect = row.waba_id !== wabaIdCurrent;
+  let pendingCount = 0;
+  if (row.deletion_pending_at) {
+    const pending = await countPinnedPendingForTemplate(
+      serviceClient,
+      row.id,
+      row.sentinela_category,
+    );
+    pendingCount = pending.count;
   }
 
-  const needsReconnect = row.waba_id !== wabaIdCurrent;
-
   return {
-    linked: {
-      id: row.id,
-      sentinela_category: row.sentinela_category,
-      meta_template_id: row.meta_template_id,
-      meta_template_name: row.meta_template_name,
-      language: row.language,
-      meta_status: row.meta_status,
-      body_display_text: row.body_display_text,
-      quick_reply_labels: row.quick_reply_labels,
-      meta_rejection_reason: row.meta_rejection_reason,
-      rejection_user_message: row.meta_status === "REJECTED"
-        ? translateRejectionReason(row.meta_rejection_reason)
-        : null,
-      waba_id: row.waba_id,
-      needs_reconnect: needsReconnect,
-      last_synced_at: row.last_synced_at,
-    },
-    can_create: row.meta_status === "REJECTED",
+    id: row.id,
+    sentinela_category: row.sentinela_category,
+    meta_template_id: row.meta_template_id,
+    meta_template_name: row.meta_template_name,
+    language: row.language,
+    meta_status: row.meta_status,
+    body_display_text: row.body_display_text,
+    quick_reply_labels: row.quick_reply_labels,
+    meta_rejection_reason: row.meta_rejection_reason,
+    rejection_user_message: row.meta_status === "REJECTED"
+      ? translateRejectionReason(row.meta_rejection_reason)
+      : null,
+    waba_id: row.waba_id,
     needs_reconnect: needsReconnect,
+    last_synced_at: row.last_synced_at,
+    is_selected: Boolean(row.is_selected),
+    deletion_pending_at: row.deletion_pending_at,
+    deletion_last_appointment_at: row.deletion_last_appointment_at,
+    deletion_meta_error: row.deletion_meta_error,
+    pending_appointment_count: pendingCount,
   };
 }
 
@@ -193,6 +258,133 @@ async function refreshLocalFromMeta(
   return data as WabaTemplateRow;
 }
 
+async function executeMetaAndLocalDelete(
+  serviceClient: SupabaseClient,
+  ctx: MetaShopContext,
+  row: WabaTemplateRow,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const nameError = validateMetaTemplateName(row.meta_template_name);
+  if (nameError) return { ok: false, error: nameError };
+
+  try {
+    await deleteMessageTemplateByName(ctx.accessToken, ctx.wabaId, row.meta_template_name);
+  } catch (e) {
+    if (e instanceof MetaGraphRequestError) {
+      if (e.status !== 404) {
+        const msg = mapGraphErrorToUserMessage(e.status, e.userMessage, e.metaCode);
+        await serviceClient
+          .from("whatsapp_waba_message_templates")
+          .update({ deletion_meta_error: msg, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+        return { ok: false, error: msg };
+      }
+    } else {
+      throw e;
+    }
+  }
+
+  const { error } = await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .delete()
+    .eq("id", row.id)
+    .eq("barbershop_id", ctx.shopId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function tryCompleteScheduledTemplateDeletion(
+  serviceClient: SupabaseClient,
+  ctx: MetaShopContext,
+  row: WabaTemplateRow,
+): Promise<void> {
+  if (!row.deletion_pending_at) return;
+
+  const pending = await countPinnedPendingForTemplate(
+    serviceClient,
+    row.id,
+    row.sentinela_category,
+  );
+
+  const now = new Date().toISOString();
+
+  if (pending.count > 0) {
+    await serviceClient
+      .from("whatsapp_waba_message_templates")
+      .update({
+        deletion_last_appointment_at: pending.lastAppointmentAt,
+        updated_at: now,
+      })
+      .eq("id", row.id);
+    return;
+  }
+
+  await executeMetaAndLocalDelete(serviceClient, ctx, row);
+}
+
+export async function finalizePendingTemplateDeletionsGlobal(
+  serviceClient: SupabaseClient,
+): Promise<void> {
+  const { data: pendingRows, error } = await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .select("*")
+    .not("deletion_pending_at", "is", null);
+
+  if (error) {
+    console.error("[metaWabaTemplates] finalize pending list:", error.message);
+    return;
+  }
+
+  for (const row of (pendingRows ?? []) as WabaTemplateRow[]) {
+    const shopResult = await resolveShopContextForBarbershop(serviceClient, row.barbershop_id);
+    if (!shopResult.ok) continue;
+    try {
+      await tryCompleteScheduledTemplateDeletion(serviceClient, shopResult.ctx, row);
+    } catch (e) {
+      console.error("[metaWabaTemplates] finalize pending:", e);
+    }
+  }
+}
+
+async function resolveShopContextForBarbershop(
+  serviceClient: SupabaseClient,
+  shopId: string,
+): Promise<{ ok: true; ctx: MetaShopContext } | { ok: false }> {
+  const { data: shop, error } = await serviceClient
+    .from("barbershops")
+    .select(
+      "id, owner_id, waba_id, waba_access_token_encrypted, waba_connect_status, whatsapp_messaging_provider",
+    )
+    .eq("id", shopId)
+    .maybeSingle();
+
+  if (error || !shop) return { ok: false };
+  if (String(shop.whatsapp_messaging_provider ?? "").toLowerCase() !== "meta") return { ok: false };
+  if (String(shop.waba_connect_status ?? "") !== "connected") return { ok: false };
+
+  const wabaId = String(shop.waba_id ?? "").trim();
+  const encrypted = String(shop.waba_access_token_encrypted ?? "").trim();
+  if (!wabaId || !encrypted) return { ok: false };
+
+  let accessToken: string;
+  try {
+    accessToken = await decryptWabaToken(encrypted);
+  } catch {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    ctx: {
+      shopId: shop.id,
+      wabaId,
+      accessToken,
+      wabaConnected: true,
+      provider: "meta",
+    },
+  };
+}
+
 /** Best-effort: inclui message_template_status_update para WABAs já conectadas antes desta feature. */
 export async function ensureTemplateWebhookSubscription(
   accessToken: string,
@@ -203,6 +395,31 @@ export async function ensureTemplateWebhookSubscription(
   } catch (e) {
     console.warn("[metaWabaTemplates] subscribe best-effort falhou:", e);
   }
+}
+
+async function buildSyncPayload(
+  serviceClient: SupabaseClient,
+  ctx: MetaShopContext,
+  localRows: WabaTemplateRow[],
+  unlinkedApproved: Record<string, unknown>[],
+): Promise<Record<string, unknown>> {
+  const serialized = await Promise.all(
+    localRows.map((row) => serializeTemplate(serviceClient, row, ctx.wabaId)),
+  );
+
+  const canCreate = (cat: SentinelaTemplateCategory) =>
+    !categoryHasPendingReview(localRows, cat);
+
+  return {
+    ok: true,
+    waba_id: ctx.wabaId,
+    templates: serialized,
+    can_create_by_category: {
+      confirmacao: canCreate("confirmacao"),
+      lembrete: canCreate("lembrete"),
+    },
+    meta_approved_unlinked: unlinkedApproved,
+  };
 }
 
 export async function syncWabaTemplates(
@@ -217,6 +434,14 @@ export async function syncWabaTemplates(
     localRows.map((row) => refreshLocalFromMeta(serviceClient, ctx.accessToken, row)),
   );
 
+  for (const row of localRows) {
+    if (row.deletion_pending_at) {
+      await tryCompleteScheduledTemplateDeletion(serviceClient, ctx, row);
+    }
+  }
+
+  localRows = await loadLocalTemplates(serviceClient, ctx.shopId);
+
   const approvedRemote = await fetchApprovedUtilityTemplates(ctx.accessToken, ctx.wabaId);
   const linkedIds = new Set(localRows.map((r) => r.meta_template_id).filter(Boolean));
 
@@ -230,25 +455,7 @@ export async function syncWabaTemplates(
       inferred_category: inferCategoryFromMetaTemplateName(String(t.name ?? "")),
     }));
 
-  const byCategory = (cat: SentinelaTemplateCategory) =>
-    localRows.find((r) => r.sentinela_category === cat) ?? null;
-
-  return {
-    ok: true,
-    waba_id: ctx.wabaId,
-    slots: {
-      confirmacao: serializeSlot(byCategory("confirmacao"), ctx.wabaId),
-      lembrete: serializeSlot(byCategory("lembrete"), ctx.wabaId),
-    },
-    meta_approved_unlinked: unlinkedApproved,
-    pending_local: localRows
-      .filter((r) => r.meta_status === "PENDING" || r.meta_status === "IN_APPEAL")
-      .map((r) => ({
-        id: r.id,
-        sentinela_category: r.sentinela_category,
-        meta_status: r.meta_status,
-      })),
-  };
+  return buildSyncPayload(serviceClient, ctx, localRows, unlinkedApproved);
 }
 
 export async function linkWabaTemplate(
@@ -267,9 +474,8 @@ export async function linkWabaTemplate(
     normalizeMetaTemplateLanguage(input.language);
 
   const existing = await loadLocalTemplates(serviceClient, ctx.shopId);
-  const slotRow = existing.find((r) => r.sentinela_category === input.sentinela_category);
-  if (slotRow && slotRow.meta_status !== "REJECTED") {
-    return { ok: false, error: "Este slot já possui um template vinculado." };
+  if (existing.some((r) => r.meta_template_id === input.meta_template_id)) {
+    return { ok: false, error: "Este template já está vinculado." };
   }
 
   const remote = await fetchMessageTemplateById(ctx.accessToken, input.meta_template_id);
@@ -279,17 +485,16 @@ export async function linkWabaTemplate(
   const nameError = validateMetaTemplateName(resolvedName);
   if (nameError) return { ok: false, error: nameError };
 
-  const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, !slotRow);
+  const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, true);
   if (!capacity.ok) return capacity;
 
   const now = new Date().toISOString();
   const bodyDisplay = input.body_display_text?.trim() ||
-    slotRow?.body_display_text ||
-    DEFAULT_BODY_TEXT[input.sentinela_category][language];
+    DEFAULT_BODY_TEXT[input.sentinela_category][language as TemplateLanguage];
 
-  const quickLabels = input.quick_reply_labels ?? slotRow?.quick_reply_labels ?? [];
+  const quickLabels = input.quick_reply_labels ?? [];
 
-  const payload = {
+  const { error } = await serviceClient.from("whatsapp_waba_message_templates").insert({
     barbershop_id: ctx.shopId,
     waba_id: ctx.wabaId,
     sentinela_category: input.sentinela_category,
@@ -301,23 +506,45 @@ export async function linkWabaTemplate(
     body_display_text: bodyDisplay || " ",
     quick_reply_labels: quickLabels,
     meta_rejection_reason: remote.rejected_reason ? String(remote.rejected_reason) : null,
+    is_selected: false,
     last_synced_at: now,
     updated_at: now,
-  };
+    created_at: now,
+  });
 
-  if (slotRow) {
-    const { error } = await serviceClient
-      .from("whatsapp_waba_message_templates")
-      .update(payload)
-      .eq("id", slotRow.id);
-    if (error) return { ok: false, error: error.message };
-  } else {
-    const { error } = await serviceClient.from("whatsapp_waba_message_templates").insert({
-      ...payload,
-      created_at: now,
-    });
-    if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: error.message };
+
+  return syncWabaTemplates(serviceClient, ctx);
+}
+
+export async function selectWabaTemplate(
+  serviceClient: SupabaseClient,
+  ctx: MetaShopContext,
+  templateId: string,
+): Promise<Record<string, unknown>> {
+  const row = await getTemplateById(serviceClient, ctx.shopId, templateId);
+  if (!row) return { ok: false, error: "Template não encontrado." };
+  if (row.meta_status !== "APPROVED") {
+    return { ok: false, error: "Só templates aprovados podem ser selecionados." };
   }
+  if (row.deletion_pending_at) {
+    return { ok: false, error: "Este template está em exclusão e não pode ser selecionado." };
+  }
+
+  const now = new Date().toISOString();
+
+  await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .update({ is_selected: false, updated_at: now })
+    .eq("barbershop_id", ctx.shopId)
+    .eq("sentinela_category", row.sentinela_category);
+
+  const { error } = await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .update({ is_selected: true, updated_at: now })
+    .eq("id", templateId);
+
+  if (error) return { ok: false, error: error.message };
 
   return syncWabaTemplates(serviceClient, ctx);
 }
@@ -326,6 +553,7 @@ export async function createOrResubmitWabaTemplate(
   serviceClient: SupabaseClient,
   ctx: MetaShopContext,
   input: {
+    template_id?: string;
     sentinela_category: SentinelaTemplateCategory;
     body_display_text: string;
     language: string;
@@ -336,25 +564,32 @@ export async function createOrResubmitWabaTemplate(
   if (!language) return { ok: false, error: "Idioma inválido." };
 
   const existing = await loadLocalTemplates(serviceClient, ctx.shopId);
-  const slotRow = existing.find((r) => r.sentinela_category === input.sentinela_category);
 
-  if (slotRow && (slotRow.meta_status === "APPROVED" || slotRow.meta_status === "PENDING" || slotRow.meta_status === "IN_APPEAL")) {
+  let targetRow: WabaTemplateRow | null = null;
+  if (input.template_id) {
+    targetRow = await getTemplateById(serviceClient, ctx.shopId, input.template_id);
+    if (!targetRow) return { ok: false, error: "Template não encontrado." };
+    if (targetRow.sentinela_category !== input.sentinela_category) {
+      return { ok: false, error: "Categoria não confere com o template." };
+    }
+  }
+
+  if (!targetRow && categoryHasPendingReview(existing, input.sentinela_category)) {
     return {
       ok: false,
-      error: slotRow.meta_status === "APPROVED"
-        ? "Já existe um template aprovado nesta categoria."
-        : "Há um template em análise nesta categoria. Aguarde a resposta da Meta.",
+      error: "Há um template em análise nesta categoria. Aguarde a resposta da Meta.",
     };
   }
 
-  const templateName = slotRow?.meta_template_name ??
-    generateMetaTemplateName(input.sentinela_category, ctx.shopId);
+  const isResubmit = Boolean(targetRow?.meta_template_id && targetRow.meta_status === "REJECTED");
+  const isNewLocalRow = !targetRow;
+
+  const existingNames = existing.map((r) => r.meta_template_name);
+  const templateName = targetRow?.meta_template_name ??
+    allocateMetaTemplateName(input.sentinela_category, ctx.shopId, existingNames);
 
   const nameError = validateMetaTemplateName(templateName);
   if (nameError) return { ok: false, error: nameError };
-
-  const isResubmit = Boolean(slotRow?.meta_template_id && slotRow.meta_status === "REJECTED");
-  const isNewLocalRow = !slotRow;
 
   if (!isResubmit) {
     const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, isNewLocalRow);
@@ -385,8 +620,8 @@ export async function createOrResubmitWabaTemplate(
   const now = new Date().toISOString();
 
   try {
-    if (isResubmit) {
-      await updateMessageTemplate(ctx.accessToken, slotRow!.meta_template_id!, {
+    if (isResubmit && targetRow) {
+      await updateMessageTemplate(ctx.accessToken, targetRow.meta_template_id!, {
         category: "UTILITY",
         components,
       });
@@ -400,10 +635,11 @@ export async function createOrResubmitWabaTemplate(
           body_display_text: input.body_display_text,
           quick_reply_labels: quickLabels,
           meta_rejection_reason: null,
+          is_selected: false,
           last_synced_at: now,
           updated_at: now,
         })
-        .eq("id", slotRow!.id);
+        .eq("id", targetRow.id);
 
       if (error) return { ok: false, error: error.message };
     } else {
@@ -428,21 +664,14 @@ export async function createOrResubmitWabaTemplate(
         body_display_text: input.body_display_text,
         quick_reply_labels: quickLabels,
         meta_rejection_reason: null,
+        is_selected: false,
         last_synced_at: now,
         updated_at: now,
         created_at: now,
       };
 
-      if (slotRow) {
-        const { error } = await serviceClient
-          .from("whatsapp_waba_message_templates")
-          .update(insertPayload)
-          .eq("id", slotRow.id);
-        if (error) return { ok: false, error: error.message };
-      } else {
-        const { error } = await serviceClient.from("whatsapp_waba_message_templates").insert(insertPayload);
-        if (error) return { ok: false, error: error.message };
-      }
+      const { error } = await serviceClient.from("whatsapp_waba_message_templates").insert(insertPayload);
+      if (error) return { ok: false, error: error.message };
     }
   } catch (e) {
     if (e instanceof MetaGraphRequestError) {
@@ -460,12 +689,11 @@ export async function createOrResubmitWabaTemplate(
 export async function deleteWabaTemplate(
   serviceClient: SupabaseClient,
   ctx: MetaShopContext,
-  sentinelaCategory: SentinelaTemplateCategory,
+  templateId: string,
 ): Promise<Record<string, unknown>> {
-  const existing = await loadLocalTemplates(serviceClient, ctx.shopId);
-  const row = existing.find((r) => r.sentinela_category === sentinelaCategory);
+  const row = await getTemplateById(serviceClient, ctx.shopId, templateId);
   if (!row) {
-    return { ok: false, error: "Nenhum template encontrado nesta categoria." };
+    return { ok: false, error: "Template não encontrado." };
   }
 
   if (row.meta_status === "PENDING" || row.meta_status === "IN_APPEAL") {
@@ -475,31 +703,51 @@ export async function deleteWabaTemplate(
     };
   }
 
-  const nameError = validateMetaTemplateName(row.meta_template_name);
-  if (nameError) return { ok: false, error: nameError };
+  if (row.deletion_pending_at) {
+    return { ok: false, error: "Este template já está em exclusão programada." };
+  }
 
-  try {
-    await deleteMessageTemplateByName(ctx.accessToken, ctx.wabaId, row.meta_template_name);
-  } catch (e) {
-    if (e instanceof MetaGraphRequestError) {
-      if (e.status !== 404) {
-        return {
-          ok: false,
-          error: mapGraphErrorToUserMessage(e.status, e.userMessage, e.metaCode),
-        };
-      }
-    } else {
-      throw e;
+  const now = new Date().toISOString();
+
+  if (row.is_selected) {
+    const eligible = await listUnpinnedEligibleAppointments(
+      serviceClient,
+      ctx.shopId,
+      row.sentinela_category,
+    );
+    if (eligible.length > 0) {
+      await pinAppointmentsToTemplate(
+        serviceClient,
+        eligible.map((a) => a.id),
+        row.id,
+        row.sentinela_category,
+      );
     }
   }
 
-  const { error } = await serviceClient
-    .from("whatsapp_waba_message_templates")
-    .delete()
-    .eq("id", row.id)
-    .eq("barbershop_id", ctx.shopId);
+  const pending = await countPinnedPendingForTemplate(
+    serviceClient,
+    row.id,
+    row.sentinela_category,
+  );
 
-  if (error) return { ok: false, error: error.message };
+  if (pending.count > 0) {
+    await serviceClient
+      .from("whatsapp_waba_message_templates")
+      .update({
+        is_selected: false,
+        deletion_pending_at: now,
+        deletion_last_appointment_at: pending.lastAppointmentAt,
+        deletion_meta_error: null,
+        updated_at: now,
+      })
+      .eq("id", row.id);
+
+    return syncWabaTemplates(serviceClient, ctx);
+  }
+
+  const deleted = await executeMetaAndLocalDelete(serviceClient, ctx, row);
+  if (!deleted.ok) return deleted;
 
   return syncWabaTemplates(serviceClient, ctx);
 }
@@ -541,32 +789,20 @@ export async function applyTemplateStatusWebhook(
   if (error) {
     console.error("[metaWabaTemplates] webhook status update falhou:", error.message);
   }
-
-  if (event === "APPROVED" && templateName) {
-    const inferred = inferCategoryFromMetaTemplateName(templateName);
-    if (inferred) {
-      await serviceClient
-        .from("whatsapp_waba_message_templates")
-        .update({ sentinela_category: inferred, updated_at: now })
-        .eq("waba_id", wabaId)
-        .eq("meta_template_name", templateName)
-        .is("sentinela_category", null);
-    }
-  }
 }
 
 export function tryAutoLinkApprovedTemplates(
   approved: MetaMessageTemplateNode[],
   localRows: WabaTemplateRow[],
 ): Array<{ category: SentinelaTemplateCategory; template: MetaMessageTemplateNode }> {
-  const occupied = new Set(localRows.map((r) => r.sentinela_category));
+  const linkedMetaIds = new Set(localRows.map((r) => r.meta_template_id).filter(Boolean));
   const suggestions: Array<{ category: SentinelaTemplateCategory; template: MetaMessageTemplateNode }> = [];
 
   for (const t of approved) {
+    if (!t.id || linkedMetaIds.has(String(t.id))) continue;
     const cat = inferCategoryFromMetaTemplateName(String(t.name ?? ""));
-    if (!cat || occupied.has(cat)) continue;
+    if (!cat) continue;
     suggestions.push({ category: cat, template: t });
-    occupied.add(cat);
   }
 
   return suggestions;
