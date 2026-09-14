@@ -1,4 +1,23 @@
--- Auditoria de criações Meta por WABA (throttle Sentinela: 10/hora por waba_id).
+-- Ambientes que aplicaram a versão global (barbershop_id) da migration anterior.
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'meta_waba_template_creation_events'
+      AND column_name = 'barbershop_id'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'meta_waba_template_creation_events'
+      AND column_name = 'waba_id'
+  ) THEN
+    DROP TABLE public.meta_waba_template_creation_events;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.meta_waba_template_creation_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

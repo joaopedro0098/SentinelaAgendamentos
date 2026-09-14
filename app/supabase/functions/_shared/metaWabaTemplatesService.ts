@@ -15,7 +15,7 @@ import {
 } from "./metaMessageTemplates.ts";
 import {
   assertBarbershopTemplateCapacity,
-  assertGlobalTemplateCreationRate,
+  assertWabaTemplateCreationRate,
   recordMetaTemplateCreation,
 } from "./metaTemplateLimits.ts";
 import {
@@ -360,7 +360,7 @@ export async function createOrResubmitWabaTemplate(
     const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, isNewLocalRow);
     if (!capacity.ok) return capacity;
 
-    const rate = await assertGlobalTemplateCreationRate(serviceClient);
+    const rate = await assertWabaTemplateCreationRate(serviceClient, ctx.wabaId);
     if (!rate.ok) return rate;
   }
 
@@ -414,7 +414,7 @@ export async function createOrResubmitWabaTemplate(
         components,
       });
 
-      await recordMetaTemplateCreation(serviceClient, ctx.shopId);
+      await recordMetaTemplateCreation(serviceClient, ctx.wabaId);
 
       const insertPayload = {
         barbershop_id: ctx.shopId,

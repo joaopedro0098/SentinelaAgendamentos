@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 export const MAX_WABA_TEMPLATES_PER_BARBERSHOP = 5;
-export const MAX_META_TEMPLATE_CREATIONS_PER_HOUR = 10;
+export const MAX_META_TEMPLATE_CREATIONS_PER_HOUR_PER_WABA = 10;
 
 const CREATION_WINDOW_MS = 60 * 60 * 1000;
 
@@ -37,22 +37,25 @@ export async function assertBarbershopTemplateCapacity(
   return { ok: true };
 }
 
-export async function assertGlobalTemplateCreationRate(
+/** Throttle interno Sentinela: 10 POSTs/hora por waba_id (independente entre WABAs). */
+export async function assertWabaTemplateCreationRate(
   serviceClient: SupabaseClient,
+  wabaId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const since = new Date(Date.now() - CREATION_WINDOW_MS).toISOString();
 
   const { count, error } = await serviceClient
     .from("meta_waba_template_creation_events")
     .select("id", { count: "exact", head: true })
+    .eq("waba_id", wabaId)
     .gte("created_at", since);
 
   if (error) throw new Error(error.message);
 
-  if ((count ?? 0) >= MAX_META_TEMPLATE_CREATIONS_PER_HOUR) {
+  if ((count ?? 0) >= MAX_META_TEMPLATE_CREATIONS_PER_HOUR_PER_WABA) {
     return {
       ok: false,
-      error: "Muitos templates criados recentemente, aguarde para tentar novamente.",
+      error: "Muitos templates criados recentemente nesta conta WhatsApp, aguarde para tentar novamente.",
     };
   }
   return { ok: true };
@@ -60,10 +63,10 @@ export async function assertGlobalTemplateCreationRate(
 
 export async function recordMetaTemplateCreation(
   serviceClient: SupabaseClient,
-  shopId: string,
+  wabaId: string,
 ): Promise<void> {
   const { error } = await serviceClient.from("meta_waba_template_creation_events").insert({
-    barbershop_id: shopId,
+    waba_id: wabaId,
   });
   if (error) {
     console.error("[metaTemplateLimits] falha ao registrar criação:", error.message);
