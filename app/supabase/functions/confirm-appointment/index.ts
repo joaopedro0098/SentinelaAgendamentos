@@ -1,6 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { broadcastConnectAppointmentUpdate } from "../_shared/connectAppointmentSync.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -60,11 +58,6 @@ Deno.serve(async (req) => {
         .single();
 
       if (updateError) return jsonResponse({ error: updateError.message }, 500);
-      try {
-        await broadcastConnectAppointmentUpdate(supabase, updated.cliente_whatsapp, updated.id);
-      } catch (broadcastError) {
-        console.error("confirm-appointment broadcast:", broadcastError);
-      }
       return jsonResponse({ ok: true, appointment: updated });
     }
 

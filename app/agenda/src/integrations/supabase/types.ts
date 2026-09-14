@@ -985,63 +985,6 @@ export type Database = {
           },
         ]
       }
-      extension_connect_message_templates: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          label: string
-          sort_order: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          label: string
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          label?: string
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      extension_connect_tokens: {
-        Row: {
-          created_at: string
-          id: string
-          label: string
-          last_used_at: string | null
-          token_hash: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          label?: string
-          last_used_at?: string | null
-          token_hash: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          label?: string
-          last_used_at?: string | null
-          token_hash?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       facial_embeddings: {
         Row: {
           created_at: string
@@ -2166,10 +2109,6 @@ export type Database = {
         Returns: Json
       }
       consume_mp_oauth_state: { Args: { p_state: string }; Returns: Json }
-      create_extension_connect_token: {
-        Args: { p_label?: string }
-        Returns: Json
-      }
       create_facial_handoff_session: { Args: never; Returns: Json }
       create_mp_oauth_state: {
         Args: { p_code_verifier: string; p_shop_id: string; p_state: string }
@@ -2258,45 +2197,6 @@ export type Database = {
       expirar_agendamentos_nao_confirmados_painel: {
         Args: never
         Returns: number
-      }
-      extension_connect_client_lookup:
-        | { Args: { p_phone: string; p_user_id: string }; Returns: Json }
-        | {
-            Args: {
-              p_display_name?: string
-              p_phone: string
-              p_user_id: string
-            }
-            Returns: Json
-          }
-      extension_connect_clinic_display_name: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      extension_connect_delete_message_template: {
-        Args: { p_id: string; p_user_id: string }
-        Returns: Json
-      }
-      extension_connect_list_message_templates: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      extension_connect_pode_ler_conteudo_anotacao: {
-        Args: { p_agendamento_id: string; p_user_id: string }
-        Returns: boolean
-      }
-      extension_connect_upsert_message_template: {
-        Args: {
-          p_body: string
-          p_id: string
-          p_label: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
-      extension_connect_whatsapp_matches: {
-        Args: { p_a: string; p_b: string }
-        Returns: boolean
       }
       face_descriptor_distance: {
         Args: { a: number[]; b: number[] }
@@ -2425,7 +2325,6 @@ export type Database = {
         Args: { p_barbearia_id: string }
         Returns: Json
       }
-      list_extension_connect_tokens: { Args: never; Returns: Json }
       list_mp_payment_exceptions: { Args: { p_limit?: number }; Returns: Json }
       list_my_aggregated_accounts: { Args: never; Returns: Json }
       list_paciente_anotacoes: {
@@ -2700,10 +2599,6 @@ export type Database = {
         Args: { p_exception_id: string }
         Returns: Json
       }
-      revoke_extension_connect_token: {
-        Args: { p_token_id: string }
-        Returns: Json
-      }
       salvar_bloqueios_dia_painel: {
         Args: {
           p_barbeiro_id: string
@@ -2834,10 +2729,6 @@ export type Database = {
         Returns: boolean
       }
       user_owns_staff: { Args: { p_staff_id: string }; Returns: boolean }
-      validate_extension_connect_token: {
-        Args: { p_token_hash: string }
-        Returns: Json
-      }
       verify_patient_activation_token: {
         Args: { p_token: string }
         Returns: Json

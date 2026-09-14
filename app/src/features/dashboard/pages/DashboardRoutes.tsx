@@ -6,7 +6,6 @@ import AgendamentosPage from "@/features/dashboard/pages/AgendamentosPage";
 import PacientesPage from "@/features/dashboard/pages/PacientesPage";
 import ProfissionaisPage from "@/features/dashboard/pages/ProfissionaisPage";
 import SettingsPage from "@/features/dashboard/pages/Settings";
-import ConnectPage from "@/features/dashboard/pages/ConnectPage";
 import IntegracoesPage from "@/features/dashboard/pages/IntegracoesPage";
 import PerfilPage from "@/features/dashboard/pages/PerfilPage";
 import {
@@ -23,12 +22,16 @@ function LegacyPerfilRedirect() {
   return <Navigate to="/app/perfil" replace />;
 }
 
+function LegacyConnectRedirect() {
+  return <Navigate to="/app/integracoes" replace />;
+}
+
 const ROUTES = [
   { path: "/app/agendar", Component: AgendarPage },
   { path: "/app/agendamentos", Component: AgendamentosPage },
   { path: "/app/pacientes", Component: PacientesPage },
   { path: "/app/profissionais", Component: ProfissionaisPage },
-  { path: "/app/connect", Component: ConnectPage },
+  { path: "/app/connect", Component: LegacyConnectRedirect },
   { path: "/app/integracoes", Component: IntegracoesPage },
   { path: "/app/settings", Component: SettingsPage },
   { path: "/app/perfil/assinatura/retorno", Component: LegacyPerfilRedirect },

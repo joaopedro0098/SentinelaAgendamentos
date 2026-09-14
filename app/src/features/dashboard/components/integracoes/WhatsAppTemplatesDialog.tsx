@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
@@ -777,26 +777,24 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
             </div>
           </AlertDialogPortal>
         ) : (
-          <AlertDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <AlertDialogHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
-              <div className="space-y-1.5 min-w-0">
-                <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Confirmação (~1 dia antes) e lembrete (~3h antes). Selecione qual template aprovado usar em cada
-                  categoria.
-                </AlertDialogDescription>
-              </div>
-              {!categoryPickerOpen && syncData && !loading ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={submitting}
-                  className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
-                  onClick={() => setCategoryPickerOpen(true)}
-                >
-                  Criar
-                </Button>
-              ) : null}
+          <AlertDialogContent className="relative sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={submitting}
+              className="absolute right-3 top-3 h-8 w-8 rounded-sm opacity-70 ring-offset-background hover:opacity-100"
+              onClick={() => handleDialogOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Fechar</span>
+            </Button>
+            <AlertDialogHeader className="gap-3 pr-10 sm:space-y-1.5">
+              <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirmação (~1 dia antes) e lembrete (~3h antes). Selecione qual template aprovado usar em cada
+                categoria.
+              </AlertDialogDescription>
             </AlertDialogHeader>
 
             {loading ? (
@@ -807,8 +805,20 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
               renderBrowsePanel()
             )}
 
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={submitting}>Fechar</AlertDialogCancel>
+            <AlertDialogFooter className="sm:justify-between gap-2">
+              {!categoryPickerOpen && syncData && !loading ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={submitting}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={() => setCategoryPickerOpen(true)}
+                >
+                  Criar
+                </Button>
+              ) : (
+                <span className="hidden sm:block" aria-hidden />
+              )}
               <Button type="button" variant="outline" disabled={loading || submitting} onClick={() => void runSync()}>
                 Atualizar
               </Button>
