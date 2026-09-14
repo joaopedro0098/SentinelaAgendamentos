@@ -213,7 +213,7 @@ export default function PerfilPage() {
     Boolean(info?.can_manage_aggregated_accounts) && (activeAggAccountCount ?? 0) > 0;
 
   return (
-    <div className="panel-canvas-page p-4 md:p-8 max-w-lg mx-auto w-full space-y-6">
+    <div className="panel-canvas-page mx-auto w-full max-w-md sm:max-w-xl md:max-w-2xl lg:max-w-3xl p-4 sm:p-6 md:p-8 space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold">Conta</h1>
         <p className="text-sm text-muted-foreground mt-1">Conta, plano e segurança</p>

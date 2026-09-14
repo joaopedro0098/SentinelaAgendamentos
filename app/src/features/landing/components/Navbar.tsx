@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -14,6 +13,9 @@ const NAV_LINKS = [
 
 const navLinkClass =
   "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg";
+
+const navEntrarClass =
+  "ml-2 inline-flex items-center justify-center text-sm font-medium rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5 py-2 transition-colors";
 
 const Navbar = () => {
   const { pathname } = useLocation();
@@ -62,22 +64,15 @@ const Navbar = () => {
       <div className="container flex items-center justify-between gap-4 h-16 md:h-[4.25rem]">
         <BrandLogo linkTo="/" showName size="md" className="shrink-0 min-w-0" />
 
-        <nav className="hidden md:flex items-center gap-0.5" aria-label="Principal">
+        <nav className="hidden md:flex items-center justify-end gap-0.5 ml-auto shrink-0" aria-label="Principal">
           {NAV_LINKS.map((link) => (
             <Link key={link.to} to={link.to} className={navLinkClass}>
               {link.label}
             </Link>
           ))}
-          <Link to="/login" className={navLinkClass}>
+          <Link to="/login" className={navEntrarClass}>
             Entrar
           </Link>
-          <Button
-            asChild
-            size="sm"
-            className="ml-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-5 font-medium"
-          >
-            <Link to="/signup">Teste grátis</Link>
-          </Button>
         </nav>
 
         <div className="flex items-center md:hidden">
@@ -111,7 +106,11 @@ const Navbar = () => {
               {link.label}
             </Link>
           ))}
-          <Link to="/login" onClick={closeMenu} className="text-sm font-medium px-3 py-2.5 rounded-xl hover:bg-secondary/60">
+          <Link
+            to="/login"
+            onClick={closeMenu}
+            className={cn(navEntrarClass, "ml-0 w-full mt-1 py-2.5")}
+          >
             Entrar
           </Link>
           <PwaInstallButton
@@ -121,11 +120,6 @@ const Navbar = () => {
             buttonClassName="w-full rounded-xl border-border bg-background/80 hover:bg-secondary text-sm h-10 justify-center gap-2"
             onNavigate={closeMenu}
           />
-          <Button asChild className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 w-full mt-1">
-            <Link to="/signup" onClick={closeMenu}>
-              Teste grátis
-            </Link>
-          </Button>
         </nav>
       )}
     </header>

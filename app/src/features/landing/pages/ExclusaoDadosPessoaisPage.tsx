@@ -1,31 +1,22 @@
 import { LegalPageShell } from "@/features/landing/components/LegalPageShell";
 import { Link } from "react-router-dom";
-import { buildLandingSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
 
 const ULTIMA_ATUALIZACAO = "11 de agosto de 2026";
 
 const ExclusaoDadosPessoais = () => (
-  <LegalPageShell title="Exclusão de dados pessoais" subtitle={`Última atualização: ${ULTIMA_ATUALIZACAO}`}>
-    <h2>Como ter meus dados alterados ou excluídos</h2>
+  <LegalPageShell
+    title="Exclusão de dados pessoais"
+    subtitle={`Última atualização: ${ULTIMA_ATUALIZACAO}`}
+    showFooter={false}
+  >
+    <h2>Como um paciente pode ter seus dados alterados ou excluídos</h2>
     <p>
       Para solicitar a exclusão dos seus dados pessoais do Sentinela Agendamentos, envie um e-mail para{" "}
-      <a href="mailto:joaopedro.suporte98@gmail.com" className="text-foreground hover:underline">
-        joaopedro.suporte98@gmail.com
-      </a>{" "}
-      com o assunto &quot;Exclusão de dados&quot;, informando seu nome e e-mail/telefone cadastrado. Processaremos a solicitação em até 7
-      dias corridos e enviaremos uma confirmação por e-mail quando a exclusão for concluída, conforme nossa{" "}
-      <Link to="/politica-de-privacidade" className="text-foreground hover:underline">
-        Política de Privacidade
-      </Link>
-      . Você também pode seguir com a solicitação via{" "}
-      <a href={buildLandingSupportWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
-        WhatsApp
-      </a>{" "}
-      no contato de suporte do nosso site, presente na{" "}
-      <Link to="/" className="text-foreground hover:underline">
-        página inicial
-      </Link>
-      .
+      <strong className="text-foreground">joaopedro.suporte98@gmail.com</strong> com o assunto &quot;Exclusão de dados&quot;, informando
+      seu nome e e-mail/telefone cadastrado. Processaremos a solicitação em até 7 dias corridos e enviaremos uma confirmação por e-mail
+      quando a exclusão for concluída, conforme nossa <strong className="text-foreground">Política de Privacidade</strong>. Você também
+      pode seguir com a solicitação via <strong className="text-foreground">WhatsApp</strong> no contato de suporte do nosso site,
+      presente na <strong className="text-foreground">página inicial</strong>.
     </p>
     <p>
       Bem como descrito na{" "}
@@ -36,26 +27,26 @@ const ExclusaoDadosPessoais = () => (
       Profissional/Estabelecimento que lhes prestou atendimento.
     </p>
 
-    <h2>Profissionais que conectaram sua conta do WhatsApp Business</h2>
+    <h2>Como um profissional usuário do sentinela pode ter seus dados alterados ou excluídos</h2>
     <p>
-      Se você é um profissional ou estabelecimento que conectou sua conta do WhatsApp Business (WABA) ao Sentinela Agendamentos através
-      do login da Meta, e deseja solicitar a exclusão dos dados obtidos por meio dessa integração, utilize os mesmos canais acima (e-mail
-      ou{" "}
-      <a href={buildLandingSupportWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
-        WhatsApp
-      </a>
-      ), informando no pedido que se trata de dados da integração com WhatsApp Business. Processaremos essa solicitação dentro do mesmo
-      prazo de 7 dias corridos.
+      Se você é profissional ou estabelecimento cadastrado no Sentinela Agendamentos — inclusive quem conectou uma conta do WhatsApp
+      Business (WABA) pelo login da Meta — e deseja excluir sua conta e os dados associados a ela na plataforma, entre na sua conta dentro
+      do Sentinela, vá até a aba <strong className="text-foreground">Integrações</strong> e clique em{" "}
+      <strong className="text-foreground">Desconectar</strong>.
     </p>
     <p>
-      Alternativamente, você pode revogar o acesso do Sentinela Agendamentos à sua conta diretamente nas configurações de
-      segurança/privacidade do Facebook, na seção de aplicativos conectados (o caminho exato pode variar conforme atualizações da Meta).
+      Você também pode revogar o acesso do Sentinela Agendamentos à sua conta do WhatsApp Business nas configurações de
+      segurança/privacidade do Facebook, em aplicativos conectados (o caminho exato pode variar conforme atualizações da Meta). Ao
+      desautorizar, o Sentinela deixa de acessar novos dados dessa integração; dados já armazenados permanecem até você desconectar em{" "}
+      <strong className="text-foreground">Integrações</strong>, excluir a conta em <strong className="text-foreground">Conta</strong> ou
+      solicitar ajuda pelo suporte.
     </p>
     <p>
-      Ao desautorizar o acesso do Sentinela Agendamentos à sua conta do WhatsApp Business, o Sentinela deixa de acessar novos dados dessa
-      integração. Os dados já processados até o momento da desautorização permanecem armazenados até que você solicite a exclusão,
-      conforme instruções acima. Independentemente do canal ou do tipo de dado envolvido, todo pedido formal de exclusão é processado em
-      até 7 dias corridos, com confirmação enviada quando a exclusão for concluída.
+      Caso queira a exclusão da sua conta propriamente no Sentinela, dentro do sistema navegue até a aba{" "}
+      <strong className="text-foreground">Conta</strong>, desça a tela até o final da página e clique em{" "}
+      <strong className="text-foreground">Excluir minha conta</strong>. Dúvidas: entre em contato com o suporte pelo botão de{" "}
+      <strong className="text-foreground">WhatsApp</strong> na landing page ou pela aba{" "}
+      <strong className="text-foreground">Suporte</strong> dentro do painel.
     </p>
   </LegalPageShell>
 );

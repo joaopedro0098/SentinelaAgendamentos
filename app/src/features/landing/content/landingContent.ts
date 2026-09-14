@@ -1,46 +1,66 @@
 /** Conteúdo reutilizável da landing — edite aqui para páginas de nicho futuras. */
 
 export const LANDING_TRUST_ITEMS = [
-  "14 dias grátis",
-  "Sem cartão de crédito",
-  "Suporte via WhatsApp",
+  { id: "no-card", label: "Não pedimos cartão de crédito", icon: "credit-card" },
+  { id: "whatsapp-support", label: "Suporte via WhatsApp", icon: "shield-check" },
 ] as const;
+
+export type LandingTrustItem = (typeof LANDING_TRUST_ITEMS)[number];
+
+/** Garantias exibidas só abaixo do CTA do hero (primeira dobra). */
+export const LANDING_HERO_TRUST_ITEMS = [LANDING_TRUST_ITEMS[0]] as const;
 
 export const LANDING_HERO = {
   eyebrow: "Gestão para consultórios e clínicas",
-  headline: "Menos tempo organizando agenda. Mais tempo com seus pacientes.",
+  headlineLines: [
+    "Menos tempo organizando",
+    "agenda. Mais tempo com",
+    "seus pacientes",
+  ],
   subheadline:
     "Agendamento online, prontuário simples e visão do consultório em um só lugar.",
-  ctaPrimary: "Começar teste grátis",
+  ctaPrimary: "Testar 14 dias grátis",
   ctaSecondary: "Ver como funciona",
 } as const;
 
-export const PAIN_POINTS = [
-  {
-    id: "whatsapp",
-    title: "Confirmação pelo WhatsApp",
-    description:
-      "Tenha acesso a um link de confirmação personalizado para evitar faltas de última hora.",
-  },
-  {
-    id: "agenda",
-    title: "Agenda espalhada em papel, planilha e memória",
-    description:
-      "Um encaixe aqui, um retorno ali — sem uma visão clara da semana, faltas e buracos na agenda passam despercebidos.",
-  },
-  {
-    id: "faltas",
-    title: "Pacientes que faltam sem aviso",
-    description:
-      "Horário reservado, consultório vazio. Sem lembretes e confirmação antecipada, a agenda parece cheia — mas o faturamento não acompanha.",
-  },
-  {
-    id: "visao",
-    title: "Sem visão do que o consultório fatura",
-    description:
-      "No fim do mês, você ainda soma manualmente quantas consultas foram feitas, canceladas ou não pagas.",
-  },
-] as const;
+export const LANDING_AUDIENCE = {
+  titleLine: "Para quem é o sentinela agendamentos?",
+  descriptionLines: [
+    "Do profissional autônomo à clínica com equipe: o Sentinela cresce junto com você.",
+    "Comece simples e ative recursos avançados como gestão de equipe, comissionamento, cobrança automática",
+    "dentre outras funções conforme sua necessidade aumenta.",
+  ],
+  featureCards: [
+    {
+      id: "whatsapp-auto",
+      icon: "whatsapp",
+      title: "Envio automático de mensagem",
+      description:
+        "Seus pacientes receberão uma mensagem automática no WhatsApp um dia antes para confirmar o agendamento e um lembrete opcional três horas antes do seu atendimento. Assim você diminui o não comparecimento e abre espaço na sua agenda para outro paciente.",
+    },
+    {
+      id: "schedule-panel",
+      icon: "schedule-panel",
+      title: ["Painel dinâmico", "de agendamentos"],
+      description:
+        "Pensamos no painel mais intuitivo possível para você visualizar sua disponibilidade da semana e do mês, podendo assim criar, remarcar e excluir agendamentos de forma rápida e com poucos cliques num só lugar.",
+    },
+    {
+      id: "payment-link",
+      icon: "payment-link",
+      title: "Link de pagamento",
+      description:
+        "Cobre seus pacientes antecipadamente, de forma parcial ou total, via PIX ou cartão. Isso aumenta o compromisso com o agendamento e reduz faltas.",
+    },
+    {
+      id: "video-call-transcription",
+      icon: "video-call",
+      title: "Video chamada com resumo",
+      description:
+        "Faça sua vídeo chamada sem precisar acessar outro sistema. O Sentinela te dará a opção de transcrever e resumir todo o atendimento de forma automática com inteligência artificial.",
+    },
+  ],
+} as const;
 
 export const SOLUTION_FEATURES = [
   {

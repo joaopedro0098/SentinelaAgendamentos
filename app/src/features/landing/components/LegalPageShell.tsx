@@ -7,12 +7,14 @@ type LegalPageShellProps = {
   title: string;
   subtitle?: string;
   children: ReactNode;
+  /** Rodapé marketing (logo, links). Desligado em páginas legais enxutas. */
+  showFooter?: boolean;
 };
 
-export function LegalPageShell({ title, subtitle, children }: LegalPageShellProps) {
+export function LegalPageShell({ title, subtitle, children, showFooter = true }: LegalPageShellProps) {
   return (
     <div className="flex-1 flex flex-col">
-      <main className="flex-1 pt-28 md:pt-32 pb-16 px-4">
+      <main className={showFooter ? "flex-1 pt-28 md:pt-32 pb-16 px-4" : "flex-1 pt-28 md:pt-32 pb-8 md:pb-10 px-4"}>
         <div className="max-w-2xl mx-auto">
           <Link
             to="/"
@@ -32,7 +34,7 @@ export function LegalPageShell({ title, subtitle, children }: LegalPageShellProp
           </div>
         </div>
       </main>
-      <LandingFooter />
+      {showFooter ? <LandingFooter /> : null}
     </div>
   );
 }
