@@ -179,7 +179,7 @@ export function validateBodyDisplayText(
   return null;
 }
 
-export type BodySegment =
+type BodySegment =
   | { type: "text"; value: string }
   | { type: "variable"; key: TemplateVariableKey };
 

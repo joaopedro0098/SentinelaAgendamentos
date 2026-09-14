@@ -7,7 +7,7 @@ import {
   type TemplateVariableKey,
 } from "@/features/dashboard/lib/metaTemplateProduct";
 
-export type WabaTemplateFormDraft = {
+type WabaTemplateFormDraft = {
   body: string;
   language: TemplateLanguage;
   enabledButtons: Record<string, boolean>;

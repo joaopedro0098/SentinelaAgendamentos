@@ -12,7 +12,6 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import {
-  type BodySegment,
   type TemplateLanguage,
   type TemplateVariableKey,
   VARIABLE_MARKERS,
@@ -68,7 +67,11 @@ function createVariableChip(key: TemplateVariableKey, language: TemplateLanguage
   return chip;
 }
 
-function populateEditor(root: HTMLElement, segments: BodySegment[], language: TemplateLanguage) {
+function populateEditor(
+  root: HTMLElement,
+  segments: ReturnType<typeof parseBodyDisplayText>,
+  language: TemplateLanguage,
+) {
   root.innerHTML = "";
   for (const segment of segments) {
     if (segment.type === "text") {
@@ -96,7 +99,6 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
   const lastValidValue = useRef(value);
   const dragStateRef = useRef<{
     key: TemplateVariableKey;
-    textWithout: string;
     snapOffset: number;
   } | null>(null);
   const dropCommittedRef = useRef(false);
@@ -164,15 +166,6 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
     lastValidValue.current = text;
     lastEmittedValue.current = text;
     onChange(text);
-  }
-
-  function commitDisplayText(text: string, revertIfInvalid = false) {
-    const validationError = validateBodyDisplayText(text, language, enabledVariableKeys);
-    if (validationError && revertIfInvalid) {
-      rebuildFromValue(lastValidValue.current);
-      return;
-    }
-    emitBody(text);
   }
 
   function syncFromEditor() {
@@ -256,11 +249,8 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
     const key = chip.dataset.variable as TemplateVariableKey | undefined;
     if (!key || !VARIABLE_MARKERS[key]) return;
 
-    const fullText = readDisplayTextFromEditor(editorRef.current);
-    const textWithout = removeVariableMarker(fullText, key);
-
     dropCommittedRef.current = false;
-    dragStateRef.current = { key, textWithout, snapOffset: 0 };
+    dragStateRef.current = { key, snapOffset: 0 };
     draggedChipRef.current = chip;
     chip.classList.add("opacity-50", "ring-2", "ring-[#00a884]/50");
     setIsDragging(true);
@@ -285,7 +275,6 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
     const editor = editorRef.current!;
     const fullText = readDisplayTextFromEditor(editor);
     const textWithout = removeVariableMarker(fullText, drag.key);
-    drag.textWithout = textWithout;
 
     const rawFull = caretDisplayOffsetFromPoint(editor, e.clientX, e.clientY);
     const rawInWithout = mapFullTextOffsetToWithoutMarker(fullText, rawFull, drag.key);
@@ -323,7 +312,11 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
     setIsDragging(false);
 
     rebuildFromValue(next);
-    commitDisplayText(next, true);
+    if (validateBodyDisplayText(next, language, enabledVariableKeys)) {
+      rebuildFromValue(lastValidValue.current);
+      return;
+    }
+    emitBody(next);
   }
 
   function handleDragEnd() {

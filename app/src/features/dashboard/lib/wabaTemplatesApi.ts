@@ -19,7 +19,6 @@ export type WabaTemplateRecord = {
   deletion_pending_at: string | null;
   deletion_last_appointment_at: string | null;
   deletion_meta_error: string | null;
-  pending_appointment_count: number;
 };
 
 export type UnlinkedApprovedTemplate = {

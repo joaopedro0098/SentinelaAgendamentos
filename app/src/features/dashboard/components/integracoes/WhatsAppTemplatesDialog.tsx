@@ -82,6 +82,11 @@ const TAB_LABELS: Record<TemplateBrowseTab, string> = {
   rejeitados: "Rejeitados",
 };
 
+const CATEGORY_PICKER_HINT: Record<SentinelaTemplateCategory, string> = {
+  confirmacao: "Enviado ~1 dia antes do horário; o cliente confirma, remarca ou cancela.",
+  lembrete: "Enviado ~3 horas antes do horário, apenas como lembrete.",
+};
+
 function statusBadgeClass(status: string): string {
   if (status === "APPROVED") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400";
   if (status === "REJECTED") return "bg-destructive/15 text-destructive";
@@ -145,6 +150,8 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   const [syncData, setSyncData] = useState<Extract<WabaTemplatesSyncResult, { ok: true }> | null>(null);
   const [activeForm, setActiveForm] = useState<ActiveForm | null>(null);
   const [browseTab, setBrowseTab] = useState<TemplateBrowseTab>("aprovados");
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [submitSuccessMode, setSubmitSuccessMode] = useState<"create" | "resubmit" | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<SentinelaTemplateCategory, FormState>>({
     confirmacao: defaultForm("confirmacao", "pt_BR"),
@@ -197,6 +204,8 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
         persistAllDraftsNow();
         setActiveForm(null);
         setDeleteConfirmId(null);
+        setCategoryPickerOpen(false);
+        setSubmitSuccessMode(null);
       }
       onOpenChange(nextOpen);
     },
@@ -229,6 +238,8 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   useEffect(() => {
     if (open) {
       setActiveForm(null);
+      setCategoryPickerOpen(false);
+      setSubmitSuccessMode(null);
       void runSync();
     }
   }, [open, runSync]);
@@ -300,15 +311,32 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
       return;
     }
 
-    toast({
-      title: isResubmit ? "Template reenviado" : "Template enviado",
-      description: "A Meta vai analisar em breve. Você será avisado quando houver atualização.",
-    });
     setSyncData(result);
     if (result.waba_id) {
       clearWabaTemplateDraft(result.waba_id, category);
     }
+    setBrowseTab("analise");
     setActiveForm(null);
+    setCategoryPickerOpen(false);
+    setSubmitSuccessMode(isResubmit ? "resubmit" : "create");
+  }
+
+  function handleSubmitSuccessEntendi() {
+    setSubmitSuccessMode(null);
+    handleDialogOpenChange(false);
+  }
+
+  function tryOpenCreateForCategory(category: SentinelaTemplateCategory) {
+    if (!syncData?.can_create_by_category[category]) {
+      toast({
+        title: "Aguarde a análise da Meta",
+        description: `Já existe um template de ${CATEGORY_DISPLAY_LABEL[category].toLowerCase()} em análise. Você pode criar outro na outra categoria ou esperar a resposta.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setCategoryPickerOpen(false);
+    openCreateForm(category);
   }
 
   async function confirmDelete() {
@@ -457,24 +485,63 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     );
   }
 
-  function renderCreateButtons() {
+  function renderCategoryPicker() {
     if (!syncData) return null;
-    const buttons = CATEGORIES.filter((c) => syncData.can_create_by_category[c]);
-    if (buttons.length === 0) return null;
 
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {buttons.map((category) => (
-          <Button
-            key={category}
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">Escolha qual template deseja criar:</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {CATEGORIES.map((category) => {
+            const canCreate = syncData.can_create_by_category[category];
+            return (
+              <button
+                key={category}
+                type="button"
+                disabled={submitting}
+                onClick={() => tryOpenCreateForCategory(category)}
+                className={cn(
+                  "rounded-lg border p-4 text-left transition-colors",
+                  canCreate
+                    ? "hover:border-primary/50 hover:bg-muted/40"
+                    : "opacity-60 cursor-not-allowed",
+                )}
+              >
+                <span className="font-medium text-sm block">{CATEGORY_DISPLAY_LABEL[category]}</span>
+                <span className="text-xs text-muted-foreground mt-1 block">{CATEGORY_PICKER_HINT[category]}</span>
+                {!canCreate && (
+                  <span className="text-xs text-amber-700 dark:text-amber-400 mt-2 block">
+                    Há um template deste tipo em análise na Meta.
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <Button type="button" variant="ghost" size="sm" className="px-0" onClick={() => setCategoryPickerOpen(false)}>
+          Voltar para a lista
+        </Button>
+      </div>
+    );
+  }
+
+  function renderBrowseTabs() {
+    return (
+      <div className="flex flex-wrap gap-1 border-b border-border pb-2">
+        {(Object.keys(TAB_LABELS) as TemplateBrowseTab[]).map((tab) => (
+          <button
+            key={tab}
             type="button"
-            variant="outline"
-            className="h-auto min-h-11 py-3 whitespace-normal text-left justify-start"
-            disabled={submitting}
-            onClick={() => openCreateForm(category)}
+            onClick={() => setBrowseTab(tab)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              browseTab === tab
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
           >
-            Criar {CATEGORY_DISPLAY_LABEL[category].toLowerCase()}
-          </Button>
+            {TAB_LABELS[tab]}
+          </button>
         ))}
       </div>
     );
@@ -483,52 +550,24 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   function renderBrowsePanel() {
     if (!syncData) return null;
 
-    const templates = syncData.templates ?? [];
-    const hasAny = templates.length > 0;
-
-    if (!hasAny) {
-      return (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Você ainda não tem templates configurados. Escolha por onde começar:
-          </p>
-          {renderCreateButtons()}
-          {renderUnlinked()}
-        </div>
-      );
+    if (categoryPickerOpen) {
+      return renderCategoryPicker();
     }
 
+    const templates = syncData.templates ?? [];
     const cardsForTab = templates
       .filter((t) => tabForStatus(t.meta_status) === browseTab)
       .map((t) => renderTemplateCard(t));
 
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-1 border-b border-border pb-2">
-          {(Object.keys(TAB_LABELS) as TemplateBrowseTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setBrowseTab(tab)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                browseTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
+        {renderBrowseTabs()}
 
         {cardsForTab.length > 0 ? (
           <div className="space-y-3">{cardsForTab}</div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">Nenhum template nesta lista.</p>
         )}
-
-        {renderCreateButtons()}
 
         {browseTab === "aprovados" ? renderUnlinked() : null}
       </div>
@@ -748,12 +787,25 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
           </AlertDialogPortal>
         ) : (
           <AlertDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
-              <AlertDialogDescription>
-                Crie ou vincule templates de confirmação (D-1) e lembrete (~3h). Selecione qual aprovado usar em cada
-                categoria.
-              </AlertDialogDescription>
+            <AlertDialogHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+              <div className="space-y-1.5 min-w-0">
+                <AlertDialogTitle>Templates WhatsApp</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Confirmação (~1 dia antes) e lembrete (~3h antes). Selecione qual template aprovado usar em cada
+                  categoria.
+                </AlertDialogDescription>
+              </div>
+              {!categoryPickerOpen && syncData && !loading ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={submitting}
+                  className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={() => setCategoryPickerOpen(true)}
+                >
+                  Criar
+                </Button>
+              ) : null}
             </AlertDialogHeader>
 
             {loading ? (
@@ -772,6 +824,25 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
             </AlertDialogFooter>
           </AlertDialogContent>
         )}
+      </AlertDialog>
+
+      <AlertDialog open={submitSuccessMode != null} onOpenChange={(o) => !o && setSubmitSuccessMode(null)}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader className="text-center sm:text-center">
+            <AlertDialogTitle className="text-xl">
+              {submitSuccessMode === "resubmit" ? "Template reenviado" : "Template enviado"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base leading-relaxed pt-1">
+              A Meta vai analisar seu template. Em breve o status aparecerá aqui em &quot;Em análise&quot;. Você será
+              avisado quando houver atualização.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center pt-2">
+            <Button type="button" className="min-w-[8rem]" onClick={handleSubmitSuccessEntendi}>
+              Entendi
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={deleteConfirmId != null} onOpenChange={(o) => !o && setDeleteConfirmId(null)}>

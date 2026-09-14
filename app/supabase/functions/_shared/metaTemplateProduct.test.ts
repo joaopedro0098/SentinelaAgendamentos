@@ -5,6 +5,7 @@ import {
 import {
   buildMetaBodyPayload,
   buildMetaTemplateComponents,
+  DEFAULT_BODY_TEXT,
   exampleWeekdayForTemplate,
   allocateMetaTemplateName,
   generateMetaTemplateName,
@@ -44,7 +45,7 @@ Deno.test("sentinelaCategoryForWhatsAppTemplateKind mapeia D-1 e 3h", () => {
 });
 
 Deno.test("buildMetaTemplateComponents lembrete sem botões", () => {
-  const body = DEFAULT_BODY("lembrete", "pt_BR");
+  const body = DEFAULT_BODY_TEXT.lembrete.pt_BR;
   const components = buildMetaTemplateComponents(body, "pt_BR", "lembrete", []);
   assertEquals(components.length, 1);
   assertEquals(components[0]?.type, "BODY");
@@ -85,7 +86,7 @@ Deno.test("buildMetaBodyPayload renumerar só variáveis presentes", () => {
 });
 
 Deno.test("buildMetaTemplateComponents inclui BUTTONS QUICK_REPLY", () => {
-  const body = DEFAULT_BODY("confirmacao", "pt_BR");
+  const body = DEFAULT_BODY_TEXT.confirmacao.pt_BR;
   const components = buildMetaTemplateComponents(body, "pt_BR", "confirmacao", [
     "confirmar",
     "cancelar",
@@ -100,12 +101,6 @@ Deno.test("translateRejectionReason simplifica motivos Meta", () => {
     true,
   );
 });
-
-function DEFAULT_BODY(category: "confirmacao" | "lembrete", _lang: "pt_BR") {
-  return category === "confirmacao"
-    ? "Olá ⟦cliente⟧, confirme seu horário na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧."
-    : "Olá ⟦cliente⟧, lembrete na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.";
-}
 
 Deno.test("buildMetaBodyPayload falha sem variável obrigatória", () => {
   assertThrows(() => buildMetaBodyPayload("texto sem variáveis", "pt_BR"));
