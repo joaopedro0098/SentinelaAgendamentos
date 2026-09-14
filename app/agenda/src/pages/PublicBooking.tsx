@@ -15,7 +15,6 @@ import { HorizontalScrollStrip } from "@/components/agenda/HorizontalScrollStrip
 import { BookingScrollChipList } from "@/components/agenda/BookingScrollChipList";
 import { buildSlots, duracaoReferenciaBarbeiro, filtrarSlotsLivres } from "@/lib/slots";
 import { exitClientBookingFlow } from "@/lib/clientBookingExit";
-import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
 import { notifyPanelAgendamentosChanged, PANEL_AGENDAMENTOS_CHANGED } from "@/lib/panelAgendamentosRefresh";
 import {
   checkBarbeariaCanBook,
@@ -25,7 +24,6 @@ import {
   isSubscriptionBlockError,
 } from "../lib/subscription";
 import { getBookingStaticCache, setBookingStaticCache } from "../lib/bookingStaticCache";
-import { requestClientNotificationPermission, saveClientConfirmationPushSubscription } from "../lib/clientConfirmationPush";
 import { PublicBookingPaymentCheckout } from "@/components/booking/PublicBookingPaymentCheckout";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
 import {
@@ -974,18 +972,11 @@ const PublicBooking = ({
         return false;
       }
 
-      const result = rpcData as { old_data?: string; new_data?: string } | null;
       setRescheduleSummary({
         data: selectedDate,
         hora: formatDisplayTime(hora),
         barbeiroNome: barbeiros.find((b) => b.id === barbeiroId)?.nome ?? "",
         servicos: servicosNomes,
-      });
-      await notifyBarberAppointmentChange({
-        agendamento_id: reschedule.agendamentoId,
-        event: "rescheduled",
-        old_data: result?.old_data ?? reschedule.data,
-        new_data: result?.new_data ?? selectedDate,
       });
       return true;
     } finally {
@@ -1071,10 +1062,6 @@ const PublicBooking = ({
     }
     if (!nome.trim()) return toast.error("Informe seu nome");
     if (!isValidPhone(whatsapp)) return toast.error("WhatsApp inválido");
-
-    if (!ownerPanel && !isReschedule) {
-      void requestClientNotificationPermission();
-    }
 
     const targetBarbeariaIdForBook = barbeiroSel?.barbearia_id ?? barbearia.id;
     const canBook = await checkBarbeariaCanBook(targetBarbeariaIdForBook);
@@ -1273,27 +1260,11 @@ const PublicBooking = ({
       }
 
       if (ownerPanel && createdAppointment?.id) {
-        void supabase.functions
-          .invoke("sync-panel-push-subscription", { body: { agendamento_id: createdAppointment.id } })
-          .catch(() => undefined);
         notifyPanelAgendamentosChanged({
           data,
           barbeiroId,
           agendamentoId: createdAppointment.id,
         });
-      }
-
-      if (!ownerPanel && createdAppointment?.id) {
-        void supabase.functions
-          .invoke("notify-barber-new-booking", { body: { agendamento_id: createdAppointment.id } })
-          .catch(() => undefined);
-      }
-
-      if (!ownerPanel && createdAppointment?.confirmation_token) {
-        void saveClientConfirmationPushSubscription({
-          confirmationToken: createdAppointment.confirmation_token,
-          ensureValidBrowserSubscription: true,
-        }).catch(() => undefined);
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ nome: nome.trim(), whatsapp: whatsClean }));
@@ -1345,13 +1316,6 @@ const PublicBooking = ({
 
   const handlePaymentPaid = useCallback(async () => {
     if (!paymentCheckout) return;
-    void supabase.functions
-      .invoke("notify-barber-new-booking", { body: { agendamento_id: paymentCheckout.agendamentoId } })
-      .catch(() => undefined);
-    void saveClientConfirmationPushSubscription({
-      confirmationToken: paymentCheckout.confirmationToken,
-      ensureValidBrowserSubscription: true,
-    }).catch(() => undefined);
     setPaymentCheckout(null);
     setPaymentFailed(false);
     setBookingConfirmed(true);

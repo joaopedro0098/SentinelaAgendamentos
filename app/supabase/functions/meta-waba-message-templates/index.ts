@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   createOrResubmitWabaTemplate,
+  deleteWabaTemplate,
   linkWabaTemplate,
   resolveMetaShopForOwner,
   syncWabaTemplates,
@@ -81,6 +82,15 @@ Deno.serve(async (req) => {
           : undefined,
       });
 
+      if (result.ok === false) return json(result, 422);
+      return json(result);
+    }
+
+    if (action === "delete") {
+      const category = parseCategory(body.sentinela_category);
+      if (!category) return json({ ok: false, error: "Categoria inválida." }, 422);
+
+      const result = await deleteWabaTemplate(serviceClient, ctx, category);
       if (result.ok === false) return json(result, 422);
       return json(result);
     }

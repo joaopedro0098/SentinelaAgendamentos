@@ -98,14 +98,12 @@ export type Database = {
           archived_by: string | null
           barbearia_id: string | null
           barbeiro_id: string | null
-          barber_new_booking_push_sent_at: string | null
           cancel_reason: string | null
           cancelado_por: string | null
           client_confirmed_at: string | null
           cliente_id: string | null
           cliente_nome: string
           cliente_whatsapp: string
-          confirmation_push_sent_at: string | null
           confirmation_token: string
           created_at: string
           data: string
@@ -121,7 +119,6 @@ export type Database = {
             | Database["public"]["Enums"]["appointment_payment_status"]
             | null
           reminder_3h_sent_at: string | null
-          reminder_push_sent_at: string | null
           reminder_whatsapp_sent_at: string | null
           requires_client_confirmation: boolean
           servicos_nomes: string[]
@@ -137,14 +134,12 @@ export type Database = {
           archived_by?: string | null
           barbearia_id?: string | null
           barbeiro_id?: string | null
-          barber_new_booking_push_sent_at?: string | null
           cancel_reason?: string | null
           cancelado_por?: string | null
           client_confirmed_at?: string | null
           cliente_id?: string | null
           cliente_nome: string
           cliente_whatsapp: string
-          confirmation_push_sent_at?: string | null
           confirmation_token?: string
           created_at?: string
           data: string
@@ -160,7 +155,6 @@ export type Database = {
             | Database["public"]["Enums"]["appointment_payment_status"]
             | null
           reminder_3h_sent_at?: string | null
-          reminder_push_sent_at?: string | null
           reminder_whatsapp_sent_at?: string | null
           requires_client_confirmation?: boolean
           servicos_nomes?: string[]
@@ -176,14 +170,12 @@ export type Database = {
           archived_by?: string | null
           barbearia_id?: string | null
           barbeiro_id?: string | null
-          barber_new_booking_push_sent_at?: string | null
           cancel_reason?: string | null
           cancelado_por?: string | null
           client_confirmed_at?: string | null
           cliente_id?: string | null
           cliente_nome?: string
           cliente_whatsapp?: string
-          confirmation_push_sent_at?: string | null
           confirmation_token?: string
           created_at?: string
           data?: string
@@ -199,7 +191,6 @@ export type Database = {
             | Database["public"]["Enums"]["appointment_payment_status"]
             | null
           reminder_3h_sent_at?: string | null
-          reminder_push_sent_at?: string | null
           reminder_whatsapp_sent_at?: string | null
           requires_client_confirmation?: boolean
           servicos_nomes?: string[]
@@ -405,53 +396,6 @@ export type Database = {
           },
         ]
       }
-      appointment_push_subscriptions: {
-        Row: {
-          agendamento_id: string
-          auth: string
-          created_at: string
-          endpoint: string
-          failed_at: string | null
-          failure_reason: string | null
-          id: string
-          last_success_at: string | null
-          p256dh: string
-          user_agent: string | null
-        }
-        Insert: {
-          agendamento_id: string
-          auth: string
-          created_at?: string
-          endpoint: string
-          failed_at?: string | null
-          failure_reason?: string | null
-          id?: string
-          last_success_at?: string | null
-          p256dh: string
-          user_agent?: string | null
-        }
-        Update: {
-          agendamento_id?: string
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          failed_at?: string | null
-          failure_reason?: string | null
-          id?: string
-          last_success_at?: string | null
-          p256dh?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "appointment_push_subscriptions_agendamento_id_fkey"
-            columns: ["agendamento_id"]
-            isOneToOne: false
-            referencedRelation: "agendamentos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       barbearias: {
         Row: {
           allow_client_public_booking: boolean
@@ -582,56 +526,6 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      barber_push_subscriptions: {
-        Row: {
-          auth: string
-          barbearia_id: string
-          created_at: string
-          endpoint: string
-          failed_at: string | null
-          failure_reason: string | null
-          id: string
-          last_success_at: string | null
-          p256dh: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          auth: string
-          barbearia_id: string
-          created_at?: string
-          endpoint: string
-          failed_at?: string | null
-          failure_reason?: string | null
-          id?: string
-          last_success_at?: string | null
-          p256dh: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          auth?: string
-          barbearia_id?: string
-          created_at?: string
-          endpoint?: string
-          failed_at?: string | null
-          failure_reason?: string | null
-          id?: string
-          last_success_at?: string | null
-          p256dh?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "barber_push_subscriptions_barbearia_id_fkey"
-            columns: ["barbearia_id"]
-            isOneToOne: false
-            referencedRelation: "barbearias"
             referencedColumns: ["id"]
           },
         ]
@@ -2442,13 +2336,6 @@ export type Database = {
         }
         Returns: Json
       }
-      get_client_confirmation_push_status: {
-        Args: { _slug: string; _whatsapp: string }
-        Returns: {
-          confirmation_token: string
-          needs_resubscribe: boolean
-        }[]
-      }
       get_client_self_service_flags_for_barbearia: {
         Args: { p_barbearia_id: string }
         Returns: {
@@ -2492,10 +2379,6 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
-        Returns: boolean
-      }
-      inherit_appointment_push_subscription: {
-        Args: { _agendamento_id: string; _force_refresh?: boolean }
         Returns: boolean
       }
       invite_aggregated_account: { Args: { p_email: string }; Returns: Json }

@@ -1,7 +1,6 @@
 /**
  * Lembrete D-1 via WhatsApp (template com 3 quick reply buttons:
- * "Confirmar", "Alterar", "Cancelar"). Paralelo ao lembrete por Web Push
- * (clientConfirmationPush.ts) — mesma janela/critério de agendamentos, canal diferente.
+ * "Confirmar", "Alterar", "Cancelar").
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {

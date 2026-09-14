@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { maskPhone, unmaskPhone } from "@agenda/lib/phone";
 import { AvatarCropDialog } from "@/features/dashboard/components/AvatarCropDialog";
 import { ShopProfileAvatarFallback } from "@/features/dashboard/components/ShopProfileAvatarFallback";
-import { BarberPushToggle, PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
+import { PermissionToggleRow } from "@/components/pwa/PermissionToggleRow";
 import { patchDashboardShopCache, useDashboardShop, type DashboardShop } from "@/providers/DashboardShopProvider";
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
@@ -577,8 +577,6 @@ export default function Settings() {
         <Card className="glass-panel border-border/80">
           <CardContent className="pt-6 space-y-5">
             <h2 className="text-base font-semibold tracking-tight">Permissões</h2>
-
-            <BarberPushToggle />
 
             {isCA ? (
               <>

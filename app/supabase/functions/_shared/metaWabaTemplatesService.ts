@@ -6,12 +6,18 @@ import { decryptWabaToken } from "./wabaCrypto.ts";
 import { subscribeWabaToApp } from "./metaWabaConnect.ts";
 import {
   createMessageTemplate,
+  deleteMessageTemplateByName,
   fetchApprovedUtilityTemplates,
   fetchMessageTemplateById,
   MetaGraphRequestError,
   updateMessageTemplate,
   type MetaMessageTemplateNode,
 } from "./metaMessageTemplates.ts";
+import {
+  assertBarbershopTemplateCapacity,
+  assertGlobalTemplateCreationRate,
+  recordMetaTemplateCreation,
+} from "./metaTemplateLimits.ts";
 import {
   buildMetaTemplateComponents,
   generateMetaTemplateName,
@@ -20,6 +26,7 @@ import {
   parseTemplateLanguage,
   resolveQuickReplyLabels,
   translateRejectionReason,
+  validateMetaTemplateName,
   DEFAULT_BODY_TEXT,
   normalizeMetaTemplateLanguage,
   type SentinelaTemplateCategory,
@@ -268,6 +275,13 @@ export async function linkWabaTemplate(
   const remote = await fetchMessageTemplateById(ctx.accessToken, input.meta_template_id);
   if (!remote) return { ok: false, error: "Template não encontrado na Meta." };
 
+  const resolvedName = String(remote.name ?? input.meta_template_name);
+  const nameError = validateMetaTemplateName(resolvedName);
+  if (nameError) return { ok: false, error: nameError };
+
+  const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, !slotRow);
+  if (!capacity.ok) return capacity;
+
   const now = new Date().toISOString();
   const bodyDisplay = input.body_display_text?.trim() ||
     slotRow?.body_display_text ||
@@ -280,7 +294,7 @@ export async function linkWabaTemplate(
     waba_id: ctx.wabaId,
     sentinela_category: input.sentinela_category,
     meta_template_id: String(remote.id ?? input.meta_template_id),
-    meta_template_name: String(remote.name ?? input.meta_template_name),
+    meta_template_name: resolvedName,
     language,
     meta_status: String(remote.status ?? "APPROVED"),
     meta_category: "UTILITY",
@@ -336,6 +350,20 @@ export async function createOrResubmitWabaTemplate(
   const templateName = slotRow?.meta_template_name ??
     generateMetaTemplateName(input.sentinela_category, ctx.shopId);
 
+  const nameError = validateMetaTemplateName(templateName);
+  if (nameError) return { ok: false, error: nameError };
+
+  const isResubmit = Boolean(slotRow?.meta_template_id && slotRow.meta_status === "REJECTED");
+  const isNewLocalRow = !slotRow;
+
+  if (!isResubmit) {
+    const capacity = await assertBarbershopTemplateCapacity(serviceClient, ctx.shopId, isNewLocalRow);
+    if (!capacity.ok) return capacity;
+
+    const rate = await assertGlobalTemplateCreationRate(serviceClient);
+    if (!rate.ok) return rate;
+  }
+
   let components;
   try {
     components = buildMetaTemplateComponents(
@@ -357,8 +385,8 @@ export async function createOrResubmitWabaTemplate(
   const now = new Date().toISOString();
 
   try {
-    if (slotRow?.meta_template_id && slotRow.meta_status === "REJECTED") {
-      await updateMessageTemplate(ctx.accessToken, slotRow.meta_template_id, {
+    if (isResubmit) {
+      await updateMessageTemplate(ctx.accessToken, slotRow!.meta_template_id!, {
         category: "UTILITY",
         components,
       });
@@ -375,7 +403,7 @@ export async function createOrResubmitWabaTemplate(
           last_synced_at: now,
           updated_at: now,
         })
-        .eq("id", slotRow.id);
+        .eq("id", slotRow!.id);
 
       if (error) return { ok: false, error: error.message };
     } else {
@@ -385,6 +413,8 @@ export async function createOrResubmitWabaTemplate(
         category: "UTILITY",
         components,
       });
+
+      await recordMetaTemplateCreation(serviceClient, ctx.shopId);
 
       const insertPayload = {
         barbershop_id: ctx.shopId,
@@ -423,6 +453,53 @@ export async function createOrResubmitWabaTemplate(
     }
     throw e;
   }
+
+  return syncWabaTemplates(serviceClient, ctx);
+}
+
+export async function deleteWabaTemplate(
+  serviceClient: SupabaseClient,
+  ctx: MetaShopContext,
+  sentinelaCategory: SentinelaTemplateCategory,
+): Promise<Record<string, unknown>> {
+  const existing = await loadLocalTemplates(serviceClient, ctx.shopId);
+  const row = existing.find((r) => r.sentinela_category === sentinelaCategory);
+  if (!row) {
+    return { ok: false, error: "Nenhum template encontrado nesta categoria." };
+  }
+
+  if (row.meta_status === "PENDING" || row.meta_status === "IN_APPEAL") {
+    return {
+      ok: false,
+      error: "Não é possível excluir um template enquanto a Meta ainda está analisando.",
+    };
+  }
+
+  const nameError = validateMetaTemplateName(row.meta_template_name);
+  if (nameError) return { ok: false, error: nameError };
+
+  try {
+    await deleteMessageTemplateByName(ctx.accessToken, ctx.wabaId, row.meta_template_name);
+  } catch (e) {
+    if (e instanceof MetaGraphRequestError) {
+      if (e.status !== 404) {
+        return {
+          ok: false,
+          error: mapGraphErrorToUserMessage(e.status, e.userMessage, e.metaCode),
+        };
+      }
+    } else {
+      throw e;
+    }
+  }
+
+  const { error } = await serviceClient
+    .from("whatsapp_waba_message_templates")
+    .delete()
+    .eq("id", row.id)
+    .eq("barbershop_id", ctx.shopId);
+
+  if (error) return { ok: false, error: error.message };
 
   return syncWabaTemplates(serviceClient, ctx);
 }

@@ -1,7 +1,7 @@
 import { VARIABLE_MARKERS, type TemplateVariableKey } from "@/features/dashboard/lib/metaTemplateProduct";
 
 /** Posições válidas para inserir variável: entre palavras (espaços), nunca no meio de uma palavra. */
-export function getValidInsertOffsets(displayText: string): number[] {
+function getValidInsertOffsets(displayText: string): number[] {
   const blocked = new Set<number>();
 
   for (const marker of Object.values(VARIABLE_MARKERS)) {

@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PermissionToggleRow } from "@/components/pwa/BarberPushToggle";
+import { PermissionToggleRow } from "@/components/pwa/PermissionToggleRow";
 import { toast } from "@/hooks/use-toast";
 import { notifyPaymentExceptionsChanged } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { buildSlotTakenLatePaymentMessage } from "@/lib/mpPaymentExceptionMessages";

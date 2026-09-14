@@ -181,6 +181,28 @@ export async function fetchMessageTemplateById(
   return data;
 }
 
+/** Remove template na Meta pelo par nome + WABA (Management API). */
+export async function deleteMessageTemplateByName(
+  accessToken: string,
+  wabaId: string,
+  templateName: string,
+): Promise<void> {
+  const { apiVersion } = getMetaGraphConfig();
+  const url = new URL(`https://graph.facebook.com/${apiVersion}/${wabaId}/message_templates`);
+  url.searchParams.set("name", templateName);
+
+  const res = await fetch(url.toString(), {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+
+  const data = await res.json().catch(() => ({})) as MetaGraphErrorBody;
+
+  if (!res.ok) {
+    throw new MetaGraphRequestError(res.status, data);
+  }
+}
+
 export class MetaGraphRequestError extends Error {
   status: number;
   metaCode?: number;

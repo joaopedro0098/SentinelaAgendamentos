@@ -39,9 +39,11 @@ import {
 } from "@/features/dashboard/lib/metaTemplateProduct";
 import {
   createWabaMessageTemplate,
+  deleteWabaMessageTemplate,
   linkWabaMessageTemplate,
   resubmitWabaMessageTemplate,
   syncWabaMessageTemplates,
+  type LinkedTemplateSlot,
   type TemplateSlotState,
   type UnlinkedApprovedTemplate,
   type WabaTemplatesSyncResult,
@@ -51,7 +53,6 @@ import {
   loadWabaTemplateDraft,
   saveAllWabaTemplateDrafts,
   saveWabaTemplateDraft,
-  type WabaTemplateFormDraft,
 } from "@/features/dashboard/lib/wabaTemplateFormDraft";
 
 type WhatsAppTemplatesDialogProps = {
@@ -60,6 +61,21 @@ type WhatsAppTemplatesDialogProps = {
 };
 
 const CATEGORIES: SentinelaTemplateCategory[] = ["confirmacao", "lembrete"];
+
+type TemplateBrowseTab = "aprovados" | "analise" | "rejeitados";
+
+function tabForStatus(status: string): TemplateBrowseTab {
+  if (status === "APPROVED") return "aprovados";
+  if (status === "PENDING" || status === "IN_APPEAL") return "analise";
+  if (status === "REJECTED") return "rejeitados";
+  return "analise";
+}
+
+const TAB_LABELS: Record<TemplateBrowseTab, string> = {
+  aprovados: "Aprovados",
+  analise: "Em análise",
+  rejeitados: "Rejeitados",
+};
 
 function statusBadgeClass(status: string): string {
   if (status === "APPROVED") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400";
@@ -114,6 +130,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
   const [submitting, setSubmitting] = useState(false);
   const [syncData, setSyncData] = useState<Extract<WabaTemplatesSyncResult, { ok: true }> | null>(null);
   const [activeForm, setActiveForm] = useState<SentinelaTemplateCategory | null>(null);
+  const [browseTab, setBrowseTab] = useState<TemplateBrowseTab>("aprovados");
   const [forms, setForms] = useState<Record<SentinelaTemplateCategory, FormState>>({
     confirmacao: defaultForm("confirmacao", "pt_BR"),
     lembrete: defaultForm("lembrete", "pt_BR"),
@@ -280,6 +297,23 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     setActiveForm(null);
   }
 
+  async function handleDelete(category: SentinelaTemplateCategory) {
+    setSubmitting(true);
+    const result = await deleteWabaMessageTemplate(category);
+    setSubmitting(false);
+
+    if (!result.ok) {
+      toast({ title: "Não foi possível excluir", description: result.error, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Template excluído", description: CATEGORY_DISPLAY_LABEL[category] });
+    setSyncData(result);
+    if (result.waba_id) {
+      clearWabaTemplateDraft(result.waba_id, category);
+    }
+  }
+
   async function handleLink(
     template: UnlinkedApprovedTemplate,
     category: SentinelaTemplateCategory,
@@ -302,52 +336,136 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
     setSyncData(result);
   }
 
-  function renderSlot(category: SentinelaTemplateCategory) {
+  function renderTemplateCard(category: SentinelaTemplateCategory, linked: LinkedTemplateSlot) {
     const slot = syncData?.slots[category];
-    const form = forms[category];
-    const linked = slot?.linked;
     return (
       <div key={category} className="rounded-lg border p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h4 className="font-medium text-sm">{CATEGORY_DISPLAY_LABEL[category]}</h4>
-            {linked && (
-              <span
-                className={`inline-flex mt-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${statusBadgeClass(linked.meta_status)}`}
+            <span
+              className={`inline-flex mt-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${statusBadgeClass(linked.meta_status)}`}
+            >
+              {statusBadgeLabel(linked.meta_status)}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            {slot?.can_create && linked.meta_status === "REJECTED" && (
+              <Button type="button" size="sm" variant="outline" onClick={() => openCreateForm(category)}>
+                Editar e reenviar
+              </Button>
+            )}
+            {linked.meta_status !== "PENDING" && linked.meta_status !== "IN_APPEAL" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={submitting}
+                onClick={() => void handleDelete(category)}
               >
-                {statusBadgeLabel(linked.meta_status)}
-              </span>
+                Excluir
+              </Button>
             )}
           </div>
-          {slot?.can_create && (
-            <Button type="button" size="sm" variant="outline" onClick={() => openCreateForm(category)}>
-              {linked?.meta_status === "REJECTED" ? "Editar e reenviar" : "Criar"}
-            </Button>
-          )}
         </div>
 
-        {linked?.needs_reconnect && (
+        {linked.needs_reconnect && (
           <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-md px-2 py-1.5">
             Este registro é de uma conexão anterior. Reconecte o WhatsApp para sincronizar novamente.
           </p>
         )}
 
-        {linked && (
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p className="whitespace-pre-wrap text-foreground/80">{linked.body_display_text.replace(/⟦(\w+)⟧/g, "[$1]")}</p>
-            {linked.quick_reply_labels.length > 0 && (
-              <p>Botões: {linked.quick_reply_labels.join(", ")}</p>
-            )}
-            <p>Idioma: {TEMPLATE_LANGUAGE_OPTIONS.find((o) => o.value === linked.language)?.label ?? linked.language}</p>
-          </div>
-        )}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p className="whitespace-pre-wrap text-foreground/80">
+            {linked.body_display_text.replace(/⟦(\w+)⟧/g, "[$1]")}
+          </p>
+          {linked.quick_reply_labels.length > 0 && <p>Botões: {linked.quick_reply_labels.join(", ")}</p>}
+          <p>Idioma: {TEMPLATE_LANGUAGE_OPTIONS.find((o) => o.value === linked.language)?.label ?? linked.language}</p>
+        </div>
 
-        {linked?.meta_status === "REJECTED" && linked.rejection_user_message && (
+        {linked.meta_status === "REJECTED" && linked.rejection_user_message && (
           <p className="text-xs text-destructive bg-destructive/10 rounded-md px-2 py-1.5">
             {linked.rejection_user_message}
           </p>
         )}
+      </div>
+    );
+  }
 
+  function renderEmptyCreateButtons() {
+    const buttons = CATEGORIES.filter((category) => !syncData?.slots[category]?.linked);
+    if (buttons.length === 0) return null;
+
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {buttons.map((category) => (
+          <Button
+            key={category}
+            type="button"
+            variant="outline"
+            className="h-auto min-h-11 py-3 whitespace-normal text-left justify-start"
+            disabled={submitting}
+            onClick={() => openCreateForm(category)}
+          >
+            Criar {CATEGORY_DISPLAY_LABEL[category].toLowerCase()}
+          </Button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderBrowsePanel() {
+    if (!syncData) return null;
+
+    const hasAnyLinked = CATEGORIES.some((c) => syncData.slots[c].linked);
+    if (!hasAnyLinked) {
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Você ainda não tem templates configurados. Escolha por onde começar:
+          </p>
+          {renderEmptyCreateButtons()}
+          {renderUnlinked()}
+        </div>
+      );
+    }
+
+    const cardsForTab = CATEGORIES.map((category) => {
+      const linked = syncData.slots[category].linked;
+      if (!linked || tabForStatus(linked.meta_status) !== browseTab) return null;
+      return renderTemplateCard(category, linked);
+    }).filter(Boolean);
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-1 border-b border-border pb-2">
+          {(Object.keys(TAB_LABELS) as TemplateBrowseTab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setBrowseTab(tab)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                browseTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
+
+        {cardsForTab.length > 0 ? (
+          <div className="space-y-3">{cardsForTab}</div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-4">Nenhum template nesta lista.</p>
+        )}
+
+        {renderEmptyCreateButtons()}
+
+        {browseTab === "aprovados" ? renderUnlinked() : null}
       </div>
     );
   }
@@ -393,7 +511,6 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
           <div className="min-h-0 flex-1 overflow-hidden">
             <TemplateBodyEditor
               ref={editorRef}
-              layout="compact"
               value={form.body}
               language={form.language}
               enabledVariableKeys={enabledVariableKeys(form)}
@@ -548,7 +665,6 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
                   }}
                 >
                   <WhatsAppTemplatePhonePreview
-                    size="viewport"
                     body={forms[editingCategory].body}
                     language={forms[editingCategory].language}
                     quickReplyLabels={CATEGORY_BUTTON_OPTIONS[editingCategory]
@@ -574,10 +690,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-4">
-              {CATEGORIES.map(renderSlot)}
-              {renderUnlinked()}
-            </div>
+            renderBrowsePanel()
           )}
 
           <AlertDialogFooter>

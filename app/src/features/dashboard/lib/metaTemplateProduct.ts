@@ -106,8 +106,7 @@ function intlLocaleForTemplateLanguage(language: TemplateLanguage): string {
   return "en-US";
 }
 
-/** Nome do dia da semana para preview e exemplos (padrão: amanhã). */
-export function exampleWeekdayForTemplate(
+function exampleWeekdayForTemplate(
   language: TemplateLanguage,
   daysAfterToday = 1,
   referenceDate = new Date(),
@@ -118,12 +117,12 @@ export function exampleWeekdayForTemplate(
   return new Intl.DateTimeFormat(intlLocaleForTemplateLanguage(language), { weekday: "long" }).format(d);
 }
 
-export function previewExampleForVariable(key: TemplateVariableKey, language: TemplateLanguage): string {
+function previewExampleForVariable(key: TemplateVariableKey, language: TemplateLanguage): string {
   if (key === "data") return exampleWeekdayForTemplate(language, 1);
   return PREVIEW_STATIC_EXAMPLES[language][key];
 }
 
-export function listVariableKeysInBody(bodyDisplayText: string): TemplateVariableKey[] {
+function listVariableKeysInBody(bodyDisplayText: string): TemplateVariableKey[] {
   return VARIABLE_ORDER.filter((key) => bodyDisplayText.includes(VARIABLE_MARKERS[key]));
 }
 
@@ -216,21 +215,6 @@ export function parseBodyDisplayText(text: string): BodySegment[] {
   }
 
   return segments;
-}
-
-export function serializeBodySegments(segments: BodySegment[]): string {
-  return segments
-    .map((s) => (s.type === "text" ? s.value : VARIABLE_MARKERS[s.key]))
-    .join("");
-}
-
-export function parseTemplateLanguage(value: string): TemplateLanguage | null {
-  const v = value.trim().replace(/-/g, "_");
-  if (v === "pt_BR" || v === "es" || v === "en_US") return v;
-  if (v === "pt" || v.startsWith("pt_")) return "pt_BR";
-  if (v.startsWith("es")) return "es";
-  if (v.startsWith("en")) return "en_US";
-  return null;
 }
 
 export function statusBadgeLabel(status: string): string {

@@ -37,8 +37,6 @@ type TemplateBodyEditorProps = {
   language: TemplateLanguage;
   enabledVariableKeys: TemplateVariableKey[];
   disabled?: boolean;
-  /** Menos altura e texto de ajuda — cabe na janela do editor sem scroll da página. */
-  layout?: "default" | "compact";
 };
 
 export type TemplateBodyEditorHandle = {
@@ -86,11 +84,9 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
   language,
   enabledVariableKeys,
   disabled,
-  layout = "default",
   },
   ref,
 ) {
-  const compact = layout === "compact";
   const editorRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
@@ -317,11 +313,9 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
   }
 
   return (
-    <div className={cn("rounded-lg border bg-muted/30", compact ? "space-y-2 p-2.5" : "space-y-2 p-3")}>
-      <p className={cn("text-muted-foreground leading-snug", compact ? "text-sm" : "text-sm")}>
-        {compact
-          ? "Edite abaixo; arraste variáveis entre palavras (marcador verde)."
-          : "Edite o texto na caixa abaixo. Arraste as variáveis entre as palavras — o marcador verde indica onde elas serão soltas."}
+    <div className="rounded-lg border bg-muted/30 space-y-2 p-2.5">
+      <p className="text-sm text-muted-foreground leading-snug">
+        Edite abaixo; arraste variáveis entre palavras (marcador verde).
       </p>
 
       <div ref={shellRef} className="relative">
@@ -348,9 +342,7 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
           }}
           className={cn(
             "w-full overflow-y-auto rounded-md border border-input bg-background px-3 py-2 leading-normal",
-            compact
-              ? "text-base min-h-[calc(3lh+0.5rem)] max-h-[calc(6lh+0.5rem)]"
-              : "text-base min-h-[calc(3lh+0.5rem)] max-h-[calc(8lh+0.5rem)]",
+            "text-base min-h-[calc(3lh+0.5rem)] max-h-[calc(6lh+0.5rem)]",
             "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             "whitespace-pre-wrap break-words",
             disabled && "opacity-50 pointer-events-none",

@@ -9,7 +9,6 @@ import { PublicShopHeader } from "@/components/PublicShopHeader";
 import { useBarbeariaResumo } from "@/hooks/useBarbeariaResumo";
 import { maskPhone, unmaskPhone, isValidPhone } from "@/lib/phone";
 import { canClientSelfServiceModifyAppointment } from "@/lib/appointmentDates";
-import { notifyBarberAppointmentChange } from "@/lib/notifyBarberAppointmentChange";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -123,7 +122,6 @@ export default function MeusAgendamentosPage() {
       );
       toast.success("Agendamento cancelado");
 
-      void notifyBarberAppointmentChange({ agendamento_id: targetId, event: "cancelled" });
 
       try {
         await loadItems(whatsapp);

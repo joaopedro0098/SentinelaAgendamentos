@@ -10,7 +10,17 @@ import {
   inferCategoryFromMetaTemplateName,
   translateRejectionReason,
   validateBodyDisplayText,
+  validateMetaTemplateName,
 } from "./metaTemplateProduct.ts";
+
+Deno.test("validateMetaTemplateName aceita nomes Sentinela e rejeita inválidos", () => {
+  assertEquals(validateMetaTemplateName("sentinela_confirmacao_78d6e7e3"), null);
+  assertEquals(validateMetaTemplateName(""), "Nome do template inválido: não pode ficar vazio.");
+  assertEquals(
+    validateMetaTemplateName("Template-Maiúsculo"),
+    "Nome do template inválido: use apenas letras minúsculas, números e underscore (_).",
+  );
+});
 
 Deno.test("generateMetaTemplateName é estável e compatível com Meta", () => {
   const shopId = "78d6e7e3-b8a9-45f3-b421-9e567bf24458";

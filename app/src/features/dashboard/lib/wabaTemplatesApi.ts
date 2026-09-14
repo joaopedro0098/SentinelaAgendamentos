@@ -97,3 +97,9 @@ export async function resubmitWabaMessageTemplate(payload: {
 }): Promise<WabaTemplatesSyncResult> {
   return invokeTemplates({ action: "resubmit", ...payload });
 }
+
+export async function deleteWabaMessageTemplate(
+  sentinela_category: SentinelaTemplateCategory,
+): Promise<WabaTemplatesSyncResult> {
+  return invokeTemplates({ action: "delete", sentinela_category });
+}

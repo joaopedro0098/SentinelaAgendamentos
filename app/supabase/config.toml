@@ -95,12 +95,6 @@ verify_jwt = false
 [functions.mp-finalize-expired-payment-holds]
 verify_jwt = false
 
-[functions.notify-barber-new-booking]
-verify_jwt = false
-
-[functions.notify-barber-appointment-change]
-verify_jwt = false
-
 [functions.confirm-appointment]
 verify_jwt = false
 
@@ -111,9 +105,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.client-pwa-icon]
-verify_jwt = false
-
-[functions.client-confirmation-push]
 verify_jwt = false
 
 [functions.process-appointment-reminders]

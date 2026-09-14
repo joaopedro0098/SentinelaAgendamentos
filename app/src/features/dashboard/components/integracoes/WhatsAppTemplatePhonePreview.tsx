@@ -7,41 +7,25 @@ type WhatsAppTemplatePhonePreviewProps = {
   language: TemplateLanguage;
   quickReplyLabels: string[];
   className?: string;
-  /** `viewport` preenche o contêiner (celular flutuante, altura da tela). */
-  size?: "default" | "large" | "viewport";
 };
 
-/** Preview estático do chat WhatsApp (modo escuro) para o editor de templates. */
 export function WhatsAppTemplatePhonePreview({
   body,
   language,
   quickReplyLabels,
   className,
-  size = "default",
 }: WhatsAppTemplatePhonePreviewProps) {
   const previewMessage = bodyToPreviewText(body, language).trim() || "Sua mensagem aparecerá aqui.";
-  const isViewport = size === "viewport";
 
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[2.25rem] border-[4px] border-[#1a252d] shadow-[0_16px_48px_rgba(0,0,0,0.45)]",
-        isViewport && "h-full w-full",
-        size === "large" && "w-[340px] shrink-0",
-        size === "default" && "mx-auto w-[min(100%,280px)] shrink-0",
+        "h-full w-full overflow-hidden rounded-[2.25rem] border-[4px] border-[#1a252d] shadow-[0_16px_48px_rgba(0,0,0,0.45)]",
         className,
       )}
       aria-hidden
     >
-      <div
-        className={cn(
-          "bg-[#0b141a] text-[#e9edef] leading-tight flex flex-col h-full min-h-0",
-          isViewport && "text-[12px]",
-          size === "large" && "min-h-[620px] text-[12px]",
-          size === "default" && "min-h-[480px] max-h-[520px] text-[11px]",
-        )}
-      >
-        {/* barra de status simulada */}
+      <div className="bg-[#0b141a] text-[#e9edef] text-[12px] leading-tight flex flex-col h-full min-h-0">
         <div className="flex items-center justify-between px-4 pt-2 pb-0.5 text-[10px] text-[#e9edef]/90">
           <span>18:56</span>
           <div className="flex items-center gap-1 opacity-80">
@@ -49,7 +33,6 @@ export function WhatsAppTemplatePhonePreview({
           </div>
         </div>
 
-        {/* header do chat */}
         <div className="flex items-center gap-2 px-2 py-2 bg-[#1f2c34] border-b border-black/20">
           <ChevronLeft className="h-5 w-5 shrink-0 text-[#aebac1]" strokeWidth={2} />
           <div className="h-9 w-9 rounded-full bg-[#6b7c85] flex items-center justify-center shrink-0">
@@ -63,12 +46,8 @@ export function WhatsAppTemplatePhonePreview({
           <MoreVertical className="h-[18px] w-[18px] text-[#aebac1] shrink-0 ml-0.5" strokeWidth={1.75} />
         </div>
 
-        {/* área do chat */}
         <div
-          className={cn(
-            "flex-1 min-h-0 px-3 py-3 relative",
-            isViewport ? "overflow-hidden" : "overflow-y-auto",
-          )}
+          className="flex-1 min-h-0 overflow-hidden px-3 py-3 relative"
           style={{
             backgroundColor: "#0b141a",
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -105,7 +84,6 @@ export function WhatsAppTemplatePhonePreview({
           )}
         </div>
 
-        {/* input inferior (decorativo) */}
         <div className="flex items-end gap-2 px-2 py-2 bg-[#1f2c34]">
           <div className="flex-1 flex items-center gap-2 rounded-full bg-[#2a3942] px-3 py-2 min-h-[36px]">
             <Smile className="h-[22px] w-[22px] text-[#8696a0] shrink-0" strokeWidth={1.5} />

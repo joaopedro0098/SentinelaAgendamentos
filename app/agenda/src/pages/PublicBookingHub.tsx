@@ -11,8 +11,6 @@ import {
   listenForInstallPrompt,
   type BeforeInstallPromptEvent,
 } from "@/lib/pwaInstall";
-import { ClientConfirmationPushToggle } from "@/components/ClientConfirmationPushToggle";
-
 export default function PublicBookingHub() {
   const { slug } = useParams<{ slug: string }>();
   const { loading, barbearia } = useBarbeariaResumo(slug);
@@ -83,8 +81,6 @@ export default function PublicBookingHub() {
         </div>
 
         <div className="space-y-3">
-          <ClientConfirmationPushToggle slug={slug} />
-
           {!installed && (
             <>
               <Button

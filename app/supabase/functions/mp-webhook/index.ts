@@ -99,16 +99,6 @@ Deno.serve(async (req) => {
               appointmentId,
               String(resourceId),
             );
-            if (promoted.confirmed || promoted.already_confirmed) {
-              await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-barber-new-booking`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ agendamento_id: appointmentId }),
-              }).catch(() => undefined);
-            }
           }
         } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
           const methodId = String(payment?.payment_method_id ?? payment?.payment_type_id ?? "");

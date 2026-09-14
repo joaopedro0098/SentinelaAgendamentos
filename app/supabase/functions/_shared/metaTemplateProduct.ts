@@ -7,12 +7,6 @@ export type SentinelaTemplateCategory = "confirmacao" | "lembrete";
 
 export type TemplateLanguage = "pt_BR" | "es" | "en_US";
 
-export const TEMPLATE_LANGUAGE_OPTIONS: { value: TemplateLanguage; label: string }[] = [
-  { value: "pt_BR", label: "Português" },
-  { value: "es", label: "Español" },
-  { value: "en_US", label: "English" },
-];
-
 export type TemplateVariableKey = "cliente" | "estabelecimento" | "data" | "hora";
 
 /** Marcador interno no texto exibido ao profissional (convertido para {{n}} na Meta). */
@@ -126,6 +120,24 @@ export const DEFAULT_BODY_TEXT: Record<SentinelaTemplateCategory, Record<Templat
       "Hi ⟦cliente⟧, reminder: you have an appointment at ⟦estabelecimento⟧ on ⟦data⟧ at ⟦hora⟧.",
   },
 };
+
+const META_TEMPLATE_NAME_MAX_LEN = 512;
+const META_TEMPLATE_NAME_PATTERN = /^[a-z0-9_]+$/;
+
+/** Valida nome técnico antes de POST/reenvio na Meta. Retorna mensagem de erro ou null se OK. */
+export function validateMetaTemplateName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "Nome do template inválido: não pode ficar vazio.";
+  }
+  if (trimmed.length > META_TEMPLATE_NAME_MAX_LEN) {
+    return `Nome do template inválido: máximo ${META_TEMPLATE_NAME_MAX_LEN} caracteres.`;
+  }
+  if (!META_TEMPLATE_NAME_PATTERN.test(trimmed)) {
+    return "Nome do template inválido: use apenas letras minúsculas, números e underscore (_).";
+  }
+  return null;
+}
 
 /** Nome técnico Meta (lowercase + underscores). Estável por barbearia/categoria. */
 export function generateMetaTemplateName(
@@ -320,6 +332,9 @@ export function mapGraphErrorToUserMessage(
   }
   if (status === 403 || metaCode === 200) {
     return "Permissão insuficiente na Meta para gerenciar templates. Reconecte o WhatsApp ou aguarde aprovação do app.";
+  }
+  if (metaCode === 2388019) {
+    return "Sua conta WhatsApp atingiu o limite de templates na Meta. Exclua templates antigos no WhatsApp Manager ou verifique o portfólio de negócios antes de criar novos.";
   }
   if (metaCode === 80008) {
     return "Muitas tentativas em sequência. Aguarde alguns minutos e tente novamente.";

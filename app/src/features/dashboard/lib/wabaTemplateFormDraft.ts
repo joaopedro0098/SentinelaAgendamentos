@@ -26,7 +26,7 @@ function parseLanguage(value: unknown): TemplateLanguage {
 }
 
 /** Garante chaves de botões e variáveis após ler do localStorage. */
-export function normalizeWabaTemplateDraft(
+function normalizeWabaTemplateDraft(
   category: SentinelaTemplateCategory,
   raw: WabaTemplateFormDraft,
 ): WabaTemplateFormDraft {

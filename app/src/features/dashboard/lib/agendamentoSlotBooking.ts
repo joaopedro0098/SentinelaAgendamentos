@@ -76,9 +76,6 @@ export async function createPanelSlotBooking(
   }
 
   if (createdAppointment?.id) {
-    void supabase.functions
-      .invoke("sync-panel-push-subscription", { body: { agendamento_id: createdAppointment.id } })
-      .catch(() => undefined);
     notifyPanelAgendamentosChanged({
       data: input.data,
       barbeiroId: input.barbeiroId,
