@@ -777,13 +777,14 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
             </div>
           </AlertDialogPortal>
         ) : (
-          <AlertDialogContent className="relative sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+            <div className="relative flex max-h-[90vh] flex-col gap-4 overflow-y-auto p-6">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               disabled={submitting}
-              className="absolute right-3 top-3 h-8 w-8 rounded-sm opacity-70 ring-offset-background hover:opacity-100"
+              className="absolute right-3 top-3 z-10 h-8 w-8 rounded-sm opacity-70 ring-offset-background hover:opacity-100"
               onClick={() => handleDialogOpenChange(false)}
             >
               <X className="h-4 w-4" />
@@ -823,6 +824,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
                 Atualizar
               </Button>
             </AlertDialogFooter>
+            </div>
           </AlertDialogContent>
         )}
       </AlertDialog>
