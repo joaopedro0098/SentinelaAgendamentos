@@ -58,18 +58,18 @@ Deno.test("inferCategoryFromMetaTemplateName reconhece prefixos Sentinela", () =
 
 Deno.test("buildMetaBodyPayload converte marcadores para {{n}}", () => {
   const body =
-    "Olá ⟦cliente⟧, confirme em ⟦estabelecimento⟧ no dia ⟦data⟧ às ⟦hora⟧.";
+    "Olá ⟦cliente⟧, confirme na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.";
   const result = buildMetaBodyPayload(body, "pt_BR");
   assertEquals(
     result.text,
-    "Olá {{1}}, confirme em {{2}} no dia {{3}} às {{4}}.",
+    "Olá {{1}}, confirme na Barbearia Central no dia {{2}} às {{3}}.",
   );
-  assertEquals(result.example.body_text[0].length, 4);
-  assertEquals(result.example.body_text[0][2], exampleWeekdayForTemplate("pt_BR", 1));
+  assertEquals(result.example.body_text[0].length, 3);
+  assertEquals(result.example.body_text[0][1], exampleWeekdayForTemplate("pt_BR", 1));
 });
 
 Deno.test("validateBodyDisplayText exige variáveis habilitadas coerentes", () => {
-  const full = "Olá ⟦cliente⟧ em ⟦estabelecimento⟧ dia ⟦data⟧ ⟦hora⟧";
+  const full = "Olá ⟦cliente⟧ na Barbearia Central dia ⟦data⟧ ⟦hora⟧";
   assertEquals(validateBodyDisplayText(full), null);
   const err = validateBodyDisplayText("Olá cliente");
   assertEquals(typeof err, "string");
@@ -81,7 +81,7 @@ Deno.test("buildMetaBodyPayload renumerar só variáveis presentes", () => {
   const body = "Olá ⟦cliente⟧, horário às ⟦hora⟧.";
   const result = buildMetaBodyPayload(body, "pt_BR", ["cliente", "hora"]);
   assertEquals(result.text, "Olá {{1}}, horário às {{2}}.");
-  assertEquals(result.example.body_text[0], ["Maria", exampleWeekdayForTemplate("pt_BR", 1), "14:00"]);
+  assertEquals(result.example.body_text[0], ["Maria", "14:00"]);
 });
 
 Deno.test("buildMetaTemplateComponents inclui BUTTONS QUICK_REPLY", () => {
@@ -101,10 +101,10 @@ Deno.test("translateRejectionReason simplifica motivos Meta", () => {
   );
 });
 
-function DEFAULT_BODY(category: "confirmacao" | "lembrete", lang: "pt_BR") {
+function DEFAULT_BODY(category: "confirmacao" | "lembrete", _lang: "pt_BR") {
   return category === "confirmacao"
-    ? "Olá ⟦cliente⟧, confirme seu horário em ⟦estabelecimento⟧ no dia ⟦data⟧ às ⟦hora⟧."
-    : "Olá ⟦cliente⟧, lembrete em ⟦estabelecimento⟧ no dia ⟦data⟧ às ⟦hora⟧.";
+    ? "Olá ⟦cliente⟧, confirme seu horário na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧."
+    : "Olá ⟦cliente⟧, lembrete na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.";
 }
 
 Deno.test("buildMetaBodyPayload falha sem variável obrigatória", () => {

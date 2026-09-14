@@ -22,6 +22,8 @@ import {
 } from "@/features/dashboard/lib/metaTemplateProduct";
 import {
   caretDisplayOffsetFromPoint,
+  caretDisplayOffsetFromSelection,
+  wouldDeleteEnabledVariableMarker,
   insertMarkerAtOffset,
   mapFullTextOffsetToWithoutMarker,
   mapWithoutMarkerOffsetToFull,
@@ -176,7 +178,16 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
   function syncFromEditor() {
     const el = editorRef.current;
     if (!el || dragStateRef.current) return;
-    emitBody(readDisplayTextFromEditor(el));
+    const text = readDisplayTextFromEditor(el);
+    const prev = lastValidValue.current;
+    for (const key of enabledVariableKeys) {
+      const marker = VARIABLE_MARKERS[key];
+      if (prev.includes(marker) && !text.includes(marker)) {
+        rebuildFromValue(prev);
+        return;
+      }
+    }
+    emitBody(text);
   }
 
   function handleInput() {
@@ -206,6 +217,23 @@ export const TemplateBodyEditor = forwardRef<TemplateBodyEditorHandle, TemplateB
       if (range.intersectsNode(chip)) {
         e.preventDefault();
         return;
+      }
+    }
+
+    if (range.collapsed) {
+      const caretOffset = caretDisplayOffsetFromSelection(editor);
+      if (caretOffset !== null) {
+        const deleteKey = e.key === "Backspace" ? "Backspace" : "Delete";
+        if (
+          wouldDeleteEnabledVariableMarker(
+            lastValidValue.current,
+            caretOffset,
+            deleteKey,
+            enabledVariableKeys,
+          )
+        ) {
+          e.preventDefault();
+        }
       }
     }
   }

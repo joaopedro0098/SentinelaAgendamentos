@@ -10,33 +10,29 @@ export const TEMPLATE_LANGUAGE_OPTIONS: { value: TemplateLanguage; label: string
   { value: "en_US", label: "English" },
 ];
 
-export type TemplateVariableKey = "cliente" | "estabelecimento" | "data" | "hora";
+export type TemplateVariableKey = "cliente" | "data" | "hora";
 
 export const VARIABLE_MARKERS: Record<TemplateVariableKey, string> = {
   cliente: "⟦cliente⟧",
-  estabelecimento: "⟦estabelecimento⟧",
   data: "⟦data⟧",
   hora: "⟦hora⟧",
 };
 
-export const VARIABLE_ORDER: TemplateVariableKey[] = ["cliente", "estabelecimento", "data", "hora"];
+export const VARIABLE_ORDER: TemplateVariableKey[] = ["cliente", "data", "hora"];
 
 export const VARIABLE_UI_LABELS: Record<TemplateLanguage, Record<TemplateVariableKey, string>> = {
   pt_BR: {
     cliente: "Nome do cliente",
-    estabelecimento: "Estabelecimento",
     data: "Dia da semana",
     hora: "Hora",
   },
   es: {
     cliente: "Nombre del cliente",
-    estabelecimento: "Establecimiento",
     data: "Día de la semana",
     hora: "Hora",
   },
   en_US: {
     cliente: "Client name",
-    estabelecimento: "Business name",
     data: "Day of week",
     hora: "Time",
   },
@@ -62,36 +58,33 @@ export const CATEGORY_BUTTON_OPTIONS: Record<
 export const DEFAULT_BODY_TEXT: Record<SentinelaTemplateCategory, Record<TemplateLanguage, string>> = {
   confirmacao: {
     pt_BR:
-      "Olá ⟦cliente⟧, confirme seu horário em ⟦estabelecimento⟧ no dia ⟦data⟧ às ⟦hora⟧.",
+      "Olá ⟦cliente⟧, confirme seu horário na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.",
     es:
-      "Hola ⟦cliente⟧, confirma tu cita en ⟦estabelecimento⟧ el día ⟦data⟧ a las ⟦hora⟧.",
+      "Hola ⟦cliente⟧, confirma tu cita en Barbería Central el día ⟦data⟧ a las ⟦hora⟧.",
     en_US:
-      "Hi ⟦cliente⟧, please confirm your appointment at ⟦estabelecimento⟧ on ⟦data⟧ at ⟦hora⟧.",
+      "Hi ⟦cliente⟧, please confirm your appointment at Central Barbershop on ⟦data⟧ at ⟦hora⟧.",
   },
   lembrete: {
     pt_BR:
-      "Olá ⟦cliente⟧, lembrete: você tem horário em ⟦estabelecimento⟧ no dia ⟦data⟧ às ⟦hora⟧.",
+      "Olá ⟦cliente⟧, lembrete: você tem horário na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.",
     es:
-      "Hola ⟦cliente⟧, recordatorio: tienes cita en ⟦estabelecimento⟧ el día ⟦data⟧ a las ⟦hora⟧.",
+      "Hola ⟦cliente⟧, recordatorio: tienes cita en Barbería Central el día ⟦data⟧ a las ⟦hora⟧.",
     en_US:
-      "Hi ⟦cliente⟧, reminder: you have an appointment at ⟦estabelecimento⟧ on ⟦data⟧ at ⟦hora⟧.",
+      "Hi ⟦cliente⟧, reminder: you have an appointment at Central Barbershop on ⟦data⟧ at ⟦hora⟧.",
   },
 };
 
 const PREVIEW_STATIC_EXAMPLES: Record<TemplateLanguage, Record<Exclude<TemplateVariableKey, "data">, string>> = {
   pt_BR: {
     cliente: "Maria",
-    estabelecimento: "Barbearia Central",
     hora: "14:00",
   },
   es: {
     cliente: "María",
-    estabelecimento: "Barbería Central",
     hora: "14:00",
   },
   en_US: {
     cliente: "Mary",
-    estabelecimento: "Central Barbershop",
     hora: "2:00 PM",
   },
 };
@@ -190,7 +183,7 @@ export type BodySegment =
   | { type: "text"; value: string }
   | { type: "variable"; key: TemplateVariableKey };
 
-const MARKER_REGEX = /⟦(cliente|estabelecimento|data|hora)⟧/g;
+const MARKER_REGEX = /⟦(cliente|data|hora)⟧/g;
 
 export function parseBodyDisplayText(text: string): BodySegment[] {
   const segments: BodySegment[] = [];

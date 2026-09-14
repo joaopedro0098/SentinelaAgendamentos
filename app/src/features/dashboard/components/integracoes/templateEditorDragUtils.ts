@@ -59,6 +59,65 @@ export function removeVariableMarker(text: string, key: TemplateVariableKey): st
   return text.replace(VARIABLE_MARKERS[key], "");
 }
 
+export function caretDisplayOffsetFromSelection(root: HTMLElement): number | null {
+  const sel = root.ownerDocument.defaultView?.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed || !root.contains(range.startContainer)) return null;
+
+  const probe = root.ownerDocument.createRange();
+  probe.selectNodeContents(root);
+  probe.setEnd(range.startContainer, range.startOffset);
+
+  let offset = 0;
+  const fragment = probe.cloneContents();
+  function walk(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      offset += node.textContent?.length ?? 0;
+      return;
+    }
+    if (node instanceof HTMLElement) {
+      const key = node.dataset?.variable;
+      if (key && key in VARIABLE_MARKERS) {
+        offset += VARIABLE_MARKERS[key as TemplateVariableKey].length;
+        return;
+      }
+    }
+    node.childNodes.forEach(walk);
+  }
+  walk(fragment);
+  return offset;
+}
+
+/** Impede apagar marcador habilitado com Backspace/Delete; remoção só pela checkbox. */
+export function wouldDeleteEnabledVariableMarker(
+  displayText: string,
+  caretOffset: number,
+  key: "Backspace" | "Delete",
+  enabledKeys: TemplateVariableKey[],
+): boolean {
+  for (const variableKey of enabledKeys) {
+    const marker = VARIABLE_MARKERS[variableKey];
+    let searchFrom = 0;
+    while (searchFrom <= displayText.length) {
+      const idx = displayText.indexOf(marker, searchFrom);
+      if (idx === -1) break;
+      const end = idx + marker.length;
+      if (key === "Backspace") {
+        const delStart = caretOffset - 1;
+        const delEnd = caretOffset;
+        if (delStart < end && delEnd > idx) return true;
+      } else {
+        const delStart = caretOffset;
+        const delEnd = caretOffset + 1;
+        if (delStart < end && delEnd > idx) return true;
+      }
+      searchFrom = idx + 1;
+    }
+  }
+  return false;
+}
+
 export function caretDisplayOffsetFromPoint(root: HTMLElement, clientX: number, clientY: number): number {
   const doc = root.ownerDocument;
   let range: Range | null = null;
