@@ -1,7 +1,7 @@
 /** Conteúdo reutilizável da landing — edite aqui para páginas de nicho futuras. */
 
 export const LANDING_TRUST_ITEMS = [
-  { id: "no-card", label: "Não pedimos cartão de crédito", icon: "credit-card" },
+  { id: "no-card", label: "Não é necessário cartão de crédito", icon: "credit-card" },
   { id: "whatsapp-support", label: "Suporte via WhatsApp", icon: "shield-check" },
 ] as const;
 
@@ -21,6 +21,13 @@ export const LANDING_HERO = {
     "Agendamento online, prontuário simples e visão do consultório em um só lugar.",
   ctaPrimary: "Testar 14 dias grátis",
   ctaSecondary: "Ver como funciona",
+} as const;
+
+export const QUER_MAIS_CTA = {
+  headline: "Está esperando o que?",
+  ouLabel: "Ou",
+  whatsAppLead: "Nos chame no WhatsApp para mais informações!",
+  whatsAppButton: "Falar no WhatsApp",
 } as const;
 
 export const LANDING_AUDIENCE = {
@@ -79,13 +86,13 @@ export const HOW_IT_WORKS_STEPS = [
   },
   {
     step: "2",
-    title: "Configure sua agenda",
+    title: "Configure sua disponibilidade",
     description: "Defina horários, serviços e gere seu link de agendamento personalizado.",
   },
   {
     step: "3",
-    title: "Compartilhe com pacientes",
-    description: "Envie o link no instagram, WhatsApp ou site. Eles agendam; você recebe tudo organizado.",
+    title: "Faça os agendamentos",
+    description: "Pronto, agora é só agendar e gerenciar",
   },
 ] as const;
 
@@ -161,10 +168,3 @@ export const FAQ_ITEMS = [
       "Nosso suporte é humanizado via WhatsApp. Você fala com pessoas reais que conhecem o sistema — não com robôs.",
   },
 ] as const;
-
-export const FINAL_CTA = {
-  title: "Organize seu consultório esta semana",
-  description:
-    "Comece o teste grátis hoje. Em poucos minutos sua agenda estará pronta para receber pacientes online.",
-  button: "Criar conta grátis",
-} as const;
