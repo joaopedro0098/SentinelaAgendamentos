@@ -89,37 +89,6 @@ export const HOW_IT_WORKS_STEPS = [
   },
 ] as const;
 
-export const SPECIALTIES = [
-  {
-    id: "psicologos",
-    label: "Psicólogos",
-    iconSrc: "/landing-specialty-psicologos.png",
-    description:
-      "Sessões recorrentes, ficha com anotações clínicas e link para o paciente remarcar sem te interromper.",
-  },
-  {
-    id: "medicos",
-    label: "Médicos",
-    iconSrc: "/landing-specialty-medicos.png",
-    description:
-      "Consultas, retornos e encaixes com equipe, serviços e agenda online para cada profissional.",
-  },
-  {
-    id: "nutricionistas",
-    label: "Nutricionistas",
-    iconSrc: "/landing-specialty-nutricionistas.png",
-    description:
-      "Acompanhe evolução do paciente com anotações, retornos programados e horários sempre visíveis.",
-  },
-  {
-    id: "dentistas",
-    label: "Dentistas",
-    iconSrc: "/landing-specialty-dentistas.png",
-    description:
-      "Procedimentos com duração definida, revisões na agenda e link para o paciente agendar sozinho.",
-  },
-] as const;
-
 /** Placeholders — substitua por depoimentos reais quando disponíveis. */
 export const SOCIAL_PROOF_STATS = [
   { value: "500+", label: "profissionais cadastrados" },
