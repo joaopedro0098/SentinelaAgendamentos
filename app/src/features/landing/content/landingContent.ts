@@ -24,11 +24,20 @@ export const LANDING_HERO = {
 } as const;
 
 export const LANDING_AUDIENCE = {
-  titleLine: "Para quem é o sentinela agendamentos?",
-  descriptionLines: [
-    "Do profissional autônomo à clínica com equipe: o Sentinela cresce junto com você.",
-    "Comece simples e ative recursos avançados como gestão de equipe, comissionamento, cobrança automática",
-    "dentre outras funções conforme sua necessidade aumenta.",
+  titleLine: "Por que usar o Sentinela Agendamentos?",
+  descriptionParagraphs: [
+    [
+      { text: "Do profissional " },
+      { highlight: "autônomo" },
+      { text: " à " },
+      { highlight: "clínica com equipe" },
+      { text: ": o Sentinela cresce junto com você." },
+    ],
+    [
+      { text: "Comece simples e ative recursos mais avançados " },
+      { highlight: "conforme sua necessidade" },
+      { text: " aumenta." },
+    ],
   ],
   featureCards: [
     {
@@ -39,11 +48,11 @@ export const LANDING_AUDIENCE = {
         "Seus pacientes receberão uma mensagem automática no WhatsApp um dia antes para confirmar o agendamento e um lembrete opcional três horas antes do seu atendimento. Assim você diminui o não comparecimento e abre espaço na sua agenda para outro paciente.",
     },
     {
-      id: "schedule-panel",
-      icon: "schedule-panel",
-      title: ["Painel dinâmico", "de agendamentos"],
+      id: "video-call-transcription",
+      icon: "video-call",
+      title: "Video chamada com resumo",
       description:
-        "Pensamos no painel mais intuitivo possível para você visualizar sua disponibilidade da semana e do mês, podendo assim criar, remarcar e excluir agendamentos de forma rápida e com poucos cliques num só lugar.",
+        "Faça sua vídeo chamada sem precisar acessar outro sistema. O Sentinela te dará a opção de transcrever e resumir todo o atendimento de forma automática com inteligência artificial.",
     },
     {
       id: "payment-link",
@@ -53,53 +62,14 @@ export const LANDING_AUDIENCE = {
         "Cobre seus pacientes antecipadamente, de forma parcial ou total, via PIX ou cartão. Isso aumenta o compromisso com o agendamento e reduz faltas.",
     },
     {
-      id: "video-call-transcription",
-      icon: "video-call",
-      title: "Video chamada com resumo",
+      id: "schedule-panel",
+      icon: "schedule-panel",
+      title: ["Painel dinâmico", "de agendamentos"],
       description:
-        "Faça sua vídeo chamada sem precisar acessar outro sistema. O Sentinela te dará a opção de transcrever e resumir todo o atendimento de forma automática com inteligência artificial.",
+        "Pensamos no painel mais intuitivo possível para você visualizar sua disponibilidade da semana e do mês, podendo assim criar, remarcar e excluir agendamentos de forma rápida e com poucos cliques num só lugar.",
     },
   ],
 } as const;
-
-export const SOLUTION_FEATURES = [
-  {
-    id: "agendamento",
-    title: "Agendamento online 24 horas",
-    description:
-      "Seu paciente escolhe horário pelo link personalizado, sem precisar te mandar mensagem. Você define serviços, duração e disponibilidade.",
-  },
-  {
-    id: "pacientes",
-    title: "Ficha e histórico do paciente",
-    description:
-      "Anotações, documentos e dados cadastrais organizados por paciente — tudo acessível antes e depois da consulta.",
-  },
-  {
-    id: "equipe",
-    title: "Equipe e múltiplos profissionais",
-    description:
-      "Cada profissional com sua agenda, serviços e bloqueios. Ideal para consultórios com mais de um atendente.",
-  },
-  {
-    id: "relatorios",
-    title: "Relatórios do consultório",
-    description:
-      "Veja agendamentos concluídos, cancelados e faturamento por período. Decisões com base em números, não em achismo.",
-  },
-  {
-    id: "pagamento",
-    title: "Cobrança antecipada (opcional)",
-    description:
-      "No plano Pro, o paciente pode pagar total ou parcialmente ao agendar — reduzindo faltas e confirmando o horário.",
-  },
-  {
-    id: "lembretes",
-    title: "Lembretes automáticos",
-    description:
-      "Confirmações e avisos enviados para o paciente, para você não precisar correr atrás de cada consulta.",
-  },
-] as const;
 
 export const HOW_IT_WORKS_STEPS = [
   {
