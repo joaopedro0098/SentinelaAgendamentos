@@ -1294,6 +1294,55 @@ const PublicBooking = ({
     setPaymentFailed(false);
   };
 
+  const discardBookingDraft = async () => {
+    if (submitting) return;
+    if (paymentCheckout) {
+      setCancellingPayment(true);
+      try {
+        const released = await releasePublicBookingPaymentHold(paymentCheckout);
+        if (!released) {
+          toast.error("Não foi possível liberar o horário. Aguarde um instante ou escolha outro.");
+        }
+      } finally {
+        setCancellingPayment(false);
+      }
+      setInternalSlotGridRevision((r) => r + 1);
+    }
+    setBookingConfirmed(false);
+    setDone(false);
+    setRescheduleSummary(null);
+    setPaymentCheckout(null);
+    setPaymentFailed(false);
+
+    if (reschedule) {
+      setBarbeiroId(reschedule.barbeiroId);
+      setData(reschedule.data);
+      setHora("");
+      setNome(reschedule.cliente_nome);
+      setWhatsapp(maskPhone(reschedule.cliente_whatsapp));
+      setObservacao(reschedule.observacao ?? "");
+      setServSel([]);
+    } else if (prefill) {
+      setData(prefill.data);
+      setBarbeiroId(prefill.barbeiroId ?? (singleProfessional ? barbeiros[0]?.id ?? "" : ""));
+      setHora("");
+      setServSel([]);
+      setObservacao("");
+      setNome("");
+      setWhatsapp("");
+    } else {
+      const initialDate = initialBookingDate(ownerPanel, isReschedule);
+      setData(initialDate);
+      setDesktopViewMonth(monthStart(parseYmd(initialDate)));
+      setBarbeiroId(singleProfessional ? barbeiros[0]?.id ?? "" : "");
+      setHora("");
+      setServSel([]);
+      setObservacao("");
+      setNome("");
+      setWhatsapp("");
+    }
+  };
+
   const startNewOwnerBooking = useCallback(() => {
     setBookingConfirmed(false);
     setDone(false);
@@ -1445,6 +1494,17 @@ const PublicBooking = ({
     return (
       <div className={cn("min-h-screen flex items-center justify-center p-3 sm:p-6", pageBgClass)}>
         <Card className="relative max-w-sm w-full p-6">
+          {!bookingConfirmed && !clientExitHint && (
+            <button
+              type="button"
+              onClick={() => void discardBookingDraft()}
+              disabled={submitting || cancellingPayment}
+              className="absolute top-3 right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-50"
+              aria-label="Descartar e recomeçar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
           {bookingConfirmed && showClientExit && !clientExitHint && (
             <button
               type="button"
@@ -1535,7 +1595,8 @@ const PublicBooking = ({
           </ul>
           {!bookingConfirmed && !paymentCheckout && (
             <div className="mt-6 flex gap-2">
-              <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={alterBooking}>
+              <Button type="button" variant="outline" className="flex-1 rounded-full" disabled={submitting} onClick={() => void alterBooking()}>
+                <ArrowLeft className="mr-1.5 h-4 w-4 shrink-0 opacity-60" aria-hidden />
                 Alterar
               </Button>
               <Button type="button" className="flex-1 rounded-full" disabled={submitting || !clientContactReady} onClick={confirmBooking}>
