@@ -1,5 +1,8 @@
 -- Remove Web Push (cliente + profissional). Lembretes WhatsApp permanecem.
 
+DROP TRIGGER IF EXISTS inherit_push_subscription_on_agendamento ON public.agendamentos;
+DROP FUNCTION IF EXISTS public.trg_inherit_appointment_push_subscription();
+
 DROP FUNCTION IF EXISTS public.get_client_confirmation_push_status(text, text);
 DROP FUNCTION IF EXISTS public.inherit_appointment_push_subscription(uuid, boolean);
 DROP FUNCTION IF EXISTS public.inherit_appointment_push_subscription(uuid);

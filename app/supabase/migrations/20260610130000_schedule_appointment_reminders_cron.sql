@@ -1,4 +1,4 @@
--- Cron diário: push de confirmação do cliente 1 dia antes (~10h America/Sao_Paulo = 13:00 UTC).
+-- Cron diário: lembrete WhatsApp D-1 (~10h America/Sao_Paulo = 13:00 UTC).
 -- Requer extensões pg_cron, pg_net e vault (habilitar no Dashboard se a migration avisar).
 
 DO $$
