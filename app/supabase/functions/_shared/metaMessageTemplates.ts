@@ -80,6 +80,8 @@ export type CreateMessageTemplateResult = {
   category?: string;
 };
 
+const META_UTILITY_MESSAGE_SEND_TTL_SECONDS = 43200;
+
 export async function createMessageTemplate(
   accessToken: string,
   wabaId: string,
@@ -104,6 +106,7 @@ export async function createMessageTemplate(
       language: payload.language,
       category: payload.category,
       parameter_format: "POSITIONAL",
+      message_send_ttl_seconds: META_UTILITY_MESSAGE_SEND_TTL_SECONDS,
       components: payload.components,
     }),
   });
@@ -148,6 +151,7 @@ export async function updateMessageTemplate(
     body: JSON.stringify({
       category: payload.category,
       parameter_format: "POSITIONAL",
+      message_send_ttl_seconds: META_UTILITY_MESSAGE_SEND_TTL_SECONDS,
       components: payload.components,
     }),
   });
