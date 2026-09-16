@@ -13,6 +13,7 @@ export type MetaMessageTemplateNode = {
   category?: string;
   components?: unknown[];
   rejected_reason?: string;
+  message_send_ttl_seconds?: number | null;
 };
 
 export type MetaGraphErrorBody = {
@@ -80,7 +81,7 @@ export type CreateMessageTemplateResult = {
   category?: string;
 };
 
-const META_UTILITY_MESSAGE_SEND_TTL_SECONDS = 43200;
+export const META_UTILITY_MESSAGE_SEND_TTL_SECONDS = 43200;
 
 export async function createMessageTemplate(
   accessToken: string,
@@ -157,6 +158,39 @@ export async function updateMessageTemplate(
   });
 
   const data = await res.json().catch(() => ({})) as UpdateMessageTemplateResult & MetaGraphErrorBody;
+
+  if (!res.ok) {
+    throw new MetaGraphRequestError(res.status, data);
+  }
+
+  return data;
+}
+
+export type PatchMessageTemplateTtlResult = {
+  success?: boolean;
+  id?: string;
+  status?: string;
+};
+
+/** Atualiza só TTL (sem components) — template APPROVED permanece utilizável. */
+export async function patchMessageTemplateTtl(
+  accessToken: string,
+  metaTemplateId: string,
+  ttlSeconds: number = META_UTILITY_MESSAGE_SEND_TTL_SECONDS,
+): Promise<PatchMessageTemplateTtlResult> {
+  const { apiVersion } = getMetaGraphConfig();
+  const url = `https://graph.facebook.com/${apiVersion}/${metaTemplateId}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...authHeaders(accessToken),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message_send_ttl_seconds: ttlSeconds }),
+  });
+
+  const data = await res.json().catch(() => ({})) as PatchMessageTemplateTtlResult & MetaGraphErrorBody;
 
   if (!res.ok) {
     throw new MetaGraphRequestError(res.status, data);

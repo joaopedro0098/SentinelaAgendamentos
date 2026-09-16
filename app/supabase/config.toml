@@ -128,3 +128,6 @@ verify_jwt = true
 [functions.meta-waba-message-templates]
 verify_jwt = true
 
+[functions.meta-waba-template-ttl-backfill]
+verify_jwt = false
+

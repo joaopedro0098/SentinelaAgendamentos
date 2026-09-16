@@ -9,7 +9,9 @@ import {
   deleteMessageTemplateByName,
   fetchApprovedUtilityTemplates,
   fetchMessageTemplateById,
+  META_UTILITY_MESSAGE_SEND_TTL_SECONDS,
   MetaGraphRequestError,
+  patchMessageTemplateTtl,
   updateMessageTemplate,
   type MetaMessageTemplateNode,
 } from "./metaMessageTemplates.ts";
@@ -789,6 +791,173 @@ export async function applyTemplateStatusWebhook(
   if (error) {
     console.error("[metaWabaTemplates] webhook status update falhou:", error.message);
   }
+}
+
+function isSentinelaUtilityTemplateName(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return n.startsWith("sentinela_confirmacao_") || n.startsWith("sentinela_lembrete_");
+}
+
+export type TemplateTtlPatchOutcome = {
+  local_template_id: string;
+  meta_template_id: string;
+  meta_template_name: string;
+  barbershop_id: string;
+  dry_run: boolean;
+  patched: boolean;
+  skipped?: string;
+  before?: { status?: string; message_send_ttl_seconds?: number | null };
+  after?: { status?: string; message_send_ttl_seconds?: number | null };
+  error?: string;
+};
+
+async function fetchTemplateTtlSnapshot(
+  accessToken: string,
+  metaTemplateId: string,
+): Promise<{ status?: string; message_send_ttl_seconds?: number | null } | null> {
+  const remote = await fetchMessageTemplateById(
+    accessToken,
+    metaTemplateId,
+    "id,status,message_send_ttl_seconds",
+  );
+  if (!remote) return null;
+  return {
+    status: remote.status != null ? String(remote.status) : undefined,
+    message_send_ttl_seconds: remote.message_send_ttl_seconds ?? null,
+  };
+}
+
+export async function loadApprovedSentinelaTemplatesForTtlBackfill(
+  serviceClient: SupabaseClient,
+  filter?: { localTemplateId?: string; barbershopId?: string },
+): Promise<WabaTemplateRow[]> {
+  let query = serviceClient
+    .from("whatsapp_waba_message_templates")
+    .select("*")
+    .eq("meta_status", "APPROVED")
+    .not("meta_template_id", "is", null)
+    .eq("meta_category", "UTILITY")
+    .is("deletion_pending_at", null);
+
+  if (filter?.localTemplateId) {
+    query = query.eq("id", filter.localTemplateId);
+  }
+  if (filter?.barbershopId) {
+    query = query.eq("barbershop_id", filter.barbershopId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as WabaTemplateRow[]).filter((row) =>
+    isSentinelaUtilityTemplateName(row.meta_template_name),
+  );
+}
+
+export async function backfillApprovedTemplateTtl(
+  serviceClient: SupabaseClient,
+  options: {
+    localTemplateId?: string;
+    barbershopId?: string;
+    allShops?: boolean;
+    dryRun?: boolean;
+  },
+): Promise<{ outcomes: TemplateTtlPatchOutcome[] }> {
+  const dryRun = Boolean(options.dryRun);
+  const hasLocal = Boolean(options.localTemplateId?.trim());
+  const hasShop = Boolean(options.barbershopId?.trim());
+  const allShops = Boolean(options.allShops);
+
+  if (!hasLocal && !hasShop && !allShops) {
+    throw new Error("Informe local_template_id, barbershop_id ou all_shops: true.");
+  }
+  if (hasLocal && allShops) {
+    throw new Error("Use local_template_id ou all_shops, não ambos.");
+  }
+
+  const rows = await loadApprovedSentinelaTemplatesForTtlBackfill(serviceClient, {
+    localTemplateId: options.localTemplateId?.trim(),
+    barbershopId: allShops ? undefined : options.barbershopId?.trim(),
+  });
+
+  const outcomes: TemplateTtlPatchOutcome[] = [];
+  const ctxByShop = new Map<string, MetaShopContext>();
+
+  for (const row of rows) {
+    const base: TemplateTtlPatchOutcome = {
+      local_template_id: row.id,
+      meta_template_id: String(row.meta_template_id),
+      meta_template_name: row.meta_template_name,
+      barbershop_id: row.barbershop_id,
+      dry_run: dryRun,
+      patched: false,
+    };
+
+    let ctx = ctxByShop.get(row.barbershop_id);
+    if (!ctx) {
+      const resolved = await resolveShopContextForBarbershop(serviceClient, row.barbershop_id);
+      if (!resolved.ok) {
+        outcomes.push({ ...base, error: "Barbearia Meta não conectada ou token indisponível." });
+        continue;
+      }
+      ctx = resolved.ctx;
+      ctxByShop.set(row.barbershop_id, ctx);
+    }
+
+    try {
+      const before = await fetchTemplateTtlSnapshot(ctx.accessToken, base.meta_template_id);
+      if (!before) {
+        outcomes.push({ ...base, error: "Template não encontrado na Meta." });
+        continue;
+      }
+
+      base.before = before;
+
+      if (before.status && before.status !== "APPROVED") {
+        outcomes.push({
+          ...base,
+          skipped: `status Meta ${before.status}, esperado APPROVED`,
+        });
+        continue;
+      }
+
+      if (before.message_send_ttl_seconds === META_UTILITY_MESSAGE_SEND_TTL_SECONDS) {
+        outcomes.push({
+          ...base,
+          skipped: "TTL já é 43200",
+          after: before,
+        });
+        continue;
+      }
+
+      if (dryRun) {
+        outcomes.push({
+          ...base,
+          skipped: "dry_run",
+          after: before,
+        });
+        continue;
+      }
+
+      await patchMessageTemplateTtl(ctx.accessToken, base.meta_template_id);
+      const after = await fetchTemplateTtlSnapshot(ctx.accessToken, base.meta_template_id);
+
+      outcomes.push({
+        ...base,
+        patched: true,
+        after: after ?? undefined,
+      });
+    } catch (e) {
+      const msg = e instanceof MetaGraphRequestError
+        ? mapGraphErrorToUserMessage(e.status, e.userMessage, e.metaCode)
+        : e instanceof Error
+        ? e.message
+        : String(e);
+      outcomes.push({ ...base, error: msg });
+    }
+  }
+
+  return { outcomes };
 }
 
 export function tryAutoLinkApprovedTemplates(
