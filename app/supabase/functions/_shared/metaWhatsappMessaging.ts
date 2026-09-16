@@ -5,7 +5,11 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0
 import { decryptWabaToken } from "./wabaCrypto.ts";
 import { resolveSelectedWabaTemplateForKind } from "./metaWabaTemplateSend.ts";
 import { buildMetaTemplateBodyParameters } from "./metaTemplateSendVariables.ts";
-import { sendMetaWhatsAppTemplateMessage, MetaWhatsappSendError } from "./metaWhatsapp.ts";
+import {
+  sendMetaWhatsAppTemplateMessage,
+  MetaWhatsappSendError,
+  type MetaSendMessageStatus,
+} from "./metaWhatsapp.ts";
 import {
   sentinelaCategoryForWhatsAppTemplateKind,
   type WhatsAppOperationalTemplateKind,
@@ -13,6 +17,7 @@ import {
 
 export type MetaSendTemplateResult = {
   externalMessageId: string;
+  messageStatus?: MetaSendMessageStatus;
   provider: "meta";
   status: string;
   wabaTemplateId: string;
@@ -127,6 +132,7 @@ export async function sendMetaWhatsAppOperationalTemplate(
 
     return {
       externalMessageId: result.messageId,
+      messageStatus: result.messageStatus,
       provider: "meta",
       status: "accepted",
       wabaTemplateId: template.id,

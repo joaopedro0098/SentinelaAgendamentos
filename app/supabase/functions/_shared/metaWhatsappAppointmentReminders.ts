@@ -113,6 +113,7 @@ async function sendOneMetaReminder(
     provider: "meta",
     external_message_id: result.externalMessageId,
     status: "aguardando_resposta",
+    meta_send_message_status: result.messageStatus ?? null,
     meta_delivery_status: "sent",
     meta_delivery_updated_at: new Date().toISOString(),
   });

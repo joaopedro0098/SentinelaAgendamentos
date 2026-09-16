@@ -163,6 +163,7 @@ async function sendOneMetaReminder3h(
       external_message_id: result.externalMessageId,
       status: "respondida",
       respondido_em: sentAt,
+      meta_send_message_status: result.messageStatus ?? null,
       meta_delivery_status: "sent",
       meta_delivery_updated_at: sentAt,
     });

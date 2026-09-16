@@ -90,9 +90,18 @@ export type SendMetaTemplateMessageParams = {
   bodyParameters: string[];
 };
 
+export type MetaSendMessageStatus = "accepted" | "held_for_quality_assessment";
+
 export type SendMetaTemplateMessageResult = {
   messageId: string;
+  messageStatus?: MetaSendMessageStatus;
 };
+
+function parseMetaSendMessageStatus(raw: unknown): MetaSendMessageStatus | undefined {
+  const v = String(raw ?? "").trim();
+  if (v === "accepted" || v === "held_for_quality_assessment") return v;
+  return undefined;
+}
 
 async function postTemplateMessageOnce(
   params: SendMetaTemplateMessageParams,
@@ -133,19 +142,27 @@ async function postTemplateMessageOnce(
   });
 
   const data = await res.json().catch(() => ({})) as {
-    messages?: Array<{ id?: string }>;
+    messages?: Array<{ id?: string; message_status?: string }>;
   } & MetaGraphErrorBody;
 
   if (!res.ok) {
     throw errorFromResponse(res.status, data);
   }
 
-  const messageId = data.messages?.[0]?.id;
+  const firstMessage = data.messages?.[0];
+  const messageId = firstMessage?.id;
   if (!messageId) {
     throw new MetaWhatsappSendError("Meta não retornou message id.", { status: res.status, retryable: false });
   }
 
-  return { messageId };
+  const messageStatus = parseMetaSendMessageStatus(firstMessage?.message_status);
+  if (messageStatus === "held_for_quality_assessment") {
+    console.warn(
+      `[metaWhatsapp] message_status=held_for_quality_assessment phone_number_id=${params.phoneNumberId} to=${params.toE164Digits} wamid=${messageId}`,
+    );
+  }
+
+  return { messageId, messageStatus };
 }
 
 /** Envia template com retry/backoff para códigos 130429 e 131056. */
