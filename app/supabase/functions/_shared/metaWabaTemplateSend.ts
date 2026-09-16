@@ -14,6 +14,7 @@ export type SelectedWabaTemplate = {
   meta_template_name: string;
   language: string;
   sentinela_category: SentinelaTemplateCategory;
+  body_display_text: string;
 };
 
 /** Sem template selecionado/aprovado → null (não enviar, sem erro). */
@@ -27,7 +28,7 @@ export async function resolveSelectedWabaTemplateForKind(
 
   const { data, error } = await serviceClient
     .from("whatsapp_waba_message_templates")
-    .select("id, meta_template_id, meta_template_name, language, sentinela_category")
+    .select("id, meta_template_id, meta_template_name, language, sentinela_category, body_display_text")
     .eq("barbershop_id", barbershopId)
     .eq("sentinela_category", category)
     .eq("is_selected", true)

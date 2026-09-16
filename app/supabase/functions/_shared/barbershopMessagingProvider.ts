@@ -2,7 +2,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0
 import { decryptWabaToken } from "./wabaCrypto.ts";
 import type { InfobipSendCredentials } from "./infobipWhatsapp.ts";
 
-export type WhatsAppMessagingProvider = "twilio" | "infobip";
+export type WhatsAppMessagingProvider = "twilio" | "infobip" | "meta";
 
 export async function resolveBarbershopMessagingProvider(
   supabase: SupabaseClient,
@@ -35,7 +35,7 @@ export async function resolveBarbershopMessagingProvider(
   }
 
   const provider = shop.whatsapp_messaging_provider;
-  if (provider === "infobip" || provider === "twilio") {
+  if (provider === "infobip" || provider === "twilio" || provider === "meta") {
     return provider;
   }
 

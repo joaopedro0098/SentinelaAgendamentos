@@ -1,0 +1,197 @@
+/**
+ * Envio operacional WhatsApp Meta Direct por barbearia (templates WABA selecionados).
+ */
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { decryptWabaToken } from "./wabaCrypto.ts";
+import { resolveSelectedWabaTemplateForKind } from "./metaWabaTemplateSend.ts";
+import { buildMetaTemplateBodyParameters } from "./metaTemplateSendVariables.ts";
+import { sendMetaWhatsAppTemplateMessage, MetaWhatsappSendError } from "./metaWhatsapp.ts";
+import {
+  sentinelaCategoryForWhatsAppTemplateKind,
+  type WhatsAppOperationalTemplateKind,
+} from "./metaTemplateProduct.ts";
+
+export type MetaSendTemplateResult = {
+  externalMessageId: string;
+  provider: "meta";
+  status: string;
+  wabaTemplateId: string;
+  barbershopId: string;
+  sentinelaCategory: "confirmacao" | "lembrete";
+};
+
+type MetaShopSendContext = {
+  barbershopId: string;
+  phoneNumberId: string;
+  accessToken: string;
+};
+
+async function resolveBarbershopIdForBarbearia(
+  supabase: SupabaseClient,
+  barbeariaId: string,
+): Promise<string | null> {
+  const { data: barbearia, error: barbeariaError } = await supabase
+    .from("barbearias")
+    .select("slug")
+    .eq("id", barbeariaId)
+    .maybeSingle();
+
+  if (barbeariaError || !barbearia?.slug) return null;
+
+  const { data: shop, error: shopError } = await supabase
+    .from("barbershops")
+    .select("id")
+    .eq("slug", barbearia.slug)
+    .maybeSingle();
+
+  if (shopError || !shop?.id) return null;
+  return shop.id;
+}
+
+async function resolveMetaShopSendContext(
+  supabase: SupabaseClient,
+  barbeariaId: string,
+): Promise<MetaShopSendContext | null> {
+  const { data: barbearia, error: barbeariaError } = await supabase
+    .from("barbearias")
+    .select("slug")
+    .eq("id", barbeariaId)
+    .maybeSingle();
+
+  if (barbeariaError || !barbearia?.slug) return null;
+
+  const { data: shop, error: shopError } = await supabase
+    .from("barbershops")
+    .select(
+      "id, whatsapp_messaging_provider, waba_connect_status, waba_phone_number_id, waba_access_token_encrypted",
+    )
+    .eq("slug", barbearia.slug)
+    .maybeSingle();
+
+  if (shopError || !shop?.id) return null;
+  if (shop.whatsapp_messaging_provider !== "meta") return null;
+  if (shop.waba_connect_status !== "connected") return null;
+
+  const phoneNumberId = String(shop.waba_phone_number_id ?? "").trim();
+  const encrypted = String(shop.waba_access_token_encrypted ?? "").trim();
+  if (!phoneNumberId || !encrypted) return null;
+
+  const accessToken = await decryptWabaToken(encrypted);
+  if (!accessToken) return null;
+
+  return {
+    barbershopId: shop.id,
+    phoneNumberId,
+    accessToken,
+  };
+}
+
+/** Sem template selecionado/aprovado ou loja não Meta → null (skip silencioso). */
+export async function sendMetaWhatsAppOperationalTemplate(
+  supabase: SupabaseClient,
+  params: {
+    barbeariaId: string;
+    toE164Digits: string;
+    templateKind: WhatsAppOperationalTemplateKind;
+    appointment: { cliente_nome: string; data: string; hora: string };
+  },
+): Promise<MetaSendTemplateResult | null> {
+  const ctx = await resolveMetaShopSendContext(supabase, params.barbeariaId);
+  if (!ctx) return null;
+
+  const template = await resolveSelectedWabaTemplateForKind(
+    supabase,
+    ctx.barbershopId,
+    params.templateKind,
+  );
+  if (!template) return null;
+
+  const sentinelaCategory = sentinelaCategoryForWhatsAppTemplateKind(params.templateKind);
+  if (!sentinelaCategory) return null;
+
+  const bodyParameters = buildMetaTemplateBodyParameters(
+    template.body_display_text,
+    template.language,
+    params.appointment,
+  );
+
+  try {
+    const result = await sendMetaWhatsAppTemplateMessage({
+      phoneNumberId: ctx.phoneNumberId,
+      accessToken: ctx.accessToken,
+      toE164Digits: params.toE164Digits,
+      templateName: template.meta_template_name,
+      languageCode: template.language,
+      bodyParameters,
+    });
+
+    return {
+      externalMessageId: result.messageId,
+      provider: "meta",
+      status: "accepted",
+      wabaTemplateId: template.id,
+      barbershopId: ctx.barbershopId,
+      sentinelaCategory,
+    };
+  } catch (e) {
+    if (e instanceof MetaWhatsappSendError && e.qualityLimited) {
+      console.error(
+        `[metaWhatsappMessaging] qualidade/spam (131048) barbearia=${params.barbeariaId} template=${template.meta_template_name}`,
+      );
+    }
+    throw e;
+  }
+}
+
+/** Barbearias cujo provider é Meta Direct conectado. */
+export async function loadMetaDirectBarbeariaIdSet(
+  supabase: SupabaseClient,
+  barbeariaIds: string[],
+): Promise<Set<string>> {
+  const unique = [...new Set(barbeariaIds.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+
+  const { data: barbearias, error: barbeariaError } = await supabase
+    .from("barbearias")
+    .select("id, slug")
+    .in("id", unique);
+
+  if (barbeariaError || !barbearias?.length) return new Set();
+
+  const slugByBarbeariaId = new Map<string, string>();
+  const slugs: string[] = [];
+  for (const row of barbearias) {
+    const slug = String(row.slug ?? "").trim();
+    if (!slug) continue;
+    slugByBarbeariaId.set(row.id, slug);
+    slugs.push(slug);
+  }
+
+  if (slugs.length === 0) return new Set();
+
+  const { data: shops, error: shopError } = await supabase
+    .from("barbershops")
+    .select("slug, whatsapp_messaging_provider, waba_connect_status")
+    .in("slug", slugs);
+
+  if (shopError || !shops?.length) return new Set();
+
+  const metaSlugSet = new Set(
+    shops
+      .filter(
+        (s) =>
+          s.whatsapp_messaging_provider === "meta" &&
+          s.waba_connect_status === "connected",
+      )
+      .map((s) => String(s.slug)),
+  );
+
+  const metaBarbeariaIds = new Set<string>();
+  for (const [barbeariaId, slug] of slugByBarbeariaId) {
+    if (metaSlugSet.has(slug)) metaBarbeariaIds.add(barbeariaId);
+  }
+
+  return metaBarbeariaIds;
+}
+
+export { resolveBarbershopIdForBarbearia };

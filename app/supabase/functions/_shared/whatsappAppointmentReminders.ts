@@ -12,6 +12,7 @@ import { formatAppointmentDateTimeBr } from "./appointmentAlertMessage.ts";
 import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
 import { sendWhatsAppTemplateForBarbershop } from "./whatsappMessaging.ts";
 import { isWhatsAppTemplateSendEnabled } from "./barbershopMessagingProvider.ts";
+import { loadMetaDirectBarbeariaIdSet } from "./metaWhatsappMessaging.ts";
 
 const SAO_PAULO = "America/Sao_Paulo";
 
@@ -114,7 +115,7 @@ export async function sendDueClientReminderWhatsApp(
 ): Promise<WhatsAppReminderResult> {
   if (!isWhatsAppTemplateSendEnabled()) {
     console.info(
-      "sendDueClientReminderWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio de templates D-1 ignorado (aguardando aprovação Meta/Infobip).",
+      "sendDueClientReminderWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio de templates D-1 ignorado.",
     );
     return {
       sent: 0,
@@ -139,7 +140,13 @@ export async function sendDueClientReminderWhatsApp(
 
   if (error) throw new Error(error.message);
 
-  const rows = (appointments ?? []) as AppointmentForReminder[];
+  const allRows = (appointments ?? []) as AppointmentForReminder[];
+  const metaBarbeariaIds = await loadMetaDirectBarbeariaIdSet(
+    supabase,
+    allRows.map((r) => r.barbearia_id),
+  );
+  const rows = allRows.filter((r) => !metaBarbeariaIds.has(r.barbearia_id));
+
   let sent = 0;
   let noPhone = 0;
   let sendFailed = 0;

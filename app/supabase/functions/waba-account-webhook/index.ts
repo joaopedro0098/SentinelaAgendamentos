@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildMetaWabaDisconnectDbPatch } from "../_shared/metaWabaConnect.ts";
 import { applyTemplateStatusWebhook } from "../_shared/metaWabaTemplatesService.ts";
+import { ingestMetaMessagesWebhookChange } from "../_shared/metaWabaWebhookMessages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -172,88 +173,105 @@ Deno.serve(async (req) => {
         const entryWabaId = String(entry.id ?? "");
 
         for (const change of entry.changes ?? []) {
-          if (change.field === "history") {
-            await handleHistoryWebhookChange(change.value ?? {}, entryWabaId, supabase);
-            continue;
-          }
-
-          if (change.field === "message_template_status_update") {
-            await applyTemplateStatusWebhook(supabase, entryWabaId, change.value ?? {});
-            continue;
-          }
-
-          if (change.field !== "account_update") continue;
-
-          const value = change.value ?? {};
-          const eventType = String(value.event ?? "").toUpperCase();
-          const wabaInfo = value.waba_info ?? {};
-          const targetWabaId = String(wabaInfo.waba_id ?? entryWabaId ?? "");
-
-          if (!targetWabaId) continue;
-
-          console.log(`[waba-account-webhook] Evento recebido: ${eventType} para WABA: ${targetWabaId}`);
-
-          switch (eventType) {
-            case "PARTNER_APP_UNINSTALLED":
-            case "ACCOUNT_DELETED": {
-              const { error } = await supabase
-                .from("barbershops")
-                .update(buildMetaWabaDisconnectDbPatch())
-                .eq("waba_id", targetWabaId);
-
-              if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
-              break;
+          try {
+            if (change.field === "messages") {
+              await ingestMetaMessagesWebhookChange(
+                supabase,
+                entryWabaId,
+                (change.value ?? {}) as Record<string, unknown>,
+              );
+              continue;
             }
 
-            case "DISABLED_UPDATE": {
-              const banState = String(value.ban_info?.waba_ban_state ?? "").toUpperCase();
-              const newStatus = banState === "DISABLE" ? "error" : banState === "REINSTATE" ? "connected" : "error";
-
-              const { error } = await supabase
-                .from("barbershops")
-                .update({
-                  waba_connect_status: newStatus,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("waba_id", targetWabaId);
-
-              if (error) console.error("[waba-account-webhook] Erro ao atualizar DISABLED_UPDATE:", error);
-              break;
+            if (change.field === "history") {
+              await handleHistoryWebhookChange(change.value ?? {}, entryWabaId, supabase);
+              continue;
             }
 
-            case "ACCOUNT_RESTRICTION": {
-              const { error } = await supabase
-                .from("barbershops")
-                .update({
-                  waba_connect_status: "error",
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("waba_id", targetWabaId);
-
-              if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
-              break;
+            if (change.field === "message_template_status_update") {
+              await applyTemplateStatusWebhook(supabase, entryWabaId, change.value ?? {});
+              continue;
             }
 
-            case "PARTNER_REMOVED": {
-              const { error } = await supabase
-                .from("barbershops")
-                .update(buildMetaWabaDisconnectDbPatch())
-                .eq("waba_id", targetWabaId);
+            if (change.field !== "account_update") continue;
 
-              if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
-              break;
+            const value = change.value ?? {};
+            const eventType = String(value.event ?? "").toUpperCase();
+            const wabaInfo = value.waba_info ?? {};
+            const targetWabaId = String(wabaInfo.waba_id ?? entryWabaId ?? "");
+
+            if (!targetWabaId) continue;
+
+            console.log(`[waba-account-webhook] Evento recebido: ${eventType} para WABA: ${targetWabaId}`);
+
+            switch (eventType) {
+              case "PARTNER_APP_UNINSTALLED":
+              case "ACCOUNT_DELETED": {
+                const { error } = await supabase
+                  .from("barbershops")
+                  .update(buildMetaWabaDisconnectDbPatch())
+                  .eq("waba_id", targetWabaId);
+
+                if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
+                break;
+              }
+
+              case "DISABLED_UPDATE": {
+                const banState = String(value.ban_info?.waba_ban_state ?? "").toUpperCase();
+                const newStatus = banState === "DISABLE" ? "error" : banState === "REINSTATE" ? "connected" : "error";
+
+                const { error } = await supabase
+                  .from("barbershops")
+                  .update({
+                    waba_connect_status: newStatus,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("waba_id", targetWabaId);
+
+                if (error) console.error("[waba-account-webhook] Erro ao atualizar DISABLED_UPDATE:", error);
+                break;
+              }
+
+              case "ACCOUNT_RESTRICTION": {
+                const { error } = await supabase
+                  .from("barbershops")
+                  .update({
+                    waba_connect_status: "error",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("waba_id", targetWabaId);
+
+                if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
+                break;
+              }
+
+              case "PARTNER_REMOVED": {
+                const { error } = await supabase
+                  .from("barbershops")
+                  .update(buildMetaWabaDisconnectDbPatch())
+                  .eq("waba_id", targetWabaId);
+
+                if (error) console.error(`[waba-account-webhook] Erro ao atualizar ${eventType}:`, error);
+                break;
+              }
+
+              case "ACCOUNT_VIOLATION":
+              case "PARTNER_ADDED":
+              case "PARTNER_APP_INSTALLED": {
+                console.log(`[waba-account-webhook] Log de auditoria ${eventType}:`, value);
+                break;
+              }
+
+              default:
+                console.log(`[waba-account-webhook] Evento account_update não mapeado: ${eventType}`);
+                break;
             }
-
-            case "ACCOUNT_VIOLATION":
-            case "PARTNER_ADDED":
-            case "PARTNER_APP_INSTALLED": {
-              console.log(`[waba-account-webhook] Log de auditoria ${eventType}:`, value);
-              break;
-            }
-
-            default:
-              console.log(`[waba-account-webhook] Evento account_update não mapeado: ${eventType}`);
-              break;
+          } catch (changeError) {
+            console.error(
+              "[waba-account-webhook] change handler:",
+              change.field,
+              changeError instanceof Error ? changeError.message : changeError,
+            );
           }
         }
       }
@@ -263,9 +281,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e) {
-      console.error("[waba-account-webhook] Erro interno:", e);
-      return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
-        status: 500,
+      console.error("[waba-account-webhook] Erro interno (POST):", e);
+      return new Response(JSON.stringify({ success: false, logged: true }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

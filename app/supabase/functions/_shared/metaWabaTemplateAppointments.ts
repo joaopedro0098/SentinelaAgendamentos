@@ -140,6 +140,22 @@ export async function pinAppointmentsToTemplate(
   if (error) throw new Error(error.message);
 }
 
+/** Pin no envio Meta: só preenche se a coluna ainda estiver NULL (idempotente em retry). */
+export async function pinAppointmentTemplateIfUnset(
+  serviceClient: SupabaseClient,
+  appointmentId: string,
+  templateId: string,
+  category: SentinelaTemplateCategory,
+): Promise<void> {
+  const pinCol = pinColumnForCategory(category);
+  const { error } = await serviceClient
+    .from("agendamentos")
+    .update({ [pinCol]: templateId })
+    .eq("id", appointmentId)
+    .is(pinCol, null);
+  if (error) throw new Error(error.message);
+}
+
 export async function countPinnedPendingForTemplate(
   serviceClient: SupabaseClient,
   templateId: string,

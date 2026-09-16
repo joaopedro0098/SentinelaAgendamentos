@@ -1,17 +1,20 @@
 /**
- * Lembrete ~3h antes do agendamento via WhatsApp (template simples, sem botões).
- * Dispara no dia do agendamento quando faltam até 3h para o horário (America/Sao_Paulo).
+ * Lembrete ~3h antes via Meta Direct (template WABA de lembrete).
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   normalizeBrazilPhoneE164Digits,
   phoneDigitsFromWhatsAppAddress,
-} from "./twilioWhatsapp.ts";
+} from "./whatsappPhone.ts";
 import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
-import { getOutboundThrottleOptions, processInBatches } from "./whatsappRateLimiter.ts";
-import { sendWhatsAppTemplateForBarbershop } from "./whatsappMessaging.ts";
+import { getMetaOutboundThrottleOptions, processInBatchesByKey } from "./metaWhatsappRateLimiter.ts";
 import { isWhatsAppTemplateSendEnabled } from "./barbershopMessagingProvider.ts";
-import { loadMetaDirectBarbeariaIdSet } from "./metaWhatsappMessaging.ts";
+import { MetaWhatsappSendError } from "./metaWhatsapp.ts";
+import {
+  loadMetaDirectBarbeariaIdSet,
+  sendMetaWhatsAppOperationalTemplate,
+} from "./metaWhatsappMessaging.ts";
+import { pinAppointmentTemplateIfUnset } from "./metaWabaTemplateAppointments.ts";
 
 const SAO_PAULO = "America/Sao_Paulo";
 const REMINDER_LEAD_MINUTES = 180;
@@ -42,7 +45,6 @@ function saoPauloNowMinutes(now = new Date()): number {
   return h * 60 + m;
 }
 
-/** Agendamento ainda no futuro hoje e dentro da janela de até 3h antes. */
 function isInReminder3hWindow(hora: string, now = new Date()): boolean {
   const minutesUntil = parseTimeToMinutes(hora) - saoPauloNowMinutes(now);
   return minutesUntil > 0 && minutesUntil <= REMINDER_LEAD_MINUTES;
@@ -57,13 +59,16 @@ type AppointmentForReminder3h = {
   hora: string;
 };
 
-export type WhatsAppReminder3hResult = {
+export type MetaWhatsAppReminder3hResult = {
   sent: number;
   processed: number;
   no_phone: number;
   send_failed: number;
   already_claimed: number;
+  skipped_no_template: number;
+  skipped_not_meta: number;
   skipped_templates_disabled: number;
+  quality_limited: number;
   failures: Array<{ agendamento_id: string; reason: string }>;
 };
 
@@ -71,9 +76,10 @@ type SendReminderOutcome =
   | { kind: "sent" }
   | { kind: "no_phone" }
   | { kind: "already_claimed" }
+  | { kind: "skipped_no_template" }
+  | { kind: "quality_limited"; reason: string }
   | { kind: "failed"; reason: string };
 
-/** Reserva atômica da linha antes do envio (evita duplicata entre ticks concorrentes). */
 async function claimReminder3hSlot(
   supabase: SupabaseClient,
   agendamentoId: string,
@@ -103,15 +109,11 @@ async function releaseReminder3hSlot(
     .eq("reminder_3h_sent_at", claimedAt);
 
   if (error) {
-    console.error(
-      "releaseReminder3hSlot: falha ao reverter lock do agendamento",
-      agendamentoId,
-      error.message,
-    );
+    console.error("releaseReminder3hSlot (meta):", agendamentoId, error.message);
   }
 }
 
-async function sendOneReminder3h(
+async function sendOneMetaReminder3h(
   supabase: SupabaseClient,
   row: AppointmentForReminder3h,
 ): Promise<SendReminderOutcome> {
@@ -126,17 +128,43 @@ async function sendOneReminder3h(
   }
 
   const phoneDigits = normalizeBrazilPhoneE164Digits(localDigits);
-  const horaFormatada = row.hora.slice(0, 5);
 
   try {
-    const result = await sendWhatsAppTemplateForBarbershop(supabase, {
-      to: phoneDigits,
-      templateKind: "lembrete_3h",
-      variables: {
-        clienteNome: row.cliente_nome,
-        hora: horaFormatada,
-      },
+    const result = await sendMetaWhatsAppOperationalTemplate(supabase, {
       barbeariaId: row.barbearia_id,
+      toE164Digits: phoneDigits,
+      templateKind: "lembrete_3h",
+      appointment: {
+        cliente_nome: row.cliente_nome,
+        data: row.data,
+        hora: row.hora,
+      },
+    });
+
+    if (!result) {
+      await releaseReminder3hSlot(supabase, row.id, claimedAt);
+      return { kind: "skipped_no_template" };
+    }
+
+    await pinAppointmentTemplateIfUnset(
+      supabase,
+      row.id,
+      result.wabaTemplateId,
+      result.sentinelaCategory,
+    );
+
+    const sentAt = new Date().toISOString();
+    await supabase.from("whatsapp_mensagens_enviadas").insert({
+      agendamento_id: row.id,
+      barbearia_id: row.barbearia_id,
+      telefone: phoneDigits,
+      tipo: "lembrete_3h",
+      provider: "meta",
+      external_message_id: result.externalMessageId,
+      status: "respondida",
+      respondido_em: sentAt,
+      meta_delivery_status: "sent",
+      meta_delivery_updated_at: sentAt,
     });
 
     const billingResult = await registrarUsoMensageria(supabase, {
@@ -144,31 +172,30 @@ async function sendOneReminder3h(
       tipo: "lembrete_3h",
       agendamentoId: row.id,
       externalMessageId: result.externalMessageId,
-      provider: result.provider,
+      provider: "meta",
     });
 
     if (!billingResult.ok) {
-      console.error(
-        "sendOneReminder3h: mensagem enviada mas billing falhou:",
-        row.id,
-        billingResult.error,
-      );
+      console.error("sendOneMetaReminder3h: billing falhou:", row.id, billingResult.error);
     }
 
     return { kind: "sent" };
-  } catch (sendError) {
+  } catch (e) {
     await releaseReminder3hSlot(supabase, row.id, claimedAt);
-    const reason = sendError instanceof Error ? sendError.message : "Falha ao enviar WhatsApp";
+    if (e instanceof MetaWhatsappSendError && e.qualityLimited) {
+      return { kind: "quality_limited", reason: e.message };
+    }
+    const reason = e instanceof Error ? e.message : "Falha ao enviar WhatsApp Meta";
     return { kind: "failed", reason };
   }
 }
 
-export async function sendDueReminder3hWhatsApp(
+export async function sendDueMetaReminder3hWhatsApp(
   supabase: SupabaseClient,
-): Promise<WhatsAppReminder3hResult> {
+): Promise<MetaWhatsAppReminder3hResult> {
   if (!isWhatsAppTemplateSendEnabled()) {
     console.info(
-      "sendDueReminder3hWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio de templates ~3h ignorado.",
+      "sendDueMetaReminder3hWhatsApp: WHATSAPP_TEMPLATE_SEND_ENABLED != true — envio Meta ~3h ignorado.",
     );
     return {
       sent: 0,
@@ -176,7 +203,10 @@ export async function sendDueReminder3hWhatsApp(
       no_phone: 0,
       send_failed: 0,
       already_claimed: 0,
-      skipped_templates_disabled: 0,
+      skipped_no_template: 0,
+      skipped_not_meta: 0,
+      skipped_templates_disabled: 1,
+      quality_limited: 0,
       failures: [],
     };
   }
@@ -201,34 +231,53 @@ export async function sendDueReminder3hWhatsApp(
     supabase,
     filtered.map((r) => r.barbearia_id),
   );
-  const rows = filtered.filter((r) => !metaBarbeariaIds.has(r.barbearia_id));
+
+  const rows = filtered.filter((r) => metaBarbeariaIds.has(r.barbearia_id));
+  const skippedNotMeta = filtered.length - rows.length;
 
   let sent = 0;
   let noPhone = 0;
   let sendFailed = 0;
   let alreadyClaimed = 0;
+  let skippedNoTemplate = 0;
+  let qualityLimited = 0;
   const failures: Array<{ agendamento_id: string; reason: string }> = [];
 
-  const throttle = getOutboundThrottleOptions();
+  const throttle = getMetaOutboundThrottleOptions();
 
-  await processInBatches(rows, throttle, async (row) => {
-    try {
-      const outcome = await sendOneReminder3h(supabase, row);
-      if (outcome.kind === "sent") sent += 1;
-      else if (outcome.kind === "no_phone") noPhone += 1;
-      else if (outcome.kind === "already_claimed") alreadyClaimed += 1;
-      else if (outcome.kind === "failed") {
+  await processInBatchesByKey(
+    rows,
+    (row) => row.barbearia_id,
+    throttle,
+    async (row) => {
+      try {
+        const outcome = await sendOneMetaReminder3h(supabase, row);
+        if (outcome.kind === "sent") sent += 1;
+        else if (outcome.kind === "no_phone") noPhone += 1;
+        else if (outcome.kind === "already_claimed") alreadyClaimed += 1;
+        else if (outcome.kind === "skipped_no_template") skippedNoTemplate += 1;
+        else if (outcome.kind === "quality_limited") {
+          qualityLimited += 1;
+          failures.push({ agendamento_id: row.id, reason: outcome.reason });
+        } else if (outcome.kind === "failed") {
+          sendFailed += 1;
+          failures.push({ agendamento_id: row.id, reason: outcome.reason });
+          console.error("sendDueMetaReminder3hWhatsApp:", outcome.reason);
+        }
+      } catch (sendError) {
         sendFailed += 1;
-        failures.push({ agendamento_id: row.id, reason: outcome.reason });
-        console.error("sendDueReminder3hWhatsApp:", outcome.reason);
+        const reason = sendError instanceof Error ? sendError.message : "Falha ao enviar WhatsApp Meta";
+        failures.push({ agendamento_id: row.id, reason });
+        console.error("sendDueMetaReminder3hWhatsApp:", reason);
       }
-    } catch (sendError) {
-      sendFailed += 1;
-      const reason = sendError instanceof Error ? sendError.message : "Falha ao enviar WhatsApp";
-      failures.push({ agendamento_id: row.id, reason });
-      console.error("sendDueReminder3hWhatsApp:", reason);
-    }
-  });
+    },
+  );
+
+  if (rows.length > 0) {
+    console.info(
+      `sendDueMetaReminder3hWhatsApp: processed=${rows.length} sent=${sent} skipped_not_meta=${skippedNotMeta} provider=meta`,
+    );
+  }
 
   return {
     sent,
@@ -236,7 +285,10 @@ export async function sendDueReminder3hWhatsApp(
     no_phone: noPhone,
     send_failed: sendFailed,
     already_claimed: alreadyClaimed,
+    skipped_no_template: skippedNoTemplate,
+    skipped_not_meta: skippedNotMeta,
     skipped_templates_disabled: 0,
+    quality_limited: qualityLimited,
     failures,
   };
 }
