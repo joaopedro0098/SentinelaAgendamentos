@@ -3,24 +3,21 @@ import { cn } from "@/lib/utils";
 type Props = {
   show: boolean;
   className?: string;
-  onClick: () => void;
 };
 
-/** Bolinha vermelha no card do agendamento: existe um alerta "pendente" (cancelamento/alteração via WhatsApp). */
-export function AgendamentoAlertIndicator({ show, className, onClick }: Props) {
+/** Bolinha amarela: alerta pendente e/ou observação não vista. O clique é no card inteiro. */
+export function AgendamentoNotificationDot({ show, className }: Props) {
   if (!show) return null;
   return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={cn("flex items-center justify-center p-1", className)}
-      aria-label="Ver alerta do paciente"
-      title="Paciente solicitou cancelamento ou alteração"
+    <span
+      className={cn("pointer-events-none flex items-center justify-center p-1", className)}
+      aria-hidden
+      title="Nova mensagem ou observação"
     >
-      <span className="block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" aria-hidden />
-    </button>
+      <span className="block h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-background dark:bg-amber-500" />
+    </span>
   );
 }
+
+/** @deprecated Use AgendamentoNotificationDot */
+export const AgendamentoAlertIndicator = AgendamentoNotificationDot;

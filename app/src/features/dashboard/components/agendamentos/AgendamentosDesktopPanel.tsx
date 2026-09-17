@@ -90,8 +90,13 @@ import {
   type SlotBookingTarget,
 } from "@/features/dashboard/components/agendamentos/AgendamentoSlotBookingModal";
 import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
-import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
-import { AgendamentoAlertIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { AgendamentoNotificationDot } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { hasAgendamentoObservacao } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
+import {
+  agendamentoCardOpensDetail,
+  agendamentoShowNotificationDot,
+} from "@/features/dashboard/lib/agendamentoPanelNotifications";
+import { shouldIgnoreAgendamentoCardClick } from "@/features/dashboard/lib/agendamentoCardClick";
 import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
 import type { SlotBookingServico } from "@/features/dashboard/lib/agendamentoSlotBooking";
 
@@ -301,7 +306,7 @@ function buildDayTimeline(
   return entries.sort((a, b) => a.sortMin - b.sortMin);
 }
 
-type DayGridColumn = { id: string; nome: string };
+type DayGridColumn = { id: string; nome: string; worksOnDay: boolean };
 type DayGridCell = TimelineEntry | { kind: "blank" };
 
 type DayGridRow = {
@@ -355,13 +360,19 @@ function buildDayGrid(
     }
   }
 
-  const columns: DayGridColumn[] = columnIds.map((id) => ({
-    id,
-    nome:
-      profById.get(id)?.nome
-      ?? dayItemsVisible.find((a) => a.barbeiro_id === id)?.barbeiro_nome
-      ?? "Profissional",
-  }));
+  const columns: DayGridColumn[] = columnIds.map((id) => {
+    const prof = scheduleById.get(id);
+    const occupancyForProf = dayItemsAll.filter((a) => a.barbeiro_id === id);
+    const worksOnDay = prof ? getProfDaySlotContext(anchorYmd, prof, occupancyForProf) !== null : false;
+    return {
+      id,
+      nome:
+        profById.get(id)?.nome
+        ?? dayItemsVisible.find((a) => a.barbeiro_id === id)?.barbeiro_nome
+        ?? "Profissional",
+      worksOnDay,
+    };
+  });
 
   const entriesByProf = new Map<string, TimelineEntry[]>();
   for (const col of columns) {
@@ -456,13 +467,16 @@ export default function AgendamentosDesktopPanel({
   const [bookingProfessionals, setBookingProfessionals] = useState<BookingProfessionalFull[]>([]);
   const [slotBookingTarget, setSlotBookingTarget] = useState<SlotBookingTarget | null>(null);
   const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
+    agendamentoId: string;
     observacao: string;
     clienteNome?: string;
   } | null>(null);
   const [alertModalTarget, setAlertModalTarget] = useState<{
     agendamentoId: string;
     clienteNome?: string;
+    observacao?: string | null;
   } | null>(null);
+  const [notificationUiTick, setNotificationUiTick] = useState(0);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [dayGridColWidth, setDayGridColWidth] = useState(DAY_GRID_COL_WIDTH_DEFAULT);
   const [dayGridResizing, setDayGridResizing] = useState(false);
@@ -953,8 +967,36 @@ export default function AgendamentosDesktopPanel({
 
   function handleAlertResolved(agendamentoId: string) {
     setItems((prev) =>
-      prev.map((item) => (item.id === agendamentoId ? { ...item, has_pending_alert: false } : item)),
+      prev.map((item) =>
+        item.id === agendamentoId
+          ? { ...item, has_pending_alert: false, has_any_alert: true }
+          : item,
+      ),
     );
+    setNotificationUiTick((n) => n + 1);
+  }
+
+  function handleOpenAgendamentoDetail(a: AgendamentoPainelItem) {
+    if (!agendamentoCardOpensDetail(a)) return;
+    if (a.has_any_alert || a.has_pending_alert) {
+      setAlertModalTarget({
+        agendamentoId: a.id,
+        clienteNome: a.cliente_nome,
+        observacao: a.observacao,
+      });
+      return;
+    }
+    if (hasAgendamentoObservacao(a.observacao)) {
+      setObservacaoViewTarget({
+        agendamentoId: a.id,
+        observacao: a.observacao!.trim(),
+        clienteNome: a.cliente_nome,
+      });
+    }
+  }
+
+  function handleObservacaoMarkedVista(_agendamentoId: string) {
+    setNotificationUiTick((n) => n + 1);
   }
 
   async function handleStatusAction(
@@ -1059,25 +1101,37 @@ export default function AgendamentosDesktopPanel({
     const paymentSummary = formatPaymentSummary(a);
 
     const actions = renderActionsMenu(a);
+    const cardOpensDetail = agendamentoCardOpensDetail(a);
+    void notificationUiTick;
+    const showDot = agendamentoShowNotificationDot(a);
 
     return (
-      <div className="relative min-h-[3.25rem] py-2">
-        <AgendamentoAlertIndicator
-          show={Boolean(a.has_pending_alert)}
-          className={cn("absolute top-1 z-[2]", actions ? "right-14" : "right-8")}
-          onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
+      <div
+        role={cardOpensDetail ? "button" : undefined}
+        tabIndex={cardOpensDetail ? 0 : undefined}
+        onClick={(e) => {
+          if (shouldIgnoreAgendamentoCardClick(e.target)) return;
+          handleOpenAgendamentoDetail(a);
+        }}
+        onKeyDown={(e) => {
+          if (!cardOpensDetail || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          handleOpenAgendamentoDetail(a);
+        }}
+        className={cn(
+          "relative min-h-[3.25rem] py-2 rounded-md -mx-1 px-1",
+          cardOpensDetail && "cursor-pointer hover:bg-secondary/30 transition-colors",
+        )}
+      >
+        <AgendamentoNotificationDot
+          show={showDot}
+          className={cn("absolute top-1 z-[2]", actions ? "right-8" : "right-1")}
         />
-        <AgendamentoObsIndicator
-          observacao={a.observacao}
-          className={cn("absolute top-1 z-[2]", actions ? "right-7" : "right-1")}
-          onClick={() =>
-            setObservacaoViewTarget({
-              observacao: a.observacao!.trim(),
-              clienteNome: a.cliente_nome,
-            })
-          }
-        />
-        {actions ? <div className="absolute top-0 -right-1 z-[1]">{actions}</div> : null}
+        {actions ? (
+          <div className="absolute top-0 -right-1 z-[1]" data-agendamento-no-card-click>
+            {actions}
+          </div>
+        ) : null}
         <div className="flex min-w-0 flex-col gap-1 pr-8">
           <p className="min-w-0 truncate text-sm font-medium" title={a.cliente_nome}>
             {a.cliente_nome}
@@ -1093,21 +1147,33 @@ export default function AgendamentosDesktopPanel({
               {paymentSummary}
             </p>
           )}
-          <AgendamentoStatusBadge
-            item={a}
-            busy={rowBusy}
-            allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
-            menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
-            onAction={(action) => void handleStatusAction(a, action)}
-            onMenuAction={(key) => void handlePastDayStatus(a, key)}
-          />
+          <div data-agendamento-no-card-click>
+            <AgendamentoStatusBadge
+              item={a}
+              busy={rowBusy}
+              allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
+              menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
+              onAction={(action) => void handleStatusAction(a, action)}
+              onMenuAction={(key) => void handlePastDayStatus(a, key)}
+            />
+          </div>
         </div>
       </div>
     );
   }
 
-  function renderGridCell(cell: DayGridCell) {
+  function renderGridCell(cell: DayGridCell, worksOnDay: boolean) {
     if (cell.kind === "blank") {
+      if (!worksOnDay) {
+        return (
+          <div
+            className="flex min-h-[3.25rem] items-center justify-center bg-muted/5 text-[10px] text-muted-foreground/50"
+            aria-hidden
+          >
+            —
+          </div>
+        );
+      }
       return <div className="min-h-[3.25rem] bg-muted/5" />;
     }
     if (cell.kind === "gap") {
@@ -1157,10 +1223,29 @@ export default function AgendamentosDesktopPanel({
     const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
     const paymentSummary = formatPaymentSummary(a);
 
+    const cardOpensDetail = agendamentoCardOpensDetail(a);
+    void notificationUiTick;
+    const showDot = agendamentoShowNotificationDot(a);
+
     return (
       <div
         key={a.id}
-        className={cn(LIST_ROW_GRID, "py-2.5 border-b border-border/60 hover:bg-secondary/20 transition-colors")}
+        role={cardOpensDetail ? "button" : undefined}
+        tabIndex={cardOpensDetail ? 0 : undefined}
+        onClick={(e) => {
+          if (shouldIgnoreAgendamentoCardClick(e.target)) return;
+          handleOpenAgendamentoDetail(a);
+        }}
+        onKeyDown={(e) => {
+          if (!cardOpensDetail || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          handleOpenAgendamentoDetail(a);
+        }}
+        className={cn(
+          LIST_ROW_GRID,
+          "py-2.5 border-b border-border/60 transition-colors",
+          cardOpensDetail ? "cursor-pointer hover:bg-secondary/20" : "hover:bg-secondary/20",
+        )}
       >
         <span className="min-w-0 text-sm font-semibold tabular-nums text-accent">
           {showDate ? (
@@ -1185,14 +1270,16 @@ export default function AgendamentosDesktopPanel({
             </span>
           )}
         </span>
-        <AgendamentoStatusBadge
-          item={a}
-          busy={rowBusy}
-          allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
-          menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
-          onAction={(action) => void handleStatusAction(a, action)}
-          onMenuAction={(key) => void handlePastDayStatus(a, key)}
-        />
+        <div data-agendamento-no-card-click>
+          <AgendamentoStatusBadge
+            item={a}
+            busy={rowBusy}
+            allowStatusChange={manageable && !appointmentPast && a.status !== "aguardando_pagamento"}
+            menuActions={statusMenuActions.length > 0 ? statusMenuActions : undefined}
+            onAction={(action) => void handleStatusAction(a, action)}
+            onMenuAction={(key) => void handlePastDayStatus(a, key)}
+          />
+        </div>
         <div className="min-w-0 flex flex-col items-start gap-0.5">
           <span className="text-xs font-medium truncate text-accent/90">{a.barbeiro_nome}</span>
           {!isCA && caBarbearias.length > 0 && a.barbearia_id !== barbeariaId && (
@@ -1202,20 +1289,8 @@ export default function AgendamentosDesktopPanel({
           )}
         </div>
         <div className="flex min-w-0 items-center justify-end gap-1.5">
-          <AgendamentoAlertIndicator
-            show={Boolean(a.has_pending_alert)}
-            onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
-          />
-          <AgendamentoObsIndicator
-            observacao={a.observacao}
-            onClick={() =>
-              setObservacaoViewTarget({
-                observacao: a.observacao!.trim(),
-                clienteNome: a.cliente_nome,
-              })
-            }
-          />
-          {renderActionsMenu(a)}
+          <AgendamentoNotificationDot show={showDot} />
+          <div data-agendamento-no-card-click>{renderActionsMenu(a)}</div>
         </div>
       </div>
     );
@@ -1419,14 +1494,22 @@ export default function AgendamentosDesktopPanel({
                       <span
                         key={col.id}
                         className={cn(
-                          "min-w-0 truncate border-l text-left uppercase",
+                          "min-w-0 border-l text-left normal-case",
                           DAY_GRID_RULE,
                           dayGridProfPad(colIdx),
                           colIdx === dayGrid.columns.length - 1 && "border-r",
+                          !col.worksOnDay && "bg-muted/20",
                         )}
-                        title={col.nome}
+                        title={col.worksOnDay ? col.nome : `${col.nome} — indisponível neste dia`}
                       >
-                        {col.nome}
+                        <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {col.nome}
+                        </span>
+                        {!col.worksOnDay ? (
+                          <span className="mt-0.5 block truncate text-[10px] font-medium text-unavailable">
+                            Indisponível
+                          </span>
+                        ) : null}
                       </span>
                     ))}
                   </div>
@@ -1458,7 +1541,7 @@ export default function AgendamentosDesktopPanel({
                           colIdx === dayGrid.columns.length - 1 && "border-r",
                         )}
                       >
-                        {renderGridCell(row.cells[col.id])}
+                        {renderGridCell(row.cells[col.id], col.worksOnDay)}
                       </div>
                     ))}
                   </div>
@@ -1595,15 +1678,18 @@ export default function AgendamentosDesktopPanel({
 
       <AgendamentoObservacaoViewModal
         open={!!observacaoViewTarget}
+        agendamentoId={observacaoViewTarget?.agendamentoId ?? null}
         observacao={observacaoViewTarget?.observacao ?? null}
         clienteNome={observacaoViewTarget?.clienteNome}
         onClose={() => setObservacaoViewTarget(null)}
+        onMarkedVista={handleObservacaoMarkedVista}
       />
 
       <AgendamentoAlertModal
         open={!!alertModalTarget}
         agendamentoId={alertModalTarget?.agendamentoId ?? null}
         clienteNome={alertModalTarget?.clienteNome}
+        observacao={alertModalTarget?.observacao}
         onClose={() => setAlertModalTarget(null)}
         onResolved={handleAlertResolved}
       />

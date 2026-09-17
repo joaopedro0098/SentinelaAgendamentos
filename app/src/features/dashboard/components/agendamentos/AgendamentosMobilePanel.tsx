@@ -53,8 +53,13 @@ import {
   AgendamentoAnotacaoButton,
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
-import { AgendamentoObsIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
-import { AgendamentoAlertIndicator } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { AgendamentoNotificationDot } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
+import { hasAgendamentoObservacao } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
+import {
+  agendamentoCardOpensDetail,
+  agendamentoShowNotificationDot,
+} from "@/features/dashboard/lib/agendamentoPanelNotifications";
+import { shouldIgnoreAgendamentoCardClick } from "@/features/dashboard/lib/agendamentoCardClick";
 import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
 import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
 import {
@@ -115,6 +120,8 @@ type AgendamentoRow = {
   valor_restante_centavos?: number | null;
   can_manage?: boolean;
   has_pending_alert?: boolean;
+  has_any_alert?: boolean;
+  observacao?: string | null;
   barbeiros: { id: string; nome: string } | null;
 };
 
@@ -162,13 +169,16 @@ export default function AgendamentosMobilePanel({
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
   const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
+    agendamentoId: string;
     observacao: string;
     clienteNome?: string;
   } | null>(null);
   const [alertModalTarget, setAlertModalTarget] = useState<{
     agendamentoId: string;
     clienteNome?: string;
+    observacao?: string | null;
   } | null>(null);
+  const [notificationUiTick, setNotificationUiTick] = useState(0);
 
   const caBarbeariaIds = useMemo(
     () => caBarbearias.map((ca) => ca.barbeariaId).filter(Boolean),
@@ -250,6 +260,8 @@ export default function AgendamentosMobilePanel({
           valor_restante_centavos: item.valor_restante_centavos,
           can_manage: item.can_manage,
           has_pending_alert: item.has_pending_alert,
+          has_any_alert: item.has_any_alert,
+          observacao: item.observacao,
           barbeiros: { id: item.barbeiro_id, nome: item.barbeiro_nome },
         })),
       );
@@ -449,8 +461,43 @@ export default function AgendamentosMobilePanel({
 
   function handleAlertResolved(agendamentoId: string) {
     setAgendamentos((prev) =>
-      prev.map((item) => (item.id === agendamentoId ? { ...item, has_pending_alert: false } : item)),
+      prev.map((item) =>
+        item.id === agendamentoId
+          ? { ...item, has_pending_alert: false, has_any_alert: true }
+          : item,
+      ),
     );
+    setNotificationUiTick((n) => n + 1);
+  }
+
+  function handleOpenAgendamentoDetail(a: AgendamentoRow) {
+    void notificationUiTick;
+    const detailItem = {
+      id: a.id,
+      observacao: a.observacao ?? null,
+      has_pending_alert: a.has_pending_alert,
+      has_any_alert: a.has_any_alert,
+    };
+    if (!agendamentoCardOpensDetail(detailItem)) return;
+    if (a.has_any_alert || a.has_pending_alert) {
+      setAlertModalTarget({
+        agendamentoId: a.id,
+        clienteNome: a.cliente_nome,
+        observacao: a.observacao ?? null,
+      });
+      return;
+    }
+    if (hasAgendamentoObservacao(a.observacao)) {
+      setObservacaoViewTarget({
+        agendamentoId: a.id,
+        observacao: a.observacao!.trim(),
+        clienteNome: a.cliente_nome,
+      });
+    }
+  }
+
+  function handleObservacaoMarkedVista(_agendamentoId: string) {
+    setNotificationUiTick((n) => n + 1);
   }
 
   async function handlePastDayStatus(a: AgendamentoRow, novoStatus: PastDayStatusKey) {
@@ -678,12 +725,22 @@ export default function AgendamentosMobilePanel({
                   className={cn(
                     "overflow-hidden border-border/80 transition-shadow",
                     highlightedId === a.id && "ring-2 ring-primary shadow-glow border-primary/40",
+                    agendamentoCardOpensDetail({
+                      id: a.id,
+                      observacao: a.observacao ?? null,
+                      has_pending_alert: a.has_pending_alert,
+                      has_any_alert: a.has_any_alert,
+                    }) && "cursor-pointer active:bg-secondary/20",
                   )}
+                  onClick={(e) => {
+                    if (shouldIgnoreAgendamentoCardClick(e.target)) return;
+                    handleOpenAgendamentoDetail(a);
+                  }}
                 >
                   <CardContent className="p-4 space-y-3 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5" data-agendamento-no-card-click>
                           <AgendamentoStatusBadge
                               item={{
                                 ...a,
@@ -704,20 +761,15 @@ export default function AgendamentosMobilePanel({
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <div className="flex items-center gap-1.5">
-                          <AgendamentoAlertIndicator
-                            show={Boolean(a.has_pending_alert)}
-                            onClick={() => setAlertModalTarget({ agendamentoId: a.id, clienteNome: a.cliente_nome })}
-                          />
-                          <AgendamentoObsIndicator
-                            observacao={a.observacao}
-                            onClick={() =>
-                              setObservacaoViewTarget({
-                                observacao: a.observacao!.trim(),
-                                clienteNome: a.cliente_nome,
-                              })
-                            }
+                          <AgendamentoNotificationDot
+                            show={agendamentoShowNotificationDot({
+                              id: a.id,
+                              observacao: a.observacao ?? null,
+                              has_pending_alert: a.has_pending_alert,
+                            })}
                           />
                           {showCardActions ? (
+                            <div data-agendamento-no-card-click>
                             <AgendamentoActionsMenu
                               disabled={cardActionsBusy}
                               compact
@@ -746,13 +798,16 @@ export default function AgendamentosMobilePanel({
                               </>
                             )}
                           </AgendamentoActionsMenu>
+                            </div>
                           ) : null}
                         </div>
                         {a.status === "concluido" && canOpenAnotacaoConcluido(a, barbeariaId, caBarbeariaIds, profissionais) ? (
+                          <div data-agendamento-no-card-click>
                           <AgendamentoAnotacaoButton
                             disabled={markingNoShowId === a.id}
                             onClick={() => setAnotacaoTarget(a)}
                           />
+                          </div>
                         ) : null}
                         {!selectedBarbeiroId && a.barbeiros?.nome && (
                           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-accent/10 text-accent">
@@ -862,15 +917,18 @@ export default function AgendamentosMobilePanel({
 
       <AgendamentoObservacaoViewModal
         open={!!observacaoViewTarget}
+        agendamentoId={observacaoViewTarget?.agendamentoId ?? null}
         observacao={observacaoViewTarget?.observacao ?? null}
         clienteNome={observacaoViewTarget?.clienteNome}
         onClose={() => setObservacaoViewTarget(null)}
+        onMarkedVista={handleObservacaoMarkedVista}
       />
 
       <AgendamentoAlertModal
         open={!!alertModalTarget}
         agendamentoId={alertModalTarget?.agendamentoId ?? null}
         clienteNome={alertModalTarget?.clienteNome}
+        observacao={alertModalTarget?.observacao}
         onClose={() => setAlertModalTarget(null)}
         onResolved={handleAlertResolved}
       />

@@ -25,6 +25,8 @@ export type AgendamentoPainelItem = {
   payment_status?: string | null;
   can_manage?: boolean;
   has_pending_alert?: boolean;
+  /** Existe alerta (WhatsApp remarcar/cancelar), pendente ou já resolvido. */
+  has_any_alert?: boolean;
 };
 
 export type AgendamentoPainelSummary = {
