@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,9 @@ import { completeSignupSession } from "@/features/auth/lib/completeSignupSession
 import { isEmailVerified } from "@/features/auth/lib/signupCompletion";
 import { checkProfessionalAccount } from "@/features/auth/lib/professionalAccount";
 import { provisionProfessionalAccount } from "@/features/auth/lib/provisionProfessionalAccount";
+import { readSignupSpecialtyFromSearchParams } from "@/features/auth/lib/signupSpecialtyFromQuery";
+import { SignupSpecialtySelect } from "@/features/auth/components/SignupSpecialtySelect";
+import { PROFESSIONAL_SPECIALTIES, type ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import type { Session } from "@supabase/supabase-js";
 import { isDesktopForFaceHandoff } from "@/features/auth/face-verification/isDesktopForFaceHandoff";
@@ -42,10 +45,15 @@ const FaceHandoffDesktopStep = lazy(() =>
   })),
 );
 
+const specialtySchema = z.enum(PROFESSIONAL_SPECIALTIES, {
+  errorMap: () => ({ message: "Selecione sua especialidade." }),
+});
+
 const schema = z
   .object({
     display_name: z.string().trim().min(2, "Nome muito curto").max(80),
     shop_name: z.string().trim().min(2, "Nome da empresa muito curto").max(80),
+    professional_specialty: specialtySchema,
     email: z.string().trim().email("E-mail inválido").max(255),
     password: z
       .string()
@@ -66,6 +74,7 @@ const PASSWORDS_MISMATCH_MESSAGE = "Senhas não estão iguais.";
 const upgradeSchema = z.object({
   display_name: z.string().trim().min(2, "Nome muito curto").max(80),
   shop_name: z.string().trim().min(2, "Nome da empresa muito curto").max(80),
+  professional_specialty: specialtySchema,
 });
 
 type SignupPhase = "form" | "otp";
@@ -73,8 +82,13 @@ type SignupPhase = "form" | "otp";
 export default function Signup() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const specialtyFromQuery = readSignupSpecialtyFromSearchParams(searchParams);
   const [displayName, setDisplayName] = useState("");
   const [shopName, setShopName] = useState("");
+  const [professionalSpecialty, setProfessionalSpecialty] = useState<ProfessionalSpecialty | "">(
+    () => (specialtyFromQuery.status === "valid" ? specialtyFromQuery.specialty : ""),
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -161,6 +175,7 @@ export default function Signup() {
         data: {
           display_name: parsed.display_name,
           shop_name: parsed.shop_name,
+          professional_specialty: parsed.professional_specialty,
         },
       },
     });
@@ -231,7 +246,11 @@ export default function Signup() {
     setSubmittingAccount(true);
     setLoading(true);
 
-    const provision = await provisionProfessionalAccount(parsed.shop_name, parsed.display_name);
+    const provision = await provisionProfessionalAccount(
+      parsed.shop_name,
+      parsed.display_name,
+      parsed.professional_specialty,
+    );
     if ("error" in provision && provision.error) {
       setLoading(false);
       setSubmittingAccount(false);
@@ -272,7 +291,11 @@ export default function Signup() {
     e.preventDefault();
 
     if (upgradeMode) {
-      const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+      const parsed = upgradeSchema.safeParse({
+        display_name: displayName,
+        shop_name: shopName,
+        professional_specialty: professionalSpecialty || undefined,
+      });
       if (!parsed.success) {
         toast({
           title: "Dados inválidos",
@@ -295,6 +318,7 @@ export default function Signup() {
     const parsed = schema.safeParse({
       display_name: displayName,
       shop_name: shopName,
+      professional_specialty: professionalSpecialty || undefined,
       email,
       password,
       confirm_password: confirmPassword,
@@ -386,7 +410,11 @@ export default function Signup() {
             onContinueOnPc={() => setUsePcFaceVerification(true)}
             onVerified={(result) => {
               if (upgradeMode) {
-                const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+                const parsed = upgradeSchema.safeParse({
+                  display_name: displayName,
+                  shop_name: shopName,
+                  professional_specialty: professionalSpecialty || undefined,
+                });
                 if (parsed.success) void completeProfessionalUpgrade(parsed.data, result);
                 return;
               }
@@ -408,7 +436,11 @@ export default function Signup() {
             }}
             onVerified={(result) => {
               if (upgradeMode) {
-                const parsed = upgradeSchema.safeParse({ display_name: displayName, shop_name: shopName });
+                const parsed = upgradeSchema.safeParse({
+                  display_name: displayName,
+                  shop_name: shopName,
+                  professional_specialty: professionalSpecialty || undefined,
+                });
                 if (parsed.success) void completeProfessionalUpgrade(parsed.data, result);
                 return;
               }
@@ -473,6 +505,10 @@ export default function Signup() {
                   className="h-11 rounded-xl border-border/80 bg-secondary/30 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
                 />
               </div>
+              <SignupSpecialtySelect
+                value={professionalSpecialty}
+                onChange={setProfessionalSpecialty}
+              />
               {!upgradeMode && (
                 <>
                   <div className="space-y-1.5">

@@ -572,6 +572,9 @@ export type Database = {
           payment_pass_fee_card: boolean
           payment_pass_fee_pix: boolean
           payments_centralized: boolean
+          professional_specialty:
+            | Database["public"]["Enums"]["professional_specialty"]
+            | null
           sender_phone_e164: string | null
           sender_sid: string | null
           sheet_url: string | null
@@ -640,6 +643,9 @@ export type Database = {
           payment_pass_fee_card?: boolean
           payment_pass_fee_pix?: boolean
           payments_centralized?: boolean
+          professional_specialty?:
+            | Database["public"]["Enums"]["professional_specialty"]
+            | null
           sender_phone_e164?: string | null
           sender_sid?: string | null
           sheet_url?: string | null
@@ -708,6 +714,9 @@ export type Database = {
           payment_pass_fee_card?: boolean
           payment_pass_fee_pix?: boolean
           payments_centralized?: boolean
+          professional_specialty?:
+            | Database["public"]["Enums"]["professional_specialty"]
+            | null
           sender_phone_e164?: string | null
           sender_sid?: string | null
           sheet_url?: string | null
@@ -2477,7 +2486,11 @@ export type Database = {
         Returns: Json
       }
       provision_professional_account: {
-        Args: { p_display_name?: string; p_shop_name: string }
+        Args: {
+          p_display_name?: string
+          p_professional_specialty?: Database["public"]["Enums"]["professional_specialty"] | null
+          p_shop_name: string
+        }
         Returns: Json
       }
       public_booking_hold_blocks_slot: {
@@ -2762,6 +2775,7 @@ export type Database = {
       message_sender: "customer" | "ai"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
       mp_connect_status: "not_connected" | "connected" | "token_expired"
+      professional_specialty: "dentista" | "psicologo" | "nutricionista" | "medico"
       subscription_status:
         | "trial"
         | "active"
@@ -2932,6 +2946,7 @@ export const Constants = {
       message_sender: ["customer", "ai"],
       message_status: ["sending", "sent", "delivered", "read", "failed"],
       mp_connect_status: ["not_connected", "connected", "token_expired"],
+      professional_specialty: ["dentista", "psicologo", "nutricionista", "medico"],
       subscription_status: ["trial", "active", "grace", "expired", "cancelled"],
       waba_connect_status: [
         "not_connected",

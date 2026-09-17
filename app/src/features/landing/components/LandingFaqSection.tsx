@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Reveal } from "@/components/layout/PageReveal";
-import { FAQ_ITEMS } from "@/features/landing/content/landingContent";
 import { LandingSection } from "@/features/landing/components/LandingSection";
 import { LandingSectionHeader } from "@/features/landing/components/LandingSectionHeader";
+import { useLandingPageContent } from "@/features/landing/context/LandingPageContentContext";
 import { cn } from "@/lib/utils";
 
 export function LandingFaqSection() {
-  const [openId, setOpenId] = useState<string | null>(FAQ_ITEMS[0]?.id ?? null);
+  const { faqItems } = useLandingPageContent();
+  const [openId, setOpenId] = useState<string | null>(faqItems[0]?.id ?? null);
 
   return (
     <LandingSection id="faq" narrow>
@@ -18,7 +19,7 @@ export function LandingFaqSection() {
       />
 
       <div className="space-y-3">
-        {FAQ_ITEMS.map((item, i) => {
+        {faqItems.map((item, i) => {
           const isOpen = openId === item.id;
           return (
             <Reveal key={item.id} index={i}>
@@ -29,12 +30,10 @@ export function LandingFaqSection() {
                   onClick={() => setOpenId(isOpen ? null : item.id)}
                   className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-secondary/30 transition-colors"
                 >
-                  <span className="font-medium text-sm sm:text-[15px] text-foreground leading-snug pr-2">
-                    {item.question}
-                  </span>
+                  <span className="text-sm font-medium text-foreground sm:text-base">{item.question}</span>
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                      "h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200",
                       isOpen && "rotate-180",
                     )}
                     aria-hidden
@@ -46,10 +45,8 @@ export function LandingFaqSection() {
                     isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                   )}
                 >
-                  <div className="min-h-0 overflow-hidden">
-                    <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
-                      {item.answer}
-                    </p>
+                  <div className="overflow-hidden">
+                    <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed">{item.answer}</p>
                   </div>
                 </div>
               </div>

@@ -342,7 +342,7 @@ export default function Login() {
             </div>
             <Button
               type="submit"
-              className="w-full h-11 rounded-full bg-gradient-brand hover:opacity-90 text-white border-0 shadow-glow"
+              className="w-full h-11 rounded-lg border-0 bg-primary text-primary-foreground font-medium hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? "Entrando…" : "Entrar"}

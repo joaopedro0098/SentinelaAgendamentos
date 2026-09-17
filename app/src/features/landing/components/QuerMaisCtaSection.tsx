@@ -5,8 +5,10 @@ import { LandingSection } from "@/features/landing/components/LandingSection";
 import { LandingPrimaryCta } from "@/features/landing/components/LandingPrimaryCta";
 import { LandingWhatsAppIcon } from "@/features/landing/components/LandingWhatsAppIcon";
 import { buildLandingSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
+import { useLandingPageContent } from "@/features/landing/context/LandingPageContentContext";
 
 export function QuerMaisCtaSection() {
+  const { primarySignupHref, hero } = useLandingPageContent();
   const whatsAppUrl = buildLandingSupportWhatsAppUrl();
 
   return (
@@ -19,7 +21,11 @@ export function QuerMaisCtaSection() {
           <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-balance text-foreground sm:text-3xl md:text-4xl">
             {QUER_MAIS_CTA.headline}
           </h2>
-          <LandingPrimaryCta className="mt-5 justify-center sm:mt-6" />
+          <LandingPrimaryCta
+            className="mt-5 justify-center sm:mt-6"
+            primaryHref={primarySignupHref}
+            primaryLabel={hero.ctaPrimary}
+          />
 
           <div className="mt-10 border-t border-border/70 pt-10 sm:mt-12 sm:pt-12">
             <p className="text-lg font-medium text-foreground sm:text-xl">{QUER_MAIS_CTA.ouLabel}</p>

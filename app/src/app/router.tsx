@@ -9,6 +9,10 @@ import AppLayout from "@/features/dashboard/pages/AppLayout";
 import DashboardRoutes from "@/features/dashboard/pages/DashboardRoutes";
 
 const HomePage = lazy(() => import("@/features/landing/pages/HomePage"));
+const DentistasLandingPage = lazy(() => import("@/features/landing/pages/DentistasLandingPage"));
+const PsicologosLandingPage = lazy(() => import("@/features/landing/pages/PsicologosLandingPage"));
+const NutricionistasLandingPage = lazy(() => import("@/features/landing/pages/NutricionistasLandingPage"));
+const MedicosLandingPage = lazy(() => import("@/features/landing/pages/MedicosLandingPage"));
 const PlanosPage = lazy(() => import("@/features/landing/pages/PlanosPage"));
 const PoliticaPrivacidadePage = lazy(() => import("@/features/landing/pages/PoliticaPrivacidadePage"));
 const TermosServicoPage = lazy(() => import("@/features/landing/pages/TermosServicoPage"));
@@ -43,12 +47,17 @@ export function AppRouter() {
       <Routes>
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/dentistas" element={<DentistasLandingPage />} />
+          <Route path="/psicologos" element={<PsicologosLandingPage />} />
+          <Route path="/nutricionistas" element={<NutricionistasLandingPage />} />
+          <Route path="/medicos" element={<MedicosLandingPage />} />
           <Route path="/planos" element={<PlanosPage />} />
           <Route path="/politica-de-privacidade" element={<PoliticaPrivacidadePage />} />
           <Route path="/termos-de-servico" element={<TermosServicoPage />} />
           <Route path="/exclusao-de-dados-pessoais" element={<ExclusaoDadosPessoaisPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/cadastro" element={<SignupPage />} />
           <Route path="/signup/confirmar-codigo" element={<SignupConfirmEmailPage />} />
           <Route path="/verificacao-facial" element={<FacialVerificationHandoffPage />} />
           <Route path="/recover" element={<RecoverPage />} />

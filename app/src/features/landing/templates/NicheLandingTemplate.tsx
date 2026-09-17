@@ -1,3 +1,6 @@
+import type { NicheLandingConfig } from "@/features/landing/content/niche/types";
+import { nicheConfigToLandingContent } from "@/features/landing/content/niche/shared";
+import { LandingPageContentProvider } from "@/features/landing/context/LandingPageContentContext";
 import { LandingHero } from "@/features/landing/components/LandingHero";
 import { LandingAudienceSection } from "@/features/landing/components/LandingAudienceSection";
 import { FeaturesShowcase } from "@/features/landing/components/FeaturesShowcase";
@@ -7,12 +10,16 @@ import { SocialProofSection } from "@/features/landing/components/SocialProofSec
 import { LandingFaqSection } from "@/features/landing/components/LandingFaqSection";
 import LandingFooter from "@/features/landing/components/LandingFooter";
 import { LandingWhatsAppFab } from "@/features/landing/components/LandingWhatsAppFab";
-import { LandingPageContentProvider } from "@/features/landing/context/LandingPageContentContext";
-import { GENERIC_LANDING_PAGE_CONTENT } from "@/features/landing/content/genericLandingConfig";
 
-const HomePage = () => {
+type NicheLandingTemplateProps = {
+  config: NicheLandingConfig;
+};
+
+export function NicheLandingTemplate({ config }: NicheLandingTemplateProps) {
+  const content = nicheConfigToLandingContent(config);
+
   return (
-    <LandingPageContentProvider value={GENERIC_LANDING_PAGE_CONTENT}>
+    <LandingPageContentProvider value={content}>
       <main>
         <LandingHero />
         <LandingAudienceSection />
@@ -26,6 +33,4 @@ const HomePage = () => {
       <LandingWhatsAppFab />
     </LandingPageContentProvider>
   );
-};
-
-export default HomePage;
+}

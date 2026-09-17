@@ -7,6 +7,10 @@ export const config = {
     "/termos-de-servico",
     "/exclusao-de-dados-pessoais",
     "/planos",
+    "/dentistas",
+    "/psicologos",
+    "/nutricionistas",
+    "/medicos",
   ],
 };
 

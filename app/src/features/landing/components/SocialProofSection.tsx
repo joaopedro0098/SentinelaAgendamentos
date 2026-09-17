@@ -1,21 +1,25 @@
 import { Quote } from "lucide-react";
 import { Reveal } from "@/components/layout/PageReveal";
-import { SOCIAL_PROOF_STATS, TESTIMONIALS } from "@/features/landing/content/landingContent";
 import { LandingSection } from "@/features/landing/components/LandingSection";
 import { LandingSectionHeader } from "@/features/landing/components/LandingSectionHeader";
+import { useLandingPageContent } from "@/features/landing/context/LandingPageContentContext";
 import { cn } from "@/lib/utils";
 
 export function SocialProofSection() {
+  const { socialProof } = useLandingPageContent();
+  const gridCols =
+    socialProof.testimonials.length === 1 ? "md:grid-cols-1 max-w-xl" : "md:grid-cols-3 max-w-5xl";
+
   return (
     <LandingSection id="depoimentos" variant="muted">
       <LandingSectionHeader
-        eyebrow="Quem já usa"
-        title="Profissionais que recuperaram tempo na agenda"
-        description="Veja o que nossos usuários destacam no dia a dia."
+        eyebrow={socialProof.eyebrow}
+        title={socialProof.title}
+        description={socialProof.description}
       />
 
       <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl mx-auto mb-12 md:mb-16">
-        {SOCIAL_PROOF_STATS.map((stat, i) => (
+        {socialProof.stats.map((stat, i) => (
           <Reveal key={stat.label} index={i}>
             <div className="text-center">
               <p className="font-display text-2xl md:text-3xl font-semibold text-primary">{stat.value}</p>
@@ -25,8 +29,8 @@ export function SocialProofSection() {
         ))}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
-        {TESTIMONIALS.map((item, i) => (
+      <div className={cn("grid gap-5 mx-auto", gridCols)}>
+        {socialProof.testimonials.map((item, i) => (
           <Reveal key={item.id} index={3 + i}>
             <figure
               className={cn(

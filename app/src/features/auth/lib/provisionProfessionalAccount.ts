@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 
 export type ProvisionProfessionalResult =
   | { ok: true }
@@ -7,10 +8,12 @@ export type ProvisionProfessionalResult =
 export async function provisionProfessionalAccount(
   shopName: string,
   displayName: string,
+  professionalSpecialty: ProfessionalSpecialty | null,
 ): Promise<ProvisionProfessionalResult> {
   const { data, error } = await supabase.rpc("provision_professional_account", {
     p_shop_name: shopName.trim(),
     p_display_name: displayName.trim(),
+    p_professional_specialty: professionalSpecialty,
   });
 
   if (error) {

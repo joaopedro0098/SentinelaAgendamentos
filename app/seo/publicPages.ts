@@ -32,6 +32,22 @@ export const PUBLIC_CRAWLER_PAGES: Record<string, PublicCrawlerPage> = {
     description:
       "Planos Start e Pro para consultórios e clínicas. Teste grátis por 14 dias, sem cartão de crédito. Agendamento online e gestão de equipe.",
   },
+  "/dentistas": {
+    title: "[Placeholder] Sentinela — Dentistas",
+    description: "[Placeholder] Sistema de agendamentos para dentistas. Conteúdo final em breve.",
+  },
+  "/psicologos": {
+    title: "[Placeholder] Sentinela — Psicólogos",
+    description: "[Placeholder] Sistema de agendamentos para psicólogos. Conteúdo final em breve.",
+  },
+  "/nutricionistas": {
+    title: "[Placeholder] Sentinela — Nutricionistas",
+    description: "[Placeholder] Sistema de agendamentos para nutricionistas. Conteúdo final em breve.",
+  },
+  "/medicos": {
+    title: "[Placeholder] Sentinela — Médicos",
+    description: "[Placeholder] Sistema de agendamentos para médicos. Conteúdo final em breve.",
+  },
 };
 
 /** Ao adicionar rota no matcher do middleware, inclua também em PUBLIC_CRAWLER_PAGES acima. */

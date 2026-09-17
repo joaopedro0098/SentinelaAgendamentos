@@ -7,11 +7,14 @@ import {
   MARKETING_PAGE_TITLES,
   MARKETING_PAGE_DESCRIPTIONS,
   NOINDEX_MARKETING_PATHS,
+  INDEXABLE_MARKETING_PATHS,
 } from "@/lib/marketingSeo";
+import { SIGNUP_PATH, SIGNUP_PATH_LEGACY } from "@/features/landing/content/niche/shared";
 
 const AUTH_PATHS = new Set([
   "/login",
-  "/signup",
+  SIGNUP_PATH_LEGACY,
+  SIGNUP_PATH,
   "/signup/confirmar-codigo",
   "/verificacao-facial",
   "/recover",
@@ -50,7 +53,7 @@ export function MarketingLayout() {
       return;
     }
 
-    if (pathname === "/") {
+    if (INDEXABLE_MARKETING_PATHS.has(pathname)) {
       if (!robots) {
         robots = document.createElement("meta");
         robots.name = "robots";
