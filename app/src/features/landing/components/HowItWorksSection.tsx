@@ -8,7 +8,7 @@ export function HowItWorksSection() {
       <header className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
         <p className="landing-eyebrow mb-3 text-primary-foreground/75">Como funciona</p>
         <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-balance text-primary-foreground sm:text-3xl md:text-4xl">
-          Sua agenda online em três passos
+          Seu sistema online em três passos
         </h2>
         <p className="mt-4 text-[15px] leading-relaxed text-balance text-primary-foreground/85 sm:text-base md:text-lg">
           Do cadastro ao primeiro agendamento em poucos minutos.

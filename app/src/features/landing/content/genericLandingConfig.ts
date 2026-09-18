@@ -1,22 +1,16 @@
 import {
   FAQ_ITEMS,
   LANDING_AUDIENCE,
+  LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_HOME,
   LANDING_HERO,
   SOCIAL_PROOF_STATS,
   TESTIMONIALS,
+  landingAudienceFeatureCardsWithOverrides,
 } from "@/features/landing/content/landingContent";
 import type { LandingPageContent } from "@/features/landing/content/niche/types";
 import { buildSignupHref } from "@/features/landing/content/niche/shared";
 
-const HOME_TITLE = "Sentinela Agendamentos — Gestão de agenda para profissionais de saúde";
-const HOME_DESCRIPTION =
-  "Agendamento online, ficha de pacientes e gestão do consultório em um só lugar. Teste grátis por 14 dias, sem cartão. Para profissionais de saúde e bem-estar.";
-
 export const GENERIC_LANDING_PAGE_CONTENT: LandingPageContent = {
-  seo: {
-    title: HOME_TITLE,
-    description: HOME_DESCRIPTION,
-  },
   primarySignupHref: buildSignupHref(null),
   hero: {
     eyebrow: LANDING_HERO.eyebrow,
@@ -30,6 +24,11 @@ export const GENERIC_LANDING_PAGE_CONTENT: LandingPageContent = {
   audience: {
     titleLine: LANDING_AUDIENCE.titleLine,
     descriptionParagraphs: LANDING_AUDIENCE.descriptionParagraphs,
+    featureCards: landingAudienceFeatureCardsWithOverrides({
+      "video-call-transcription": {
+        description: LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_HOME,
+      },
+    }),
   },
   socialProof: {
     eyebrow: "Quem já usa",

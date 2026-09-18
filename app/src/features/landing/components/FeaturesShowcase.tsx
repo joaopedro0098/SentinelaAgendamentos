@@ -11,12 +11,12 @@ const QUER_MAIS_FEATURES = [
     titleLines: ["Suporte ágil e", "humanizado por", "WhatsApp"],
   },
   {
-    illustrationSrc: "/landing-quer-mais-patient-record.png",
-    titleLines: ["Tenha um prontuário", "organizado para", "cada paciente"],
+    illustrationSrc: "/landing-quer-mais-schedule-panel.png",
+    titleLines: ["Painel dinâmico", "de agendamentos"],
   },
   {
     illustrationSrc: "/landing-quer-mais-collaborators.png",
-    titleLines: ["Adicione colaboradores", "e gerencie"],
+    titleLines: ["Adicione colaboradores", "e os gerencie"],
   },
 ] as const;
 

@@ -1,4 +1,5 @@
 import type { ProfessionalSpecialty } from "@/lib/professionalSpecialty";
+import type { LandingAudienceFeatureCard } from "@/features/landing/content/landingContent";
 
 export type HeroIllustrationKey = "doctor" | "psychologist";
 
@@ -44,6 +45,7 @@ export type NicheLandingConfig = {
   audience: {
     titleLine: string;
     descriptionParagraphs: readonly (readonly LandingAudienceSegment[])[];
+    featureCards?: readonly LandingAudienceFeatureCard[];
   };
   socialProof: {
     eyebrow: string;
@@ -56,10 +58,6 @@ export type NicheLandingConfig = {
 
 /** Conteúdo unificado da landing (home genérica ou nicho). */
 export type LandingPageContent = {
-  seo: {
-    title: string;
-    description: string;
-  };
   primarySignupHref: string;
   hero: {
     eyebrow: string;
@@ -74,6 +72,7 @@ export type LandingPageContent = {
   audience: {
     titleLine: string;
     descriptionParagraphs: readonly (readonly LandingAudienceSegment[])[];
+    featureCards?: readonly LandingAudienceFeatureCard[];
   };
   socialProof: {
     eyebrow: string;

@@ -16,7 +16,6 @@ export function buildSignupHref(specialty: ProfessionalSpecialty | null): string
 
 export function nicheConfigToLandingContent(config: NicheLandingConfig): LandingPageContent {
   return {
-    seo: config.seo,
     primarySignupHref: buildSignupHref(config.signupSpecialty),
     hero: {
       eyebrow: config.hero.eyebrow,

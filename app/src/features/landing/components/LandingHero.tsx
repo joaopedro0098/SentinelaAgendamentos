@@ -39,7 +39,7 @@ export function LandingHero() {
                 </h1>
               </Reveal>
               <Reveal index={2}>
-                <p className="landing-hero__sub mt-5 text-[15px] sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0 text-balance">
+                <p className="landing-hero__sub mt-5 whitespace-pre-line text-[15px] sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0 text-balance">
                   {hero.subheadline}
                 </p>
               </Reveal>
@@ -73,28 +73,50 @@ export function LandingHero() {
             className={cn(
               "landing-hero-illustrations mx-auto w-full max-w-3xl lg:mx-0 lg:max-w-none",
               !isDual && "landing-hero-illustrations--single",
+              !isDual &&
+                hero.illustration === "psychologist" &&
+                "landing-hero-illustrations--psychologist-solo",
             )}
             role="img"
-            aria-label="Ilustração de profissional de saúde em atendimento"
+            aria-label={
+              hero.illustration === "psychologist"
+                ? "Ilustração de atendimento psicológico"
+                : "Ilustração de profissional de saúde em atendimento"
+            }
           >
-            {(isDual || hero.illustration === "doctor") && (
+            {isDual ? (
+              <>
+                <img
+                  className="landing-hero-illustrations__piece landing-hero-illustrations__piece--doctor"
+                  src={HERO_ILLUSTRATION_SRC.doctor}
+                  alt=""
+                  width={800}
+                  height={800}
+                  fetchPriority="high"
+                  decoding="async"
+                />
+                <img
+                  className="landing-hero-illustrations__piece landing-hero-illustrations__piece--psychologist"
+                  src={HERO_ILLUSTRATION_SRC.psychologist}
+                  alt=""
+                  width={800}
+                  height={800}
+                  decoding="async"
+                />
+              </>
+            ) : (
               <img
-                className="landing-hero-illustrations__piece landing-hero-illustrations__piece--doctor"
-                src={HERO_ILLUSTRATION_SRC.doctor}
+                className={cn(
+                  "landing-hero-illustrations__piece",
+                  hero.illustration === "doctor"
+                    ? "landing-hero-illustrations__piece--doctor"
+                    : "landing-hero-illustrations__piece--psychologist",
+                )}
+                src={HERO_ILLUSTRATION_SRC[hero.illustration ?? "psychologist"]}
                 alt=""
                 width={800}
                 height={800}
                 fetchPriority="high"
-                decoding="async"
-              />
-            )}
-            {(isDual || hero.illustration === "psychologist") && (
-              <img
-                className="landing-hero-illustrations__piece landing-hero-illustrations__piece--psychologist"
-                src={HERO_ILLUSTRATION_SRC.psychologist}
-                alt=""
-                width={800}
-                height={800}
                 decoding="async"
               />
             )}

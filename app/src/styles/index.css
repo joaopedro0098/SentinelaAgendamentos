@@ -521,6 +521,22 @@
     max-height: 92%;
     object-position: center;
   }
+  /* Nicho psicólogos: só conversa — ocupa o slot que antes dividia com o médico */
+  .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-solo
+    .landing-hero-illustrations__piece {
+    width: min(100%, 36rem);
+    max-height: 96%;
+    transform: translate(-48%, -50%);
+    object-position: center center;
+  }
+  @media (min-width: 1024px) {
+    .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-solo
+      .landing-hero-illustrations__piece {
+      width: min(100%, 34rem);
+      max-height: 98%;
+      transform: translate(-44%, -50%);
+    }
+  }
   .landing-hero__stage {
     overflow: visible;
   }

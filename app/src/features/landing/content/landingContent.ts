@@ -24,10 +24,7 @@ export const LANDING_HERO = {
 } as const;
 
 export const QUER_MAIS_CTA = {
-  headline: "Está esperando o que?",
-  ouLabel: "Ou",
-  whatsAppLead: "Nos chame no WhatsApp para mais informações!",
-  whatsAppButton: "Falar no WhatsApp",
+  headline: "Fez sentido para você?",
 } as const;
 
 export const LANDING_AUDIENCE = {
@@ -52,7 +49,7 @@ export const LANDING_AUDIENCE = {
       icon: "whatsapp",
       title: "Envio automático de mensagem",
       description:
-        "Seus pacientes receberão uma mensagem automática no WhatsApp um dia antes para confirmar o agendamento e um lembrete opcional três horas antes do seu atendimento. Assim você diminui o não comparecimento e abre espaço na sua agenda para outro paciente.",
+        "Seus pacientes receberão confirmações automáticas no WhatsApp, reduzindo faltas e liberando espaço na sua agenda.",
     },
     {
       id: "video-call-transcription",
@@ -66,17 +63,36 @@ export const LANDING_AUDIENCE = {
       icon: "payment-link",
       title: "Link de pagamento",
       description:
-        "Cobre seus pacientes antecipadamente, de forma parcial ou total, via PIX ou cartão. Isso aumenta o compromisso com o agendamento e reduz faltas.",
+        "Permita que seus pacientes paguem via PIX ou cartão, integral ou parcialmente, para confirmar o agendamento e reduzir faltas.",
     },
     {
       id: "schedule-panel",
       icon: "schedule-panel",
-      title: ["Painel dinâmico", "de agendamentos"],
+      title: "Prontuário completo",
       description:
-        "Pensamos no painel mais intuitivo possível para você visualizar sua disponibilidade da semana e do mês, podendo assim criar, remarcar e excluir agendamentos de forma rápida e com poucos cliques num só lugar.",
+        "Adicione e gerencie pacientes de forma intuitiva e rápida, suba documentos, laudos e exames, faça anotações em cada atendimento.",
     },
   ],
 } as const;
+
+export type LandingAudienceFeatureCard = (typeof LANDING_AUDIENCE.featureCards)[number];
+
+/** Copy do card “Video chamada com resumo” — landing principal (home). */
+export const LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_HOME =
+  "Atenda por vídeo chamada sem sair do Sentinela. Caso você precise, nossa inteligência Artificial transcreve e resume o atendimento para você.";
+
+/** Copy do card “Video chamada com resumo” — landing /psicologos. */
+export const LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_PSICOLOGOS =
+  "Realize suas sessões por vídeo chamada sem sair do Sentinela. Você poderá transcrever e resumir o atendimento automaticamente, através da nossa inteligência artificial.";
+
+export function landingAudienceFeatureCardsWithOverrides(
+  overrides: Partial<Record<LandingAudienceFeatureCard["id"], Pick<LandingAudienceFeatureCard, "description">>>,
+): LandingAudienceFeatureCard[] {
+  return LANDING_AUDIENCE.featureCards.map((card) => {
+    const patch = overrides[card.id];
+    return patch ? { ...card, ...patch } : card;
+  });
+}
 
 export const HOW_IT_WORKS_STEPS = [
   {
