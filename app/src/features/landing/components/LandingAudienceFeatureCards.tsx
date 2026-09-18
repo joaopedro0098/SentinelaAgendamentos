@@ -16,8 +16,8 @@ const CARD_ILLUSTRATIONS: Partial<Record<NonNullable<AudienceFeatureCard["icon"]
 function FeatureCardLeadingVisual({ icon }: { icon: AudienceFeatureCard["icon"] }) {
   if (icon === "whatsapp") {
     return (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white">
-        <LandingWhatsAppIcon className="h-5 w-5" />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+        <LandingWhatsAppIcon className="h-10 w-10" opticalScale={1.08} />
       </div>
     );
   }

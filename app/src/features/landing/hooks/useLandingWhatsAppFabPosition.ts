@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useState } from "react";
 
 const FAB_SIZE = 56;
 const FAB_MARGIN = 24;
+/** Ajuste fino do centro na seção “Fez sentido para você?”. */
+const FAB_CENTER_OFFSET_X = 17;
 const ANCHOR_ID = "landing-wa-fab-anchor";
 const GREEN_SECTION_ID = "como-funciona";
 
@@ -73,7 +75,7 @@ function computePosition(): LandingWhatsAppFabPosition {
 
   const greenBottom = green.getBoundingClientRect().bottom;
   const scrollWhenGreenGone = scrollY + Math.max(greenBottom, 0);
-  const landingX = anchorDocCenterX - scrollX - half;
+  const landingX = anchorDocCenterX - scrollX - half + FAB_CENTER_OFFSET_X;
   const landingY = anchorDocCenterY - scrollWhenGreenGone - half;
 
   if (mergeT <= 0) {
@@ -81,7 +83,7 @@ function computePosition(): LandingWhatsAppFabPosition {
   }
 
   if (greenProgress >= 1) {
-    const liveX = snapPx(anchorDocCenterX - scrollX - half);
+    const liveX = snapPx(anchorDocCenterX - scrollX - half + FAB_CENTER_OFFSET_X);
     const liveY = snapPx(anchorDocCenterY - scrollY - half);
     return { x: liveX, y: liveY, mergeT: 1 };
   }

@@ -52,6 +52,7 @@ export type NicheLandingConfig = {
     title: string;
     description: string;
     testimonials: readonly LandingTestimonial[];
+    testimonialQuoteClassName?: string;
   };
   faqItems: readonly LandingFaqItem[];
 };
@@ -80,6 +81,7 @@ export type LandingPageContent = {
     description: string;
     stats: readonly LandingSocialProofStat[];
     testimonials: readonly LandingTestimonial[];
+    testimonialQuoteClassName?: string;
   };
   faqItems: readonly LandingFaqItem[];
 };

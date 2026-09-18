@@ -25,6 +25,7 @@ export const LANDING_HERO = {
 
 export const QUER_MAIS_CTA = {
   headline: "Fez sentido para você?",
+  whatsAppCaptionLines: ["Chame-nos no WhatsApp.", "Para mais informações."] as const,
 } as const;
 
 export const LANDING_AUDIENCE = {
@@ -115,7 +116,6 @@ export const HOW_IT_WORKS_STEPS = [
 /** Placeholders — substitua por depoimentos reais quando disponíveis. */
 export const SOCIAL_PROOF_STATS = [
   { value: "500+", label: "profissionais cadastrados" },
-  { value: "10 mil+", label: "agendamentos realizados" },
   { value: "4,8/5", label: "satisfação média" },
 ] as const;
 

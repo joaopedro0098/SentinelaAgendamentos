@@ -24,7 +24,7 @@ export function QuerMaisCtaSection() {
 
           <div
             id="landing-wa-fab-anchor"
-            className="flex min-h-[30svh] w-full shrink-0 items-end justify-center pb-8 sm:min-h-[32svh] sm:pb-10 md:pb-12"
+            className="flex min-h-[34svh] w-full shrink-0 items-end justify-center pb-14 sm:min-h-[36svh] sm:pb-16 md:pb-20"
             aria-hidden
           />
         </div>

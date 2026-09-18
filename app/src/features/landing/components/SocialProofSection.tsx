@@ -11,14 +11,19 @@ export function SocialProofSection() {
     socialProof.testimonials.length === 1 ? "md:grid-cols-1 max-w-xl" : "md:grid-cols-3 max-w-5xl";
 
   return (
-    <LandingSection id="depoimentos" variant="muted">
+    <LandingSection id="depoimentos" variant="muted" className="pt-24 pb-16 md:pt-28 md:pb-24">
       <LandingSectionHeader
         eyebrow={socialProof.eyebrow}
         title={socialProof.title}
         description={socialProof.description}
       />
 
-      <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl mx-auto mb-12 md:mb-16">
+      <div
+        className={cn(
+          "mx-auto mb-12 grid gap-4 md:mb-16 md:gap-8",
+          socialProof.stats.length === 2 ? "max-w-md grid-cols-2" : "max-w-3xl grid-cols-3",
+        )}
+      >
         {socialProof.stats.map((stat, i) => (
           <Reveal key={stat.label} index={i}>
             <div className="text-center">
@@ -38,7 +43,12 @@ export function SocialProofSection() {
               )}
             >
               <Quote className="h-5 w-5 text-primary/40 mb-3" aria-hidden />
-              <blockquote className="flex-1 text-sm text-muted-foreground leading-relaxed">
+              <blockquote
+                className={cn(
+                  "flex-1 text-sm font-normal leading-relaxed text-muted-foreground",
+                  socialProof.testimonialQuoteClassName,
+                )}
+              >
                 &ldquo;{item.quote}&rdquo;
               </blockquote>
               <figcaption className="mt-5 flex items-center gap-3 pt-4 border-t border-border/50">
