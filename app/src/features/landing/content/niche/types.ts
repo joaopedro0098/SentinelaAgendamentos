@@ -1,7 +1,7 @@
 import type { ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 import type { LandingAudienceFeatureCard } from "@/features/landing/content/landingContent";
 
-export type HeroIllustrationKey = "doctor" | "psychologist";
+export type HeroIllustrationKey = "doctor" | "psychologist" | "dentist";
 
 export type LandingAudienceSegment =
   | { text: string }

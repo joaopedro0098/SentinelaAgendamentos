@@ -22,9 +22,13 @@ export function QuerMaisCtaSection() {
             />
           </div>
 
+          <p className="shrink-0 py-2 text-center text-base font-bold text-foreground sm:text-lg">
+            {QUER_MAIS_CTA.ouLabel}
+          </p>
+
           <div
             id="landing-wa-fab-anchor"
-            className="flex min-h-[34svh] w-full shrink-0 items-end justify-center pb-14 sm:min-h-[36svh] sm:pb-16 md:pb-20"
+            className="flex min-h-[34svh] w-full flex-1 shrink-0 items-end justify-center pb-14 sm:min-h-[36svh] sm:pb-16 md:pb-20"
             aria-hidden
           />
         </div>

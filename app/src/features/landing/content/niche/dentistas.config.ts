@@ -4,5 +4,5 @@ export const dentistasLandingConfig = createPlaceholderNicheConfig({
   path: "/dentistas",
   signupSpecialty: "dentista",
   nicheLabel: "Dentistas",
-  illustration: "doctor",
+  illustration: "dentist",
 });

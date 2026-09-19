@@ -10,6 +10,7 @@ import { registrarUsoMensageria } from "./whatsappUsageLog.ts";
 import { getMetaOutboundThrottleOptions, processInBatchesByKey } from "./metaWhatsappRateLimiter.ts";
 import { isWhatsAppTemplateSendEnabled } from "./barbershopMessagingProvider.ts";
 import { MetaWhatsappSendError } from "./metaWhatsapp.ts";
+import { resolveMetaSendShopIdForBarbearia } from "./metaWabaAggregationSend.ts";
 import {
   loadMetaDirectBarbeariaIdSet,
   sendMetaWhatsAppOperationalTemplate,
@@ -122,6 +123,15 @@ async function sendOneMetaReminder3h(
     return { kind: "no_phone" };
   }
 
+  const sendShopId = await resolveMetaSendShopIdForBarbearia(
+    supabase,
+    row.barbearia_id,
+    "lembrete_3h",
+  );
+  if (!sendShopId) {
+    return { kind: "skipped_no_template" };
+  }
+
   const claimedAt = await claimReminder3hSlot(supabase, row.id);
   if (!claimedAt) {
     return { kind: "already_claimed" };
@@ -231,6 +241,7 @@ export async function sendDueMetaReminder3hWhatsApp(
   const metaBarbeariaIds = await loadMetaDirectBarbeariaIdSet(
     supabase,
     filtered.map((r) => r.barbearia_id),
+    "lembrete_3h",
   );
 
   const rows = filtered.filter((r) => metaBarbeariaIds.has(r.barbearia_id));

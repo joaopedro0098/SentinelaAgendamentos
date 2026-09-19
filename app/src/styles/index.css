@@ -536,6 +536,42 @@
       max-height: 98%;
       transform: translate(-44%, -50%);
     }
+    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__stage {
+      --landing-hero-visual-trim-bottom: 0px;
+    }
+  }
+  /* Landing /dentistas: foto com fade curto até a cor de fundo */
+  .landing-hero-illustrations--dentist-photo {
+    border-radius: 1.25rem;
+  }
+  .landing-hero-illustrations--dentist-photo .landing-hero-illustrations__piece--dentist {
+    inset: 0;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: center 40%;
+  }
+  .landing-hero-illustrations__fade {
+    display: none;
+  }
+  .landing-hero-illustrations--dentist-photo .landing-hero-illustrations__fade {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Borda curta e mais opaca: some no fundo sem invadir o centro da foto */
+    background: transparent;
+    box-shadow:
+      inset 0 0 0 2px hsl(var(--background)),
+      inset 0 0 14px 6px hsl(var(--background) / 0.95),
+      inset 0 0 28px 2px hsl(var(--background) / 0.7);
   }
   .landing-hero__stage {
     overflow: visible;

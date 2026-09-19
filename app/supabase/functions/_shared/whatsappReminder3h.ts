@@ -200,6 +200,7 @@ export async function sendDueReminder3hWhatsApp(
   const metaBarbeariaIds = await loadMetaDirectBarbeariaIdSet(
     supabase,
     filtered.map((r) => r.barbearia_id),
+    "lembrete_3h",
   );
   const rows = filtered.filter((r) => !metaBarbeariaIds.has(r.barbearia_id));
 

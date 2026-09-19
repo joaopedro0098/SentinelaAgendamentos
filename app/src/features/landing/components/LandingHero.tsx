@@ -9,11 +9,19 @@ import { cn } from "@/lib/utils";
 const HERO_ILLUSTRATION_SRC: Record<HeroIllustrationKey, string> = {
   doctor: "/landing-hero-doctor.png",
   psychologist: "/landing-hero-psychologist.png",
+  dentist: "/landing-hero-dentistas.jpg",
+};
+
+const HERO_ILLUSTRATION_LABEL: Record<HeroIllustrationKey, string> = {
+  doctor: "Ilustração de profissional de saúde em atendimento",
+  psychologist: "Ilustração de atendimento psicológico",
+  dentist: "Dentista em atendimento no consultório",
 };
 
 export function LandingHero() {
   const { hero, primarySignupHref } = useLandingPageContent();
   const isDual = hero.layout === "dual";
+  const isDentistPhoto = !isDual && hero.illustration === "dentist";
 
   return (
     <section className="landing-hero relative flex flex-col bg-background min-h-[100svh] pt-24 md:pt-32 pb-6 md:pb-10 overflow-x-clip">
@@ -76,13 +84,10 @@ export function LandingHero() {
               !isDual &&
                 hero.illustration === "psychologist" &&
                 "landing-hero-illustrations--psychologist-solo",
+              isDentistPhoto && "landing-hero-illustrations--dentist-photo",
             )}
             role="img"
-            aria-label={
-              hero.illustration === "psychologist"
-                ? "Ilustração de atendimento psicológico"
-                : "Ilustração de profissional de saúde em atendimento"
-            }
+            aria-label={HERO_ILLUSTRATION_LABEL[hero.illustration ?? "psychologist"]}
           >
             {isDual ? (
               <>
@@ -103,6 +108,19 @@ export function LandingHero() {
                   height={800}
                   decoding="async"
                 />
+              </>
+            ) : isDentistPhoto ? (
+              <>
+                <img
+                  className="landing-hero-illustrations__piece landing-hero-illustrations__piece--dentist"
+                  src={HERO_ILLUSTRATION_SRC.dentist}
+                  alt=""
+                  width={1280}
+                  height={720}
+                  fetchPriority="high"
+                  decoding="async"
+                />
+                <span className="landing-hero-illustrations__fade" aria-hidden />
               </>
             ) : (
               <img
