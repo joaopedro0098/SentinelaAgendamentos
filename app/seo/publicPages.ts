@@ -32,13 +32,13 @@ export const PUBLIC_CRAWLER_PAGES: Record<string, PublicCrawlerPage> = {
     description:
       "Planos Start e Pro para consultórios e clínicas. Teste grátis por 14 dias, sem cartão de crédito. Agendamento online e gestão de equipe.",
   },
-  "/dentistas": {
-    title: "[Placeholder] Sentinela — Dentistas",
-    description: "[Placeholder] Sistema de agendamentos para dentistas. Conteúdo final em breve.",
+  "/odontologia": {
+    title: "[Placeholder] Sentinela — Odontologia",
+    description: "[Placeholder] Sistema de agendamentos para odontologia. Conteúdo final em breve.",
   },
-  "/psicologos": {
-    title: "[Placeholder] Sentinela — Psicólogos",
-    description: "[Placeholder] Sistema de agendamentos para psicólogos. Conteúdo final em breve.",
+  "/psicologia": {
+    title: "[Placeholder] Sentinela — Psicologia",
+    description: "[Placeholder] Sistema de agendamentos para psicologia. Conteúdo final em breve.",
   },
   "/nutricionistas": {
     title: "[Placeholder] Sentinela — Nutricionistas",

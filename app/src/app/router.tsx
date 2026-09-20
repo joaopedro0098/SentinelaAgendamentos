@@ -47,8 +47,11 @@ export function AppRouter() {
       <Routes>
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/dentistas" element={<DentistasLandingPage />} />
-          <Route path="/psicologos" element={<PsicologosLandingPage />} />
+          <Route path="/odontologia" element={<DentistasLandingPage />} />
+          <Route path="/psicologia" element={<PsicologosLandingPage />} />
+          <Route path="/dentistas" element={<Navigate to="/odontologia" replace />} />
+          <Route path="/psicologos" element={<Navigate to="/psicologia" replace />} />
+          <Route path="/psicologas" element={<Navigate to="/psicologia" replace />} />
           <Route path="/nutricionistas" element={<NutricionistasLandingPage />} />
           <Route path="/medicos" element={<MedicosLandingPage />} />
           <Route path="/planos" element={<PlanosPage />} />

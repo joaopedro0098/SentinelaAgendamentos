@@ -1,7 +1,7 @@
 import { createPlaceholderNicheConfig } from "@/features/landing/content/niche/placeholderNicheConfig";
 
 const base = createPlaceholderNicheConfig({
-  path: "/dentistas",
+  path: "/odontologia",
   signupSpecialty: "dentista",
   nicheLabel: "Dentistas",
   illustration: "dentist",

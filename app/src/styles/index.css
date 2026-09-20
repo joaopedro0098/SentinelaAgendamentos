@@ -396,6 +396,15 @@
   .landing-hero__eyebrow {
     @apply text-[17px] md:text-[18px];
   }
+  .landing-hero-illustrations__psi-accent--eyebrow {
+    position: static;
+    flex-shrink: 0;
+    width: 1.45em;
+    height: 1.45em;
+    object-fit: contain;
+    object-position: center center;
+    pointer-events: none;
+  }
   .landing-audience__title-line {
     display: block;
   }
@@ -541,20 +550,16 @@
     max-height: 92%;
     object-position: center;
   }
-  /* Nicho psicólogos: só conversa — ocupa o slot que antes dividia com o médico */
-  .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-solo
+  .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-single
     .landing-hero-illustrations__piece {
-    width: min(100%, 36rem);
-    max-height: 96%;
-    transform: translate(-48%, -50%);
-    object-position: center center;
+    width: 94%;
+    max-height: 97%;
   }
   @media (min-width: 1024px) {
-    .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-solo
+    .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-single
       .landing-hero-illustrations__piece {
-      width: min(100%, 34rem);
+      width: 96%;
       max-height: 98%;
-      transform: translate(-44%, -50%);
     }
   }
   /* Landing /dentistas: foto com fade curto até a cor de fundo */

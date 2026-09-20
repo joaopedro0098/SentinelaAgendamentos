@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import {
+  LANDING_WA_FAB_CORNER_SIZE_PX,
+  LANDING_WA_FAB_MARGIN_PX,
+  LANDING_WA_FAB_SIZE_PX,
+} from "@/features/landing/lib/landingWhatsAppFabConstants";
 
-const FAB_SIZE = 56;
-const FAB_MARGIN = 24;
+const FAB_MARGIN = LANDING_WA_FAB_MARGIN_PX;
 /** Ajuste fino do centro na seção “Fez sentido para você?”. */
 const FAB_CENTER_OFFSET_X = 17;
 const ANCHOR_ID = "landing-wa-fab-anchor";
@@ -50,8 +54,8 @@ function snapPx(value: number) {
 
 function computePosition(): LandingWhatsAppFabPosition {
   const viewportHeight = window.innerHeight;
-  const cornerX = window.innerWidth - FAB_MARGIN - FAB_SIZE;
-  const cornerY = viewportHeight - FAB_MARGIN - FAB_SIZE;
+  const cornerX = window.innerWidth - FAB_MARGIN - LANDING_WA_FAB_CORNER_SIZE_PX;
+  const cornerY = viewportHeight - FAB_MARGIN - LANDING_WA_FAB_CORNER_SIZE_PX;
 
   if (typeof document === "undefined") {
     return { x: cornerX, y: cornerY, mergeT: 0 };
@@ -65,7 +69,7 @@ function computePosition(): LandingWhatsAppFabPosition {
 
   const greenProgress = greenExitProgress(viewportHeight);
   const mergeT = mergeTFromGreenExit(greenProgress);
-  const half = FAB_SIZE / 2;
+  const half = LANDING_WA_FAB_SIZE_PX / 2;
   const scrollY = window.scrollY;
   const scrollX = window.scrollX;
 

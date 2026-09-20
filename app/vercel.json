@@ -42,6 +42,21 @@
   ],
   "redirects": [
     {
+      "source": "/dentistas",
+      "destination": "https://www.sentinelagendamentos.com/odontologia",
+      "permanent": true
+    },
+    {
+      "source": "/psicologos",
+      "destination": "https://www.sentinelagendamentos.com/psicologia",
+      "permanent": true
+    },
+    {
+      "source": "/psicologas",
+      "destination": "https://www.sentinelagendamentos.com/psicologia",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {

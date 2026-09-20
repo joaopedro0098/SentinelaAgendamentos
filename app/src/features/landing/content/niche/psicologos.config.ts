@@ -6,7 +6,7 @@ import {
 import { createPlaceholderNicheConfig } from "@/features/landing/content/niche/placeholderNicheConfig";
 
 const base = createPlaceholderNicheConfig({
-  path: "/psicologos",
+  path: "/psicologia",
   signupSpecialty: "psicologo",
   nicheLabel: "Psicólogos",
   illustration: "psychologist",

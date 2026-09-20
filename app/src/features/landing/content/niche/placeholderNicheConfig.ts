@@ -1,3 +1,4 @@
+import { LANDING_FAQ_ITEMS } from "@/features/landing/content/landingContent";
 import type { ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 import type { HeroIllustrationKey, NicheLandingConfig } from "@/features/landing/content/niche/types";
 
@@ -51,18 +52,6 @@ export function createPlaceholderNicheConfig(input: PlaceholderNicheInput): Nich
         },
       ],
     },
-    faqItems: [
-      {
-        id: "placeholder-trial",
-        question: "O teste grátis de 14 dias é realmente sem compromisso?",
-        answer:
-          "Sim. Você usa todas as funcionalidades do plano escolhido por 14 dias sem informar cartão de crédito.",
-      },
-      {
-        id: "placeholder-niche",
-        question: `[Placeholder] Pergunta específica para ${nicheLabel}?`,
-        answer: `[Placeholder] Resposta FAQ ${nicheLabel} — copy final depois.`,
-      },
-    ],
+    faqItems: LANDING_FAQ_ITEMS,
   };
 }

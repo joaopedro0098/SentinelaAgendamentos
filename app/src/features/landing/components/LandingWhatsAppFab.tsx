@@ -1,11 +1,14 @@
 import { createPortal } from "react-dom";
 import { LandingWhatsAppIcon } from "@/features/landing/components/LandingWhatsAppIcon";
 import { QUER_MAIS_CTA } from "@/features/landing/content/landingContent";
+import {
+  LANDING_WA_FAB_CORNER_SIZE_PX,
+  LANDING_WA_FAB_SIZE_PX,
+} from "@/features/landing/lib/landingWhatsAppFabConstants";
 import { useLandingWhatsAppFabPosition } from "@/features/landing/hooks/useLandingWhatsAppFabPosition";
 import { buildLandingSupportWhatsAppUrl } from "@/lib/supportWhatsApp";
 import { cn } from "@/lib/utils";
 
-const FAB_BASE_SIZE = 56;
 const CAPTION_GAP_PX = 14;
 /** Centro da legenda parte da esquerda da tela (mesmo mergeT do ícone). */
 const CAPTION_START_CENTER_X = -120;
@@ -14,15 +17,12 @@ const CAPTION_CENTER_OFFSET_X = -5;
 export function LandingWhatsAppFab() {
   const { x, y, mergeT } = useLandingWhatsAppFabPosition();
   const showHoverLabel = mergeT < 0.12;
-  const merged = mergeT >= 1;
-  const mergeForMotion = merged ? 1 : mergeT;
-  const scale = 1 + 0.5 * mergeForMotion;
-  const half = FAB_BASE_SIZE / 2;
-  const tx = x + half - half * scale;
-  const ty = y + half - half * scale;
-  const scaledSize = FAB_BASE_SIZE * (merged ? 1.5 : scale);
-  const iconCenterX = tx + scaledSize / 2;
-  const captionTop = ty + scaledSize + CAPTION_GAP_PX;
+  const mergeForMotion = mergeT >= 1 ? 1 : mergeT;
+  const visualSize =
+    LANDING_WA_FAB_CORNER_SIZE_PX +
+    (LANDING_WA_FAB_SIZE_PX - LANDING_WA_FAB_CORNER_SIZE_PX) * mergeForMotion;
+  const iconCenterX = x + visualSize / 2;
+  const captionTop = y + visualSize + CAPTION_GAP_PX;
   const captionCenterX =
     CAPTION_START_CENTER_X +
     (iconCenterX + CAPTION_CENTER_OFFSET_X - CAPTION_START_CENTER_X) * mergeForMotion;
@@ -35,15 +35,12 @@ export function LandingWhatsAppFab() {
       <div
         className="fixed left-0 top-0 z-[100]"
         style={{
-          transform: `translate3d(${tx}px, ${ty}px, 0)`,
-          width: FAB_BASE_SIZE,
-          height: FAB_BASE_SIZE,
+          transform: `translate3d(${x}px, ${y}px, 0)`,
+          width: visualSize,
+          height: visualSize,
         }}
       >
-        <div
-          className="group relative h-full w-full origin-center"
-          style={{ transform: merged ? "scale(1.5)" : `scale(${scale})` }}
-        >
+        <div className="group relative h-full w-full">
           <span
             aria-hidden
             className={cn(
@@ -62,14 +59,9 @@ export function LandingWhatsAppFab() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Fale conosco no WhatsApp"
-              className={cn(
-                "flex h-14 w-14 items-center justify-center rounded-full bg-transparent p-0 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                merged
-                  ? "hover:shadow-xl"
-                  : "transition-[transform,box-shadow] duration-200 hover:scale-105 hover:shadow-xl",
-              )}
+              className="flex h-full w-full items-center justify-center rounded-full bg-transparent p-0 shadow-lg transition-shadow duration-200 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <LandingWhatsAppIcon className="h-14 w-14" opticalScale={1.1} />
+              <LandingWhatsAppIcon className="h-full w-full" opticalScale={1.1} />
             </a>
           </div>
         </div>

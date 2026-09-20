@@ -147,41 +147,41 @@ export const TESTIMONIALS = [
   },
 ] as const;
 
-export const FAQ_ITEMS = [
-  {
-    id: "autonomo",
-    question: "Não tenho clínica ou consultório, posso usar o Sentinela como autônomo(a)?",
-    answer:
-      "Sim. O Sentinela funciona para profissionais autônomos que atendem em consultório próprio, coworking ou teleconsulta. Você configura sua agenda, serviços e link personalizado sem precisar de clínica ou equipe.",
-  },
+/** FAQ padrão — todas as landings de nicho (somente estas quatro). */
+export const LANDING_FAQ_ITEMS = [
   {
     id: "trial",
     question: "O teste grátis de 14 dias é realmente sem compromisso?",
     answer:
-      "Sim. Você usa todas as funcionalidades do plano escolhido por 14 dias sem informar cartão de crédito. Só assina se fizer sentido para o seu consultório.",
+      "Sim, e você não precisa inserir cartão. Você poderá usar as principais funções do site e já começar a trabalhar; a única função restrita ao plano pago é o envio de confirmação automática por WhatsApp.",
   },
+  {
+    id: "comecar",
+    question: "O que preciso pra começar agora?",
+    answer:
+      "Você pode começar por conta própria: crie sua conta, configure sua disponibilidade e pronto — já pode receber agendamentos. Ou nos acione para uma call com compartilhamento de tela, em que explicamos o sistema de forma mais ampla.",
+  },
+  {
+    id: "suporte",
+    question: "Quanto tempo demora o suporte?",
+    answer:
+      "Esse é um dos nossos diferenciais: tanto o suporte quanto a resolução dos casos são realizados sempre no mesmo dia do acionamento.",
+  },
+  {
+    id: "autonomo-clinica",
+    question: "O sistema é só para quem tem clínica ou para quem é autônomo também?",
+    answer:
+      "Serve para os dois. Você pode iniciar os atendimentos adicionando somente você como profissional e ir agregando mais profissionais com o decorrer do tempo.",
+  },
+] as const;
+
+/** Landing principal: FAQ padrão + especialidade. */
+export const LANDING_HOME_FAQ_ITEMS = [
+  ...LANDING_FAQ_ITEMS,
   {
     id: "especialidade",
     question: "Funciona para a minha especialidade?",
     answer:
       "O Sentinela foi pensado para profissionais de saúde e bem-estar: psicólogos, médicos, nutricionistas, dentistas e outras áreas com atendimento por hora marcada.",
-  },
-  {
-    id: "equipe",
-    question: "Posso adicionar outros profissionais da clínica?",
-    answer:
-      "Sim. Você pode cadastrar colaboradores ilimitados, cada um com sua agenda, serviços e bloqueios de horário.",
-  },
-  {
-    id: "pagamento",
-    question: "O paciente pode pagar antecipado ao agendar?",
-    answer:
-      "No plano Pro, sim. O paciente pode pagar o valor integral ou parcial para confirmar o horário. No plano Start, o agendamento online funciona sem cobrança antecipada.",
-  },
-  {
-    id: "suporte",
-    question: "Como funciona o suporte?",
-    answer:
-      "Nosso suporte é humanizado via WhatsApp. Você fala com pessoas reais que conhecem o sistema — não com robôs.",
   },
 ] as const;

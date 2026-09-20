@@ -12,6 +12,8 @@ const HERO_ILLUSTRATION_SRC: Record<HeroIllustrationKey, string> = {
   dentist: "/landing-hero-dentistas.jpg",
 };
 
+const HERO_PSI_ACCENT_SRC = "/landing-hero-psi-accent.png";
+
 const HERO_ILLUSTRATION_LABEL: Record<HeroIllustrationKey, string> = {
   doctor: "Ilustração de profissional de saúde em atendimento",
   psychologist: "Ilustração de atendimento psicológico",
@@ -22,6 +24,7 @@ export function LandingHero() {
   const { hero, primarySignupHref } = useLandingPageContent();
   const isDual = hero.layout === "dual";
   const isDentistPhoto = !isDual && hero.illustration === "dentist";
+  const isPsychologistSolo = !isDual && hero.illustration === "psychologist";
 
   return (
     <section className="landing-hero relative flex flex-col bg-background min-h-[100svh] pt-24 md:pt-32 pb-6 md:pb-10 overflow-x-clip">
@@ -35,7 +38,25 @@ export function LandingHero() {
           <div className="landing-hero__copy-inner text-center lg:text-left">
             <div className="landing-hero__copy-intro">
               <Reveal index={0}>
-                <p className="landing-eyebrow landing-hero__eyebrow text-primary mb-4">{hero.eyebrow}</p>
+                <p
+                  className={cn(
+                    "landing-eyebrow landing-hero__eyebrow text-primary mb-4",
+                    isPsychologistSolo &&
+                      "landing-hero__eyebrow--with-psi inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 lg:justify-start",
+                  )}
+                >
+                  <span>{hero.eyebrow}</span>
+                  {isPsychologistSolo ? (
+                    <img
+                      className="landing-hero-illustrations__psi-accent landing-hero-illustrations__psi-accent--eyebrow"
+                      src={HERO_PSI_ACCENT_SRC}
+                      alt=""
+                      width={320}
+                      height={400}
+                      decoding="async"
+                    />
+                  ) : null}
+                </p>
               </Reveal>
               <Reveal index={1}>
                 <h1 className="landing-hero__headline font-display text-[1.75rem] sm:text-4xl md:text-[2.75rem] lg:text-[3rem] font-semibold leading-[1.12] tracking-tight text-foreground mx-auto lg:mx-0">
@@ -86,9 +107,7 @@ export function LandingHero() {
             className={cn(
               "landing-hero-illustrations mx-auto w-full max-w-3xl lg:mx-0 lg:max-w-none",
               !isDual && "landing-hero-illustrations--single",
-              !isDual &&
-                hero.illustration === "psychologist" &&
-                "landing-hero-illustrations--psychologist-solo",
+              isPsychologistSolo && "landing-hero-illustrations--psychologist-single",
               isDentistPhoto && "landing-hero-illustrations--dentist-photo",
             )}
             role="img"

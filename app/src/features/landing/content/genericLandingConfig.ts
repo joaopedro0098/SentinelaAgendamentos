@@ -1,5 +1,5 @@
 import {
-  FAQ_ITEMS,
+  LANDING_HOME_FAQ_ITEMS,
   LANDING_AUDIENCE,
   LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_HOME,
   LANDING_HERO,
@@ -37,5 +37,5 @@ export const GENERIC_LANDING_PAGE_CONTENT: LandingPageContent = {
     stats: SOCIAL_PROOF_STATS,
     testimonials: TESTIMONIALS,
   },
-  faqItems: FAQ_ITEMS,
+  faqItems: LANDING_HOME_FAQ_ITEMS,
 };
