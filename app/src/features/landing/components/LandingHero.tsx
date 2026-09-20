@@ -75,7 +75,12 @@ export function LandingHero() {
 
         <Reveal
           index={5}
-          className="relative z-0 w-full shrink-0 px-4 sm:px-6 lg:px-0 lg:flex-1 lg:min-w-[min(100%,520px)] lg:max-w-none lg:-mt-6 xl:-mt-8 lg:-ml-2 xl:-ml-4 pointer-events-none"
+          className={cn(
+            "relative z-0 w-full shrink-0 px-4 sm:px-6 lg:px-0 lg:-ml-2 xl:-ml-4 pointer-events-none",
+            isDentistPhoto
+              ? "lg:-mt-[5px] lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:justify-end lg:max-w-xl xl:max-w-2xl landing-hero__visual--dentist"
+              : "lg:-mt-6 xl:-mt-8 lg:flex-1 lg:min-w-[min(100%,520px)] lg:max-w-none",
+          )}
         >
           <div
             className={cn(

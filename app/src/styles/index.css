@@ -424,16 +424,36 @@
     /* Recorte inferior do PNG (transparente) — alinha copy ao desenho visível */
     --landing-hero-visual-trim-bottom: 0px;
   }
+  .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__stage {
+    --landing-hero-art-height: min(300px, 40vh);
+  }
   @media (min-width: 1024px) {
     .landing-hero__stage {
       --landing-hero-art-height: min(620px, 72vh);
       --landing-hero-visual-trim-bottom: clamp(76px, 15.5%, 112px);
+    }
+    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__stage {
+      --landing-hero-art-height: min(480px, 58vh);
+      --landing-hero-visual-trim-bottom: 0px;
+    }
+    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__copy {
+      width: 48%;
+      max-width: 42rem;
+      flex-shrink: 0;
+    }
+    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__visual--dentist {
+      min-height: calc(
+        var(--landing-hero-art-height) - var(--landing-hero-visual-trim-bottom)
+      );
     }
   }
   @media (min-width: 1280px) {
     .landing-hero__stage {
       --landing-hero-art-height: min(660px, 76vh);
       --landing-hero-visual-trim-bottom: clamp(84px, 16%, 118px);
+    }
+    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__stage {
+      --landing-hero-art-height: min(520px, 62vh);
     }
   }
   @media (min-width: 1024px) {
@@ -536,13 +556,20 @@
       max-height: 98%;
       transform: translate(-44%, -50%);
     }
-    .landing-hero:has(.landing-hero-illustrations--dentist-photo) .landing-hero__stage {
-      --landing-hero-visual-trim-bottom: 0px;
-    }
   }
   /* Landing /dentistas: foto com fade curto até a cor de fundo */
   .landing-hero-illustrations--dentist-photo {
     border-radius: 1.25rem;
+    max-width: min(100%, 28rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  @media (min-width: 1024px) {
+    .landing-hero-illustrations--dentist-photo {
+      max-width: min(100%, 32rem);
+      margin-left: auto;
+      margin-right: 0;
+    }
   }
   .landing-hero-illustrations--dentist-photo .landing-hero-illustrations__piece--dentist {
     inset: 0;

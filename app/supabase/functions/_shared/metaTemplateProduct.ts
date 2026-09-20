@@ -36,6 +36,11 @@ export const VARIABLE_UI_LABELS: Record<TemplateLanguage, Record<TemplateVariabl
 
 export const VARIABLE_ORDER: TemplateVariableKey[] = ["cliente", "data", "hora"];
 
+export function variableKeysForCategory(category: SentinelaTemplateCategory): TemplateVariableKey[] {
+  if (category === "lembrete") return ["cliente", "hora"];
+  return VARIABLE_ORDER;
+}
+
 const EXAMPLE_VALUES: Record<TemplateLanguage, Record<Exclude<TemplateVariableKey, "data">, string>> = {
   pt_BR: {
     cliente: "Maria",
@@ -102,11 +107,11 @@ export const DEFAULT_BODY_TEXT: Record<SentinelaTemplateCategory, Record<Templat
   },
   lembrete: {
     pt_BR:
-      "Olá ⟦cliente⟧, lembrete: você tem horário na Barbearia Central no dia ⟦data⟧ às ⟦hora⟧.",
+      "Olá, ⟦cliente⟧, passando para lembrar que você tem um agendamento hoje comigo às ⟦hora⟧, Até logo!",
     es:
-      "Hola ⟦cliente⟧, recordatorio: tienes cita en Barbería Central el día ⟦data⟧ a las ⟦hora⟧.",
+      "Hola, ⟦cliente⟧, te recuerdo que tienes una cita hoy conmigo a las ⟦hora⟧. ¡Hasta luego!",
     en_US:
-      "Hi ⟦cliente⟧, reminder: you have an appointment at Central Barbershop on ⟦data⟧ at ⟦hora⟧.",
+      "Hi, ⟦cliente⟧, just a reminder that you have an appointment with me today at ⟦hora⟧. See you soon!",
   },
 };
 

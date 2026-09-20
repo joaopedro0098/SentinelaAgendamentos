@@ -28,6 +28,7 @@ import {
   TEMPLATE_LANGUAGE_OPTIONS,
   VARIABLE_ORDER,
   VARIABLE_UI_LABELS,
+  variableKeysForCategory,
   addVariableToBody,
   enabledVariablesRecordFromBody,
   removeVariableFromBody,
@@ -655,7 +656,7 @@ export function WhatsAppTemplatesDialog({ open, onOpenChange }: WhatsAppTemplate
             <div>
               <Label className="text-sm text-muted-foreground">Variáveis</Label>
               <div className="mt-1 space-y-1">
-                {VARIABLE_ORDER.map((varKey) => (
+                {variableKeysForCategory(category).map((varKey) => (
                   <label key={varKey} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"

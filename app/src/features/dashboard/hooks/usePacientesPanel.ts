@@ -26,22 +26,44 @@ import {
   isAgendamentoClienteNomeOnlyUpdate,
   clienteNomePayloadFromAgendamentoRow,
 } from "@agenda/lib/panelClienteNomeSync";
+import { pacientePainelWhatsappKey } from "@/features/dashboard/lib/pacientePainelWhatsappKey";
 
 export type PacienteDetailTab = "historico" | "documentos" | "cadastro";
+
+function pickPreferredPaciente(a: PacientePainelItem, b: PacientePainelItem): PacientePainelItem {
+  const prefer =
+    a.ultimo_atendimento > b.ultimo_atendimento
+      ? a
+      : b.ultimo_atendimento > a.ultimo_atendimento
+        ? b
+        : a.whatsapp_digits.length >= b.whatsapp_digits.length
+          ? a
+          : b;
+  const other = prefer === a ? b : a;
+  return {
+    ...prefer,
+    total_concluidos: Math.max(a.total_concluidos, b.total_concluidos),
+    total_anotacoes: Math.max(a.total_anotacoes, b.total_anotacoes),
+    conta_ativada: a.conta_ativada || b.conta_ativada,
+    cliente_id: prefer.cliente_id ?? other.cliente_id,
+  };
+}
+
+function dedupePacientesPage(list: PacientePainelItem[]): PacientePainelItem[] {
+  const byKey = new Map<string, PacientePainelItem>();
+  for (const p of list) {
+    const key = pacientePainelWhatsappKey(p.whatsapp_digits);
+    const prev = byKey.get(key);
+    byKey.set(key, prev ? pickPreferredPaciente(prev, p) : p);
+  }
+  return Array.from(byKey.values());
+}
 
 function mergePacientesUnique(
   prev: PacientePainelItem[],
   next: PacientePainelItem[],
 ): PacientePainelItem[] {
-  const seen = new Set(prev.map((p) => p.whatsapp_digits));
-  const merged = [...prev];
-  for (const p of next) {
-    if (!seen.has(p.whatsapp_digits)) {
-      merged.push(p);
-      seen.add(p.whatsapp_digits);
-    }
-  }
-  return merged;
+  return dedupePacientesPage([...prev, ...next]);
 }
 
 function patchPacienteInList(
@@ -127,7 +149,7 @@ export function usePacientesPanel() {
       return;
     }
     const page = result.data!;
-    setPacientes(page.pacientes);
+    setPacientes(dedupePacientesPage(page.pacientes));
     setProfissionais(page.profissionais);
     setTotalCount(page.total_count);
     setHasMore(page.has_more);

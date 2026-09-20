@@ -51,6 +51,13 @@ Deno.test("buildMetaTemplateComponents lembrete sem botões", () => {
   assertEquals(components[0]?.type, "BODY");
 });
 
+Deno.test("DEFAULT_BODY_TEXT lembrete usa só cliente e hora", () => {
+  const body = DEFAULT_BODY_TEXT.lembrete.pt_BR;
+  assertEquals(body.includes("⟦data⟧"), false);
+  assertEquals(body.includes("⟦cliente⟧"), true);
+  assertEquals(body.includes("⟦hora⟧"), true);
+});
+
 Deno.test("inferCategoryFromMetaTemplateName reconhece prefixos Sentinela", () => {
   assertEquals(inferCategoryFromMetaTemplateName("sentinela_confirmacao_abc"), "confirmacao");
   assertEquals(inferCategoryFromMetaTemplateName("sentinela_lembrete_xyz"), "lembrete");
