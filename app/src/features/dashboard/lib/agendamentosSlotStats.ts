@@ -1,6 +1,6 @@
 import { buildSlots, filtrarSlotsLivres, type Window } from "@agenda/lib/slots";
 import type { AgendamentoPainelItem } from "@/features/dashboard/lib/agendamentosPanel";
-import { ymd, getWeekRange, parseYmd } from "@/features/dashboard/lib/agendamentosPanel";
+import { eachDayInRange } from "@/features/dashboard/lib/agendamentosPanel";
 
 export type ProfScheduleInput = {
   id: string;
@@ -147,80 +147,19 @@ function aggregateSlotStats(statsList: Iterable<DaySlotStats>): DaySlotStats {
   return finalizeSlotStats(occupied, total);
 }
 
-/** Total de slots do mês (soma de todos os dias visíveis no filtro). */
-export function computeMonthPeriodSlotStats(
-  displayMonth: Date,
-  schedules: ProfScheduleInput[],
-  appointments: AgendamentoPainelItem[],
-  profId: string | null,
-): DaySlotStats {
-  const dayStats = buildMonthDayStats(displayMonth, schedules, appointments, profId);
-  return aggregateSlotStats(dayStats.values());
-}
-
-/** Total de slots de um único dia (filtro Dia). */
-export function computeDayPeriodSlotStats(
-  dateYmd: string,
+/** Total de slots do intervalo selecionado no calendário (Agendamentos desktop). */
+export function computeRangePeriodSlotStats(
+  startYmd: string,
+  endYmd: string,
   schedules: ProfScheduleInput[],
   appointments: AgendamentoPainelItem[],
   profId: string | null,
 ): DaySlotStats {
   const activeSchedules = profId ? schedules.filter((s) => s.id === profId) : schedules;
-  const dayAppointments = appointments.filter((a) => a.data === dateYmd);
-  return computeAggregatedDaySlotStats(dateYmd, activeSchedules, dayAppointments);
-}
-
-/** Mapa dia → ocupação para cada célula do calendário mensal. */
-export function buildMonthDayStats(
-  displayMonth: Date,
-  schedules: ProfScheduleInput[],
-  appointments: AgendamentoPainelItem[],
-  profId: string | null,
-): Map<string, DaySlotStats> {
-  const year = displayMonth.getFullYear();
-  const month = displayMonth.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const activeSchedules = profId ? schedules.filter((s) => s.id === profId) : schedules;
-  const result = new Map<string, DaySlotStats>();
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = ymd(new Date(year, month, d));
-    const dayAppts = appointments.filter((a) => a.data === key);
-    result.set(key, computeAggregatedDaySlotStats(key, activeSchedules, dayAppts));
+  const statsList: DaySlotStats[] = [];
+  for (const dayYmd of eachDayInRange(startYmd, endYmd)) {
+    const dayAppts = appointments.filter((a) => a.data === dayYmd);
+    statsList.push(computeAggregatedDaySlotStats(dayYmd, activeSchedules, dayAppts));
   }
-
-  return result;
-}
-
-/** Mapa dia → ocupação para cada célula da semana (domingo–sábado). */
-export function buildWeekDayStats(
-  anchorYmd: string,
-  schedules: ProfScheduleInput[],
-  appointments: AgendamentoPainelItem[],
-  profId: string | null,
-): Map<string, DaySlotStats> {
-  const { start } = getWeekRange(parseYmd(anchorYmd));
-  const activeSchedules = profId ? schedules.filter((s) => s.id === profId) : schedules;
-  const result = new Map<string, DaySlotStats>();
-
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(start);
-    day.setDate(start.getDate() + i);
-    const key = ymd(day);
-    const dayAppts = appointments.filter((a) => a.data === key);
-    result.set(key, computeAggregatedDaySlotStats(key, activeSchedules, dayAppts));
-  }
-
-  return result;
-}
-
-/** Total de slots da semana (soma domingo–sábado). */
-export function computeWeekPeriodSlotStats(
-  anchorYmd: string,
-  schedules: ProfScheduleInput[],
-  appointments: AgendamentoPainelItem[],
-  profId: string | null,
-): DaySlotStats {
-  const dayStats = buildWeekDayStats(anchorYmd, schedules, appointments, profId);
-  return aggregateSlotStats(dayStats.values());
+  return aggregateSlotStats(statsList);
 }

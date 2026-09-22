@@ -46,7 +46,10 @@ export default function AppLayout() {
   const { shop } = useDashboardShop();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   useEffect(() => {
-    if (!location.pathname.startsWith("/app/pacientes")) return;
+    const autoCollapse =
+      location.pathname.startsWith("/app/pacientes")
+      || location.pathname.startsWith("/app/agendamentos");
+    if (!autoCollapse) return;
     setSidebarCollapsed(true);
     writeSidebarCollapsed(true);
   }, [location.pathname]);

@@ -13,16 +13,11 @@ import {
 } from "@agenda/lib/panelClienteNomeSync";
 import { useClienteNomeSyncListener } from "@/features/dashboard/hooks/usePainelClienteNomeBroadcast";
 import {
-  buildMonthDayStats,
-  buildWeekDayStats,
-  computeDayPeriodSlotStats,
-  computeMonthPeriodSlotStats,
-  computeWeekPeriodSlotStats,
+  computeRangePeriodSlotStats,
   getProfDaySlotContext,
   type ProfScheduleInput,
 } from "@/features/dashboard/lib/agendamentosSlotStats";
 import { AgendamentosPeriodOccupancy } from "@/features/dashboard/components/agendamentos/AgendamentosPeriodOccupancy";
-import { AgendamentosWeekCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosWeekCalendar";
 import type { CaBarbearia, DashboardShop } from "@/providers/DashboardShopProvider";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 import {
@@ -44,9 +39,10 @@ import {
   filterAgendamentos,
   formatMoney,
   formatPaymentSummary,
-  getPeriodRange,
-  getWeekRange,
   getPeriodSummaryVisibility,
+  isSingleDayRange,
+  normalizeDateRange,
+  type DateRangeYmd,
   getStatusFilterOptions,
   isPastDay,
   canManageAgendamento,
@@ -60,7 +56,6 @@ import {
   type AgendamentoPainelSummary,
   type AgendamentoProfissional,
   type StatusFilter,
-  type ViewMode,
   ymd,
 } from "@/features/dashboard/lib/agendamentosPanel";
 import {
@@ -72,7 +67,6 @@ import {
 } from "@/features/dashboard/lib/agendamentosPanelActions";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { AgendamentosMiniCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMiniCalendar";
-import { AgendamentosMonthCalendar } from "@/features/dashboard/components/agendamentos/AgendamentosMonthCalendar";
 import { MinimalFilterSelect, AGENDAMENTOS_SIDEBAR_SECTION_LABEL } from "@/features/dashboard/components/agendamentos/MinimalFilterSelect";
 import { AgendamentoStatusBadge } from "@/features/dashboard/components/agendamentos/AgendamentoStatusBadge";
 import {
@@ -418,18 +412,6 @@ function buildDayGrid(
   return { columns, rows };
 }
 
-function shiftAnchor(viewMode: ViewMode, anchorYmd: string, delta: number) {
-  const d = parseYmd(anchorYmd);
-  if (viewMode === "dia") {
-    d.setDate(d.getDate() + delta);
-  } else if (viewMode === "semana") {
-    d.setDate(d.getDate() + delta * 7);
-  } else {
-    d.setMonth(d.getMonth() + delta);
-  }
-  return ymd(d);
-}
-
 export default function AgendamentosDesktopPanel({
   slug,
   barbeariaId,
@@ -440,8 +422,10 @@ export default function AgendamentosDesktopPanel({
 }: Props) {
   const navigate = useNavigate();
   const { slotGridRevision, permissionsRevision } = useDashboardShop();
-  const [viewMode, setViewMode] = useState<ViewMode>("dia");
-  const [anchorYmd, setAnchorYmd] = useState(() => ymd(new Date()));
+  const [range, setRange] = useState<DateRangeYmd>(() => {
+    const today = ymd(new Date());
+    return { startYmd: today, endYmd: today };
+  });
   const [displayMonth, setDisplayMonth] = useState(() => monthStart(new Date()));
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<AgendamentoPainelItem[]>([]);
@@ -482,7 +466,12 @@ export default function AgendamentosDesktopPanel({
   const [dayGridResizing, setDayGridResizing] = useState(false);
   const dayGridResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
-  const period = useMemo(() => getPeriodRange(viewMode, anchorYmd), [viewMode, anchorYmd]);
+  const period = useMemo(
+    () => normalizeDateRange(range.startYmd, range.endYmd),
+    [range.startYmd, range.endYmd],
+  );
+  const isSingleDay = isSingleDayRange(period);
+  const selectedDayYmd = period.startYmd;
   const statusFilterOptions = useMemo(
     () => getStatusFilterOptions(period.startYmd, period.endYmd),
     [period.startYmd, period.endYmd],
@@ -609,24 +598,13 @@ export default function AgendamentosDesktopPanel({
       setBookingProfessionals([]);
       return;
     }
-    if (viewMode !== "dia" && viewMode !== "semana" && viewMode !== "mes") {
-      setProfSchedules([]);
-      return;
-    }
-    const range =
-      viewMode === "mes"
-        ? getPeriodRange("mes", anchorYmd)
-        : viewMode === "semana"
-          ? getPeriodRange("semana", anchorYmd)
-          : { startYmd: anchorYmd, endYmd: anchorYmd };
-
     setLoadingSchedule(true);
     try {
       await supabase.rpc("ensure_agenda_from_barbershop_slug", { p_slug: slug });
       const { data, error } = await supabase.rpc("get_booking_professionals", {
         p_slug: slug,
-        p_from: range.startYmd,
-        p_to: range.endYmd,
+        p_from: period.startYmd,
+        p_to: period.endYmd,
         p_hub_only: isCA,
         p_editable_cas_only: false,
         p_painel_visiveis: !isCA,
@@ -641,7 +619,7 @@ export default function AgendamentosDesktopPanel({
     } finally {
       setLoadingSchedule(false);
     }
-  }, [slug, viewMode, anchorYmd, slotGridRevision, permissionsRevision, isCA]);
+  }, [slug, period.startYmd, period.endYmd, slotGridRevision, permissionsRevision, isCA]);
 
   const visibleProfIds = useMemo(() => new Set(profissionais.map((p) => p.id)), [profissionais]);
 
@@ -671,8 +649,8 @@ export default function AgendamentosDesktopPanel({
   }, [profissionais, debouncedLoadProfSchedules]);
 
   useEffect(() => {
-    setDisplayMonth(monthStart(parseYmd(anchorYmd)));
-  }, [anchorYmd]);
+    setDisplayMonth(monthStart(parseYmd(range.startYmd)));
+  }, [range.startYmd]);
 
   const registeredServiceNames = useMemo(
     () => collectRegisteredServiceNames(bookingProfessionals, visibleProfIds),
@@ -753,61 +731,37 @@ export default function AgendamentosDesktopPanel({
     [items, profissionalId, servico, statusFilter],
   );
 
-  const showDayGrid = viewMode === "dia" && profFilter === "todos" && profissionais.length > 0;
-  const showDayListTimeline = viewMode === "dia" && profFilter !== "todos" && !!profissionalId;
-  const canBookEmptySlots = viewMode === "dia" && !isPastDay(anchorYmd);
-  const showMonthCalendar = viewMode === "mes";
-  const showWeekCalendar = viewMode === "semana";
-  const showPeriodCalendar = showMonthCalendar || showWeekCalendar;
+  const showDayGrid = isSingleDay && profFilter === "todos" && profissionais.length > 0;
+  const showDayListTimeline = isSingleDay && profFilter !== "todos" && !!profissionalId;
+  const canBookEmptySlots = isSingleDay && !isPastDay(selectedDayYmd);
 
-  const monthDayStats = useMemo(
-    () => buildMonthDayStats(displayMonth, profSchedules, items, profissionalId),
-    [displayMonth, profSchedules, items, profissionalId],
+  const periodOccupancy = useMemo(
+    () => computeRangePeriodSlotStats(period.startYmd, period.endYmd, profSchedules, items, null),
+    [period.startYmd, period.endYmd, profSchedules, items],
   );
 
-  const weekDayStats = useMemo(
-    () => buildWeekDayStats(anchorYmd, profSchedules, items, profissionalId),
-    [anchorYmd, profSchedules, items, profissionalId],
-  );
+  const periodOccupancyLabel = isSingleDay ? "Ocupação do dia" : "Ocupação do período";
 
-  const periodOccupancy = useMemo(() => {
-    if (viewMode === "mes") {
-      return computeMonthPeriodSlotStats(displayMonth, profSchedules, items, null);
-    }
-    if (viewMode === "semana") {
-      return computeWeekPeriodSlotStats(anchorYmd, profSchedules, items, null);
-    }
-    return computeDayPeriodSlotStats(anchorYmd, profSchedules, items, null);
-  }, [viewMode, displayMonth, anchorYmd, profSchedules, items]);
-
-  const periodOccupancyLabel =
-    viewMode === "mes"
-      ? "Ocupação do mês"
-      : viewMode === "semana"
-        ? "Ocupação da semana"
-        : "Ocupação do dia";
-
-  const handlePeriodDayClick = useCallback((dayYmd: string) => {
-    setAnchorYmd(dayYmd);
-    setViewMode("dia");
+  const handleRangeChange = useCallback((next: DateRangeYmd) => {
+    setRange(normalizeDateRange(next.startYmd, next.endYmd));
   }, []);
 
   const dayGrid = useMemo(() => {
     if (!showDayGrid) return null;
-    const dayItemsAll = items.filter((a) => a.data === anchorYmd);
-    const dayItemsVisible = filteredList.filter((a) => a.data === anchorYmd);
-    return buildDayGrid(anchorYmd, profSchedules, profissionais, dayItemsAll, dayItemsVisible);
-  }, [showDayGrid, profSchedules, profissionais, filteredList, items, anchorYmd]);
+    const dayItemsAll = items.filter((a) => a.data === selectedDayYmd);
+    const dayItemsVisible = filteredList.filter((a) => a.data === selectedDayYmd);
+    return buildDayGrid(selectedDayYmd, profSchedules, profissionais, dayItemsAll, dayItemsVisible);
+  }, [showDayGrid, profSchedules, profissionais, filteredList, items, selectedDayYmd]);
 
   const listRows = useMemo((): TimelineEntry[] => {
     if (showDayListTimeline && profissionalId) {
-      const dayItemsAll = items.filter((a) => a.data === anchorYmd);
-      const dayItemsVisible = filteredList.filter((a) => a.data === anchorYmd);
+      const dayItemsAll = items.filter((a) => a.data === selectedDayYmd);
+      const dayItemsVisible = filteredList.filter((a) => a.data === selectedDayYmd);
       const prof = profSchedules.find((p) => p.id === profissionalId);
       if (prof) {
         const visible = dayItemsVisible.filter((a) => a.barbeiro_id === profissionalId);
         const occupancy = dayItemsAll.filter((a) => a.barbeiro_id === profissionalId);
-        return buildDayTimeline(anchorYmd, visible, occupancy, prof, profissionalId);
+        return buildDayTimeline(selectedDayYmd, visible, occupancy, prof, profissionalId);
       }
       return dayItemsVisible
         .filter((a) => a.barbeiro_id === profissionalId)
@@ -834,11 +788,10 @@ export default function AgendamentosDesktopPanel({
     profSchedules,
     filteredList,
     items,
-    anchorYmd,
+    selectedDayYmd,
   ]);
 
   const listIsEmpty =
-    !showPeriodCalendar &&
     !loading &&
     !loadingSchedule &&
     (showDayGrid ? (dayGrid?.rows.length ?? 0) === 0 : listRows.length === 0);
@@ -883,7 +836,7 @@ export default function AgendamentosDesktopPanel({
 
   const handleOpenSlotBooking = useCallback(
     (hora: string, barbeiroId: string) => {
-      if (viewMode !== "dia" || isPastDay(anchorYmd)) return;
+      if (!isSingleDay || isPastDay(selectedDayYmd)) return;
       const prof =
         bookingProfessionals.find((p) => p.id === barbeiroId)
         ?? (() => {
@@ -907,7 +860,7 @@ export default function AgendamentosDesktopPanel({
         return;
       }
       setSlotBookingTarget({
-        data: anchorYmd,
+        data: selectedDayYmd,
         hora: formatHora(hora),
         barbeiroId,
         barbeiroNome: prof.nome,
@@ -916,7 +869,7 @@ export default function AgendamentosDesktopPanel({
         servicos: prof.servicos,
       });
     },
-    [viewMode, anchorYmd, bookingProfessionals, profissionais, profSchedules],
+    [isSingleDay, selectedDayYmd, bookingProfessionals, profissionais, profSchedules],
   );
 
   function handleAlterar(a: AgendamentoPainelItem) {
@@ -1191,9 +1144,9 @@ export default function AgendamentosDesktopPanel({
             if (!canBookEmptySlots) {
               toast({
                 title: "Horário indisponível",
-                description: isPastDay(anchorYmd)
+                description: isPastDay(selectedDayYmd)
                   ? "Não é possível agendar em dias passados."
-                  : "Selecione o modo Dia para agendar por horário.",
+                  : "Selecione um único dia no calendário para agendar por horário.",
                 variant: "destructive",
               });
               return;
@@ -1216,7 +1169,7 @@ export default function AgendamentosDesktopPanel({
   }
 
   function renderAppointmentRow(a: AgendamentoPainelItem) {
-    const showDate = viewMode !== "dia";
+    const showDate = !isSingleDay;
     const appointmentPast = isPastDay(a.data);
     const rowBusy = statusChangingId === a.id || markingNoShowId === a.id;
     const manageable = canManageAgendamento(a, barbeariaId);
@@ -1302,36 +1255,13 @@ export default function AgendamentosDesktopPanel({
         <div className="shrink-0 space-y-3 border-b border-border/60 p-4">
           <AgendamentosMiniCalendar
             className={AGENDAMENTOS_SIDEBAR_CARD}
-            viewMode={viewMode}
-            anchorYmd={anchorYmd}
-            onAnchorChange={setAnchorYmd}
+            range={period}
+            onRangeChange={handleRangeChange}
             onMonthChange={(delta) => {
-              if (viewMode === "mes") {
-                setAnchorYmd((cur) => shiftAnchor("mes", cur, delta));
-              } else {
-                setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
-              }
+              setDisplayMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
             }}
             displayMonth={displayMonth}
           />
-
-          <div className={cn("flex p-0.5", AGENDAMENTOS_SIDEBAR_CARD, "dark:bg-card/40")}>
-            {(["dia", "semana", "mes"] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setViewMode(mode)}
-                className={cn(
-                  "flex-1 rounded-lg py-2 text-xs font-semibold capitalize transition-colors",
-                  viewMode === mode
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-secondary/50",
-                )}
-              >
-                {mode === "dia" ? "Dia" : mode === "semana" ? "Semana" : "Mês"}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
@@ -1429,7 +1359,7 @@ export default function AgendamentosDesktopPanel({
           <AgendamentosPeriodOccupancy stats={periodOccupancy} label={periodOccupancyLabel} />
         </header>
 
-        {!showDayGrid && viewMode !== "mes" && viewMode !== "semana" ? (
+        {!showDayGrid ? (
           <div className={cn(LIST_HEADER_ROW, "sticky top-0 z-10 shrink-0")}>
             <span className="min-w-0 truncate">Horário</span>
             <span className="min-w-0 truncate">Cliente</span>
@@ -1446,27 +1376,13 @@ export default function AgendamentosDesktopPanel({
             showDayGrid ? "overflow-auto" : "overflow-y-auto",
           )}
         >
-          {(loading || ((showDayGrid || showDayListTimeline || showPeriodCalendar) && loadingSchedule)) && (
+          {(loading || ((showDayGrid || showDayListTimeline) && loadingSchedule)) && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           )}
 
-          {showWeekCalendar ? (
-            <AgendamentosWeekCalendar
-              anchorYmd={anchorYmd}
-              dayStats={weekDayStats}
-              selectedDayYmd={anchorYmd}
-              onDayClick={handlePeriodDayClick}
-            />
-          ) : showMonthCalendar ? (
-            <AgendamentosMonthCalendar
-              displayMonth={displayMonth}
-              dayStats={monthDayStats}
-              selectedDayYmd={anchorYmd}
-              onDayClick={handlePeriodDayClick}
-            />
-          ) : !listIsEmpty ? (
+          {!listIsEmpty ? (
             showDayGrid && dayGrid ? (
               <div className="min-w-max">
                 <div className="relative sticky top-0 z-10 shrink-0 bg-background">
@@ -1578,9 +1494,9 @@ export default function AgendamentosDesktopPanel({
                         if (!canBookEmptySlots) {
                           toast({
                             title: "Horário indisponível",
-                            description: isPastDay(anchorYmd)
+                            description: isPastDay(selectedDayYmd)
                               ? "Não é possível agendar em dias passados."
-                              : "Selecione o modo Dia para agendar por horário.",
+                              : "Selecione um único dia no calendário para agendar por horário.",
                             variant: "destructive",
                           });
                           return;

@@ -1,7 +1,5 @@
 import { isPastCalendarDate } from "@agenda/lib/appointmentDates";
 
-export type ViewMode = "dia" | "semana" | "mes";
-
 export type AgendamentoPainelItem = {
   id: string;
   data: string;
@@ -74,34 +72,39 @@ export function monthStart(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-/** Semana domingo–sábado (padrão brasileiro). */
-export function getWeekRange(anchor: Date) {
-  const d = new Date(anchor);
-  d.setHours(12, 0, 0, 0);
-  const start = new Date(d);
-  start.setDate(d.getDate() - d.getDay());
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return { start, end };
+export type DateRangeYmd = { startYmd: string; endYmd: string };
+
+export function compareYmd(a: string, b: string) {
+  return a.localeCompare(b);
 }
 
-function getMonthRange(anchor: Date) {
-  const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  return { start, end };
+/** Garante startYmd ≤ endYmd. */
+export function normalizeDateRange(startYmd: string, endYmd: string): DateRangeYmd {
+  if (compareYmd(startYmd, endYmd) <= 0) {
+    return { startYmd, endYmd };
+  }
+  return { startYmd: endYmd, endYmd: startYmd };
 }
 
-export function getPeriodRange(viewMode: ViewMode, anchorYmd: string) {
-  const anchor = parseYmd(anchorYmd);
-  if (viewMode === "dia") {
-    return { start: anchor, end: anchor, startYmd: anchorYmd, endYmd: anchorYmd };
+export function isSingleDayRange(range: DateRangeYmd) {
+  return range.startYmd === range.endYmd;
+}
+
+export function isDayInRange(dayYmd: string, range: DateRangeYmd) {
+  return compareYmd(dayYmd, range.startYmd) >= 0 && compareYmd(dayYmd, range.endYmd) <= 0;
+}
+
+/** Lista inclusiva de dias YMD entre start e end. */
+export function eachDayInRange(startYmd: string, endYmd: string): string[] {
+  const { startYmd: s, endYmd: e } = normalizeDateRange(startYmd, endYmd);
+  const out: string[] = [];
+  const cur = parseYmd(s);
+  const end = parseYmd(e);
+  while (cur <= end) {
+    out.push(ymd(cur));
+    cur.setDate(cur.getDate() + 1);
   }
-  if (viewMode === "semana") {
-    const { start, end } = getWeekRange(anchor);
-    return { start, end, startYmd: ymd(start), endYmd: ymd(end) };
-  }
-  const { start, end } = getMonthRange(anchor);
-  return { start, end, startYmd: ymd(start), endYmd: ymd(end) };
+  return out;
 }
 
 export function formatMoney(centavos: number) {
