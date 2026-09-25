@@ -19,8 +19,16 @@ interface Props {
   bleedClassName?: string;
   /** Lista vertical com scroll próprio (3+ itens no painel e no link público). */
   vertical?: boolean;
+  /** Força coluna vertical mesmo com poucos itens (modal do painel). */
+  forceVertical?: boolean;
   /** Coluna direita no layout lado a lado (3+ profissionais). */
   inSplitColumn?: boolean;
+}
+
+function formatPanelServicePrice(cents: number) {
+  const value = cents > 0 ? formatServicePrice(cents) : "";
+  if (value) return value;
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0);
 }
 
 function renderServicoButtons(
@@ -31,24 +39,40 @@ function renderServicoButtons(
 ) {
   return servicos.map((s) => {
     const sel = selecionados.includes(s.id);
-    const priceLabel =
-      showPrices && (s.preco_centavos ?? 0) > 0 ? formatServicePrice(s.preco_centavos ?? 0) : null;
+    const priceLabel = showPrices ? formatPanelServicePrice(s.preco_centavos ?? 0) : null;
     return (
       <button
         key={s.id}
         type="button"
         onClick={() => onToggle(s.id)}
         className={cn(
-          "snap-start shrink-0 min-w-[8.5rem] w-max max-w-[calc(100vw-2.5rem)] min-h-14 h-auto px-3 py-2 rounded-2xl flex flex-col items-center justify-center font-semibold transition active:scale-95 md:min-h-12 md:max-w-none",
+          "snap-start shrink-0 min-w-[8.5rem] w-max max-w-[calc(100vw-2.5rem)] min-h-14 h-auto px-3 py-2 rounded-2xl font-semibold transition active:scale-95 md:min-h-12 md:max-w-none",
+          showPrices
+            ? "flex flex-row items-center justify-between gap-3 text-left"
+            : "flex flex-col items-center justify-center",
           sel
             ? "bg-foreground/50 text-white ring-1 ring-foreground/15 dark:bg-foreground/16 dark:text-foreground dark:ring-foreground/15"
             : "bg-muted text-foreground",
         )}
       >
-        <span className="text-sm leading-snug text-center whitespace-normal break-words">{s.nome}</span>
-        {priceLabel && (
-          <span className="text-[10px] font-normal opacity-70 mt-0.5 leading-none">{priceLabel}</span>
-        )}
+        <span
+          className={cn(
+            "text-sm leading-snug whitespace-normal break-words",
+            showPrices ? "min-w-0 flex-1" : "text-center",
+          )}
+        >
+          {s.nome}
+        </span>
+        {priceLabel ? (
+          <span
+            className={cn(
+              "shrink-0 text-xs font-normal tabular-nums leading-none",
+              showPrices ? "opacity-90" : "opacity-70 mt-0.5",
+            )}
+          >
+            {priceLabel}
+          </span>
+        ) : null}
       </button>
     );
   });
@@ -62,6 +86,7 @@ export const ServicosCarousel = ({
   stripClassName,
   bleedClassName,
   vertical = false,
+  forceVertical = false,
   inSplitColumn = false,
 }: Props) => {
   if (!servicos.length) return null;
@@ -76,7 +101,13 @@ export const ServicosCarousel = ({
           {buttons}
         </div>
       ) : (
-        <BookingScrollChipList vertical={vertical} bleedClassName={bleedClassName} mobileClassName={stripClassName}>
+        <BookingScrollChipList
+          vertical={vertical || forceVertical}
+          verticalScrollAfter={3}
+          verticalItemCount={servicos.length}
+          bleedClassName={bleedClassName}
+          mobileClassName={stripClassName}
+        >
           {buttons}
         </BookingScrollChipList>
       )}

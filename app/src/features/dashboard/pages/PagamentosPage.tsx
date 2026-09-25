@@ -27,13 +27,9 @@ import { buildSlotTakenLatePaymentMessage } from "@/lib/mpPaymentExceptionMessag
 import {
   disconnectMpAccount,
   fetchPaymentPanelSettings,
-  formatDepositFixedReais,
-  parseDepositFixedReais,
-  paymentModeLabel,
   savePaymentPanelSettings,
+  saveShopManualPixKey,
   startMpOAuth,
-  type AppointmentDepositType,
-  type AppointmentPaymentMode,
   type PaymentPanelSettings,
 } from "@/lib/paymentsApi";
 
@@ -42,8 +38,6 @@ const MP_STATUS_LABEL: Record<string, string> = {
   connected: "Conectado",
   token_expired: "Token expirado — reconecte",
 };
-
-const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 type MpPaymentException = {
   id: string;
@@ -101,39 +95,22 @@ export default function PagamentosPage() {
   const [connecting, setConnecting] = useState(false);
   const [settings, setSettings] = useState<PaymentPanelSettings | null>(null);
 
-  const [paymentMode, setPaymentMode] = useState<AppointmentPaymentMode>("none");
-  const [depositType, setDepositType] = useState<AppointmentDepositType>("percent");
-  const [depositPercent, setDepositPercent] = useState("30");
-  const [depositFixedReais, setDepositFixedReais] = useState("50,00");
   const [centralized, setCentralized] = useState(true);
-  const [enableCard, setEnableCard] = useState(true);
-  const [enablePix, setEnablePix] = useState(true);
   const [passFeeCard, setPassFeeCard] = useState(false);
   const [passFeePix, setPassFeePix] = useState(false);
-  const [maxInstallments, setMaxInstallments] = useState("1");
+  const [manualPixKey, setManualPixKey] = useState("");
+  const [savingManualPix, setSavingManualPix] = useState(false);
   const [exceptions, setExceptions] = useState<MpPaymentException[]>([]);
   const [loadingExceptions, setLoadingExceptions] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolveTargetId, setResolveTargetId] = useState<string | null>(null);
 
   const applySettingsToForm = useCallback((data: PaymentPanelSettings) => {
-    if (data.appointment_payment_mode) setPaymentMode(data.appointment_payment_mode);
-    if (data.appointment_deposit_type === "fixed" || data.appointment_deposit_type === "percent") {
-      setDepositType(data.appointment_deposit_type);
-    }
-    if (data.appointment_deposit_value != null) {
-      if (data.appointment_deposit_type === "fixed") {
-        setDepositFixedReais(formatDepositFixedReais(data.appointment_deposit_value));
-      } else {
-        setDepositPercent(String(data.appointment_deposit_value));
-      }
-    }
     if (data.payments_centralized != null) setCentralized(data.payments_centralized);
-    if (data.payment_enable_card != null) setEnableCard(data.payment_enable_card);
-    if (data.payment_enable_pix != null) setEnablePix(data.payment_enable_pix);
     if (data.payment_pass_fee_card != null) setPassFeeCard(data.payment_pass_fee_card);
     if (data.payment_pass_fee_pix != null) setPassFeePix(data.payment_pass_fee_pix);
-    if (data.payment_max_installments != null) setMaxInstallments(String(data.payment_max_installments));
+    if (data.manual_pix_key != null) setManualPixKey(data.manual_pix_key);
+    else setManualPixKey("");
   }, []);
 
   const loadExceptions = useCallback(async () => {
@@ -247,6 +224,50 @@ export default function PagamentosPage() {
     }
   }
 
+  async function handleSaveManualPixKey() {
+    setSavingManualPix(true);
+    try {
+      const saved = await saveShopManualPixKey(manualPixKey);
+      setManualPixKey(saved ?? "");
+      toast({ title: "Chave Pix salva" });
+    } catch (e) {
+      toast({
+        title: "Não foi possível salvar",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingManualPix(false);
+    }
+  }
+
+  async function handlePassFeeToggle(field: "card" | "pix", next: boolean) {
+    const prevCard = passFeeCard;
+    const prevPix = passFeePix;
+    if (field === "card") setPassFeeCard(next);
+    else setPassFeePix(next);
+    setSaving(true);
+    try {
+      const updated = await savePaymentPanelSettings({
+        payment_pass_fee_card: field === "card" ? next : passFeeCard,
+        payment_pass_fee_pix: field === "pix" ? next : passFeePix,
+      });
+      setSettings(updated);
+      applySettingsToForm(updated);
+      toast({ title: "Repasse de taxas atualizado" });
+    } catch (e) {
+      setPassFeeCard(prevCard);
+      setPassFeePix(prevPix);
+      toast({
+        title: "Erro ao salvar",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleCentralizationToggle(next: boolean) {
     setCentralized(next);
     setSaving(true);
@@ -261,49 +282,6 @@ export default function PagamentosPage() {
       toast({
         title: "Erro ao salvar",
         description: e instanceof Error ? e.message : "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      let depositValue: number | null = null;
-      if (paymentMode === "deposit") {
-        if (depositType === "percent") {
-          depositValue = Math.min(100, Math.max(1, parseInt(depositPercent, 10) || 0));
-        } else {
-          depositValue = parseDepositFixedReais(depositFixedReais);
-          if (depositValue < 50) {
-            throw new Error("Valor fixo do sinal deve ser de pelo menos R$ 0,50.");
-          }
-        }
-      }
-
-      const updated = await savePaymentPanelSettings({
-        payments_centralized: settings?.can_edit_centralization ? centralized : undefined,
-        appointment_payment_mode: paymentMode,
-        appointment_deposit_type: paymentMode === "deposit" ? depositType : null,
-        appointment_deposit_value: paymentMode === "deposit" ? depositValue : null,
-        payment_enable_card: enableCard,
-        payment_enable_pix: enablePix,
-        payment_pass_fee_card: passFeeCard,
-        payment_pass_fee_pix: passFeePix,
-        payment_max_installments: enableCard ? parseInt(maxInstallments, 10) || 1 : 1,
-      });
-      setSettings(updated);
-      applySettingsToForm(updated);
-      if (settings?.can_edit_centralization) {
-        notifyCasPaymentsConfigChanged();
-      }
-      toast({ title: "Configurações salvas" });
-    } catch (e) {
-      toast({
-        title: "Não foi possível salvar",
-        description: e instanceof Error ? e.message : "Verifique os dados e tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -410,9 +388,6 @@ export default function PagamentosPage() {
   const mpConnected = settings?.mp_connected === true;
   const canConnectMp = settings?.can_connect_mp !== false;
   const mpManagedByTitular = settings?.mp_managed_by_titular === true;
-  const chargeEnabled = paymentMode !== "none";
-  const canSaveCharge =
-    !chargeEnabled || (mpConnected && (enableCard || enablePix));
 
   return (
     <div className="panel-canvas-page mx-auto max-w-2xl px-4 py-8 space-y-6">
@@ -478,7 +453,8 @@ export default function PagamentosPage() {
       )}
 
       <p className="text-sm text-muted-foreground -mt-2">
-        Recebimentos de agendamentos pelo link público via Mercado Pago. O painel interno continua sem cobrança.
+        Conecte o Mercado Pago e centralize recebimentos. As regras de cobrança por agendamento são definidas ao
+        marcar &quot;Cobrar&quot; na aba Agendamentos.
       </p>
 
       <AlertDialog open={resolveTargetId != null} onOpenChange={(open) => !open && setResolveTargetId(null)}>
@@ -543,8 +519,7 @@ export default function PagamentosPage() {
 
           {mpManagedByTitular ? (
             <p className="text-sm text-muted-foreground rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-              A conexão Mercado Pago é gerenciada pelo titular. Você pode configurar as regras de cobrança do
-              seu link abaixo.
+              A conexão Mercado Pago é gerenciada pelo titular.
             </p>
           ) : !mpConnected ? (
             <Button
@@ -590,190 +565,70 @@ export default function PagamentosPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cobrança no link público</CardTitle>
-          <CardDescription>Modo atual: {paymentModeLabel(settings?.appointment_payment_mode)}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {chargeEnabled && !mpConnected && (
-            <p className="text-sm text-destructive rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
-              Conecte sua conta Mercado Pago antes de exigir pagamento no link público.
-            </p>
-          )}
-
-          {chargeEnabled && settings?.has_priced_services === false && (
-            <p className="text-sm text-amber-700 dark:text-amber-400 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-              Nenhum serviço ativo com preço cadastrado. Agendamentos com serviços gratuitos ou sem preço
-              seguirão sem cobrança. Cadastre preços em{" "}
-              <Link to="/app/profissionais" className="underline font-medium">
-                Profissionais
-              </Link>
-              .
-            </p>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="payment-mode">Modo de cobrança</Label>
-            <select
-              id="payment-mode"
-              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-              value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value as AppointmentPaymentMode)}
-            >
-              <option value="none">Sem cobrança</option>
-              <option value="deposit">Sinal (parte do valor)</option>
-              <option value="full">Pagamento integral</option>
-            </select>
-          </div>
-
-          {paymentMode === "deposit" && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="deposit-type">Tipo de sinal</Label>
-                <select
-                  id="deposit-type"
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  value={depositType}
-                  onChange={(e) => setDepositType(e.target.value as AppointmentDepositType)}
-                >
-                  <option value="percent">Percentual do total</option>
-                  <option value="fixed">Valor fixo (R$)</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deposit-value">
-                  {depositType === "percent" ? "Percentual (%)" : "Valor do sinal (R$)"}
-                </Label>
-                {depositType === "percent" ? (
-                  <Input
-                    id="deposit-value"
-                    inputMode="numeric"
-                    value={depositPercent}
-                    onChange={(e) => setDepositPercent(e.target.value.replace(/\D/g, ""))}
-                  />
-                ) : (
-                  <Input
-                    id="deposit-value"
-                    inputMode="decimal"
-                    placeholder="50,00"
-                    value={depositFixedReais}
-                    onChange={(e) => setDepositFixedReais(e.target.value)}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {paymentMode === "deposit" && (
-            <p className="text-xs text-muted-foreground">
-              O restante do valor é pago presencialmente no estabelecimento — não há segunda cobrança online.
-            </p>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            Só entram na soma serviços com preço cadastrado; serviços sem preço ou R$ 0 são gratuitos. A reserva
-            fica válida por 15 minutos aguardando pagamento; depois disso o horário é liberado.
-          </p>
-        </CardContent>
-      </Card>
-
-      {chargeEnabled && (
-        <>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Meios de pagamento</CardTitle>
-              <CardDescription>Escolha o que o cliente pode usar no link público.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <PermissionToggleRow
-                id="payment-enable-card"
-                label="Cartão de crédito"
-                checked={enableCard}
-                onToggle={() => setEnableCard((v) => !v)}
-              />
-              <PermissionToggleRow
-                id="payment-enable-pix"
-                label="Pix"
-                checked={enablePix}
-                onToggle={() => setEnablePix((v) => !v)}
-              />
-              {!enableCard && !enablePix && (
-                <p className="text-sm text-destructive">Ative cartão ou Pix para cobrar no link público.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {enableCard && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Parcelas no cartão</CardTitle>
-                <CardDescription>
-                  Máximo de parcelas oferecidas ao cliente (taxas definidas pelo Mercado Pago).
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-w-xs">
-                  <Label htmlFor="max-installments">Até quantas vezes</Label>
-                  <select
-                    id="max-installments"
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={maxInstallments}
-                    onChange={(e) => setMaxInstallments(e.target.value)}
-                  >
-                    {INSTALLMENT_OPTIONS.map((n) => (
-                      <option key={n} value={String(n)}>
-                        {n}x
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Repasse de taxas</CardTitle>
-              <CardDescription>
-                As taxas são definidas pelo Mercado Pago. Ao repassar, o valor cobrado ao cliente inclui a taxa
-                estimada.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <PermissionToggleRow
-                id="pass-fee-card"
-                label="Repasse taxa do cartão ao cliente"
-                checked={passFeeCard}
-                onToggle={() => setPassFeeCard((v) => !v)}
-              />
-              <PermissionToggleRow
-                id="pass-fee-pix"
-                label="Repasse taxa do Pix ao cliente"
-                checked={passFeePix}
-                onToggle={() => setPassFeePix((v) => !v)}
-              />
-            </CardContent>
-          </Card>
-        </>
+      {!settings?.ca_readonly && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Repassar taxa ao cliente?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <PermissionToggleRow
+              id="pass-fee-card"
+              label="Repasse taxa do cartão ao cliente"
+              checked={passFeeCard}
+              disabled={saving || connecting}
+              onToggle={() => void handlePassFeeToggle("card", !passFeeCard)}
+            />
+            <PermissionToggleRow
+              id="pass-fee-pix"
+              label="Repasse taxa do Pix ao cliente"
+              checked={passFeePix}
+              disabled={saving || connecting}
+              onToggle={() => void handlePassFeeToggle("pix", !passFeePix)}
+            />
+          </CardContent>
+        </Card>
       )}
 
-      <Button
-        type="button"
-        className="rounded-full w-full sm:w-auto"
-        disabled={saving || connecting || !canSaveCharge}
-        onClick={() => void handleSave()}
-      >
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar configurações"}
-      </Button>
-
       <p className="text-xs text-muted-foreground">
-        Dúvidas sobre assinatura Sentinela (Pix/Stripe mensal)? Veja{" "}
-        <Link to="/app/perfil" className="underline underline-offset-2">
-          Conta
-        </Link>{" "}
-        — separado dos pagamentos de agendamento.
+        Verifique sobre as taxas do Mercado Pago:{" "}
+        <a
+          href="https://www.mercadopago.com.br/ferramentas-para-vender/link-de-pagamento"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2"
+        >
+          mercadopago.com.br/ferramentas-para-vender/link-de-pagamento
+        </a>
       </p>
+
+      {!settings?.ca_readonly && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Prefere cobrar seus pacientes de forma manual?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="manual-pix-key">Insira aqui sua chave PIX:</Label>
+              <Input
+                id="manual-pix-key"
+                value={manualPixKey}
+                onChange={(e) => setManualPixKey(e.target.value)}
+                placeholder="E-mail, CPF, telefone ou chave aleatória"
+                maxLength={140}
+                disabled={savingManualPix}
+              />
+            </div>
+            <Button
+              type="button"
+              className="rounded-full"
+              disabled={savingManualPix || saving || connecting}
+              onClick={() => void handleSaveManualPixKey()}
+            >
+              {savingManualPix ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

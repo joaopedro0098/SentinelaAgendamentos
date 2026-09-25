@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AgendamentoPagamentoDialog } from "@/features/dashboard/components/pagamentos/AgendamentoPagamentoDialog";
 import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -233,6 +234,7 @@ function PacienteMobileDetail({
   barbeariaId,
   caLabel,
 }: Props & { paciente: PacientePainelItem; onBack: () => void }) {
+  const [pagamentoTarget, setPagamentoTarget] = useState<PacienteAnotacaoItem | null>(null);
   const idade = calcIdadeFromYmd(paciente.data_nascimento);
   const metaParts: string[] = [];
   if (idade != null) metaParts.push(`${idade}a`);
@@ -297,25 +299,39 @@ function PacienteMobileDetail({
                   const hasMore = (item.anotacao_conteudo?.trim().length ?? 0) > 120;
                   return (
                     <li key={item.agendamento_id}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenAnotacao(item)}
-                        className="w-full rounded-xl border border-border/70 bg-card/40 p-4 text-left hover:bg-secondary/20 transition-colors"
-                      >
-                        <p className="text-sm font-semibold">
-                          {formatHistoricoDate(item.data)} · {formatHoraPainel(item.hora)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.barbeiro_nome}</p>
-                        {!isCA && barbeariaId && item.barbearia_id !== barbeariaId && (
-                          <span className="mt-1 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                            {caLabel(item.barbearia_id)}
-                          </span>
-                        )}
-                        <p className="mt-2 text-sm text-foreground/85">
-                          {snippet}
-                          {hasMore && <span className="ml-1 text-primary font-medium">Ver mais</span>}
-                        </p>
-                      </button>
+                      <div className="rounded-xl border border-border/70 bg-card/40 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onOpenAnotacao(item)}
+                            className="min-w-0 flex-1 text-left hover:opacity-90 transition-opacity"
+                          >
+                            <p className="text-sm font-semibold">
+                              {formatHistoricoDate(item.data)} · {formatHoraPainel(item.hora)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{item.barbeiro_nome}</p>
+                            {!isCA && barbeariaId && item.barbearia_id !== barbeariaId && (
+                              <span className="mt-1 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                                {caLabel(item.barbearia_id)}
+                              </span>
+                            )}
+                            <p className="mt-2 text-sm text-foreground/85">
+                              {snippet}
+                              {hasMore && <span className="ml-1 text-primary font-medium">Ver mais</span>}
+                            </p>
+                          </button>
+                          {item.has_pagamento_info ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-8 shrink-0 px-2 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
+                              onClick={() => setPagamentoTarget(item)}
+                            >
+                              Pagamento
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
                     </li>
                   );
                 })}
@@ -343,6 +359,17 @@ function PacienteMobileDetail({
           />
         )}
       </div>
+
+      <AgendamentoPagamentoDialog
+        open={!!pagamentoTarget}
+        agendamentoId={pagamentoTarget?.agendamento_id ?? null}
+        subtitle={
+          pagamentoTarget
+            ? `${formatHistoricoDate(pagamentoTarget.data)} · ${formatHoraPainel(pagamentoTarget.hora)}`
+            : undefined
+        }
+        onClose={() => setPagamentoTarget(null)}
+      />
     </div>
   );
 }

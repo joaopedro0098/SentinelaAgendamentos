@@ -7,7 +7,7 @@ import type { LandingAudienceSegment } from "@/features/landing/content/niche/ty
 function AudienceDescriptionSegment({ segment }: { segment: LandingAudienceSegment }) {
   if ("highlight" in segment) {
     return (
-      <span className="font-bold text-[17px] sm:text-[18px] md:text-[20px]">{segment.highlight}</span>
+      <span className="rounded-[2px] bg-background px-0.5 font-normal text-primary">{segment.highlight}</span>
     );
   }
   return <>{segment.text}</>;

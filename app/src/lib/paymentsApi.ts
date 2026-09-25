@@ -28,7 +28,18 @@ export type PaymentPanelSettings = {
   can_enable_payment?: boolean;
   mp_managed_by_titular?: boolean;
   can_connect_mp?: boolean;
+  manual_pix_key?: string | null;
 };
+
+export async function saveShopManualPixKey(manualPixKey: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("update_shop_manual_pix_key", {
+    p_manual_pix_key: manualPixKey.trim(),
+  });
+  if (error) throw new Error(error.message);
+  const row = (data ?? {}) as { error?: string; message?: string; manual_pix_key?: string | null };
+  if (row.error) throw new Error(row.message ?? row.error);
+  return row.manual_pix_key ?? null;
+}
 
 export type SavePaymentPanelSettingsInput = {
   payments_centralized?: boolean;
@@ -88,7 +99,7 @@ export async function startMpOAuth(): Promise<{ url: string }> {
 export function paymentModeLabel(mode: string | undefined) {
   switch (mode) {
     case "deposit":
-      return "Sinal (parte do valor)";
+      return "Pagamento parcial";
     case "full":
       return "Pagamento integral";
     default:
@@ -105,4 +116,58 @@ export function parseDepositFixedReais(value: string): number {
   const reais = Number.parseFloat(normalized);
   if (!Number.isFinite(reais) || reais <= 0) return 0;
   return Math.round(reais * 100);
+}
+
+export type ClientePagamentoPrefs = {
+  found?: boolean;
+  error?: string;
+  appointment_payment_mode?: AppointmentPaymentMode;
+  appointment_deposit_type?: AppointmentDepositType | null;
+  appointment_deposit_value?: number | null;
+  payment_enable_card?: boolean;
+  payment_enable_pix?: boolean;
+  payment_pass_fee_card?: boolean;
+  payment_pass_fee_pix?: boolean;
+  payment_max_installments?: number | null;
+};
+
+export async function fetchClientePagamentoPrefs(
+  barbeariaId: string,
+  whatsappDigits: string,
+): Promise<ClientePagamentoPrefs> {
+  const { data, error } = await supabase.rpc("get_cliente_pagamento_prefs", {
+    p_barbearia_id: barbeariaId,
+    p_whatsapp_digits: whatsappDigits,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? {}) as ClientePagamentoPrefs;
+}
+
+export async function upsertClientePagamentoPrefs(input: {
+  barbeariaId: string;
+  whatsappDigits: string;
+  appointment_payment_mode: AppointmentPaymentMode;
+  appointment_deposit_type?: AppointmentDepositType | null;
+  appointment_deposit_value?: number | null;
+  payment_enable_card: boolean;
+  payment_enable_pix: boolean;
+  payment_pass_fee_card: boolean;
+  payment_pass_fee_pix: boolean;
+  payment_max_installments: number;
+}): Promise<void> {
+  const { data, error } = await supabase.rpc("upsert_cliente_pagamento_prefs", {
+    p_barbearia_id: input.barbeariaId,
+    p_whatsapp_digits: input.whatsappDigits,
+    p_appointment_payment_mode: input.appointment_payment_mode,
+    p_appointment_deposit_type: input.appointment_deposit_type ?? null,
+    p_appointment_deposit_value: input.appointment_deposit_value ?? null,
+    p_payment_enable_card: input.payment_enable_card,
+    p_payment_enable_pix: input.payment_enable_pix,
+    p_payment_pass_fee_card: input.payment_pass_fee_card,
+    p_payment_pass_fee_pix: input.payment_pass_fee_pix,
+    p_payment_max_installments: input.payment_max_installments,
+  });
+  if (error) throw new Error(error.message);
+  const row = (data ?? {}) as { error?: string };
+  if (row.error) throw new Error(row.error);
 }

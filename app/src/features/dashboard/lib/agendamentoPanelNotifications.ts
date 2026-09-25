@@ -11,9 +11,3 @@ export function agendamentoShowNotificationDot(
 ): boolean {
   return Boolean(item.has_pending_alert) || agendamentoHasObservacaoNaoVista(item);
 }
-
-export function agendamentoCardOpensDetail(
-  item: Pick<AgendamentoPainelItem, "id" | "observacao" | "has_pending_alert" | "has_any_alert">,
-): boolean {
-  return Boolean(item.has_any_alert) || hasAgendamentoObservacao(item.observacao);
-}

@@ -2146,6 +2146,44 @@ export type Database = {
         }
         Returns: Json
       }
+      create_panel_booking_payment_hold: {
+        Args: {
+          p_barbearia_id: string
+          p_barbeiro_id: string
+          p_cliente_id: string
+          p_cliente_nome: string
+          p_cliente_whatsapp: string
+          p_data: string
+          p_duracao_minutos: number
+          p_hora: string
+          p_observacao?: string
+          p_servicos_nomes: string[]
+        }
+        Returns: Json
+      }
+      get_cliente_pagamento_prefs: {
+        Args: { p_barbearia_id: string; p_whatsapp_digits: string }
+        Returns: Json
+      }
+      upsert_cliente_pagamento_prefs: {
+        Args: {
+          p_barbearia_id: string
+          p_whatsapp_digits: string
+          p_appointment_payment_mode: string
+          p_appointment_deposit_type?: string
+          p_appointment_deposit_value?: number
+          p_payment_enable_card?: boolean
+          p_payment_enable_pix?: boolean
+          p_payment_pass_fee_card?: boolean
+          p_payment_pass_fee_pix?: boolean
+          p_payment_max_installments?: number
+        }
+        Returns: Json
+      }
+      resolve_agendamento_payment_by_token: {
+        Args: { p_confirmation_token: string }
+        Returns: Json
+      }
       ct_list_ca_info: {
         Args: never
         Returns: {
@@ -2280,6 +2318,39 @@ export type Database = {
         Returns: Json
       }
       get_payment_panel_settings: { Args: never; Returns: Json }
+      get_shop_manual_pix_key: { Args: never; Returns: Json }
+      update_shop_manual_pix_key: { Args: { p_manual_pix_key: string }; Returns: Json }
+      upsert_agendamento_panel_pagamento: {
+        Args: {
+          p_agendamento_id: string
+          p_charge_kind: string
+          p_payment_mode?: string
+          p_deposit_type?: string
+          p_deposit_value?: number
+          p_payment_enable_card?: boolean
+          p_payment_enable_pix?: boolean
+          p_payment_pass_fee_card?: boolean
+          p_payment_pass_fee_pix?: boolean
+          p_payment_max_installments?: number
+          p_charge_centavos?: number
+          p_total_centavos?: number
+          p_remaining_centavos?: number
+        }
+        Returns: Json
+      }
+      get_agendamento_panel_pagamento_info: { Args: { p_agendamento_id: string }; Returns: Json }
+      get_agendamento_comprovante_meta: { Args: { p_agendamento_id: string }; Returns: Json }
+      register_agendamento_comprovante: {
+        Args: {
+          p_agendamento_id: string
+          p_storage_path: string
+          p_mime_type: string
+          p_file_name: string
+          p_size_bytes: number
+        }
+        Returns: Json
+      }
+      painel_pode_editar_pagamento_agendamento: { Args: { p_agendamento_id: string }; Returns: boolean }
       get_relatorio_agendamentos: {
         Args: { p_data_fim: string; p_data_inicio: string }
         Returns: Json

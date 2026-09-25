@@ -38,10 +38,10 @@ describe("slots vazios — bloqueio de clique", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("painel abre observação/alerta pelo card e bolinha amarela", () => {
+  it("painel abre detalhe/alerta pelo card e bolinha amarela", () => {
     expect(panelSource).toContain("AgendamentoNotificationDot");
     expect(panelSource).toContain("handleOpenAgendamentoDetail");
-    expect(panelSource).toContain("AgendamentoObservacaoViewModal");
+    expect(panelSource).toContain("AgendamentoPainelDetailModal");
     expect(obsIndicatorSource).toContain("hasAgendamentoObservacao");
   });
 });

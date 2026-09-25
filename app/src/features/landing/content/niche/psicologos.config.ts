@@ -27,7 +27,20 @@ export const psicologosLandingConfig = {
   },
   audience: {
     titleLine: LANDING_AUDIENCE.titleLine,
-    descriptionParagraphs: LANDING_AUDIENCE.descriptionParagraphs,
+    descriptionParagraphs: [
+      [
+        { text: "Do profissional " },
+        { highlight: "individual" },
+        { text: " à " },
+        { highlight: "clínica com equipe" },
+        { text: ": o Sentinela cresce junto com você." },
+      ],
+      [
+        { text: "Comece simples e ative recursos mais avançados " },
+        { highlight: "conforme sua necessidade" },
+        { text: " aumenta." },
+      ],
+    ],
     featureCards: landingAudienceFeatureCardsWithOverrides({
       "video-call-transcription": {
         description: LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_PSICOLOGOS,

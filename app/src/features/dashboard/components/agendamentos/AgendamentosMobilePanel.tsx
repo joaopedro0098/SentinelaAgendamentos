@@ -54,14 +54,10 @@ import {
   AgendamentoAnotacaoModal,
 } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { AgendamentoNotificationDot } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
-import { hasAgendamentoObservacao } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
-import {
-  agendamentoCardOpensDetail,
-  agendamentoShowNotificationDot,
-} from "@/features/dashboard/lib/agendamentoPanelNotifications";
+import { agendamentoShowNotificationDot } from "@/features/dashboard/lib/agendamentoPanelNotifications";
 import { shouldIgnoreAgendamentoCardClick } from "@/features/dashboard/lib/agendamentoCardClick";
 import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
-import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
+import { AgendamentoPainelDetailModal } from "@/features/dashboard/components/agendamentos/AgendamentoPainelDetailModal";
 import {
   panelAgendamentoErrorMessage,
   parsePanelStatusRow,
@@ -168,11 +164,7 @@ export default function AgendamentosMobilePanel({
   const [markingNoShowId, setMarkingNoShowId] = useState<string | null>(null);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
   const [anotacaoTarget, setAnotacaoTarget] = useState<AgendamentoRow | null>(null);
-  const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
-    agendamentoId: string;
-    observacao: string;
-    clienteNome?: string;
-  } | null>(null);
+  const [painelDetailTarget, setPainelDetailTarget] = useState<AgendamentoRow | null>(null);
   const [alertModalTarget, setAlertModalTarget] = useState<{
     agendamentoId: string;
     clienteNome?: string;
@@ -261,7 +253,6 @@ export default function AgendamentosMobilePanel({
           can_manage: item.can_manage,
           has_pending_alert: item.has_pending_alert,
           has_any_alert: item.has_any_alert,
-          observacao: item.observacao,
           barbeiros: { id: item.barbeiro_id, nome: item.barbeiro_nome },
         })),
       );
@@ -472,13 +463,6 @@ export default function AgendamentosMobilePanel({
 
   function handleOpenAgendamentoDetail(a: AgendamentoRow) {
     void notificationUiTick;
-    const detailItem = {
-      id: a.id,
-      observacao: a.observacao ?? null,
-      has_pending_alert: a.has_pending_alert,
-      has_any_alert: a.has_any_alert,
-    };
-    if (!agendamentoCardOpensDetail(detailItem)) return;
     if (a.has_any_alert || a.has_pending_alert) {
       setAlertModalTarget({
         agendamentoId: a.id,
@@ -487,13 +471,7 @@ export default function AgendamentosMobilePanel({
       });
       return;
     }
-    if (hasAgendamentoObservacao(a.observacao)) {
-      setObservacaoViewTarget({
-        agendamentoId: a.id,
-        observacao: a.observacao!.trim(),
-        clienteNome: a.cliente_nome,
-      });
-    }
+    setPainelDetailTarget(a);
   }
 
   function handleObservacaoMarkedVista(_agendamentoId: string) {
@@ -725,12 +703,7 @@ export default function AgendamentosMobilePanel({
                   className={cn(
                     "overflow-hidden border-border/80 transition-shadow",
                     highlightedId === a.id && "ring-2 ring-primary shadow-glow border-primary/40",
-                    agendamentoCardOpensDetail({
-                      id: a.id,
-                      observacao: a.observacao ?? null,
-                      has_pending_alert: a.has_pending_alert,
-                      has_any_alert: a.has_any_alert,
-                    }) && "cursor-pointer active:bg-secondary/20",
+                    "cursor-pointer active:bg-secondary/20",
                   )}
                   onClick={(e) => {
                     if (shouldIgnoreAgendamentoCardClick(e.target)) return;
@@ -915,13 +888,15 @@ export default function AgendamentosMobilePanel({
         onClose={() => setAnotacaoTarget(null)}
       />
 
-      <AgendamentoObservacaoViewModal
-        open={!!observacaoViewTarget}
-        agendamentoId={observacaoViewTarget?.agendamentoId ?? null}
-        observacao={observacaoViewTarget?.observacao ?? null}
-        clienteNome={observacaoViewTarget?.clienteNome}
-        onClose={() => setObservacaoViewTarget(null)}
-        onMarkedVista={handleObservacaoMarkedVista}
+      <AgendamentoPainelDetailModal
+        open={!!painelDetailTarget}
+        agendamentoId={painelDetailTarget?.id ?? null}
+        clienteNome={painelDetailTarget?.cliente_nome ?? ""}
+        data={painelDetailTarget?.data ?? ""}
+        hora={painelDetailTarget?.hora ?? ""}
+        observacao={painelDetailTarget?.observacao ?? null}
+        onClose={() => setPainelDetailTarget(null)}
+        onObservacaoMarkedVista={handleObservacaoMarkedVista}
       />
 
       <AgendamentoAlertModal

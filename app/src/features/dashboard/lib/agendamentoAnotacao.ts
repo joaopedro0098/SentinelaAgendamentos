@@ -61,6 +61,7 @@ export type PacienteAnotacaoItem = {
   anotacao_conteudo: string | null;
   anotacao_updated_at: string | null;
   can_write: boolean;
+  has_pagamento_info?: boolean;
 };
 
 export async function fetchAgendamentoAnotacao(agendamentoId: string) {

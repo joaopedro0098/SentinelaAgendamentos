@@ -83,13 +83,9 @@ import {
   AgendamentoSlotBookingModal,
   type SlotBookingTarget,
 } from "@/features/dashboard/components/agendamentos/AgendamentoSlotBookingModal";
-import { AgendamentoObservacaoViewModal } from "@/features/dashboard/components/agendamentos/AgendamentoObservacaoViewModal";
+import { AgendamentoPainelDetailModal } from "@/features/dashboard/components/agendamentos/AgendamentoPainelDetailModal";
 import { AgendamentoNotificationDot } from "@/features/dashboard/components/agendamentos/AgendamentoAlertIndicator";
-import { hasAgendamentoObservacao } from "@/features/dashboard/components/agendamentos/AgendamentoObsIndicator";
-import {
-  agendamentoCardOpensDetail,
-  agendamentoShowNotificationDot,
-} from "@/features/dashboard/lib/agendamentoPanelNotifications";
+import { agendamentoShowNotificationDot } from "@/features/dashboard/lib/agendamentoPanelNotifications";
 import { shouldIgnoreAgendamentoCardClick } from "@/features/dashboard/lib/agendamentoCardClick";
 import { AgendamentoAlertModal } from "@/features/dashboard/components/agendamentos/AgendamentoAlertModal";
 import type { SlotBookingServico } from "@/features/dashboard/lib/agendamentoSlotBooking";
@@ -450,11 +446,7 @@ export default function AgendamentosDesktopPanel({
   const [profSchedules, setProfSchedules] = useState<BookingProfSchedule[]>([]);
   const [bookingProfessionals, setBookingProfessionals] = useState<BookingProfessionalFull[]>([]);
   const [slotBookingTarget, setSlotBookingTarget] = useState<SlotBookingTarget | null>(null);
-  const [observacaoViewTarget, setObservacaoViewTarget] = useState<{
-    agendamentoId: string;
-    observacao: string;
-    clienteNome?: string;
-  } | null>(null);
+  const [painelDetailTarget, setPainelDetailTarget] = useState<AgendamentoPainelItem | null>(null);
   const [alertModalTarget, setAlertModalTarget] = useState<{
     agendamentoId: string;
     clienteNome?: string;
@@ -865,11 +857,12 @@ export default function AgendamentosDesktopPanel({
         barbeiroId,
         barbeiroNome: prof.nome,
         barbeariaId: prof.barbearia_id,
+        shopSlug: shop?.slug?.trim() || null,
         slotMinutos: prof.slot_minutos,
         servicos: prof.servicos,
       });
     },
-    [isSingleDay, selectedDayYmd, bookingProfessionals, profissionais, profSchedules],
+    [isSingleDay, selectedDayYmd, bookingProfessionals, profissionais, profSchedules, shop?.slug],
   );
 
   function handleAlterar(a: AgendamentoPainelItem) {
@@ -930,7 +923,6 @@ export default function AgendamentosDesktopPanel({
   }
 
   function handleOpenAgendamentoDetail(a: AgendamentoPainelItem) {
-    if (!agendamentoCardOpensDetail(a)) return;
     if (a.has_any_alert || a.has_pending_alert) {
       setAlertModalTarget({
         agendamentoId: a.id,
@@ -939,13 +931,7 @@ export default function AgendamentosDesktopPanel({
       });
       return;
     }
-    if (hasAgendamentoObservacao(a.observacao)) {
-      setObservacaoViewTarget({
-        agendamentoId: a.id,
-        observacao: a.observacao!.trim(),
-        clienteNome: a.cliente_nome,
-      });
-    }
+    setPainelDetailTarget(a);
   }
 
   function handleObservacaoMarkedVista(_agendamentoId: string) {
@@ -1054,26 +1040,25 @@ export default function AgendamentosDesktopPanel({
     const paymentSummary = formatPaymentSummary(a);
 
     const actions = renderActionsMenu(a);
-    const cardOpensDetail = agendamentoCardOpensDetail(a);
     void notificationUiTick;
     const showDot = agendamentoShowNotificationDot(a);
 
     return (
       <div
-        role={cardOpensDetail ? "button" : undefined}
-        tabIndex={cardOpensDetail ? 0 : undefined}
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           if (shouldIgnoreAgendamentoCardClick(e.target)) return;
           handleOpenAgendamentoDetail(a);
         }}
         onKeyDown={(e) => {
-          if (!cardOpensDetail || (e.key !== "Enter" && e.key !== " ")) return;
+          if (e.key !== "Enter" && e.key !== " ") return;
           e.preventDefault();
           handleOpenAgendamentoDetail(a);
         }}
         className={cn(
           "relative min-h-[3.25rem] py-2 rounded-md -mx-1 px-1",
-          cardOpensDetail && "cursor-pointer hover:bg-secondary/30 transition-colors",
+          "cursor-pointer hover:bg-secondary/30 transition-colors",
         )}
       >
         <AgendamentoNotificationDot
@@ -1176,28 +1161,26 @@ export default function AgendamentosDesktopPanel({
     const statusMenuActions = manageable ? getAppointmentStatusMenuActions(a, a.data) : [];
     const paymentSummary = formatPaymentSummary(a);
 
-    const cardOpensDetail = agendamentoCardOpensDetail(a);
     void notificationUiTick;
     const showDot = agendamentoShowNotificationDot(a);
 
     return (
       <div
         key={a.id}
-        role={cardOpensDetail ? "button" : undefined}
-        tabIndex={cardOpensDetail ? 0 : undefined}
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           if (shouldIgnoreAgendamentoCardClick(e.target)) return;
           handleOpenAgendamentoDetail(a);
         }}
         onKeyDown={(e) => {
-          if (!cardOpensDetail || (e.key !== "Enter" && e.key !== " ")) return;
+          if (e.key !== "Enter" && e.key !== " ") return;
           e.preventDefault();
           handleOpenAgendamentoDetail(a);
         }}
         className={cn(
           LIST_ROW_GRID,
-          "py-2.5 border-b border-border/60 transition-colors",
-          cardOpensDetail ? "cursor-pointer hover:bg-secondary/20" : "hover:bg-secondary/20",
+          "py-2.5 border-b border-border/60 transition-colors cursor-pointer hover:bg-secondary/20",
         )}
       >
         <span className="min-w-0 text-sm font-semibold tabular-nums text-accent">
@@ -1592,13 +1575,15 @@ export default function AgendamentosDesktopPanel({
         onCreated={() => void loadData({ preserveUi: true })}
       />
 
-      <AgendamentoObservacaoViewModal
-        open={!!observacaoViewTarget}
-        agendamentoId={observacaoViewTarget?.agendamentoId ?? null}
-        observacao={observacaoViewTarget?.observacao ?? null}
-        clienteNome={observacaoViewTarget?.clienteNome}
-        onClose={() => setObservacaoViewTarget(null)}
-        onMarkedVista={handleObservacaoMarkedVista}
+      <AgendamentoPainelDetailModal
+        open={!!painelDetailTarget}
+        agendamentoId={painelDetailTarget?.id ?? null}
+        clienteNome={painelDetailTarget?.cliente_nome ?? ""}
+        data={painelDetailTarget?.data ?? ""}
+        hora={painelDetailTarget?.hora ?? ""}
+        observacao={painelDetailTarget?.observacao ?? null}
+        onClose={() => setPainelDetailTarget(null)}
+        onObservacaoMarkedVista={handleObservacaoMarkedVista}
       />
 
       <AgendamentoAlertModal

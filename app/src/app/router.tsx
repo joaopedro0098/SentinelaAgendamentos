@@ -23,6 +23,7 @@ const PublicBookingHub = lazy(() => import("@agenda/pages/PublicBookingHub"));
 const PublicBookingPage = lazy(() => import("@/features/agenda/pages/PublicBookingPage"));
 const MeusAgendamentosPage = lazy(() => import("@agenda/pages/MeusAgendamentos"));
 const ConfirmAppointmentPage = lazy(() => import("@/features/agenda/pages/ConfirmAppointmentPage"));
+const AppointmentPaymentPage = lazy(() => import("@/features/agenda/pages/AppointmentPaymentPage"));
 
 const LoginPage = lazy(() => import("@/features/auth/pages/Login"));
 const SignupPage = lazy(() => import("@/features/auth/pages/Signup"));
@@ -76,6 +77,7 @@ export function AppRouter() {
           <Route path="meus-agendamentos" element={<MeusAgendamentosPage />} />
         </Route>
         <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointmentPage />} />
+        <Route path="/pagar/:token" element={<AppointmentPaymentPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route
           path="/auth/complete-verification"

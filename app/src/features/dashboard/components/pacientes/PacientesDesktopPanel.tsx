@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AgendamentoPagamentoDialog } from "@/features/dashboard/components/pagamentos/AgendamentoPagamentoDialog";
 import { Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,7 @@ export default function PacientesDesktopPanel({
 }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedWhatsapp = selectedPaciente?.whatsapp_digits ?? null;
+  const [pagamentoTarget, setPagamentoTarget] = useState<PacienteAnotacaoItem | null>(null);
 
   useEffect(() => {
     if (loading || pacientes.length === 0 || selectedPaciente) return;
@@ -256,6 +258,7 @@ export default function PacientesDesktopPanel({
                   barbeariaId={barbeariaId}
                   caLabel={caLabel}
                   onOpenAnotacao={onOpenAnotacao}
+                  onOpenPagamento={setPagamentoTarget}
                 />
               )}
               {detailTab === "documentos" && selectedPaciente ? (
@@ -281,6 +284,17 @@ export default function PacientesDesktopPanel({
           </>
         )}
       </section>
+
+      <AgendamentoPagamentoDialog
+        open={!!pagamentoTarget}
+        agendamentoId={pagamentoTarget?.agendamento_id ?? null}
+        subtitle={
+          pagamentoTarget
+            ? `${formatHistoricoDate(pagamentoTarget.data)} · ${formatHoraPainel(pagamentoTarget.hora)}`
+            : undefined
+        }
+        onClose={() => setPagamentoTarget(null)}
+      />
     </div>
   );
 }
@@ -292,6 +306,7 @@ function HistoricoFeed({
   barbeariaId,
   caLabel,
   onOpenAnotacao,
+  onOpenPagamento,
 }: {
   items: PacienteAnotacaoItem[];
   loading: boolean;
@@ -299,6 +314,7 @@ function HistoricoFeed({
   barbeariaId: string | null;
   caLabel: (id: string) => string;
   onOpenAnotacao: (item: PacienteAnotacaoItem) => void;
+  onOpenPagamento: (item: PacienteAnotacaoItem) => void;
 }) {
   if (loading) {
     return (
@@ -326,31 +342,46 @@ function HistoricoFeed({
         const hasMore = (item.anotacao_conteudo?.trim().length ?? 0) > 120;
 
         return (
-          <li key={item.agendamento_id}>
-            <button
-              type="button"
-              onClick={() => onOpenAnotacao(item)}
-              className="w-full py-4 text-left transition-colors hover:bg-secondary/20 rounded-lg px-1 -mx-1"
-            >
-              <p className="text-sm font-semibold text-foreground">
-                {formatHistoricoDate(item.data)}
-                <span className="font-normal text-muted-foreground ml-2 tabular-nums">
-                  {formatHoraPainel(item.hora)}
-                </span>
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{profLine}</p>
-              {!isCA && barbeariaId && item.barbearia_id !== barbeariaId && (
-                <span className="mt-1 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                  {caLabel(item.barbearia_id)}
-                </span>
-              )}
-              <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
-                {snippet}
-                {hasMore && (
-                  <span className="ml-1 text-primary font-medium">Ver mais</span>
+          <li key={item.agendamento_id} className="py-4 px-1 -mx-1">
+            <div className="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenAnotacao(item)}
+                className="min-w-0 flex-1 text-left transition-colors hover:opacity-90 rounded-lg"
+              >
+                <p className="text-sm font-semibold text-foreground">
+                  {formatHistoricoDate(item.data)}
+                  <span className="font-normal text-muted-foreground ml-2 tabular-nums">
+                    {formatHoraPainel(item.hora)}
+                  </span>
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{profLine}</p>
+                {!isCA && barbeariaId && item.barbearia_id !== barbeariaId && (
+                  <span className="mt-1 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                    {caLabel(item.barbearia_id)}
+                  </span>
                 )}
-              </p>
-            </button>
+                <p className="mt-2 text-sm text-foreground/85 leading-relaxed">
+                  {snippet}
+                  {hasMore && (
+                    <span className="ml-1 text-primary font-medium">Ver mais</span>
+                  )}
+                </p>
+              </button>
+              {item.has_pagamento_info ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-8 shrink-0 px-2 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenPagamento(item);
+                  }}
+                >
+                  Pagamento
+                </Button>
+              ) : null}
+            </div>
           </li>
         );
       })}
