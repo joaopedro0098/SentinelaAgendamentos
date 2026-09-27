@@ -1,5 +1,5 @@
 import type { ProfessionalSpecialty } from "@/lib/professionalSpecialty";
-import type { LandingAudienceFeatureCard } from "@/features/landing/content/landingContent";
+import type { LandingAudienceFeatureCardOverride } from "@/features/landing/content/landingContent";
 
 export type HeroIllustrationKey = "doctor" | "psychologist" | "dentist";
 
@@ -17,8 +17,14 @@ export type LandingTestimonial = {
   id: string;
   quote: string;
   name: string;
+  /** Vazio oculta a linha de cargo/local abaixo do nome. */
   role: string;
   initials: string;
+};
+
+export type LandingQuerMaisFeature = {
+  illustrationSrc: string;
+  titleLines: readonly string[];
 };
 
 export type LandingSocialProofStat = {
@@ -45,7 +51,7 @@ export type NicheLandingConfig = {
   audience: {
     titleLine: string;
     descriptionParagraphs: readonly (readonly LandingAudienceSegment[])[];
-    featureCards?: readonly LandingAudienceFeatureCard[];
+    featureCards?: readonly LandingAudienceFeatureCardOverride[];
   };
   socialProof: {
     eyebrow: string;
@@ -66,6 +72,9 @@ export type LandingPageContent = {
     subheadline: string;
     layout: "dual" | "single";
     illustration?: HeroIllustrationKey;
+    /** Imagem única customizada (ex.: landing /beleza). */
+    heroImageSrc?: string;
+    heroImageAlt?: string;
     ctaPrimary: string;
     ctaSecondary: string;
     secondaryHref: string;
@@ -73,7 +82,7 @@ export type LandingPageContent = {
   audience: {
     titleLine: string;
     descriptionParagraphs: readonly (readonly LandingAudienceSegment[])[];
-    featureCards?: readonly LandingAudienceFeatureCard[];
+    featureCards?: readonly LandingAudienceFeatureCardOverride[];
   };
   socialProof: {
     eyebrow: string;
@@ -84,4 +93,9 @@ export type LandingPageContent = {
     testimonialQuoteClassName?: string;
   };
   faqItems: readonly LandingFaqItem[];
+  featuresShowcase?: {
+    description: string;
+    features: readonly LandingQuerMaisFeature[];
+  };
+  footerDescription?: string;
 };

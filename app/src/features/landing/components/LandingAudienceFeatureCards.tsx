@@ -1,11 +1,11 @@
 import {
   LANDING_AUDIENCE,
-  type LandingAudienceFeatureCard,
+  type LandingAudienceFeatureCardOverride,
 } from "@/features/landing/content/landingContent";
 import { LandingWhatsAppIcon } from "@/features/landing/components/LandingWhatsAppIcon";
 import { useLandingPageContent } from "@/features/landing/context/LandingPageContentContext";
 
-type AudienceFeatureCard = LandingAudienceFeatureCard;
+type AudienceFeatureCard = LandingAudienceFeatureCardOverride;
 
 const CARD_ILLUSTRATIONS: Partial<Record<NonNullable<AudienceFeatureCard["icon"]>, string>> = {
   "schedule-panel": "/landing-audience-prontuario.png",
@@ -13,7 +13,20 @@ const CARD_ILLUSTRATIONS: Partial<Record<NonNullable<AudienceFeatureCard["icon"]
   "video-call": "/landing-audience-video-call.png",
 };
 
-function FeatureCardLeadingVisual({ icon }: { icon: AudienceFeatureCard["icon"] }) {
+function FeatureCardLeadingVisual({ card }: { card: AudienceFeatureCard }) {
+  const { icon, imageSrc } = card;
+  if (imageSrc?.trim()) {
+    return (
+      <div className="flex h-10 w-10 shrink-0 items-start justify-start rounded-lg">
+        <img
+          src={imageSrc.trim()}
+          alt=""
+          className="h-9 w-9 translate-y-[2px] object-contain object-left-top"
+          decoding="async"
+        />
+      </div>
+    );
+  }
   if (icon === "whatsapp") {
     return (
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg">
@@ -55,7 +68,7 @@ export function LandingAudienceFeatureCards() {
             className="flex min-h-[17rem] flex-col rounded-xl bg-background p-5 text-left text-foreground md:min-h-[18.5rem] md:p-6"
           >
             <div className="mb-3 flex items-start gap-3">
-              <FeatureCardLeadingVisual icon={card.icon} />
+              <FeatureCardLeadingVisual card={card} />
               <h3 className="font-display m-0 min-w-0 flex-1 p-0 text-base font-semibold leading-snug md:text-[17px]">
                 {Array.isArray(card.title)
                   ? card.title.map((line) => (

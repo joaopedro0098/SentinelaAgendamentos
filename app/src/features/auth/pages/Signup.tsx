@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +28,11 @@ import { checkProfessionalAccount } from "@/features/auth/lib/professionalAccoun
 import { provisionProfessionalAccount } from "@/features/auth/lib/provisionProfessionalAccount";
 import { readSignupSpecialtyFromSearchParams } from "@/features/auth/lib/signupSpecialtyFromQuery";
 import { SignupSpecialtySelect } from "@/features/auth/components/SignupSpecialtySelect";
-import { PROFESSIONAL_SPECIALTIES, type ProfessionalSpecialty } from "@/lib/professionalSpecialty";
+import {
+  PROFESSIONAL_SPECIALTIES,
+  signupSpecialtyOptionsForQuerySpecialty,
+  type ProfessionalSpecialty,
+} from "@/lib/professionalSpecialty";
 import type { FacialVerificationResult } from "@/features/auth/face-verification/facialRecognitionController";
 import type { Session } from "@supabase/supabase-js";
 import { isDesktopForFaceHandoff } from "@/features/auth/face-verification/isDesktopForFaceHandoff";
@@ -84,6 +88,13 @@ export default function Signup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const specialtyFromQuery = readSignupSpecialtyFromSearchParams(searchParams);
+  const signupSpecialtyOptions = useMemo(
+    () =>
+      signupSpecialtyOptionsForQuerySpecialty(
+        specialtyFromQuery.status === "valid" ? specialtyFromQuery.specialty : null,
+      ),
+    [specialtyFromQuery],
+  );
   const [displayName, setDisplayName] = useState("");
   const [shopName, setShopName] = useState("");
   const [professionalSpecialty, setProfessionalSpecialty] = useState<ProfessionalSpecialty | "">(
@@ -103,6 +114,21 @@ export default function Signup() {
   const [upgradeMode, setUpgradeMode] = useState(false);
   const [blockedProfessional, setBlockedProfessional] = useState(false);
   const [checkingAccount, setCheckingAccount] = useState(true);
+
+  useEffect(() => {
+    if (specialtyFromQuery.status === "valid") {
+      setProfessionalSpecialty(specialtyFromQuery.specialty);
+    }
+  }, [specialtyFromQuery]);
+
+  useEffect(() => {
+    if (
+      professionalSpecialty &&
+      !signupSpecialtyOptions.includes(professionalSpecialty as ProfessionalSpecialty)
+    ) {
+      setProfessionalSpecialty("");
+    }
+  }, [professionalSpecialty, signupSpecialtyOptions]);
 
   useEffect(() => {
     let active = true;
@@ -508,6 +534,7 @@ export default function Signup() {
               <SignupSpecialtySelect
                 value={professionalSpecialty}
                 onChange={setProfessionalSpecialty}
+                options={signupSpecialtyOptions}
               />
               {!upgradeMode && (
                 <>

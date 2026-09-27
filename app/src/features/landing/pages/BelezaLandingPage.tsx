@@ -1,13 +1,11 @@
 import { LandingPageContentProvider } from "@/features/landing/context/LandingPageContentContext";
-import { GENERIC_LANDING_PAGE_CONTENT } from "@/features/landing/content/genericLandingConfig";
+import { BELEZA_LANDING_PAGE_CONTENT } from "@/features/landing/content/belezaLandingContent";
 import { GenericLandingMain } from "@/features/landing/components/GenericLandingMain";
 
-const HomePage = () => {
+export default function BelezaLandingPage() {
   return (
-    <LandingPageContentProvider value={GENERIC_LANDING_PAGE_CONTENT}>
+    <LandingPageContentProvider value={BELEZA_LANDING_PAGE_CONTENT}>
       <GenericLandingMain />
     </LandingPageContentProvider>
   );
-};
-
-export default HomePage;
+}

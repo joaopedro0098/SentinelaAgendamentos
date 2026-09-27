@@ -1,4 +1,4 @@
-﻿node.exe : npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm 
+node.exe : npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm 
 help npmrc` for supported config options.
 No linha:1 caractere:1
 + & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
@@ -2846,7 +2846,13 @@ export type Database = {
       message_sender: "customer" | "ai"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
       mp_connect_status: "not_connected" | "connected" | "token_expired"
-      professional_specialty: "dentista" | "psicologo" | "nutricionista" | "medico"
+      professional_specialty:
+        | "dentista"
+        | "psicologo"
+        | "nutricionista"
+        | "medico"
+        | "salao_beleza"
+        | "barbearia"
       subscription_status:
         | "trial"
         | "active"
@@ -3017,7 +3023,14 @@ export const Constants = {
       message_sender: ["customer", "ai"],
       message_status: ["sending", "sent", "delivered", "read", "failed"],
       mp_connect_status: ["not_connected", "connected", "token_expired"],
-      professional_specialty: ["dentista", "psicologo", "nutricionista", "medico"],
+      professional_specialty: [
+        "dentista",
+        "psicologo",
+        "nutricionista",
+        "medico",
+        "salao_beleza",
+        "barbearia",
+      ],
       subscription_status: ["trial", "active", "grace", "expired", "cancelled"],
       waba_connect_status: [
         "not_connected",

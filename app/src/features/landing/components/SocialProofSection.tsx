@@ -60,7 +60,9 @@ export function SocialProofSection() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{item.role}</p>
+                  {item.role.trim() ? (
+                    <p className="text-xs text-muted-foreground truncate">{item.role}</p>
+                  ) : null}
                 </div>
               </figcaption>
             </figure>

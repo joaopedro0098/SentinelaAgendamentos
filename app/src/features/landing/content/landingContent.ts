@@ -87,9 +87,16 @@ export const LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_HOME =
 export const LANDING_AUDIENCE_VIDEO_CALL_DESCRIPTION_PSICOLOGOS =
   "Realize suas sessões por vídeo chamada sem sair do Sentinela. Você poderá transcrever e resumir o atendimento automaticamente, através da nossa inteligência artificial.";
 
+export type LandingAudienceFeatureCardOverride = LandingAudienceFeatureCard & {
+  imageSrc?: string;
+  title?: string | readonly string[];
+};
+
 export function landingAudienceFeatureCardsWithOverrides(
-  overrides: Partial<Record<LandingAudienceFeatureCard["id"], Pick<LandingAudienceFeatureCard, "description">>>,
-): LandingAudienceFeatureCard[] {
+  overrides: Partial<
+    Record<LandingAudienceFeatureCard["id"], Partial<Omit<LandingAudienceFeatureCardOverride, "id">>>
+  >,
+): LandingAudienceFeatureCardOverride[] {
   return LANDING_AUDIENCE.featureCards.map((card) => {
     const patch = overrides[card.id];
     return patch ? { ...card, ...patch } : card;

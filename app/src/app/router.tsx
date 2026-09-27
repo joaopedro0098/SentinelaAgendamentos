@@ -9,6 +9,8 @@ import AppLayout from "@/features/dashboard/pages/AppLayout";
 import DashboardRoutes from "@/features/dashboard/pages/DashboardRoutes";
 
 const HomePage = lazy(() => import("@/features/landing/pages/HomePage"));
+const BelezaLandingPage = lazy(() => import("@/features/landing/pages/BelezaLandingPage"));
+const BarbeariaLandingPage = lazy(() => import("@/features/landing/pages/BarbeariaLandingPage"));
 const DentistasLandingPage = lazy(() => import("@/features/landing/pages/DentistasLandingPage"));
 const PsicologosLandingPage = lazy(() => import("@/features/landing/pages/PsicologosLandingPage"));
 const NutricionistasLandingPage = lazy(() => import("@/features/landing/pages/NutricionistasLandingPage"));
@@ -48,6 +50,8 @@ export function AppRouter() {
       <Routes>
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/beleza" element={<BelezaLandingPage />} />
+          <Route path="/barbearia" element={<BarbeariaLandingPage />} />
           <Route path="/odontologia" element={<DentistasLandingPage />} />
           <Route path="/psicologia" element={<PsicologosLandingPage />} />
           <Route path="/dentistas" element={<Navigate to="/odontologia" replace />} />

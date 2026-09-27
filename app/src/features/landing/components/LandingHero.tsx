@@ -22,12 +22,23 @@ const HERO_ILLUSTRATION_LABEL: Record<HeroIllustrationKey, string> = {
 
 export function LandingHero() {
   const { hero, primarySignupHref } = useLandingPageContent();
-  const isDual = hero.layout === "dual";
-  const isDentistPhoto = !isDual && hero.illustration === "dentist";
-  const isPsychologistSolo = !isDual && hero.illustration === "psychologist";
+  const customHeroImage = hero.heroImageSrc?.trim();
+  const isDual = !customHeroImage && hero.layout === "dual";
+  const isDentistPhoto = !customHeroImage && !isDual && hero.illustration === "dentist";
+  const isPsychologistSolo = !customHeroImage && !isDual && hero.illustration === "psychologist";
+  const heroVisualLabel =
+    hero.heroImageAlt?.trim() ||
+    (hero.illustration ? HERO_ILLUSTRATION_LABEL[hero.illustration] : "Ilustração do hero");
+
+  const customHeroLayout = Boolean(customHeroImage);
 
   return (
-    <section className="landing-hero relative flex flex-col bg-background min-h-[100svh] pt-24 md:pt-32 pb-6 md:pb-10 overflow-x-clip">
+    <section
+      className={cn(
+        "landing-hero relative flex flex-col bg-background min-h-[100svh] pt-24 md:pt-32 pb-6 md:pb-10 overflow-x-clip",
+        customHeroLayout && "landing-hero--beleza",
+      )}
+    >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] md:h-[32rem] landing-hero-glow"
         aria-hidden
@@ -100,20 +111,33 @@ export function LandingHero() {
             "relative z-0 w-full shrink-0 px-4 sm:px-6 lg:px-0 lg:-ml-2 xl:-ml-4 pointer-events-none",
             isDentistPhoto
               ? "lg:-mt-[5px] lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:justify-end lg:max-w-xl xl:max-w-2xl landing-hero__visual--dentist"
-              : "lg:-mt-6 xl:-mt-8 lg:flex-1 lg:min-w-[min(100%,520px)] lg:max-w-none",
+              : customHeroLayout
+                ? "lg:mt-0 xl:mt-0 lg:flex-1 lg:min-w-[min(100%,520px)] lg:max-w-none"
+                : "lg:-mt-6 xl:-mt-8 lg:flex-1 lg:min-w-[min(100%,520px)] lg:max-w-none",
           )}
         >
           <div
             className={cn(
               "landing-hero-illustrations mx-auto w-full max-w-3xl lg:mx-0 lg:max-w-none",
-              !isDual && "landing-hero-illustrations--single",
+              (customHeroImage || !isDual) && "landing-hero-illustrations--single",
               isPsychologistSolo && "landing-hero-illustrations--psychologist-single",
               isDentistPhoto && "landing-hero-illustrations--dentist-photo",
+              customHeroImage && "landing-hero-illustrations--beleza",
             )}
             role="img"
-            aria-label={HERO_ILLUSTRATION_LABEL[hero.illustration ?? "psychologist"]}
+            aria-label={heroVisualLabel}
           >
-            {isDual ? (
+            {customHeroImage ? (
+              <img
+                className="landing-hero-illustrations__piece landing-hero-illustrations__piece--beleza"
+                src={customHeroImage}
+                alt=""
+                width={800}
+                height={800}
+                fetchPriority="high"
+                decoding="async"
+              />
+            ) : isDual ? (
               <>
                 <img
                   className="landing-hero-illustrations__piece landing-hero-illustrations__piece--doctor"

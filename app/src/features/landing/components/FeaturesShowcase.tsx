@@ -1,7 +1,9 @@
 import { LandingSection } from "@/features/landing/components/LandingSection";
 import { LandingSectionHeader } from "@/features/landing/components/LandingSectionHeader";
+import { useLandingPageContent } from "@/features/landing/context/LandingPageContentContext";
+import { cn } from "@/lib/utils";
 
-const QUER_MAIS_FEATURES = [
+const DEFAULT_QUER_MAIS_FEATURES = [
   {
     illustrationSrc: "/landing-quer-mais-revenue.png",
     titleLines: ["Relatório de faturamento", "e comissionamento"],
@@ -49,17 +51,28 @@ function QuerMaisFeaturePair({ illustrationSrc, titleLines }: QuerMaisFeaturePai
 }
 
 export function FeaturesShowcase() {
+  const { featuresShowcase } = useLandingPageContent();
+  const features = featuresShowcase?.features ?? DEFAULT_QUER_MAIS_FEATURES;
+  const description =
+    featuresShowcase?.description ??
+    "Um painel claro para quem atende pacientes — não um sistema genérico que exige treinamento.";
+
   return (
     <LandingSection id="funcionalidades" className="pt-10 pb-10 md:pt-12 md:pb-14">
       <LandingSectionHeader
         className="mb-3 md:mb-4"
         title="Quer mais?"
-        description="Um painel claro para quem atende pacientes — não um sistema genérico que exige treinamento."
+        description={description}
       />
 
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 xl:max-w-7xl">
-        <div className="mt-1 grid grid-cols-1 justify-items-center gap-10 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 md:mt-1.5 lg:grid-cols-4 lg:gap-x-5 xl:gap-x-8">
-          {QUER_MAIS_FEATURES.map((feature) => (
+        <div
+          className={cn(
+            "mt-1 grid grid-cols-1 justify-items-center gap-10 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 md:mt-1.5 lg:gap-x-5 xl:gap-x-8",
+            features.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4",
+          )}
+        >
+          {features.map((feature) => (
             <QuerMaisFeaturePair
               key={feature.illustrationSrc}
               illustrationSrc={feature.illustrationSrc}

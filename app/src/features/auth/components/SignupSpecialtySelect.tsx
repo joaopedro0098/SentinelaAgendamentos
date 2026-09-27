@@ -1,15 +1,12 @@
 import { Label } from "@/components/ui/label";
-import {
-  PROFESSIONAL_SPECIALTIES,
-  PROFESSIONAL_SPECIALTY_LABELS,
-  type ProfessionalSpecialty,
-} from "@/lib/professionalSpecialty";
+import { PROFESSIONAL_SPECIALTY_LABELS, type ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 import { cn } from "@/lib/utils";
 
 type SignupSpecialtySelectProps = {
   id?: string;
   value: ProfessionalSpecialty | "";
   onChange: (value: ProfessionalSpecialty | "") => void;
+  options: readonly ProfessionalSpecialty[];
   required?: boolean;
   className?: string;
 };
@@ -18,6 +15,7 @@ export function SignupSpecialtySelect({
   id = "professional-specialty",
   value,
   onChange,
+  options,
   required = true,
   className,
 }: SignupSpecialtySelectProps) {
@@ -37,7 +35,7 @@ export function SignupSpecialtySelect({
         className="flex h-11 w-full rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--brand-violet)/0.5)]"
       >
         <option value="">Selecione sua especialidade</option>
-        {PROFESSIONAL_SPECIALTIES.map((key) => (
+        {options.map((key) => (
           <option key={key} value={key}>
             {PROFESSIONAL_SPECIALTY_LABELS[key]}
           </option>

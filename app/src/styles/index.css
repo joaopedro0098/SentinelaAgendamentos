@@ -555,6 +555,59 @@
     width: 94%;
     max-height: 97%;
   }
+  /* Landing /beleza: arte pode crescer sem empurrar CTAs; selo alinhado à base da imagem */
+  .landing-hero--beleza .landing-hero__stage {
+    --landing-hero-visual-trim-bottom: 0px;
+    --landing-hero-illustration-height: min(400px, 52vh);
+    --landing-hero-copy-track-height: min(400px, 52vh);
+  }
+  @media (min-width: 1024px) {
+    .landing-hero--beleza .landing-hero__stage {
+      --landing-hero-illustration-height: min(640px, 74vh);
+      /* Fixo: CTAs não descem com o slot da arte; base do selo ≈ base visible do PNG */
+      --landing-hero-copy-track-height: min(630px, 70vh);
+    }
+    .landing-hero--beleza .landing-hero__copy {
+      z-index: 30;
+    }
+    .landing-hero--beleza .landing-hero__copy-inner {
+      min-height: var(--landing-hero-copy-track-height);
+    }
+    .landing-hero--beleza .landing-hero__actions {
+      margin-top: auto;
+      padding-top: 2.75rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .landing-hero--beleza .landing-hero__stage {
+      --landing-hero-illustration-height: min(680px, 77vh);
+      --landing-hero-copy-track-height: min(630px, 70vh);
+    }
+  }
+  .landing-hero-illustrations--beleza {
+    overflow: visible;
+    height: var(--landing-hero-illustration-height);
+    max-height: var(--landing-hero-illustration-height);
+  }
+  .landing-hero-illustrations--single.landing-hero-illustrations--beleza
+    .landing-hero-illustrations__piece--beleza {
+    width: 92%;
+    max-height: 94%;
+    object-position: center bottom;
+  }
+  @media (min-width: 1024px) {
+    .landing-hero-illustrations--single.landing-hero-illustrations--beleza
+      .landing-hero-illustrations__piece--beleza {
+      top: auto;
+      bottom: 0;
+      left: 50%;
+      transform: translate(-44%, 0) scale(1.02);
+      transform-origin: 64% 100%;
+      width: 100%;
+      max-height: 100%;
+      object-position: center bottom;
+    }
+  }
   @media (min-width: 1024px) {
     .landing-hero-illustrations--single.landing-hero-illustrations--psychologist-single
       .landing-hero-illustrations__piece {
