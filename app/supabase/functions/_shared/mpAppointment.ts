@@ -458,8 +458,8 @@ export async function resolveAppointmentChargeCentavos(
     p_agendamento_id: params.agendamentoId,
     p_method: params.isPix ? "pix" : "card",
     p_installments: params.installments,
-    p_pass_fee_card: s.payment_pass_fee_card === true,
-    p_pass_fee_pix: s.payment_pass_fee_pix === true,
+    p_pass_fee_card: false,
+    p_pass_fee_pix: false,
   });
 
   if (error || typeof amount !== "number" || amount < 50) {

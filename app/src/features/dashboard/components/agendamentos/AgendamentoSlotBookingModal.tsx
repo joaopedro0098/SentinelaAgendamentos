@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { Check, Loader2, Search, X } from "lucide-react";
 import { ServicosCarousel } from "@agenda/components/agenda/ServicosCarousel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
   AppointmentChargeSettingsForm,
   defaultChargeFormFromPanelSettings,
   parseChargeFormDepositValue,
+  PaymentLinkCopyRow,
   type AppointmentChargeFormState,
 } from "@/features/dashboard/components/pagamentos/AppointmentChargeSettingsForm";
 import { ManualPixKeyCopyField } from "@/features/dashboard/components/pagamentos/ManualPixKeyCopyField";
@@ -36,6 +37,9 @@ import {
 import { getAppointmentPaymentPageUrl } from "@/lib/appointmentConfirmationMessage";
 import { supabase } from "@/integrations/supabase/client";
 import { saveAgendamentoPanelPaymentSnapshot } from "@/features/dashboard/lib/agendamentoPanelPayment";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
+import { subscribePaymentsConfigChanged } from "@agenda/lib/paymentsConfigSync";
+import { sanitizeManualPixKeyInput } from "@/lib/manualPixKeyInput";
 
 export type SlotBookingTarget = {
   data: string;
@@ -55,19 +59,15 @@ type Props = {
   onCreated: () => void;
 };
 
-type Step = "form" | "confirm";
-type ChargeKind = "automatic" | "manual" | null;
-
-const APP_ORIGIN =
-  typeof window !== "undefined" && window.location.origin
-    ? window.location.origin.replace(/\/+$/, "")
-    : "";
+type Step = "form" | "confirm" | "success";
+type ChargeKind = "automatic" | "manual" | "none";
 
 function formatMoney(centavos: number) {
   return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }: Props) {
+  const t = useClienteTerminology();
   const { info: subscriptionInfo } = useSubscription();
   const canChargeFeature =
     subscriptionInfo?.is_admin === true || subscriptionInfo?.can_use_appointment_payments === true;
@@ -86,8 +86,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
   const [chargeForm, setChargeForm] = useState<AppointmentChargeFormState>(() =>
     defaultChargeFormFromPanelSettings({ appointment_payment_mode: "deposit" }),
   );
-  const [chargeKind, setChargeKind] = useState<ChargeKind>(null);
-  const [cobrarExpanded, setCobrarExpanded] = useState(false);
+  const [chargeKind, setChargeKind] = useState<ChargeKind>("none");
   const [manualPixKey, setManualPixKey] = useState("");
   const [prefsLoading, setPrefsLoading] = useState(false);
 
@@ -96,6 +95,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
     totalCentavos: number;
     remainingCentavos: number;
   } | null>(null);
+  const [createdPaymentLink, setCreatedPaymentLink] = useState<string | null>(null);
 
   const servicos = target?.servicos ?? [];
   const requiresService = servicos.length > 0;
@@ -114,12 +114,6 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
     [servicos, servSel],
   );
 
-  const publicBookingUrl = useMemo(() => {
-    const slug = target?.shopSlug?.trim();
-    if (!slug || !APP_ORIGIN) return null;
-    return `${APP_ORIGIN}/agendar/${slug}/agendar`;
-  }, [target?.shopSlug]);
-
   const resetState = useCallback(() => {
     setStep("form");
     setServSel([]);
@@ -129,10 +123,10 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
     setSelectedPaciente(null);
     setObservacao("");
     setSubmitting(false);
-    setChargeKind(null);
-    setCobrarExpanded(false);
+    setChargeKind("none");
     setManualPixKey("");
     setConfirmChargePreview(null);
+    setCreatedPaymentLink(null);
     setChargeForm(defaultChargeFormFromPanelSettings({ appointment_payment_mode: "deposit" }));
   }, []);
 
@@ -140,23 +134,30 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
     if (!open) resetState();
   }, [open, resetState]);
 
-  useEffect(() => {
-    if (!open || !canChargeFeature) return;
-    let cancelled = false;
+  const reloadPaymentPanelSettings = useCallback(() => {
+    if (!canChargeFeature) return;
     void fetchPaymentPanelSettings()
       .then((data) => {
-        if (cancelled) return;
         setMpConnected(data.mp_connected === true);
-        setManualPixKey(data.manual_pix_key?.trim() ?? "");
+        setManualPixKey(sanitizeManualPixKeyInput(data.manual_pix_key?.trim() ?? ""));
         setChargeForm(defaultChargeFormFromPanelSettings(data));
       })
       .catch(() => {
         /* ignore */
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, canChargeFeature]);
+  }, [canChargeFeature]);
+
+  useEffect(() => {
+    if (!open || !canChargeFeature) return;
+    reloadPaymentPanelSettings();
+  }, [open, canChargeFeature, reloadPaymentPanelSettings]);
+
+  useEffect(() => {
+    if (!open || !canChargeFeature) return;
+    const slug = target?.shopSlug?.trim();
+    if (!slug) return;
+    return subscribePaymentsConfigChanged(slug, reloadPaymentPanelSettings);
+  }, [open, canChargeFeature, target?.shopSlug, reloadPaymentPanelSettings]);
 
   useEffect(() => {
     if (!open || !target || !selectedPaciente || !canChargeFeature) return;
@@ -211,7 +212,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
         setSearchResults([]);
         if (result.error !== "forbidden") {
           toast({
-            title: "Não foi possível buscar pacientes",
+            title: `Não foi possível buscar ${t.pluralLower}`,
             description: result.error,
             variant: "destructive",
           });
@@ -253,7 +254,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
   const handleContinue = async () => {
     if (!canContinue || !target) {
       if (!selectedPaciente) {
-        toast({ title: "Selecione um paciente", variant: "destructive" });
+        toast({ title: `Selecione um ${t.singularLower}`, variant: "destructive" });
         return;
       }
       if (requiresService && servSel.length === 0) {
@@ -332,8 +333,8 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
       appointment_deposit_value: chargeForm.paymentMode === "deposit" ? dep.depositValue : null,
       payment_enable_card: chargeForm.enableCard,
       payment_enable_pix: chargeForm.enablePix,
-      payment_pass_fee_card: chargeForm.passFeeCard,
-      payment_pass_fee_pix: chargeForm.passFeePix,
+      payment_pass_fee_card: false,
+      payment_pass_fee_pix: false,
       payment_max_installments: chargeForm.enableCard ? parseInt(chargeForm.maxInstallments, 10) || 1 : 1,
     });
   };
@@ -383,12 +384,13 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
         } catch {
           /* ignore */
         }
+        setCreatedPaymentLink(link);
+        setStep("success");
+        onCreated();
         toast({
           title: "Agendamento reservado",
-          description: `Link de pagamento copiado. ${link}`,
+          description: "Link de pagamento copiado — envie ao cliente para concluir o pagamento.",
         });
-        onCreated();
-        onClose();
         return;
       }
 
@@ -461,10 +463,16 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
             <h2 id="slot-booking-title" className="text-lg font-semibold tracking-tight">
-              {step === "form" ? "Novo agendamento" : "Confirmar agendamento"}
+              {step === "form"
+                ? "Novo agendamento"
+                : step === "success"
+                  ? "Link de pagamento"
+                  : "Confirmar agendamento"}
             </h2>
             {step === "confirm" ? (
               <p className="text-sm text-muted-foreground">Revise os dados antes de salvar.</p>
+            ) : step === "success" ? (
+              <p className="text-sm text-muted-foreground">Envie ao {t.singularLower} para concluir o pagamento.</p>
             ) : null}
           </div>
           <button
@@ -481,7 +489,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
         {step === "form" ? (
           <div className="space-y-5">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paciente</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.singular}</p>
               {selectedPaciente ? (
                 <div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-secondary/20 px-3 py-2.5">
                   <div className="min-w-0">
@@ -508,7 +516,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Buscar paciente cadastrado…"
+                      placeholder={`Buscar ${t.singularLower} cadastrado…`}
                       value={search}
                       onChange={(e) => handleSearchChange(e.target.value)}
                       className="pl-9"
@@ -523,7 +531,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                         </div>
                       ) : searchResults.length === 0 ? (
                         <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                          Nenhum paciente encontrado.
+                          Nenhum {t.singularLower} encontrado.
                         </p>
                       ) : (
                         <ul>
@@ -577,14 +585,13 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                       checked={chargeKind === "automatic"}
                       onChange={() => {
                         setChargeKind("automatic");
-                        setCobrarExpanded(true);
                         if (chargeForm.paymentMode === "none") {
                           patchChargeForm({ paymentMode: "deposit" });
                         }
                       }}
                       className="h-4 w-4 accent-primary"
                     />
-                    <span className="text-sm font-semibold">Cobrança automática</span>
+                    <span className="text-sm font-semibold">Link de pagamento</span>
                     {prefsLoading && chargeKind === "automatic" && (
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                     )}
@@ -594,42 +601,33 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                       type="radio"
                       name="slot-charge-kind"
                       checked={chargeKind === "manual"}
-                      onChange={() => {
-                        setChargeKind("manual");
-                        setCobrarExpanded(false);
-                      }}
+                      onChange={() => setChargeKind("manual")}
                       className="h-4 w-4 accent-primary"
                     />
                     <span className="text-sm font-semibold">Cobrança manual</span>
                   </label>
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      name="slot-charge-kind"
+                      checked={chargeKind === "none"}
+                      onChange={() => setChargeKind("none")}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="text-sm font-semibold">Sem cobrança</span>
+                  </label>
                 </div>
 
                 {chargeKind === "automatic" && (
-                  <div className="flex items-center justify-end border-t border-border/60 px-3 py-1">
-                    <button
-                      type="button"
-                      aria-expanded={cobrarExpanded}
-                      aria-label={cobrarExpanded ? "Recolher cobrança" : "Expandir cobrança"}
-                      onClick={() => setCobrarExpanded((v) => !v)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary/60 shrink-0"
-                    >
-                      <ChevronDown
-                        className={cn("h-4 w-4 transition-transform", cobrarExpanded && "rotate-180")}
-                      />
-                    </button>
-                  </div>
-                )}
-
-                {chargeKind === "automatic" && cobrarExpanded && (
                   <div className="border-t border-border/60 px-3 pb-4 pt-3">
                     <AppointmentChargeSettingsForm
                       state={chargeForm}
                       onChange={patchChargeForm}
-                      publicBookingUrl={publicBookingUrl}
                       mpConnected={mpConnected}
                       barbeiroId={target.barbeiroId}
                       servicosNomes={servicosNomes}
                       idPrefix="slot-booking-charge"
+                      paymentMethodsLayout="compact"
                     />
                   </div>
                 )}
@@ -637,7 +635,7 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                 {chargeKind === "manual" && (
                   <div className="border-t border-border/60 px-3 pb-4 pt-3 space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Compartilhe sua chave com seu paciente
+                      Compartilhe sua chave com seu {t.singularLower}
                     </p>
                     <ManualPixKeyCopyField pixKey={manualPixKey} />
                   </div>
@@ -665,6 +663,25 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
               onClick={() => void handleContinue()}
             >
               Continuar
+            </Button>
+          </div>
+        ) : step === "success" && createdPaymentLink ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-border/70 bg-secondary/15 px-4 py-4 space-y-3 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand shadow-glow">
+                <Check className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </div>
+              <p className="text-sm font-semibold">Agendamento reservado</p>
+              <p className="text-xs text-muted-foreground">
+                O cliente só consegue pagar por este link — não é o link de agendamento público do Perfil.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Link de pagamento</p>
+              <PaymentLinkCopyRow url={createdPaymentLink} />
+            </div>
+            <Button type="button" className="w-full rounded-full" onClick={onClose}>
+              Fechar
             </Button>
           </div>
         ) : (
@@ -721,14 +738,6 @@ export function AgendamentoSlotBookingModal({ open, target, onClose, onCreated }
                   {chargeForm.enableCard && (
                     <p className="text-center text-muted-foreground">
                       Parcelas: até {chargeForm.maxInstallments}x
-                    </p>
-                  )}
-                  {(chargeForm.passFeeCard || chargeForm.passFeePix) && (
-                    <p className="text-center text-muted-foreground">
-                      Repasse:{" "}
-                      {[chargeForm.passFeeCard && "cartão", chargeForm.passFeePix && "Pix"]
-                        .filter(Boolean)
-                        .join(" · ")}
                     </p>
                   )}
                 </div>

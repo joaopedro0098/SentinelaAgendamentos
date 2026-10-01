@@ -19,6 +19,7 @@ import {
   formatWhatsAppDisplay,
 } from "@/features/dashboard/lib/pacienteFormat";
 import type { PacienteDetailTab } from "@/features/dashboard/hooks/usePacientesPanel";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type Props = {
   loading: boolean;
@@ -107,6 +108,7 @@ export default function PacientesDesktopPanel({
   onOpenCreateCadastro,
 }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
+  const t = useClienteTerminology();
   const selectedWhatsapp = selectedPaciente?.whatsapp_digits ?? null;
   const [pagamentoTarget, setPagamentoTarget] = useState<PacienteAnotacaoItem | null>(null);
 
@@ -127,7 +129,7 @@ export default function PacientesDesktopPanel({
       <aside className="flex w-80 shrink-0 flex-col border-r border-border/60">
         <div className="p-4 border-b border-border/60 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold tracking-tight">Pacientes</h2>
+            <h2 className="text-sm font-semibold tracking-tight">{t.plural}</h2>
             <Button
               type="button"
               size="sm"
@@ -135,14 +137,14 @@ export default function PacientesDesktopPanel({
               onClick={onOpenCreateCadastro}
             >
               <Plus className="h-3.5 w-3.5" />
-              Criar paciente
+              Criar {t.singularLower}
             </Button>
           </div>
           <input
             type="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar paciente..."
+            placeholder={`Buscar ${t.singularLower}...`}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
           />
           {showProfFilter && (
@@ -210,7 +212,7 @@ export default function PacientesDesktopPanel({
       <section className="flex min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-background">
         {!selectedPaciente ? (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-            Selecione um paciente na lista.
+            Selecione um {t.singularLower} na lista.
           </div>
         ) : (
           <>
@@ -230,7 +232,7 @@ export default function PacientesDesktopPanel({
                 </div>
               </div>
 
-              <nav className="mt-5 flex gap-6 border-b border-transparent" aria-label="Seções do paciente">
+              <nav className="mt-5 flex gap-6 border-b border-transparent" aria-label={`Seções do ${t.singularLower}`}>
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}

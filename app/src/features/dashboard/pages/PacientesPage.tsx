@@ -5,14 +5,16 @@ import PacientesDesktopPanel from "@/features/dashboard/components/pacientes/Pac
 import PacientesMobilePanel from "@/features/dashboard/components/pacientes/PacientesMobilePanel";
 import { AgendamentoAnotacaoModal } from "@/features/dashboard/components/agendamentos/AgendamentoAnotacaoModal";
 import { PacienteCadastroCreateModal } from "@/features/dashboard/components/pacientes/PacienteCadastroCreateModal";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 export default function PacientesPage() {
   const isDesktop = useMediaMdUp();
   const panel = usePacientesPanel();
+  const t = useClienteTerminology();
 
   useEffect(() => {
-    document.title = "Pacientes — Sentinela Agendamentos";
-  }, []);
+    document.title = t.pageTitle;
+  }, [t.pageTitle]);
 
   const sharedProps = {
     loading: panel.loading,

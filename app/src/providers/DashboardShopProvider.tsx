@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { supabase as agendaSupabase } from "@agenda/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionContext } from "@/providers/SubscriptionProvider";
@@ -10,6 +9,7 @@ import { isCacheFresh } from "@/lib/providerCache";
 import { clearBookingStaticCache } from "@agenda/lib/bookingStaticCache";
 import { notifyPanelAgendamentosChanged } from "@agenda/lib/panelAgendamentosRefresh";
 import { notifyPanelRelatoriosChanged } from "@agenda/lib/panelRelatoriosRefresh";
+import { isProfessionalSpecialty, type ProfessionalSpecialty } from "@/lib/professionalSpecialty";
 
 export type DashboardShop = {
   id: string;
@@ -22,6 +22,7 @@ export type DashboardShop = {
   show_service_prices: boolean;
   contact_phone: string | null;
   welcome_support_pending: boolean;
+  professional_specialty: ProfessionalSpecialty | null;
 };
 
 export type CaBarbearia = {
@@ -81,7 +82,7 @@ async function syncAgenda(slug: string) {
 }
 
 async function resolveBarbeariaId(slug: string) {
-  const { data } = await agendaSupabase.from("barbearias").select("id").eq("slug", slug).maybeSingle();
+  const { data } = await supabase.from("barbearias").select("id").eq("slug", slug).maybeSingle();
   return data?.id ?? null;
 }
 
@@ -154,7 +155,7 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase
         .from("barbershops")
         .select(
-          "id, slug, display_name, avatar_url, slot_interval_minutes, allow_client_self_service, allow_client_public_booking, show_service_prices, contact_phone, welcome_support_pending",
+          "id, slug, display_name, avatar_url, slot_interval_minutes, allow_client_self_service, allow_client_public_booking, show_service_prices, contact_phone, welcome_support_pending, professional_specialty",
         )
         .eq("owner_id", userId)
         .maybeSingle();
@@ -167,6 +168,10 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
             allow_client_public_booking: row.allow_client_public_booking ?? true,
             contact_phone: row.contact_phone ?? null,
             welcome_support_pending: row.welcome_support_pending ?? false,
+            professional_specialty:
+              row.professional_specialty && isProfessionalSpecialty(row.professional_specialty)
+                ? row.professional_specialty
+                : null,
           }
         : null;
       cachedUserId = userId;
@@ -354,8 +359,12 @@ export function DashboardShopProvider({ children }: { children: ReactNode }) {
   return <DashboardShopContext.Provider value={value}>{children}</DashboardShopContext.Provider>;
 }
 
+export function useDashboardShopOptional() {
+  return useContext(DashboardShopContext);
+}
+
 export function useDashboardShop() {
-  const context = useContext(DashboardShopContext);
+  const context = useDashboardShopOptional();
   if (!context) {
     throw new Error("useDashboardShop must be used within DashboardShopProvider");
   }

@@ -34,6 +34,85 @@ export type AgendamentoPanelPaymentInfo = {
   remaining_centavos?: number | null;
 };
 
+export type AgendamentoComprovanteListItem = {
+  id: string;
+  mime_type?: string;
+  file_name?: string;
+};
+
+export type AgendamentoComprovanteViewMeta = {
+  ok?: boolean;
+  error?: string;
+  id?: string;
+  storage_path?: string;
+  mime_type?: string;
+  file_name?: string;
+};
+
+export const MAX_COMPROVANTES_POR_AGENDAMENTO = 2;
+
+export function formatPanelMoney(centavos: number): string {
+  return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Valor único exibido no modal quando a cobrança foi por link automático. */
+export function panelAutomaticPaymentAmountLabel(info: AgendamentoPanelPaymentInfo | null): string | null {
+  if (!info?.has_panel_snapshot || info.charge_kind !== "automatic") return null;
+  const paid = info.valor_pago_centavos ?? 0;
+  if (paid > 0) return formatPanelMoney(paid);
+  if (info.payment_status === "paid" && (info.charge_centavos ?? 0) > 0) {
+    return formatPanelMoney(info.charge_centavos!);
+  }
+  return null;
+}
+
+export function panelFormaPagamentoLabel(info: AgendamentoPanelPaymentInfo | null): string {
+  if (!info?.has_panel_snapshot) return "sem pagamento";
+  if (info.charge_kind === "manual") return "pagamento manual";
+  if (info.charge_kind === "automatic") return "Link de pagamento";
+  return "sem pagamento";
+}
+
+export async function listAgendamentoComprovantesMeta(
+  agendamentoId: string,
+): Promise<{ items: AgendamentoComprovanteListItem[]; error?: string }> {
+  const { data, error } = await supabase.rpc("list_agendamento_comprovantes_meta", {
+    p_agendamento_id: agendamentoId,
+  });
+  if (error) return { items: [], error: error.message };
+  const row = (data ?? {}) as { error?: string; items?: AgendamentoComprovanteListItem[] };
+  if (row.error) return { items: [], error: row.error };
+  const items = Array.isArray(row.items) ? row.items : [];
+  return {
+    items: items.filter((i) => i?.id).map((i) => ({
+      id: String(i.id),
+      mime_type: i.mime_type,
+      file_name: i.file_name,
+    })),
+  };
+}
+
+export async function fetchAgendamentoComprovanteById(
+  comprovanteId: string,
+): Promise<AgendamentoComprovanteViewMeta> {
+  const { data, error } = await supabase.rpc("get_agendamento_comprovante_by_id", {
+    p_comprovante_id: comprovanteId,
+  });
+  if (error) return { error: error.message };
+  return (data ?? { error: "empty" }) as AgendamentoComprovanteViewMeta;
+}
+
+export async function openComprovanteInNewTab(comprovanteId: string): Promise<{ error?: string }> {
+  const meta = await fetchAgendamentoComprovanteById(comprovanteId);
+  if (meta.error || !meta.storage_path) {
+    return { error: meta.error ?? "Comprovante não encontrado." };
+  }
+  const signed = await createAgendamentoComprovanteSignedUrl(meta.storage_path);
+  if ("error" in signed) return { error: signed.error };
+  window.open(signed.url, "_blank", "noopener,noreferrer");
+  return {};
+}
+
 export type AgendamentoComprovanteMeta = {
   found?: boolean;
   error?: string;
@@ -66,8 +145,8 @@ export async function saveAgendamentoPanelPaymentSnapshot(params: {
     p_deposit_value: dep?.ok ? dep.depositValue : null,
     p_payment_enable_card: params.chargeForm?.enableCard ?? null,
     p_payment_enable_pix: params.chargeForm?.enablePix ?? null,
-    p_payment_pass_fee_card: params.chargeForm?.passFeeCard ?? null,
-    p_payment_pass_fee_pix: params.chargeForm?.passFeePix ?? null,
+    p_payment_pass_fee_card: false,
+    p_payment_pass_fee_pix: false,
     p_payment_max_installments: params.chargeForm?.enableCard
       ? parseInt(params.chargeForm.maxInstallments, 10) || 1
       : 1,
@@ -131,7 +210,7 @@ export function validateComprovanteFile(file: File): { ok: true } | { ok: false;
 export async function uploadAgendamentoComprovante(
   agendamentoId: string,
   file: File,
-): Promise<{ ok: true } | { error: string }> {
+): Promise<{ ok: true; id?: string } | { error: string }> {
   const validation = validateComprovanteFile(file);
   if (!validation.ok) return { error: validation.message };
 
@@ -143,9 +222,25 @@ export async function uploadAgendamentoComprovante(
     body: form,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    let message = error.message || "Não foi possível enviar o comprovante.";
+    const ctx = (error as { context?: Response }).context;
+    if (ctx) {
+      try {
+        const body = (await ctx.json()) as { message?: string; error?: string };
+        if (body?.message) message = body.message;
+      } catch {
+        /* mantém mensagem padrão */
+      }
+    }
+    if (/failed to send a request to the edge function/i.test(message)) {
+      message =
+        "Serviço de upload indisponível. Confirme se a função upload-agendamento-comprovante está publicada no Supabase.";
+    }
+    return { error: message };
+  }
   const payload = data as { ok?: boolean; error?: string; message?: string } | null;
   if (payload?.error) return { error: payload.message ?? payload.error };
   if (!payload?.ok) return { error: "Não foi possível enviar o comprovante." };
-  return { ok: true };
+  return { ok: true, id: payload.id as string | undefined };
 }

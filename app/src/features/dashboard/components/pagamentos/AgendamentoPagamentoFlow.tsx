@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, ChevronDown, ExternalLink, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/features/dashboard/lib/agendamentosPanel";
 import {
   COMPROVANTE_ACCEPT,
@@ -100,6 +101,61 @@ function PaymentInfoRows({ info }: { info: AgendamentoPanelPaymentInfo }) {
   );
 }
 
+function ComprovanteUploadBlock({
+  agendamentoId,
+  uploading,
+  onUploadingChange,
+  onUploaded,
+}: {
+  agendamentoId: string;
+  uploading: boolean;
+  onUploadingChange: (v: boolean) => void;
+  onUploaded: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    onUploadingChange(true);
+    const result = await uploadAgendamentoComprovante(agendamentoId, file);
+    onUploadingChange(false);
+    if ("error" in result) {
+      toast({ title: "Upload não concluído", description: result.error, variant: "destructive" });
+      return;
+    }
+    onUploaded();
+    toast({ title: "Comprovante enviado" });
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 pt-3 border-t border-border/60">
+      <span className="text-sm font-medium text-foreground">Comprovante de pagamento</span>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={COMPROVANTE_ACCEPT}
+        className="hidden"
+        onChange={(e) => void handleFileChange(e)}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        aria-label="Enviar comprovante de pagamento"
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          "bg-primary/15 text-primary hover:bg-primary/25 transition-colors",
+          "disabled:opacity-40 disabled:pointer-events-none",
+        )}
+      >
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 export function AgendamentoPagamentoFlow({
   agendamentoId,
   initialScreen = "home",
@@ -118,7 +174,6 @@ export function AgendamentoPagamentoFlow({
   const [comprovanteName, setComprovanteName] = useState<string | null>(null);
 
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetComprovantePreview = useCallback(() => {
     setComprovanteUrl(null);
@@ -178,24 +233,6 @@ export function AgendamentoPagamentoFlow({
     setComprovanteMime(meta.mime_type ?? null);
     setComprovanteName(meta.file_name ?? "comprovante");
     setScreen("comprovante");
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploading(true);
-    const result = await uploadAgendamentoComprovante(agendamentoId, file);
-    setUploading(false);
-    if ("error" in result) {
-      toast({ title: "Upload não concluído", description: result.error, variant: "destructive" });
-      return;
-    }
-    setHasComprovanteFlag(true);
-    if (paymentInfo) {
-      setPaymentInfo({ ...paymentInfo, has_comprovante: true });
-    }
-    toast({ title: "Comprovante enviado" });
   };
 
   if (screen === "comprovante") {
@@ -260,7 +297,7 @@ export function AgendamentoPagamentoFlow({
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </button>
-        {!skipHomeScreen ? <h3 className="text-sm font-semibold">Pagamento</h3> : null}
+        <h3 className="text-sm font-semibold">Forma de pagamento</h3>
         {infoLoading ? (
           <div className="flex justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -276,8 +313,21 @@ export function AgendamentoPagamentoFlow({
                 disabled={comprovanteLoading}
                 onClick={() => void openComprovante()}
               >
-                {comprovanteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Comprovante"}
+                {comprovanteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ver comprovante"}
               </Button>
+            )}
+            {allowUpload && (
+              <ComprovanteUploadBlock
+                agendamentoId={agendamentoId}
+                uploading={uploading}
+                onUploadingChange={setUploading}
+                onUploaded={() => {
+                  setHasComprovanteFlag(true);
+                  if (paymentInfo) {
+                    setPaymentInfo({ ...paymentInfo, has_comprovante: true });
+                  }
+                }}
+              />
             )}
           </>
         ) : null}
@@ -286,45 +336,14 @@ export function AgendamentoPagamentoFlow({
   }
 
   return (
-    <div className="space-y-4">
-      {allowUpload && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">
-            Faça o upload do comprovante de pagamento (opcional)
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={COMPROVANTE_ACCEPT}
-            className="hidden"
-            onChange={(e) => void handleFileChange(e)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2 font-normal"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 text-muted-foreground" />
-            )}
-            {uploading ? "Enviando…" : "Escolher arquivo (PDF, SVG, JPG, PNG)"}
-          </Button>
-        </div>
-      )}
-
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-8 px-0 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
-        onClick={openPaymentInfo}
-      >
-        Pagamento
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full justify-between gap-2 font-normal"
+      onClick={openPaymentInfo}
+    >
+      Forma de pagamento
+      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </Button>
   );
 }

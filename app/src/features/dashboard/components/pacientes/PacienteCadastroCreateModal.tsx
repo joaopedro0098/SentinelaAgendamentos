@@ -12,6 +12,8 @@ import {
   type PacientePainelItem,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
 import { extractWhatsappSearchDigits } from "@/features/dashboard/lib/pacienteFormat";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
+import { applyClienteTerminologyToMessage } from "@/lib/clienteTerminology";
 
 const COUNTRY_CODES = [
   { code: "+55", country: "Brasil", flag: "🇧🇷" },
@@ -39,6 +41,7 @@ export function PacienteCadastroCreateModal({
   onClose,
   onCreated,
 }: Props) {
+  const t = useClienteTerminology();
   const [nome, setNome] = useState("");
   const [countryCode, setCountryCode] = useState("+55");
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -79,15 +82,15 @@ export function PacienteCadastroCreateModal({
     if ("error" in result) {
       setSaving(false);
       toast({
-        title: result.alreadyExists ? "Paciente já cadastrado" : "Não foi possível cadastrar",
-        description: result.error,
+        title: result.alreadyExists ? `${t.singular} já cadastrado` : "Não foi possível cadastrar",
+        description: applyClienteTerminologyToMessage(result.error, t),
         variant: "destructive",
       });
       return;
     }
 
     setSaving(false);
-    toast({ title: "Paciente cadastrado" });
+    toast({ title: `${t.singular} cadastrado` });
     onCreated(result.patient);
     onClose();
   }
@@ -114,10 +117,11 @@ export function PacienteCadastroCreateModal({
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <h2 id="paciente-create-modal-title" className="text-xl font-bold tracking-tight font-display">
-              Criar paciente
+              Criar {t.singularLower}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Cadastre o nome e o número com WhatsApp. O link de ativação pode ser compartilhado depois na ficha do paciente.
+              Cadastre o nome e o número com WhatsApp. O link de ativação pode ser compartilhado depois na ficha do{" "}
+              {t.singularLower}.
             </p>
           </div>
           <button

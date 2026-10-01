@@ -29,6 +29,7 @@ import {
 import { finishPatientActivation } from "@/features/auth/lib/patientActivationFinish";
 import { resolvePatientPostLoginPath } from "@/features/auth/lib/resolvePatientPostLoginPath";
 import { cn } from "@/lib/utils";
+import { useClienteTerminologyFromActivationToken } from "@/features/dashboard/hooks/useClienteTerminologyFromActivationToken";
 
 const EMAIL_NOT_REGISTERED_MESSAGE = "E-mail não cadastrado. Favor realizar cadastro.";
 
@@ -64,6 +65,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const activationToken = activationTokenFromSearch(location.search);
+  const clientCopy = useClienteTerminologyFromActivationToken(activationToken);
   const [role, setRole] = useState<LoginRole>(() =>
     loginRoleFromLocation(location.search, (location.state as { role?: LoginRole } | null)?.role),
   );
@@ -89,7 +91,7 @@ export default function Login() {
     setEntering(false);
     handledSessionRef.current = false;
     toast({
-      title: "Não foi possível entrar como paciente",
+      title: `Não foi possível entrar como ${clientCopy.singularLower}`,
       description: result.error,
       variant: "destructive",
     });
@@ -100,7 +102,7 @@ export default function Login() {
     const result = await finishPatientActivation(activationToken, userId);
     if (!result.ok) {
       toast({
-        title: "Falha ao vincular paciente",
+        title: `Falha ao vincular ${clientCopy.singularLower}`,
         description: result.error,
         variant: "destructive",
       });
@@ -249,7 +251,7 @@ export default function Login() {
             <h1 className="font-display text-2xl font-semibold tracking-tight">Entrar</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {activationToken
-                ? "Entre com sua conta existente para concluir a ativação como paciente."
+                ? `Entre com sua conta existente para concluir a ativação como ${clientCopy.singularLower}.`
                 : isPatient
                   ? "Acesse sua conta para agendar e ver seus atendimentos."
                   : "Acesse seu painel de agenda e consultório."}
@@ -273,7 +275,7 @@ export default function Login() {
               )}
               onClick={() => setRole("patient")}
             >
-              Sou Paciente
+              Sou {clientCopy.singular}
             </button>
             <button
               type="button"

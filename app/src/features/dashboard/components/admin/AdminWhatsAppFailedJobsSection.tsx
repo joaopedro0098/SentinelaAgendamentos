@@ -4,6 +4,7 @@ import { maskPhone } from "@agenda/lib/phone";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMediaMdUp } from "@/hooks/useMediaMdUp";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type FailedJobRow = {
   id: string;
@@ -46,6 +47,7 @@ function labelResposta(body: string) {
 }
 
 export function AdminWhatsAppFailedJobsSection() {
+  const t = useClienteTerminology();
   const isDesktop = useMediaMdUp();
   const [jobs, setJobs] = useState<FailedJobRow[] | null>(null);
   const [failedCount24h, setFailedCount24h] = useState(0);
@@ -93,7 +95,7 @@ export function AdminWhatsAppFailedJobsSection() {
           Jobs WhatsApp com falha
         </CardTitle>
         <CardDescription>
-          Respostas de pacientes que falharam após {3} tentativas automáticas. Somente visível no desktop.
+          Respostas de {t.pluralLower} que falharam após {3} tentativas automáticas. Somente visível no desktop.
           {failedCount24h > 0 && (
             <span className="mt-1 block font-medium text-destructive">
               {failedCount24h} falha{failedCount24h === 1 ? "" : "s"} nas últimas 24h

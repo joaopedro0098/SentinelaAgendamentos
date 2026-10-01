@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
-import { supabase } from "@agenda/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { notifyPanelPacientesChanged } from "@agenda/lib/panelPacientesRefresh";
 import {
   patchClienteNomeInList,
@@ -32,9 +32,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import {
-  buildAppointmentConfirmationMessage,
-} from "@/lib/appointmentConfirmationMessage";
 import {
   filterAgendamentos,
   formatMoney,
@@ -199,7 +196,12 @@ function parseServicosFromProfessionalRow(row: Record<string, unknown>): SlotBoo
         id: String(s.id ?? nome),
         nome,
         duracao_minutos: Number(s.duracao_minutos ?? 30),
-        preco_centavos: s.preco_centavos != null ? Number(s.preco_centavos) : undefined,
+        preco_centavos:
+          s.preco_centavos != null
+            ? Number(s.preco_centavos)
+            : s.price_cents != null
+              ? Number(s.price_cents)
+              : undefined,
       } satisfies SlotBookingServico;
     })
     .filter((s): s is SlotBookingServico => s != null);
@@ -896,21 +898,6 @@ export default function AgendamentosDesktopPanel({
     void loadData({ preserveUi: true });
   }
 
-  function buildMessage(a: AgendamentoPainelItem) {
-    return buildAppointmentConfirmationMessage({
-      ...a,
-      shop_name: shop?.display_name ?? null,
-    });
-  }
-
-  function handleCopyConfirmationMessage(a: AgendamentoPainelItem) {
-    const text = buildMessage(a);
-    void navigator.clipboard.writeText(text).then(
-      () => toast({ title: "Link de confirmação copiado" }),
-      () => toast({ title: "Não foi possível copiar", variant: "destructive" }),
-    );
-  }
-
   function handleAlertResolved(agendamentoId: string) {
     setItems((prev) =>
       prev.map((item) =>
@@ -1021,9 +1008,21 @@ export default function AgendamentosDesktopPanel({
           <>
             {!isNoShow && (
               <>
-                <AgendamentoMenuAction label="Alterar" onClick={() => handleAlterar(a)} />
-                <AgendamentoMenuAction label="Link de confirmação" onClick={() => handleCopyConfirmationMessage(a)} />
-                <AgendamentoMenuAction label="Excluir" destructive onClick={() => setDeleteTarget(a)} />
+                <AgendamentoMenuAction
+                  label="Alterar"
+                  onClick={() => {
+                    setPainelDetailTarget(null);
+                    handleAlterar(a);
+                  }}
+                />
+                <AgendamentoMenuAction
+                  label="Excluir"
+                  destructive
+                  onClick={() => {
+                    setPainelDetailTarget(null);
+                    setDeleteTarget(a);
+                  }}
+                />
               </>
             )}
           </>
@@ -1373,14 +1372,21 @@ export default function AgendamentosDesktopPanel({
                     type="button"
                     aria-label="Ajustar largura das colunas da grade"
                     className={cn(
-                      "absolute top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border bg-background shadow-sm cursor-col-resize",
+                      "absolute -top-1 z-20 flex -translate-x-1/2 flex-col items-center cursor-col-resize",
                       DAY_GRID_RULE,
-                      "hover:scale-110 hover:bg-secondary/80",
-                      dayGridResizing && "scale-110 bg-secondary",
                     )}
                     style={{ left: `calc(${DAY_GRID_TIME_COL} + ${dayGridColWidth}px)` }}
                     onMouseDown={handleDayGridResizeStart}
-                  />
+                  >
+                    <span
+                      className={cn(
+                        "h-2.5 w-2.5 rounded-full border bg-background shadow-sm",
+                        "hover:scale-110 hover:bg-secondary/80",
+                        dayGridResizing && "scale-110 bg-secondary",
+                      )}
+                    />
+                    <span className="mt-0.5 h-3 w-px bg-border/80" aria-hidden />
+                  </button>
                   <div
                     className={cn(
                       "grid w-full min-w-max items-center border-b bg-secondary/10 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",

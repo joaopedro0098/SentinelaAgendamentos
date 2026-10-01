@@ -69,8 +69,8 @@ export async function savePaymentPanelSettings(
     p_appointment_deposit_value: input.appointment_deposit_value ?? null,
     p_payment_enable_card: input.payment_enable_card ?? null,
     p_payment_enable_pix: input.payment_enable_pix ?? null,
-    p_payment_pass_fee_card: input.payment_pass_fee_card ?? null,
-    p_payment_pass_fee_pix: input.payment_pass_fee_pix ?? null,
+    p_payment_pass_fee_card: false,
+    p_payment_pass_fee_pix: false,
     p_payment_max_installments: input.payment_max_installments ?? null,
   });
   if (error) throw new Error(error.message);

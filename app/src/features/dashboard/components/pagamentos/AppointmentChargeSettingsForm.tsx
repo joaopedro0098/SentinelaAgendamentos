@@ -9,6 +9,7 @@ import {
   type AppointmentDepositType,
   type AppointmentPaymentMode,
 } from "@/lib/paymentsApi";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -30,11 +31,14 @@ export type AppointmentChargeFormState = {
 type Props = {
   state: AppointmentChargeFormState;
   onChange: (patch: Partial<AppointmentChargeFormState>) => void;
-  publicBookingUrl: string | null;
+  /** Link `/pagar/{token}` — só após o agendamento existir (painel Agendamentos). */
+  paymentShareUrl?: string | null;
   mpConnected: boolean;
   barbeiroId?: string | null;
   servicosNomes?: string[];
   idPrefix?: string;
+  /** Painel novo agendamento: Pix/cartão lado a lado, checkbox sem ícones. */
+  paymentMethodsLayout?: "default" | "compact";
 };
 
 async function resolveChargeCentavosForDisplay(
@@ -57,31 +61,7 @@ async function resolveChargeCentavosForDisplay(
   const calc = data as { error?: string; charge_centavos?: number };
   if (calc.error || calc.charge_centavos == null || calc.charge_centavos <= 0) return null;
 
-  let charge = calc.charge_centavos;
-  const passCard = state.enableCard && state.passFeeCard;
-  const passPix = state.enablePix && state.passFeePix;
-
-  if (passCard) {
-    const { data: withFee } = await supabase.rpc("apply_mp_pass_fee_centavos", {
-      p_charge_centavos: charge,
-      p_method: "card",
-      p_installments: 1,
-      p_pass_fee_card: true,
-      p_pass_fee_pix: false,
-    });
-    if (typeof withFee === "number") charge = withFee;
-  } else if (passPix) {
-    const { data: withFee } = await supabase.rpc("apply_mp_pass_fee_centavos", {
-      p_charge_centavos: charge,
-      p_method: "pix",
-      p_installments: 1,
-      p_pass_fee_card: false,
-      p_pass_fee_pix: true,
-    });
-    if (typeof withFee === "number") charge = withFee;
-  }
-
-  return charge;
+  return calc.charge_centavos;
 }
 
 function formatMoney(centavos: number) {
@@ -175,7 +155,38 @@ function PaymentMethodToggleRow({
   );
 }
 
-function PaymentLinkCopyRow({ url }: { url: string }) {
+function PaymentMethodCheckboxRow({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-background/60 px-3 py-2",
+        checked && "border-primary/40 bg-primary/5",
+      )}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 accent-primary"
+      />
+      <span className="text-sm font-medium leading-tight">{label}</span>
+    </label>
+  );
+}
+
+export function PaymentLinkCopyRow({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -211,16 +222,18 @@ function PaymentLinkCopyRow({ url }: { url: string }) {
 export function AppointmentChargeSettingsForm({
   state,
   onChange,
-  publicBookingUrl,
+  paymentShareUrl = null,
   mpConnected,
   barbeiroId,
   servicosNomes = [],
   idPrefix = "charge",
+  paymentMethodsLayout = "default",
 }: Props) {
+  const t = useClienteTerminology();
   const chargeEnabled = state.paymentMode !== "none";
   const [chargePreviewCentavos, setChargePreviewCentavos] = useState<number | null>(null);
   const [chargePreviewLoading, setChargePreviewLoading] = useState(false);
-  const linkUrl = publicBookingUrl;
+  const linkUrl = paymentShareUrl?.trim() || null;
 
   useEffect(() => {
     if (!chargeEnabled || !barbeiroId || servicosNomes.length === 0) {
@@ -253,8 +266,6 @@ export function AppointmentChargeSettingsForm({
     state.depositFixedReais,
     state.enableCard,
     state.enablePix,
-    state.passFeeCard,
-    state.passFeePix,
   ]);
 
   const content = (
@@ -346,22 +357,41 @@ export function AppointmentChargeSettingsForm({
         <>
           {/* 2 — meios */}
           <section className="space-y-3">
-            <ChargeStepHeader step={2} description="Escolha como o paciente poderá pagar." />
-            <div className="space-y-2 pl-11">
-              <PaymentMethodToggleRow
-                id={`${idPrefix}-payment-enable-pix`}
-                label="Pix"
-                icon={<QrCode className="h-4 w-4" />}
-                checked={state.enablePix}
-                onToggle={() => onChange({ enablePix: !state.enablePix })}
-              />
-              <PaymentMethodToggleRow
-                id={`${idPrefix}-payment-enable-card`}
-                label="Cartão de crédito"
-                icon={<CreditCard className="h-4 w-4" />}
-                checked={state.enableCard}
-                onToggle={() => onChange({ enableCard: !state.enableCard })}
-              />
+            <ChargeStepHeader step={2} description={`Escolha como o ${t.singularLower} poderá pagar.`} />
+            <div className={cn("pl-11", paymentMethodsLayout === "compact" ? "grid grid-cols-2 gap-2" : "space-y-2")}>
+              {paymentMethodsLayout === "compact" ? (
+                <>
+                  <PaymentMethodCheckboxRow
+                    id={`${idPrefix}-payment-enable-pix`}
+                    label="Pix"
+                    checked={state.enablePix}
+                    onChange={(enablePix) => onChange({ enablePix })}
+                  />
+                  <PaymentMethodCheckboxRow
+                    id={`${idPrefix}-payment-enable-card`}
+                    label="Cartão"
+                    checked={state.enableCard}
+                    onChange={(enableCard) => onChange({ enableCard })}
+                  />
+                </>
+              ) : (
+                <>
+                  <PaymentMethodToggleRow
+                    id={`${idPrefix}-payment-enable-pix`}
+                    label="Pix"
+                    icon={<QrCode className="h-4 w-4" />}
+                    checked={state.enablePix}
+                    onToggle={() => onChange({ enablePix: !state.enablePix })}
+                  />
+                  <PaymentMethodToggleRow
+                    id={`${idPrefix}-payment-enable-card`}
+                    label="Cartão"
+                    icon={<CreditCard className="h-4 w-4" />}
+                    checked={state.enableCard}
+                    onToggle={() => onChange({ enableCard: !state.enableCard })}
+                  />
+                </>
+              )}
               {!state.enableCard && !state.enablePix && (
                 <p className="text-sm text-destructive px-1">Ative cartão ou Pix para cobrar.</p>
               )}
@@ -387,19 +417,23 @@ export function AppointmentChargeSettingsForm({
             </div>
           </section>
 
-          {/* 4 — Link de pagamento */}
+          {/* 4 — Link de pagamento (somente pagamento online, não agendamento público) */}
           {linkUrl ? (
             <section className="space-y-3">
               <ChargeStepHeader
                 step={4}
                 title="Link de pagamento"
-                description="Compartilhe este link com o paciente para realizar o pagamento."
+                description={`Envie este link ao ${t.singularLower} para concluir apenas o pagamento deste agendamento.`}
               />
               <div className="pl-11">
                 <PaymentLinkCopyRow url={linkUrl} />
               </div>
             </section>
-          ) : null}
+          ) : (
+            <p className="text-xs text-muted-foreground pl-1">
+              O link de pagamento será gerado após você confirmar o agendamento.
+            </p>
+          )}
 
           <div className="rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 flex justify-end">
             {chargePreviewLoading ? (
@@ -445,8 +479,8 @@ export function defaultChargeFormFromPanelSettings(data: {
         : "50,00",
     enableCard: data.payment_enable_card ?? true,
     enablePix: data.payment_enable_pix ?? true,
-    passFeeCard: data.payment_pass_fee_card ?? false,
-    passFeePix: data.payment_pass_fee_pix ?? false,
+    passFeeCard: false,
+    passFeePix: false,
     maxInstallments: String(data.payment_max_installments ?? 1),
   };
 }

@@ -37,6 +37,8 @@ import { toast } from "@/hooks/use-toast";
 import { AdminAggregatedAccountsSection } from "@/features/dashboard/components/admin/AdminAggregatedAccountsSection";
 import { AdminWhatsAppFailedJobsSection } from "@/features/dashboard/components/admin/AdminWhatsAppFailedJobsSection";
 import { AdminIntegracaoAlertasSection } from "@/features/dashboard/components/admin/AdminIntegracaoAlertasSection";
+import { AdminNichePreviewSelector } from "@/features/dashboard/components/admin/AdminNichePreviewSelector";
+import { AdminNichePreviewProvider } from "@/providers/AdminNichePreviewProvider";
 
 const SUPABASE_FUNCTIONS_URL = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
 const SUPABASE_PUBLISHABLE_KEY = String(
@@ -404,21 +406,24 @@ export default function AdminPage() {
   const supportPreviewUrl = buildSupportWhatsAppUrl(unmaskPhone(supportPhone));
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
-      <div>
-        <Link to="/app/perfil" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Voltar à conta
-        </Link>
-        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <Shield className="h-6 w-6 text-primary" />
-          Admin
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Consulte usuários cadastrados e remova contas por completo quando necessário.
-        </p>
-      </div>
+    <AdminNichePreviewProvider enabled>
+      <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
+        <div>
+          <Link to="/app/perfil" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Voltar à conta
+          </Link>
+          <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            Admin
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Consulte usuários cadastrados e remova contas por completo quando necessário.
+          </p>
+        </div>
 
-      <Card>
+        <AdminNichePreviewSelector />
+
+        <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Painel</CardTitle>
         </CardHeader>
@@ -803,6 +808,7 @@ export default function AdminPage() {
       <AdminIntegracaoAlertasSection />
 
       <AdminAggregatedAccountsSection />
-    </div>
+      </div>
+    </AdminNichePreviewProvider>
   );
 }

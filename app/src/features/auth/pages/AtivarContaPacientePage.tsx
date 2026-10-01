@@ -27,6 +27,7 @@ import {
   patientActivationSchema,
 } from "@/features/auth/lib/patientActivationSchema";
 import { PageReveal } from "@/components/layout/PageReveal";
+import { useClienteTerminologyFromSlug } from "@/features/dashboard/hooks/useClienteTerminologyFromSlug";
 
 type ActivationPhase = "form" | "otp";
 
@@ -58,9 +59,10 @@ export default function AtivarContaPacientePage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
   const navigate = useNavigate();
-
   const [pageState, setPageState] = useState<PageState>("loading");
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [terminologySlug, setTerminologySlug] = useState<string | null>(null);
+  const t = useClienteTerminologyFromSlug(terminologySlug);
 
   const [phase, setPhase] = useState<ActivationPhase>("form");
   const [email, setEmail] = useState("");
@@ -91,12 +93,15 @@ export default function AtivarContaPacientePage() {
 
       const res = data as VerifyTokenResponse;
 
+      const slugFromToken = res.barbearia_slug?.trim() || null;
+      setTerminologySlug(slugFromToken);
+
       if (res.reason === "already_has_account") {
         setTokenInfo({
           nome: res.nome || "Paciente",
           whatsapp: res.whatsapp || "",
           barbearia_nome: res.barbearia_nome || "Clínica",
-          barbearia_slug: res.barbearia_slug ?? null,
+          barbearia_slug: slugFromToken,
         });
         setPageState("already_has_account");
         return;
@@ -149,7 +154,11 @@ export default function AtivarContaPacientePage() {
 
     const result = await finishPatientActivation(token, authUserId);
     if (!result.ok) {
-      toast({ title: "Falha ao vincular paciente", description: result.error, variant: "destructive" });
+      toast({
+        title: `Falha ao vincular ${t.singularLower}`,
+        description: result.error,
+        variant: "destructive",
+      });
       return false;
     }
 
@@ -262,13 +271,13 @@ export default function AtivarContaPacientePage() {
             {tokenInfo?.nome ? (
               <>
                 Olá, <strong>{tokenInfo.nome}</strong>! Use o mesmo e-mail e senha da sua conta
-                (profissional ou paciente). Ao entrar, vinculamos seu cadastro de paciente
+                (profissional ou {t.singularLower}). Ao entrar, vinculamos seu cadastro de {t.singularLower}{" "}
                 automaticamente.
               </>
             ) : (
               <>
                 Use o mesmo e-mail e senha da sua conta existente. Ao entrar, vinculamos seu
-                cadastro de paciente automaticamente.
+                cadastro de {t.singularLower} automaticamente.
               </>
             )}
           </p>
@@ -290,7 +299,7 @@ export default function AtivarContaPacientePage() {
           <h1 className="font-display text-xl font-bold">Link já utilizado</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Este link de ativação já foi usado. Se você já concluiu o cadastro, faça login na opção{" "}
-            <strong>Sou Paciente</strong>. Caso contrário, peça um novo link à clínica.
+            <strong>Sou {t.singular}</strong>. Caso contrário, peça um novo link {t.isBeautyNiche ? "ao salão" : "à clínica"}.
           </p>
           <Button asChild className="w-full rounded-full bg-gradient-brand text-white shadow-glow">
             <Link to="/login?role=patient">Entrar</Link>
@@ -309,7 +318,7 @@ export default function AtivarContaPacientePage() {
           </div>
           <h1 className="font-display text-xl font-bold">Link expirado</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Este link de ativação expirou. Entre em contato com a clínica para solicitar um novo link.
+            Este link de ativação expirou. Entre em contato {t.isBeautyNiche ? "com o salão" : "com a clínica"} para solicitar um novo link.
           </p>
           <Button asChild variant="outline" className="w-full rounded-full">
             <Link to="/login?role=patient">Ir para o Login</Link>
@@ -329,7 +338,7 @@ export default function AtivarContaPacientePage() {
           <h1 className="font-display text-xl font-bold">Link de ativação inválido</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Não foi possível validar este link. Verifique se o endereço está completo ou peça um novo
-            link à clínica.
+            link {t.isBeautyNiche ? "ao salão" : "à clínica"}.
           </p>
           <Button asChild variant="outline" className="w-full rounded-full">
             <Link to="/login?role=patient">Ir para o Login</Link>
@@ -347,7 +356,7 @@ export default function AtivarContaPacientePage() {
             <div>
               <h1 className="font-display text-2xl font-bold tracking-tight">Confirme seu e-mail</h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Digite o código enviado ao seu e-mail para concluir a ativação da conta de paciente.
+                Digite o código enviado ao seu e-mail para concluir a ativação da conta de {t.singularLower}.
               </p>
             </div>
             <SignupEmailOtpForm
@@ -369,8 +378,8 @@ export default function AtivarContaPacientePage() {
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">Ativar minha conta</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Olá, <strong>{tokenInfo?.nome}</strong>! Crie sua senha para acessar a agenda da clínica{" "}
-              <strong>{tokenInfo?.barbearia_nome}</strong>.
+              Olá, <strong>{tokenInfo?.nome}</strong>! Crie sua senha para acessar a agenda{" "}
+              {t.isBeautyNiche ? "do salão" : "da clínica"} <strong>{tokenInfo?.barbearia_nome}</strong>.
             </p>
           </div>
 

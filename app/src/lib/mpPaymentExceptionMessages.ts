@@ -18,14 +18,19 @@ function formatAppointmentSlotCompact(data: string | null, hora: string | null) 
   return `${datePart} às ${timePart}`;
 }
 
+type LatePaymentCopy = {
+  singularLower: string;
+};
+
 /** Mensagem exibida ao profissional em Pagamentos → Pendências (Pix tardio com conflito de horário). */
 export function buildSlotTakenLatePaymentMessage(
   clienteNome: string,
   agendamentoData: string | null,
   agendamentoHora: string | null,
+  copy: LatePaymentCopy = { singularLower: "paciente" },
 ) {
   const nome = clienteNome.trim() || "Cliente";
   const slot = formatAppointmentSlotCompact(agendamentoData, agendamentoHora);
 
-  return `PIX tardio: ${nome} agendou ${slot} mas pagou o PIX após o prazo de 15 min. O horário foi liberado e outro paciente o ocupou. É preciso reagendar ${nome} para outro horário ou reembolsá-lo(a).`;
+  return `PIX tardio: ${nome} agendou ${slot} mas pagou o PIX após o prazo de 15 min. O horário foi liberado e outro ${copy.singularLower} o ocupou. É preciso reagendar ${nome} para outro horário ou reembolsá-lo(a).`;
 }

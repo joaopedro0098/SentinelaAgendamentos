@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Pagamento não exigido para este agendamento." }, 400);
     }
 
-    const passFeeCard = settings.payment_pass_fee_card === true;
-    const passFeePix = settings.payment_pass_fee_pix === true;
+    const passFeeCard = false;
+    const passFeePix = false;
 
     const chargeBase =
       appointment.valor_cobranca_base_centavos ??

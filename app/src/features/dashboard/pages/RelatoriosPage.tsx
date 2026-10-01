@@ -26,6 +26,7 @@ type BarbeiroTotal = {
   total: number;
   faltas: number;
   cancelamentos: number;
+  taxas_mp_centavos?: number;
 };
 
 type ReportServiceDetail = {
@@ -40,6 +41,8 @@ type ReportAppointmentDetail = {
   cliente_nome: string;
   cliente_whatsapp: string;
   duracao_minutos?: number;
+  mp_taxa_centavos?: number;
+  mp_pagamento_metodo?: "card" | "pix" | null;
   servicos: ReportServiceDetail[];
 };
 
@@ -52,6 +55,7 @@ type ReportCancellationDetail = ReportAbsenceDetail & {
 type CollaboratorReportSummary = {
   faturamento_total_centavos: number;
   horas_trabalhadas_minutos: number;
+  taxas_mp_total_centavos?: number;
 };
 
 type ReportResult = {
@@ -59,6 +63,7 @@ type ReportResult = {
   total_faltas: number;
   total_cancelamentos: number;
   faturamento_total_centavos: number;
+  taxas_mp_totais_centavos: number;
   por_barbeiro: BarbeiroTotal[];
 };
 
@@ -88,6 +93,12 @@ function formatServicesMetadata(servicos: ReportServiceDetail[]) {
 function formatServicesPriceTotal(servicos: ReportServiceDetail[]) {
   const total = servicos.reduce((sum, s) => sum + (s.preco_centavos ?? 0), 0);
   return total > 0 ? formatServicePrice(total) : null;
+}
+
+function mpTaxaMetodoLabel(metodo: ReportAppointmentDetail["mp_pagamento_metodo"]) {
+  if (metodo === "card") return "Cartão";
+  if (metodo === "pix") return "Pix";
+  return "Mercado Pago";
 }
 
 function ReportClientListItem({
@@ -321,6 +332,7 @@ function CollaboratorReportRow({
         setSummary({
           faturamento_total_centavos: payload?.faturamento_total_centavos ?? 0,
           horas_trabalhadas_minutos: payload?.horas_trabalhadas_minutos ?? 0,
+          taxas_mp_total_centavos: payload?.taxas_mp_total_centavos ?? 0,
         });
       });
 
@@ -341,7 +353,14 @@ function CollaboratorReportRow({
   return (
     <li className="rounded-xl border border-border/60 bg-card">
       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-        <span className="text-sm font-medium truncate">{barbeiro.barbeiro_nome}</span>
+        <div className="min-w-0">
+          <span className="text-sm font-medium truncate block">{barbeiro.barbeiro_nome}</span>
+          {viewMode === "concluidos" && (barbeiro.taxas_mp_centavos ?? 0) > 0 ? (
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              Taxas MP (estim.): {formatServicePrice(barbeiro.taxas_mp_centavos!)}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className={cn("text-sm tabular-nums font-semibold", rowTotalClass)}>
             {rowTotal}
@@ -414,6 +433,14 @@ function CollaboratorReportRow({
                         {formatTotalServiceMinutes(displaySummary.horas_trabalhadas_minutos)}
                       </p>
                     </div>
+                    {(displaySummary.taxas_mp_total_centavos ?? 0) > 0 ? (
+                      <div className="rounded-xl border border-border/60 bg-card/40 p-3 col-span-2">
+                        <p className="text-[11px] text-muted-foreground font-medium">Taxas MP no período (estim.)</p>
+                        <p className="mt-1.5 text-lg font-semibold tabular-nums leading-tight">
+                          {formatServicePrice(displaySummary.taxas_mp_total_centavos!)}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -431,6 +458,14 @@ function CollaboratorReportRow({
                         hora={item.hora}
                         contato={maskPhone(item.cliente_whatsapp)}
                         servicos={item.servicos ?? []}
+                        footer={
+                          (item.mp_taxa_centavos ?? 0) > 0 ? (
+                            <p className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                              Taxa {mpTaxaMetodoLabel(item.mp_pagamento_metodo)}:{" "}
+                              {formatServicePrice(item.mp_taxa_centavos!)}
+                            </p>
+                          ) : undefined
+                        }
                       />
                     ))}
                   </ul>
@@ -497,6 +532,7 @@ export default function RelatoriosPage() {
       total_faltas?: number;
       total_cancelamentos?: number;
       faturamento_total_centavos?: number;
+      taxas_mp_totais_centavos?: number;
       por_barbeiro?: Array<BarbeiroTotal & { cancelamentos?: number }>;
       error?: string;
     } | null;
@@ -510,12 +546,14 @@ export default function RelatoriosPage() {
       total_faltas: payload?.total_faltas ?? 0,
       total_cancelamentos: payload?.total_cancelamentos ?? 0,
       faturamento_total_centavos: payload?.faturamento_total_centavos ?? 0,
+      taxas_mp_totais_centavos: payload?.taxas_mp_totais_centavos ?? 0,
       por_barbeiro: (Array.isArray(payload?.por_barbeiro) ? payload.por_barbeiro : []).map((b) => ({
         barbeiro_id: b.barbeiro_id,
         barbeiro_nome: b.barbeiro_nome,
         total: b.total ?? 0,
         faltas: b.faltas ?? 0,
         cancelamentos: b.cancelamentos ?? 0,
+        taxas_mp_centavos: b.taxas_mp_centavos ?? 0,
       })),
     });
 
@@ -742,6 +780,19 @@ export default function RelatoriosPage() {
                     {formatServicePrice(result.faturamento_total_centavos) || "R$ 0,00"}
                   </p>
                 </div>
+                {result.taxas_mp_totais_centavos > 0 ? (
+                  <div className="mt-4 pt-4 border-t border-border/40">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
+                      Taxas MP totais (estim.)
+                    </p>
+                    <p className="text-2xl font-bold tabular-nums leading-none">
+                      {formatServicePrice(result.taxas_mp_totais_centavos)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Soma das taxas de cartão/Pix absorvidas por você no período (pagamentos online).
+                    </p>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           )}

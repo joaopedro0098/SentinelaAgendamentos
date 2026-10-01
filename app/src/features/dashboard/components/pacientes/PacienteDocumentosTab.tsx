@@ -25,6 +25,7 @@ import {
   uploadPacienteDocumento,
   validatePacienteDocumentoFile,
 } from "@/features/dashboard/lib/pacienteDocumentos";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type Props = {
   paciente: PacientePainelItem;
@@ -34,6 +35,7 @@ type Props = {
 };
 
 export function PacienteDocumentosTab({ paciente, documentos, loading, onRefresh }: Props) {
+  const t = useClienteTerminology();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PacienteDocumentoItem | null>(null);
@@ -184,7 +186,7 @@ export function PacienteDocumentosTab({ paciente, documentos, loading, onRefresh
         <div className="rounded-xl border border-dashed border-border/70 bg-card/30 px-6 py-12 text-center text-sm text-muted-foreground">
           {canUpload
             ? "Nenhum documento anexado. Arraste um arquivo para esta área ou clique em Enviar."
-            : "Nenhum documento anexado a este paciente."}
+            : `Nenhum documento anexado a este ${t.singularLower}.`}
         </div>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]">

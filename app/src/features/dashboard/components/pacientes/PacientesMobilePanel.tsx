@@ -20,6 +20,7 @@ import {
   formatWhatsAppDisplay,
 } from "@/features/dashboard/lib/pacienteFormat";
 import type { PacienteDetailTab } from "@/features/dashboard/hooks/usePacientesPanel";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type Props = {
   loading: boolean;
@@ -106,6 +107,7 @@ function PacienteMobileList({
   | "caLabel"
   | "barbeariaId"
 >) {
+  const t = useClienteTerminology();
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,7 +127,7 @@ function PacienteMobileList({
   return (
     <div className="p-4 space-y-4 max-w-3xl mx-auto w-full">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold tracking-tight">Pacientes</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.plural}</h1>
         <Button
           type="button"
           size="sm"
@@ -133,7 +135,7 @@ function PacienteMobileList({
           onClick={onOpenCreateCadastro}
         >
           <Plus className="h-3.5 w-3.5" />
-          Criar paciente
+          Criar {t.singularLower}
         </Button>
       </div>
 
@@ -143,7 +145,7 @@ function PacienteMobileList({
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         className="rounded-xl"
-        aria-label="Pesquisar paciente por nome ou WhatsApp"
+        aria-label={`Pesquisar ${t.singularLower} por nome ou WhatsApp`}
       />
 
       {showProfFilter && (

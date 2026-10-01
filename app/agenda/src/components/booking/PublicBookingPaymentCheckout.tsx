@@ -143,8 +143,8 @@ function MpPaymentBrick({
 export function PublicBookingPaymentCheckout({
   amountPixCentavos,
   amountCardCentavos,
-  passFeeCard,
-  passFeePix,
+  passFeeCard: _passFeeCard,
+  passFeePix: _passFeePix,
   remainingCentavos,
   expiresAt,
   agendamentoId,
@@ -169,9 +169,6 @@ export function PublicBookingPaymentCheckout({
 
   const canSwitchMethod = enablePix && enableCard;
   const displayAmountCentavos = activeMethod === "pix" ? amountPixCentavos : amountCardCentavos;
-  const activePassFee =
-    (activeMethod === "pix" && passFeePix) || (activeMethod === "card" && passFeeCard);
-
   const onExpiredRef = useRef(onExpired);
   const onPaidRef = useRef(onPaid);
   const onFailedRef = useRef(onFailed);
@@ -388,12 +385,6 @@ export function PublicBookingPaymentCheckout({
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
         <p className="text-xs text-muted-foreground">Valor a pagar agora</p>
         <p className="font-display text-2xl font-bold">{formatServicePrice(displayAmountCentavos)}</p>
-        {activePassFee && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            inclui repasse estimado da taxa MP
-            {activeMethod === "pix" ? " (Pix)" : " (cartão)"}
-          </p>
-        )}
         {remainingCentavos > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
             Restante presencial: {formatServicePrice(remainingCentavos)}

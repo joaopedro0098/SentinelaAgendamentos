@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "forbidden", message: "Sem permissão para anexar comprovante." }, 403);
     }
 
-    const ext = EXT_BY_MIME[detectedMime] ?? fileExtension(file.name) || ".bin";
+    const ext = EXT_BY_MIME[detectedMime] ?? (fileExtension(file.name) || ".bin");
     const safeName = sanitizeFileName(file.name);
     const storagePath = `${agRow.barbearia_id}/${agendamentoId}/${crypto.randomUUID()}${ext}`;
 
@@ -179,12 +179,9 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
-    const previousPath = (reg as { previous_storage_path?: string | null }).previous_storage_path;
-    if (previousPath && previousPath !== storagePath) {
-      await admin.storage.from(BUCKET).remove([previousPath]);
-    }
+    const comprovanteId = (reg as { id?: string }).id;
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, id: comprovanteId });
   } catch (e) {
     console.error("upload-agendamento-comprovante:", e);
     return jsonResponse({ error: "internal", message: "Erro interno." }, 500);

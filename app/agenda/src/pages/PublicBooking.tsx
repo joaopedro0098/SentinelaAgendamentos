@@ -30,6 +30,14 @@ import {
   createAppointmentPaymentCheckout,
   type AppointmentPaymentCheckout,
 } from "@/lib/appointmentPaymentApi";
+import {
+  getClienteTerminology,
+  type ClienteTerminology,
+} from "@/lib/clienteTerminology";
+import {
+  isBeautyProfessionalSpecialty,
+  isProfessionalSpecialty,
+} from "@/lib/professionalSpecialty";
 
 type PaymentHoldRef = { agendamentoId: string; confirmationToken: string };
 
@@ -440,6 +448,9 @@ const PublicBooking = ({
   const [internalSlotGridRevision, setInternalSlotGridRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [barbearia, setBarbearia] = useState<Barbearia | null>(null);
+  const [clientTerminology, setClientTerminology] = useState<ClienteTerminology>(() =>
+    getClienteTerminology(false),
+  );
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   // chave: barbeiroId|YYYY-MM-DD -> Map<hora, duracao>
   const [agOcupados, setAgOcupados] = useState<Map<string, Map<string, number>>>(new Map());
@@ -656,7 +667,11 @@ const PublicBooking = ({
           .select("id, nome, logo_url, ativa, allow_client_public_booking")
           .eq("slug", slug)
           .maybeSingle(),
-        supabase.from("barbershops").select("whatsapp_number, slot_interval_minutes, show_service_prices").eq("slug", slug).maybeSingle(),
+        supabase
+          .from("barbershops")
+          .select("whatsapp_number, slot_interval_minutes, show_service_prices, professional_specialty")
+          .eq("slug", slug)
+          .maybeSingle(),
       ]);
 
       if (barbErr) {
@@ -685,7 +700,15 @@ const PublicBooking = ({
         whatsapp_number?: string | null;
         slot_interval_minutes?: number | null;
         show_service_prices?: boolean | null;
+        professional_specialty?: string | null;
       } | null;
+
+      const rawSpecialty = shopRow?.professional_specialty;
+      const isBeautyShop =
+        typeof rawSpecialty === "string" &&
+        isProfessionalSpecialty(rawSpecialty) &&
+        isBeautyProfessionalSpecialty(rawSpecialty);
+      setClientTerminology(getClienteTerminology(isBeautyShop));
 
       const rawPros = prosLoad.barbeiros;
       const contato = shopRow?.whatsapp_number ?? null;
@@ -1098,7 +1121,7 @@ const PublicBooking = ({
         // Exige paciente autenticado no agendamento público
         const { data: authData } = await supabase.auth.getUser();
         if (!authData?.user) {
-          toast.error("Você precisa estar conectado como paciente para agendar.");
+          toast.error(`Você precisa estar conectado como ${clientTerminology.singularLower} para agendar.`);
           return;
         }
 
@@ -1113,7 +1136,9 @@ const PublicBooking = ({
 
         if (!clientRecord) {
           toast.error(
-            "Você ainda não possui cadastro nesta clínica. Entre em contato com a clínica para que façam seu pré-cadastro.",
+            clientTerminology.isBeautyNiche
+              ? "Você ainda não possui cadastro neste salão. Entre em contato com o salão para que façam seu pré-cadastro."
+              : "Você ainda não possui cadastro nesta clínica. Entre em contato com a clínica para que façam seu pré-cadastro.",
             { duration: 8000 }
           );
           return;
@@ -1134,7 +1159,7 @@ const PublicBooking = ({
 
         if (!clientRecord) {
           toast.error(
-            "Nenhum paciente cadastrado com este WhatsApp. Faça o pré-cadastro na aba Pacientes antes de agendar.",
+            `Nenhum ${clientTerminology.singularLower} cadastrado com este WhatsApp. Faça o pré-cadastro na aba ${clientTerminology.tabNavLabel} antes de agendar.`,
             { duration: 8000 },
           );
           return;

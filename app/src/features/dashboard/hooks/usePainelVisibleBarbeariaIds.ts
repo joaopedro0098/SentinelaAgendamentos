@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@agenda/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
 
 /** IDs de barbearias visíveis no painel (titular + CAs), alinhado ao backend. */

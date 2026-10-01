@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useDashboardShop } from "@/providers/DashboardShopProvider";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 import { useSubscription } from "@/hooks/useSubscription";
 import { buildVisibleBarbeariaIds } from "@/features/dashboard/lib/agendamentosPanel";
 import { usePainelPacientesBarbeariaIds } from "@/features/dashboard/hooks/usePainelPacientesBarbeariaIds";
@@ -75,6 +76,7 @@ function patchPacienteInList(
 }
 
 export function usePacientesPanel() {
+  const t = useClienteTerminology();
   const { caBarbearias, barbeariaId, permissionsRevision } = useDashboardShop();
   const { info: subscriptionInfo } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
@@ -142,7 +144,7 @@ export function usePacientesPanel() {
       setTotalCount(0);
       setHasMore(false);
       toast({
-        title: "Não foi possível carregar pacientes",
+        title: `Não foi possível carregar ${t.pluralLower}`,
         description: result.error,
         variant: "destructive",
       });
@@ -153,7 +155,7 @@ export function usePacientesPanel() {
     setProfissionais(page.profissionais);
     setTotalCount(page.total_count);
     setHasMore(page.has_more);
-  }, [fetchPacientesPage]);
+  }, [fetchPacientesPage, t.pluralLower]);
 
   const loadMorePacientes = useCallback(async () => {
     if (loading || loadingMore || !hasMore) return;
@@ -162,7 +164,7 @@ export function usePacientesPanel() {
     setLoadingMore(false);
     if ("error" in result && result.error) {
       toast({
-        title: "Não foi possível carregar mais pacientes",
+        title: `Não foi possível carregar mais ${t.pluralLower}`,
         description: result.error,
         variant: "destructive",
       });
@@ -175,7 +177,7 @@ export function usePacientesPanel() {
     if (page.profissionais.length > 0) {
       setProfissionais(page.profissionais);
     }
-  }, [loading, loadingMore, hasMore, pacientes.length, fetchPacientesPage]);
+  }, [loading, loadingMore, hasMore, pacientes.length, fetchPacientesPage, t.pluralLower]);
 
   usePanelPacientesRefresh(reloadFirstPage);
 

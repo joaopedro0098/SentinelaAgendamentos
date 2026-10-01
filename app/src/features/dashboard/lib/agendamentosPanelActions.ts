@@ -1,4 +1,4 @@
-import { supabase } from "@agenda/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import type { AgendamentoPainelItem, PastDayStatusKey } from "@/features/dashboard/lib/agendamentosPanel";
 
 export type PanelStatusUpdateRow = {

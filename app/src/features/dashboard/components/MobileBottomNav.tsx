@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type Props = {
   showPagamentosNav: boolean;
@@ -129,6 +130,7 @@ function FloatingNavLink({
 }
 
 export function MobileBottomNav({ showPagamentosNav, showPagamentosAttention, showSuporte, showAdmin }: Props) {
+  const pacientesNav = useClienteTerminology();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreMounted, setMoreMounted] = useState(false);
@@ -242,7 +244,7 @@ export function MobileBottomNav({ showPagamentosNav, showPagamentosAttention, sh
           <BottomNavLink
             to="/app/pacientes"
             icon={<Users className="h-5 w-5" />}
-            label="Pacientes"
+            label={pacientesNav.tabNavLabel}
             onNavigate={closeMore}
           />
           <BottomNavLink

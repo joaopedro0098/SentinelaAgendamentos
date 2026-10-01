@@ -19,10 +19,13 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { BillingProgressNotice } from "@/features/dashboard/components/BillingProgressNotice";
 import { usePanelSettingsScrollTop } from "@/features/dashboard/hooks/usePanelSettingsScrollTop";
 import { DashboardThemeToggle } from "@/components/theme/DashboardThemeToggle";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
+
 export default function Settings() {
   usePanelSettingsScrollTop();
   const { user } = useAuth();
   const { shop: contextShop, loading, refresh, patchShop, bumpSlotGridRevision } = useDashboardShop();
+  const pacientesTabCopy = useClienteTerminology();
   const { info: subscriptionInfo, loading: subscriptionLoading, refresh: refreshSubscription } = useSubscription();
   const isCA = subscriptionInfo?.account_type === "ca";
   const ownerCanViewAppointments = subscriptionInfo?.owner_can_view_appointments ?? true;
@@ -605,7 +608,7 @@ export default function Settings() {
                 <PermissionToggleRow
                   id="titular-view-annotations"
                   label="Titular visualiza anotações"
-                  description="Permite que o titular veja pacientes e anotações desta conta na aba Pacientes."
+                  description={`Permite que o titular veja ${pacientesTabCopy.pluralLower} e anotações desta conta na aba ${pacientesTabCopy.tabNavLabel}.`}
                   checked={ownerCanViewAnnotations}
                   disabled={savingTitularPermissions || !ownerCanViewAppointments}
                   busy={savingTitularPermissions}

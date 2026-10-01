@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { syncAgendaFromSlug } from "@/features/agenda/lib/syncAgenda";
 import { formatPriceInput, parsePriceInput } from "@agenda/lib/servicePrice";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 type Props = {
   barbershopId: string;
@@ -172,6 +173,7 @@ function showQuickSavedToast(title: string) {
 }
 
 export function StaffOperationsSection({ barbershopId, barbershopSlug, maxActiveStaff }: Props) {
+  const t = useClienteTerminology();
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
@@ -614,6 +616,7 @@ function StaffCard({
   ) => Promise<void>;
   onRemoveService: (id: string) => void;
 }) {
+  const t = useClienteTerminology();
   const [editName, setEditName] = useState(member.name);
   const [editWhatsapp, setEditWhatsapp] = useState(member.whatsapp ?? "");
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft[]>(() => buildScheduleDraft(schedules));
@@ -667,7 +670,7 @@ function StaffCard({
             maxLength={15}
           />
           <p className="text-[11px] text-muted-foreground">
-            Recebe alertas por WhatsApp quando um paciente pedir cancelamento ou alteração.
+            Recebe alertas por WhatsApp quando um {t.singularLower} pedir cancelamento ou alteração.
           </p>
         </div>
       )}

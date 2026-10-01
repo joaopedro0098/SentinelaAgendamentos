@@ -17,6 +17,8 @@ import { useAdminFailedWebhookJobsCount } from "@/hooks/useAdminFailedWebhookJob
 import { useAdminIntegracaoAlertasCount } from "@/hooks/useAdminIntegracaoAlertasCount";
 import { useIntegracaoAlertasProfissional } from "@/features/dashboard/hooks/useIntegracaoAlertasProfissional";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AdminNichePreviewProvider } from "@/providers/AdminNichePreviewProvider";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
 
 const SIDEBAR_COLLAPSED_KEY = "sentinela:panel-sidebar-collapsed";
 
@@ -95,7 +97,11 @@ export default function AppLayout() {
   const { count: integracaoAlertasProfissionalCount } = useIntegracaoAlertasProfissional(shop?.id ?? null);
   const showIntegracoesAttention = integracaoAlertasProfissionalCount > 0;
 
+  const adminNichePreviewEnabled =
+    Boolean(subscriptionInfo?.is_admin) || subscriptionInfo?.account_type === "admin";
+
   return (
+    <AdminNichePreviewProvider enabled={adminNichePreviewEnabled}>
     <div className="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden w-full max-w-[100vw] overflow-x-hidden">
       <PwaColdStartRedirect />
       <WelcomeSupportRedirect />
@@ -121,7 +127,7 @@ export default function AppLayout() {
           >
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendar" icon={<Calendar className="h-5 w-5" />} label="Agendar" end />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/agendamentos" icon={<CalendarCheck className="h-5 w-5" />} label="Agendamentos" />
-            <DesktopNavItem collapsed={sidebarCollapsed} to="/app/pacientes" icon={<Users className="h-5 w-5" />} label="Pacientes" />
+            <PacientesSidebarNavItem collapsed={sidebarCollapsed} />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/profissionais" icon={<UserCog className="h-5 w-5" />} label="Profissionais" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/integracoes" icon={<Blocks className="h-5 w-5" />} label="Integrações" showAttentionDot={showIntegracoesAttention} attentionDotColor="amber" />
             <DesktopNavItem collapsed={sidebarCollapsed} to="/app/settings" icon={<Settings className="h-5 w-5" />} label="Configurações" />
@@ -182,6 +188,19 @@ export default function AppLayout() {
         showAdmin={Boolean(subscriptionInfo?.is_admin)}
       />
     </div>
+    </AdminNichePreviewProvider>
+  );
+}
+
+function PacientesSidebarNavItem({ collapsed }: { collapsed: boolean }) {
+  const t = useClienteTerminology();
+  return (
+    <DesktopNavItem
+      collapsed={collapsed}
+      to="/app/pacientes"
+      icon={<Users className="h-5 w-5" />}
+      label={t.tabNavLabel}
+    />
   );
 }
 

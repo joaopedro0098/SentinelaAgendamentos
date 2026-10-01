@@ -33,6 +33,7 @@ function hasMenuChildren(children: ReactNode) {
 }
 
 const CompactMenuContext = createContext(false);
+const MenuCloseContext = createContext<(() => void) | null>(null);
 
 export function AgendamentoActionsMenu({
   children,
@@ -118,39 +119,50 @@ export function AgendamentoActionsMenu({
   if (!canRenderMenu) return null;
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div
+      ref={rootRef}
+      className="relative shrink-0"
+      data-agendamento-no-card-click
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <button
         ref={buttonRef}
         type="button"
         disabled={disabled}
         aria-label="Ações do agendamento"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground disabled:opacity-50"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && menuStyle && typeof document !== "undefined"
         ? createPortal(
-            <CompactMenuContext.Provider value={compact}>
-              <div
-                ref={menuRef}
-                className={cn(
-                  "fixed z-[200] rounded-xl border border-border/80 bg-popover shadow-lg",
-                  compact
-                    ? "flex w-[8.25rem] flex-col p-1"
-                    : "min-w-[11rem] p-1",
-                )}
-                style={{
-                  top: menuStyle.top,
-                  bottom: menuStyle.bottom,
-                  left: menuStyle.left,
-                }}
-                onClick={() => setOpen(false)}
-              >
-                {children}
-              </div>
-            </CompactMenuContext.Provider>,
+            <MenuCloseContext.Provider value={() => setOpen(false)}>
+              <CompactMenuContext.Provider value={compact}>
+                <div
+                  ref={menuRef}
+                  className={cn(
+                    "fixed z-[200] rounded-xl border border-border/80 bg-popover shadow-lg",
+                    compact
+                      ? "flex w-[8.25rem] flex-col p-1"
+                      : "min-w-[11rem] p-1",
+                  )}
+                  style={{
+                    top: menuStyle.top,
+                    bottom: menuStyle.bottom,
+                    left: menuStyle.left,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {children}
+                </div>
+              </CompactMenuContext.Provider>
+            </MenuCloseContext.Provider>,
             document.body,
           )
         : null}
@@ -168,11 +180,16 @@ export function AgendamentoMenuAction({
   destructive?: boolean;
 }) {
   const compact = useContext(CompactMenuContext);
+  const closeMenu = useContext(MenuCloseContext);
 
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        closeMenu?.();
+        onClick();
+      }}
       className={cn(
         "flex w-full items-center rounded-lg text-left transition-colors disabled:opacity-50",
         compact ? "min-h-0 flex-1 px-3 text-sm" : "px-3 py-2 text-sm",

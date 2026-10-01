@@ -20,6 +20,8 @@ import {
   updatePacienteWhatsapp,
   type PacientePainelItem,
 } from "@/features/dashboard/lib/agendamentoAnotacao";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
+import { applyClienteTerminologyToMessage } from "@/lib/clienteTerminology";
 
 type Props = {
   paciente: PacientePainelItem;
@@ -51,6 +53,7 @@ export function PacienteCadastroTab({
   onAvatarSaved,
   onCadastroDeleted,
 }: Props) {
+  const t = useClienteTerminology();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [nome, setNome] = useState(paciente.cliente_nome);
@@ -127,7 +130,7 @@ export function PacienteCadastroTab({
 
     const trimmedNome = nome.trim();
     if (nomeChanged && !trimmedNome) {
-      toast({ title: "Informe o nome do paciente", variant: "destructive" });
+      toast({ title: `Informe o nome do ${t.singularLower}`, variant: "destructive" });
       return;
     }
 
@@ -208,7 +211,11 @@ export function PacienteCadastroTab({
       const whatsappResult = await updatePacienteWhatsapp(currentWhatsapp, nextWhatsappDigits);
       if (whatsappResult.error) {
         setSaving(false);
-        toast({ title: "Erro ao salvar WhatsApp", description: whatsappResult.error, variant: "destructive" });
+        toast({
+          title: "Erro ao salvar WhatsApp",
+          description: applyClienteTerminologyToMessage(whatsappResult.error, t),
+          variant: "destructive",
+        });
         return;
       }
       onWhatsappSaved(currentWhatsapp, whatsappResult.whatsapp_digits);
@@ -228,7 +235,7 @@ export function PacienteCadastroTab({
     }
     try {
       await navigator.clipboard.writeText(result.url);
-      toast({ title: "Link copiado", description: "Cole e envie ao paciente como preferir." });
+      toast({ title: "Link copiado", description: `Cole e envie ao ${t.singularLower} como preferir.` });
     } catch {
       toast({
         title: "Não foi possível copiar",
@@ -245,14 +252,14 @@ export function PacienteCadastroTab({
     if ("error" in result && result.error) {
       const message =
         result.error === "forbidden"
-          ? "Somente o titular da clínica pode excluir cadastros."
+          ? `Somente o titular do ${t.establishmentLower} pode excluir cadastros.`
           : result.error === "not_found"
-            ? "Paciente não encontrado na sua conta."
+            ? `${t.singular} não encontrado na sua conta.`
             : result.error;
       toast({ title: "Não foi possível excluir", description: message, variant: "destructive" });
       return;
     }
-    toast({ title: "Paciente excluído permanentemente" });
+    toast({ title: `${t.singular} excluído permanentemente` });
     setDeleteOpen(false);
     onCadastroDeleted(paciente.whatsapp_digits);
   }
@@ -334,7 +341,7 @@ export function PacienteCadastroTab({
               onClick={() => fileRef.current?.click()}
               disabled={saving}
               className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full disabled:opacity-60"
-              aria-label="Alterar foto do paciente"
+              aria-label={`Alterar foto do ${t.singularLower}`}
             >
               <Avatar className="h-24 w-24">
                 {displayedAvatarUrl && (
@@ -360,11 +367,11 @@ export function PacienteCadastroTab({
           )}
 
           <div className="flex-1 space-y-1.5">
-            <Label>Foto do paciente</Label>
+            <Label>Foto do {t.singularLower}</Label>
             <p className="text-xs text-muted-foreground">
               {canEdit
                 ? "Toque na foto para escolher, ajustar e salvar abaixo."
-                : "Somente leitura para pacientes de outras contas."}
+                : `Somente leitura para ${t.pluralLower} de outras contas.`}
             </p>
             {canEdit && (
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
@@ -445,7 +452,7 @@ export function PacienteCadastroTab({
                     )}
                   </Button>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Compartilhe este link com seu paciente caso ele queira criar uma conta e visualizar e
+                    Compartilhe este link com seu {t.singularLower} caso ele queira criar uma conta e visualizar e
                     gerenciar seus agendamentos.
                   </p>
                 </div>

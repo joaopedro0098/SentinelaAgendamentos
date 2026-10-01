@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CalendarDays, ClipboardList, Clock, Loader2, Phone, User } from "lucide-react";
 import type { RescheduleContext } from "@agenda/pages/PublicBooking";
-import { supabase } from "@agenda/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScrollStrip } from "@agenda/components/agenda/HorizontalScrollStrip";
 import type { CaBarbearia, DashboardShop } from "@/providers/DashboardShopProvider";
 import {

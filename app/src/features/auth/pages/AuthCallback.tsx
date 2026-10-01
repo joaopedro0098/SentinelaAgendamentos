@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authInfoToast } from "@/features/auth/lib/authToast";
@@ -25,6 +25,7 @@ import {
   waitForAuthSession,
 } from "@/features/auth/lib/authCallbackHandler";
 import { toast } from "@/hooks/use-toast";
+import { useClienteTerminologyFromActivationToken } from "@/features/dashboard/hooks/useClienteTerminologyFromActivationToken";
 
 function readOAuthFlowParams() {
   const url = new URL(window.location.href);
@@ -37,6 +38,8 @@ function readOAuthFlowParams() {
 export default function AuthCallback() {
   const navigate = useNavigate();
   const navigatedRef = useRef(false);
+  const [oauthParams] = useState(() => readOAuthFlowParams());
+  const clientCopy = useClienteTerminologyFromActivationToken(oauthParams.token);
 
   useEffect(() => {
     let active = true;
@@ -111,7 +114,7 @@ export default function AuthCallback() {
         const result = await finishPatientActivation(token, userId);
         if (!result.ok) {
           toast({
-            title: "Falha ao vincular paciente",
+            title: `Falha ao vincular ${clientCopy.singularLower}`,
             description: result.error,
             variant: "destructive",
           });
@@ -130,7 +133,7 @@ export default function AuthCallback() {
           return;
         }
         toast({
-          title: "Não foi possível entrar como paciente",
+          title: `Não foi possível entrar como ${clientCopy.singularLower}`,
           description: result.error,
           variant: "destructive",
         });

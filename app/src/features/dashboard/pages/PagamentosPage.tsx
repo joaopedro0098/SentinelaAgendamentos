@@ -24,6 +24,9 @@ import { PermissionToggleRow } from "@/components/pwa/PermissionToggleRow";
 import { toast } from "@/hooks/use-toast";
 import { notifyPaymentExceptionsChanged } from "@/features/dashboard/hooks/usePendingPaymentExceptions";
 import { buildSlotTakenLatePaymentMessage } from "@/lib/mpPaymentExceptionMessages";
+import { sanitizeManualPixKeyInput } from "@/lib/manualPixKeyInput";
+import { useClienteTerminology } from "@/features/dashboard/hooks/useClienteTerminology";
+import type { ClienteTerminology } from "@/lib/clienteTerminology";
 import {
   disconnectMpAccount,
   fetchPaymentPanelSettings,
@@ -70,23 +73,26 @@ function formatSlotLabel(data: string | null, hora: string | null) {
   return hora ? `${date} às ${hora}` : date;
 }
 
-function buildExceptionDescription(ex: MpPaymentException) {
+function buildExceptionDescription(ex: MpPaymentException, t: ClienteTerminology) {
   const nome = ex.cliente_nome?.trim() || "Cliente";
 
   if (ex.reason === "slot_taken_late_payment") {
-    return buildSlotTakenLatePaymentMessage(nome, ex.agendamento_data, ex.agendamento_hora);
+    return buildSlotTakenLatePaymentMessage(nome, ex.agendamento_data, ex.agendamento_hora, {
+      singularLower: t.singularLower,
+    });
   }
 
   if (ex.reason === "late_pix_after_hold_expired") {
     const slot = formatSlotLabel(ex.agendamento_data, ex.agendamento_hora);
     const valor = formatMoney(ex.amount_centavos);
-    return `PIX tardio: O paciente ${nome} fez um agendamento para ${slot} mas o Pix foi confirmado após a expiração da reserva de 15 minutos (valor ${valor}). Verifique o pagamento e entre em contato com ${nome} se necessário.`;
+    return `PIX tardio: O ${t.singularLower} ${nome} fez um agendamento para ${slot} mas o Pix foi confirmado após a expiração da reserva de 15 minutos (valor ${valor}). Verifique o pagamento e entre em contato com ${nome} se necessário.`;
   }
 
   return `Pagamento de ${nome} requer resolução manual (${ex.reason}).`;
 }
 
 export default function PagamentosPage() {
+  const t = useClienteTerminology();
   const [searchParams, setSearchParams] = useSearchParams();
   const { info: subscriptionInfo, loading: subscriptionLoading } = useSubscription();
   const { shop } = useDashboardShop();
@@ -96,8 +102,6 @@ export default function PagamentosPage() {
   const [settings, setSettings] = useState<PaymentPanelSettings | null>(null);
 
   const [centralized, setCentralized] = useState(true);
-  const [passFeeCard, setPassFeeCard] = useState(false);
-  const [passFeePix, setPassFeePix] = useState(false);
   const [manualPixKey, setManualPixKey] = useState("");
   const [savingManualPix, setSavingManualPix] = useState(false);
   const [exceptions, setExceptions] = useState<MpPaymentException[]>([]);
@@ -107,9 +111,7 @@ export default function PagamentosPage() {
 
   const applySettingsToForm = useCallback((data: PaymentPanelSettings) => {
     if (data.payments_centralized != null) setCentralized(data.payments_centralized);
-    if (data.payment_pass_fee_card != null) setPassFeeCard(data.payment_pass_fee_card);
-    if (data.payment_pass_fee_pix != null) setPassFeePix(data.payment_pass_fee_pix);
-    if (data.manual_pix_key != null) setManualPixKey(data.manual_pix_key);
+    if (data.manual_pix_key != null) setManualPixKey(sanitizeManualPixKeyInput(data.manual_pix_key));
     else setManualPixKey("");
   }, []);
 
@@ -227,9 +229,11 @@ export default function PagamentosPage() {
   async function handleSaveManualPixKey() {
     setSavingManualPix(true);
     try {
-      const saved = await saveShopManualPixKey(manualPixKey);
-      setManualPixKey(saved ?? "");
+      const saved = await saveShopManualPixKey(sanitizeManualPixKeyInput(manualPixKey));
+      setManualPixKey(saved != null ? sanitizeManualPixKeyInput(saved) : "");
       toast({ title: "Chave Pix salva" });
+      const slug = shop?.slug?.trim();
+      if (slug) void broadcastPaymentsConfigChanged(slug);
     } catch (e) {
       toast({
         title: "Não foi possível salvar",
@@ -238,33 +242,6 @@ export default function PagamentosPage() {
       });
     } finally {
       setSavingManualPix(false);
-    }
-  }
-
-  async function handlePassFeeToggle(field: "card" | "pix", next: boolean) {
-    const prevCard = passFeeCard;
-    const prevPix = passFeePix;
-    if (field === "card") setPassFeeCard(next);
-    else setPassFeePix(next);
-    setSaving(true);
-    try {
-      const updated = await savePaymentPanelSettings({
-        payment_pass_fee_card: field === "card" ? next : passFeeCard,
-        payment_pass_fee_pix: field === "pix" ? next : passFeePix,
-      });
-      setSettings(updated);
-      applySettingsToForm(updated);
-      toast({ title: "Repasse de taxas atualizado" });
-    } catch (e) {
-      setPassFeeCard(prevCard);
-      setPassFeePix(prevPix);
-      toast({
-        title: "Erro ao salvar",
-        description: e instanceof Error ? e.message : "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -369,7 +346,7 @@ export default function PagamentosPage() {
         <Card className="border-primary/20">
           <CardContent className="px-6 py-8 space-y-5">
             <p className="text-base md:text-lg text-foreground leading-relaxed">
-              Trabalhe com mais praticidade permitindo que seus pacientes paguem ao agendar e diminua os
+              Trabalhe com mais praticidade permitindo que seus {t.pluralLower} paguem ao agendar e diminua os
               cancelamentos de última hora.
             </p>
             <p className="text-sm md:text-base text-muted-foreground">
@@ -413,7 +390,7 @@ export default function PagamentosPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Pendências de pagamento</CardTitle>
               <CardDescription>
-                Pix confirmado fora do prazo quando o horário já estava ocupado. Resolva com o paciente e marque
+                Pix confirmado fora do prazo quando o horário já estava ocupado. Resolva com o {t.singularLower} e marque
                 como resolvido quando concluir.
               </CardDescription>
             </CardHeader>
@@ -425,7 +402,7 @@ export default function PagamentosPage() {
                     className="rounded-lg border border-border/70 bg-muted/20 px-3 py-3 text-sm space-y-2"
                   >
                     <p className="font-medium">{ex.cliente_nome ?? "Cliente"}</p>
-                    <p className="text-muted-foreground leading-relaxed">{buildExceptionDescription(ex)}</p>
+                    <p className="text-muted-foreground leading-relaxed">{buildExceptionDescription(ex, t)}</p>
                     <p className="text-xs text-muted-foreground">
                       Valor pago: {formatMoney(ex.amount_centavos)} · MP #{ex.mp_payment_id} · Horário tentado:{" "}
                       {formatSlotLabel(ex.agendamento_data, ex.agendamento_hora)}
@@ -462,7 +439,7 @@ export default function PagamentosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Marcar como resolvido?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja marcar como resolvido? Use isso depois de remarcar o paciente ou concluir o
+              Tem certeza que deseja marcar como resolvido? Use isso depois de remarcar o {t.singularLower} ou concluir o
               reembolso no Mercado Pago.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -565,32 +542,9 @@ export default function PagamentosPage() {
         </CardContent>
       </Card>
 
-      {!settings?.ca_readonly && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Repassar taxa ao cliente?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <PermissionToggleRow
-              id="pass-fee-card"
-              label="Repasse taxa do cartão ao cliente"
-              checked={passFeeCard}
-              disabled={saving || connecting}
-              onToggle={() => void handlePassFeeToggle("card", !passFeeCard)}
-            />
-            <PermissionToggleRow
-              id="pass-fee-pix"
-              label="Repasse taxa do Pix ao cliente"
-              checked={passFeePix}
-              disabled={saving || connecting}
-              onToggle={() => void handlePassFeeToggle("pix", !passFeePix)}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       <p className="text-xs text-muted-foreground">
-        Verifique sobre as taxas do Mercado Pago:{" "}
+        As taxas de cartão e Pix do Mercado Pago são sempre absorvidas por você — o cliente paga apenas o valor do
+        serviço. Consulte as taxas:{" "}
         <a
           href="https://www.mercadopago.com.br/ferramentas-para-vender/link-de-pagamento"
           target="_blank"
@@ -604,7 +558,7 @@ export default function PagamentosPage() {
       {!settings?.ca_readonly && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Prefere cobrar seus pacientes de forma manual?</CardTitle>
+            <CardTitle className="text-base">Prefere cobrar seus {t.pluralLower} de forma manual?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
@@ -612,8 +566,8 @@ export default function PagamentosPage() {
               <Input
                 id="manual-pix-key"
                 value={manualPixKey}
-                onChange={(e) => setManualPixKey(e.target.value)}
-                placeholder="E-mail, CPF, telefone ou chave aleatória"
+                onChange={(e) => setManualPixKey(sanitizeManualPixKeyInput(e.target.value))}
+                placeholder="somente letras e/ou números"
                 maxLength={140}
                 disabled={savingManualPix}
               />

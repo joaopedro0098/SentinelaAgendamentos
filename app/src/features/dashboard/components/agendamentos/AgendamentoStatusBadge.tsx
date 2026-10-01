@@ -137,7 +137,13 @@ export function AgendamentoStatusBadge({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative justify-self-start">
+    <div
+      ref={rootRef}
+      className="relative justify-self-start"
+      data-agendamento-no-card-click
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
       <span
         className={cn(
           "inline-flex w-fit max-w-full items-center rounded-full border text-[11px] font-semibold whitespace-nowrap",
@@ -184,7 +190,8 @@ export function AgendamentoStatusBadge({
                     type="button"
                     role="option"
                     className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setOpen(false);
                       onAction(action);
                     }}
@@ -199,7 +206,8 @@ export function AgendamentoStatusBadge({
                     type="button"
                     role="option"
                     className="w-full px-3 py-1.5 text-left text-xs text-popover-foreground transition-colors hover:bg-secondary/60"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setOpen(false);
                       onMenuAction?.(action.key);
                     }}
