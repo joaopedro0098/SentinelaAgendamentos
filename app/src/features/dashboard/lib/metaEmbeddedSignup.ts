@@ -334,10 +334,8 @@ export async function runEmbeddedSignup(
     const loginExtras: FbLoginOptions["extras"] = {
       sessionInfoVersion: 3,
       setup: extrasSetup,
+      featureType: "whatsapp_business_app_onboarding",
     };
-    if (flowIntent === "coexistence") {
-      loginExtras.featureType = "whatsapp_business_app_onboarding";
-    }
 
     window.FB.login(
       (response) => {
