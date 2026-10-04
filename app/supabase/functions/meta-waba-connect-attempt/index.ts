@@ -187,6 +187,7 @@ async function handleSubmitCode(
     })
     .eq("id", attemptId);
 
+  let completionClaimHeld = false;
   try {
     const storedEncrypted = String(attempt.oauth_access_token_encrypted ?? "").trim();
     let accessToken: string;
@@ -293,6 +294,7 @@ async function handleSubmitCode(
     if (!claim.ok) {
       return claimFailureResponse(claim.reason);
     }
+    completionClaimHeld = true;
 
     const result = await completeMetaWabaConnect({
       serviceClient,
@@ -310,6 +312,7 @@ async function handleSubmitCode(
     if (!result.ok) {
       if (result.status !== "provisioning") {
         await releaseConnectAttemptCompletionClaim(serviceClient, attemptId);
+        completionClaimHeld = false;
       }
       return jsonResponse({
         success: false,
@@ -319,6 +322,7 @@ async function handleSubmitCode(
       }, result.status === "provisioning" || result.status === "connected" ? 409 : 502);
     }
 
+    completionClaimHeld = false;
     return jsonResponse({
       success: true,
       status: result.status === "already_connected" ? "already_connected" : "connected",
@@ -326,6 +330,9 @@ async function handleSubmitCode(
       via: "fast_path",
     });
   } catch (e) {
+    if (completionClaimHeld) {
+      await releaseConnectAttemptCompletionClaim(serviceClient, attemptId);
+    }
     console.error("[meta-waba-connect-attempt] fast path falhou (frontend ainda pode completar via postMessage):", e);
     return jsonResponse({
       success: false,

@@ -3,26 +3,13 @@
  * Usada por meta-waba-connect-start, meta-waba-connect-attempt e poll-waba-connect-attempts.
  */
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { decryptWabaToken, encryptWabaToken } from "./wabaCrypto.ts";
+import { encryptWabaToken } from "./wabaCrypto.ts";
 import { normalizeBrazilPhoneE164Digits } from "./twilioWhatsapp.ts";
 
 export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
 export type WabaConnectCompletedVia = "frontend" | "fast_path" | "cron_poll";
 
 type CoexSyncType = "smb_app_state_sync" | "history";
-
-/** Janela Meta para disparar smb_app_data após conexão coexistência (24h). */
-export const COEX_SMB_APP_DATA_SYNC_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-export function isWithinCoexSmbAppDataWindow(
-  connectedAtIso: string | null | undefined,
-  nowMs = Date.now(),
-): boolean {
-  if (!connectedAtIso) return true;
-  const connectedMs = Date.parse(String(connectedAtIso));
-  if (!Number.isFinite(connectedMs)) return false;
-  return nowMs - connectedMs <= COEX_SMB_APP_DATA_SYNC_WINDOW_MS;
-}
 
 export type CoexSyncShopState = {
   waba_connected_at: string | null;
@@ -363,13 +350,6 @@ export async function runCoexistenceSyncBestEffort(
   const state = shopState ?? await loadCoexSyncShopState(serviceClient, shopId);
   if (!state) return;
 
-  if (!isWithinCoexSmbAppDataWindow(state.waba_connected_at)) {
-    console.log(
-      `[metaWabaConnect] smb_app_data ignorado (fora da janela 24h) shop=${shopId} connected_at=${state.waba_connected_at}`,
-    );
-    return;
-  }
-
   const existingContacts = String(state.waba_coex_contacts_sync_request_id ?? "").trim();
   const existingHistory = String(state.waba_coex_history_sync_request_id ?? "").trim();
 
@@ -426,55 +406,6 @@ export async function runCoexistenceSyncBestEffort(
   if (error) {
     console.error(`[metaWabaConnect] falha ao persistir request_id coexistência shop=${shopId}:`, error.message);
   }
-}
-
-/** Cron: retenta smb_app_data para lojas coexistência conectadas dentro da janela 24h. */
-export async function retryCoexistenceSyncForEligibleShops(
-  serviceClient: SupabaseClient,
-): Promise<{ scanned: number; retried: number }> {
-  const windowStart = new Date(Date.now() - COEX_SMB_APP_DATA_SYNC_WINDOW_MS).toISOString();
-
-  const { data: shops, error } = await serviceClient
-    .from("barbershops")
-    .select(
-      "id, waba_phone_number_id, waba_access_token_encrypted, waba_connected_at, waba_coex_contacts_sync_request_id, waba_coex_history_sync_request_id",
-    )
-    .eq("waba_connect_status", "connected")
-    .eq("waba_flow_type", "existing_phone_number")
-    .gte("waba_connected_at", windowStart)
-    .or("waba_coex_contacts_sync_request_id.is.null,waba_coex_history_sync_request_id.is.null");
-
-  if (error) {
-    console.error("[metaWabaConnect] retry coexistência: falha SELECT:", error.message);
-    return { scanned: 0, retried: 0 };
-  }
-
-  const rows = shops ?? [];
-  let retried = 0;
-
-  for (const shop of rows) {
-    const phoneNumberId = String(shop.waba_phone_number_id ?? "").trim();
-    const encrypted = String(shop.waba_access_token_encrypted ?? "").trim();
-    if (!phoneNumberId || !encrypted) continue;
-
-    const contactsMissing = !String(shop.waba_coex_contacts_sync_request_id ?? "").trim();
-    const historyMissing = !String(shop.waba_coex_history_sync_request_id ?? "").trim();
-    if (!contactsMissing && !historyMissing) continue;
-
-    try {
-      const accessToken = await decryptWabaToken(encrypted);
-      await runCoexistenceSyncBestEffort(accessToken, phoneNumberId, shop.id, serviceClient, {
-        waba_connected_at: shop.waba_connected_at,
-        waba_coex_contacts_sync_request_id: shop.waba_coex_contacts_sync_request_id,
-        waba_coex_history_sync_request_id: shop.waba_coex_history_sync_request_id,
-      });
-      retried += 1;
-    } catch (e) {
-      console.error(`[metaWabaConnect] retry coexistência falhou shop=${shop.id}:`, e);
-    }
-  }
-
-  return { scanned: rows.length, retried };
 }
 
 export async function registerPhoneNumber(

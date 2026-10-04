@@ -68,9 +68,6 @@ verify_jwt = true
 [functions.poll-waba-connect-attempts]
 verify_jwt = false
 
-[functions.poll-waba-coex-smb-sync]
-verify_jwt = false
-
 [functions.infobip-send-test]
 verify_jwt = false
 

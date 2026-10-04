@@ -66,12 +66,41 @@ function isHistoryDeclinedPayload(value: Record<string, unknown>): boolean {
   return false;
 }
 
+function webhookPhoneNumberIdFromValue(value: Record<string, unknown>): string {
+  return String((value.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? "");
+}
+
+async function handleCoexistenceWebhookChange(
+  field: "smb_app_state_sync" | "smb_message_echoes",
+  value: Record<string, unknown>,
+  entryWabaId: string,
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  const phoneNumberId = webhookPhoneNumberIdFromValue(value);
+  console.log(
+    `[waba-account-webhook] ${field} recebido waba=${entryWabaId} phone=${phoneNumberId}`,
+    JSON.stringify(value).slice(0, 500),
+  );
+
+  if (!phoneNumberId) return;
+
+  const { data: shop } = await supabase
+    .from("barbershops")
+    .select("id")
+    .eq("waba_phone_number_id", phoneNumberId)
+    .maybeSingle();
+
+  if (shop?.id) {
+    console.log(`[waba-account-webhook] ${field} associado à barbearia ${shop.id}`);
+  }
+}
+
 async function handleHistoryWebhookChange(
   value: Record<string, unknown>,
   entryWabaId: string,
   supabase: ReturnType<typeof createClient>,
 ): Promise<void> {
-  const phoneNumberId = String((value.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? "");
+  const phoneNumberId = webhookPhoneNumberIdFromValue(value);
 
   if (isHistoryDeclinedPayload(value)) {
     console.log(
@@ -185,6 +214,16 @@ Deno.serve(async (req) => {
 
             if (change.field === "history") {
               await handleHistoryWebhookChange(change.value ?? {}, entryWabaId, supabase);
+              continue;
+            }
+
+            if (change.field === "smb_app_state_sync" || change.field === "smb_message_echoes") {
+              await handleCoexistenceWebhookChange(
+                change.field,
+                (change.value ?? {}) as Record<string, unknown>,
+                entryWabaId,
+                supabase,
+              );
               continue;
             }
 
