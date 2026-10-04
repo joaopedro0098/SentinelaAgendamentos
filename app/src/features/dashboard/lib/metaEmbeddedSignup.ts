@@ -28,11 +28,20 @@ export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_nu
 /** Intenção do fluxo antes de abrir o Embedded Signup (reflete featureType nos extras do FB.login). */
 export type EmbeddedSignupFlowIntent = "standard" | "coexistence";
 
+export type SignupFlowIdentifiedPayload = {
+  flow_type: WabaFlowType;
+  waba_id: string;
+  phone_number_id: string;
+  business_id?: string;
+};
+
 export type RunEmbeddedSignupOptions = {
   /** standard: Cloud API (número novo / WABA); coexistence: opção WhatsApp Business App. Default: standard. */
   flowIntent?: EmbeddedSignupFlowIntent;
   /** Disparado assim que FB.login retorna o code (fast path backend, fire-and-forget). */
   onAuthCodeCaptured?: (payload: { code: string; code_captured_at_ms: number }) => void;
+  /** Disparado quando chega FINISH / FINISH_ONLY_WABA / FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING (tipo conhecido). */
+  onSignupFlowIdentified?: (payload: SignupFlowIdentifiedPayload) => void;
 };
 
 function hasRequiredSignupIds(flowType: WabaFlowType, wabaId: string, phoneNumberId: string): boolean {
@@ -170,6 +179,7 @@ export async function runEmbeddedSignup(
 ): Promise<EmbeddedSignupOutcome> {
   const flowIntent = options?.flowIntent ?? "standard";
   const onAuthCodeCaptured = options?.onAuthCodeCaptured;
+  const onSignupFlowIdentified = options?.onSignupFlowIdentified;
   const { appId, configId, solutionId, mode, isConfigured } = getMetaEmbeddedSignupConfig();
   if (!isConfigured) {
     const missing = mode === "meta_direct"
@@ -275,6 +285,12 @@ export async function runEmbeddedSignup(
           sessionFlowType = flowType;
           const businessId = String(data.data?.business_id ?? "").trim();
           sessionBusinessId = businessId || undefined;
+          onSignupFlowIdentified?.({
+            flow_type: flowType,
+            waba_id: wabaId,
+            phone_number_id: phoneNumberId,
+            business_id: sessionBusinessId,
+          });
           tryCompleteSuccess();
           return;
         }

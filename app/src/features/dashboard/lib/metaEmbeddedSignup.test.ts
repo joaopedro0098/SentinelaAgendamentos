@@ -109,12 +109,20 @@ describe("runEmbeddedSignup", () => {
 
     it("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING resolve com flow_type existing_phone_number", async () => {
       window.FB = createMockFb();
+      const onSignupFlowIdentified = vi.fn();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
-      const resultPromise = runEmbeddedSignup();
+      const resultPromise = runEmbeddedSignup({ onSignupFlowIdentified });
       await vi.advanceTimersByTimeAsync(0);
 
       dispatchEmbeddedSignupMessage("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING", {
+        waba_id: "waba-coexist",
+        phone_number_id: "phone-coexist",
+        business_id: "biz-1",
+      });
+
+      expect(onSignupFlowIdentified).toHaveBeenCalledWith({
+        flow_type: "existing_phone_number",
         waba_id: "waba-coexist",
         phone_number_id: "phone-coexist",
         business_id: "biz-1",

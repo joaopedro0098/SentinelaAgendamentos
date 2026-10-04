@@ -60,6 +60,11 @@ export function WhatsAppIntegrationCard() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [messagingProvider, setMessagingProvider] = useState<WhatsAppMessagingProviderDb>(null);
   const initialResumeDone = useRef(false);
+  const fastPathAuthRef = useRef<{
+    attemptId: string;
+    code: string;
+    code_captured_at_ms: number;
+  } | null>(null);
 
   const metaConfigured = getMetaEmbeddedSignupConfig().isConfigured;
   const wabaConnectMode = getWabaConnectMode();
@@ -136,6 +141,11 @@ export function WhatsAppIntegrationCard() {
       const signup = await runEmbeddedSignup({
         onAuthCodeCaptured: attemptId
           ? ({ code, code_captured_at_ms }) => {
+              fastPathAuthRef.current = {
+                attemptId: attemptId!,
+                code,
+                code_captured_at_ms,
+              };
               void invokeMetaWabaConnectAttemptSubmitCode({
                 attempt_id: attemptId!,
                 code,
@@ -143,6 +153,25 @@ export function WhatsAppIntegrationCard() {
               }).then((result) => {
                 if (!result.ok) {
                   console.warn("[EmbeddedSignup] fast path submit_code:", result.error);
+                }
+              });
+            }
+          : undefined,
+        onSignupFlowIdentified: attemptId
+          ? (flow) => {
+              const auth = fastPathAuthRef.current;
+              if (!auth || auth.attemptId !== attemptId) return;
+              void invokeMetaWabaConnectAttemptSubmitCode({
+                attempt_id: attemptId!,
+                code: auth.code,
+                code_captured_at_ms: auth.code_captured_at_ms,
+                flow_type: flow.flow_type,
+                waba_id: flow.waba_id,
+                phone_number_id: flow.phone_number_id || undefined,
+                business_id: flow.business_id,
+              }).then((result) => {
+                if (!result.ok) {
+                  console.warn("[EmbeddedSignup] fast path submit_code (flow_type):", result.error);
                 }
               });
             }

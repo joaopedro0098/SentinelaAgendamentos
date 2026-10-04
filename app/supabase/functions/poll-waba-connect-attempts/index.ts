@@ -127,7 +127,11 @@ Deno.serve(async (req) => {
       }
 
       const wabaId = match.wabaId;
-      const flowType = parseFlowType(String(attempt.discovered_flow_type ?? "")) ?? "new_phone_number";
+      const flowType = parseFlowType(String(attempt.discovered_flow_type ?? ""));
+
+      if (!flowType) {
+        continue;
+      }
 
       try {
         let phoneNumberId = String(attempt.discovered_phone_number_id ?? "").trim();

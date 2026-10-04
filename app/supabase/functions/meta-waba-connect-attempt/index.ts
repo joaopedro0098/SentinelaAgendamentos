@@ -170,8 +170,29 @@ async function handleSubmitCode(
       wabaId = wabaIdHint;
     }
 
-    const flowType = flowTypeHint ?? parseFlowType(String(attempt.discovered_flow_type ?? "")) ??
-      "new_phone_number";
+    const flowType = flowTypeHint ?? parseFlowType(String(attempt.discovered_flow_type ?? ""));
+
+    if (!flowType) {
+      await serviceClient
+        .from("waba_connect_attempts")
+        .update({
+          discovered_waba_id: wabaId,
+          discovered_meta_user_id: discovered.metaUserId,
+          discovered_business_id: businessIdHint ?? attempt.discovered_business_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", attemptId);
+
+      console.log(
+        `[meta-waba-connect-attempt] fast path aguardando flow_type (postMessage FINISH) shop=${shopId} waba=${wabaId}`,
+      );
+      return jsonResponse({
+        success: true,
+        status: "awaiting_flow_type",
+        attempt_id: attemptId,
+        waba_id: wabaId,
+      });
+    }
 
     let phoneNumberId = phoneNumberIdHint ?? (String(attempt.discovered_phone_number_id ?? "").trim());
 
