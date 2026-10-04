@@ -208,6 +208,7 @@ export function WhatsAppIntegrationCard() {
           flow_type: signup.flow_type,
           business_id: signup.business_id,
           code_captured_at_ms: signup.code_captured_at_ms,
+          attempt_id: attemptId ?? undefined,
         });
         console.log("[EmbeddedSignup] invokeMetaWabaConnectStart retornou", start); // DEBUG TEMP
 

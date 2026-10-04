@@ -461,22 +461,89 @@ export type DiscoverFromCodeResult = {
   metaUserId: string | null;
 };
 
-export async function discoverFromExchangeableCode(code: string): Promise<DiscoverFromCodeResult> {
-  const accessToken = await exchangeCodeForAccessToken(code);
-  const { appId, appSecret, apiVersion } = getMetaGraphConfig();
+export async function discoverFromAccessToken(accessToken: string): Promise<Omit<DiscoverFromCodeResult, "accessToken">> {
+  const { appId, appSecret } = getMetaGraphConfig();
   const appAccessToken = `${appId}|${appSecret}`;
   const debug = await debugAccessToken(accessToken, appAccessToken);
   const wabaId = extractPrimaryWabaIdFromDebugToken(debug);
 
   if (!wabaId) {
-    throw new Error("Meta não retornou waba_id via debug_token após troca do code.");
+    throw new Error("Meta não retornou waba_id via debug_token.");
   }
 
   return {
-    accessToken,
     wabaId,
     metaUserId: debug.user_id ? String(debug.user_id) : null,
   };
+}
+
+export async function discoverFromExchangeableCode(code: string): Promise<DiscoverFromCodeResult> {
+  const accessToken = await exchangeCodeForAccessToken(code);
+  const discovered = await discoverFromAccessToken(accessToken);
+  return { accessToken, ...discovered };
+}
+
+/** Remove token OAuth temporário da tentativa (conclusão ou expiração). */
+export const CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH = {
+  oauth_access_token_encrypted: null,
+} as const;
+
+export type ClaimConnectAttemptResult =
+  | { ok: true }
+  | { ok: false; reason: "already_completed" | "in_progress" | "closed" };
+
+/** Exclusão mútua: só uma rotina completa a tentativa por vez. */
+export async function claimConnectAttemptForCompletion(
+  serviceClient: SupabaseClient,
+  attemptId: string,
+): Promise<ClaimConnectAttemptResult> {
+  const now = new Date().toISOString();
+  const { data, error } = await serviceClient
+    .from("waba_connect_attempts")
+    .update({ status: "completing", updated_at: now })
+    .eq("id", attemptId)
+    .in("status", ["pending", "code_received"])
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (data) {
+    return { ok: true };
+  }
+
+  const { data: row, error: rowErr } = await serviceClient
+    .from("waba_connect_attempts")
+    .select("status")
+    .eq("id", attemptId)
+    .maybeSingle();
+
+  if (rowErr) {
+    throw new Error(rowErr.message);
+  }
+  if (!row) {
+    return { ok: false, reason: "closed" };
+  }
+  if (row.status === "completed") {
+    return { ok: false, reason: "already_completed" };
+  }
+  if (row.status === "completing") {
+    return { ok: false, reason: "in_progress" };
+  }
+  return { ok: false, reason: "closed" };
+}
+
+export async function releaseConnectAttemptCompletionClaim(
+  serviceClient: SupabaseClient,
+  attemptId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await serviceClient
+    .from("waba_connect_attempts")
+    .update({ status: "code_received", updated_at: now })
+    .eq("id", attemptId)
+    .eq("status", "completing");
 }
 
 /** Primeiro id em GET /{waba_id}/phone_numbers (Meta Client phone numbers). */
@@ -539,6 +606,7 @@ export async function markConnectAttemptsCompleted(
     completed_at: now,
     completed_via: completedVia,
     updated_at: now,
+    ...CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
   };
 
   if (attemptId) {
@@ -734,6 +802,7 @@ export type WabaConnectAttemptRow = {
   discovered_business_id: string | null;
   discovered_meta_user_id: string | null;
   discovered_flow_type: string | null;
+  oauth_access_token_encrypted: string | null;
   known_waba_ids_snapshot: string[] | null;
 };
 

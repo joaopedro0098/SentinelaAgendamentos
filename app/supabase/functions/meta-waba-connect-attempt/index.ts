@@ -3,18 +3,23 @@
  *
  * Camada adicional ao fluxo Embedded Signup (não substitui meta-waba-connect-start):
  * - action=start: registra tentativa antes de abrir popup
- * - action=submit_code: fast path — troca code, descobre WABA/número, completa conexão
+ * - action=submit_code: fast path — troca code na 1ª chamada, reutiliza token na 2ª
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   buildKnownWabaIdsSnapshot,
+  claimConnectAttemptForCompletion,
   completeMetaWabaConnect,
+  CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
+  discoverFromAccessToken,
   discoverFromExchangeableCode,
   fetchWabaPhoneNumbers,
   getMetaPartnerPollingConfig,
   parseFlowType,
   pickPhoneNumberIdForConnect,
+  releaseConnectAttemptCompletionClaim,
 } from "../_shared/metaWabaConnect.ts";
+import { decryptWabaToken, encryptWabaToken } from "../_shared/wabaCrypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +33,20 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function claimFailureResponse(reason: "already_completed" | "in_progress" | "closed") {
+  if (reason === "already_completed") {
+    return jsonResponse({ success: true, status: "already_completed" });
+  }
+  if (reason === "in_progress") {
+    return jsonResponse({
+      success: true,
+      status: "in_progress",
+      message: "Conexão em andamento.",
+    });
+  }
+  return jsonResponse({ error: "Tentativa encerrada.", status: "closed" }, 409);
 }
 
 async function getAuthenticatedContext(req: Request) {
@@ -80,9 +99,10 @@ async function handleStart(serviceClient: ReturnType<typeof createClient>, shopI
       status: "expired",
       error_message: "superseded_by_new_attempt",
       updated_at: now.toISOString(),
+      ...CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
     })
     .eq("shop_id", shopId)
-    .in("status", ["pending", "code_received"]);
+    .in("status", ["pending", "code_received", "completing"]);
 
   const { data, error } = await serviceClient
     .from("waba_connect_attempts")
@@ -142,6 +162,13 @@ async function handleSubmitCode(
   if (attempt.status === "completed") {
     return jsonResponse({ success: true, status: "already_completed", via: attempt.completed_via });
   }
+  if (attempt.status === "completing") {
+    return jsonResponse({
+      success: true,
+      status: "in_progress",
+      message: "Conexão em andamento.",
+    });
+  }
   if (attempt.status === "expired" || attempt.status === "ambiguous" || attempt.status === "failed") {
     return jsonResponse({ error: "Tentativa encerrada.", status: attempt.status }, 409);
   }
@@ -161,11 +188,45 @@ async function handleSubmitCode(
     .eq("id", attemptId);
 
   try {
-    const discovered = await discoverFromExchangeableCode(code);
-    let wabaId = wabaIdHint ?? discovered.wabaId;
-    if (wabaIdHint && wabaIdHint !== discovered.wabaId) {
+    const storedEncrypted = String(attempt.oauth_access_token_encrypted ?? "").trim();
+    let accessToken: string;
+    let wabaIdFromToken: string;
+    let metaUserId: string | null;
+
+    if (storedEncrypted) {
+      accessToken = await decryptWabaToken(storedEncrypted);
+      const fromToken = await discoverFromAccessToken(accessToken);
+      wabaIdFromToken = fromToken.wabaId;
+      metaUserId = fromToken.metaUserId;
+    } else if (flowTypeHint) {
+      return jsonResponse({
+        error:
+          "Token temporário da tentativa não encontrado. A primeira submit_code (sem flow_type) deve rodar logo após o popup devolver o code (validade ~30s na doc Meta; A DOC NÃO DIZ se o code é de uso único).",
+        status: "missing_stored_token",
+      }, 409);
+    } else {
+      const discovered = await discoverFromExchangeableCode(code);
+      accessToken = discovered.accessToken;
+      wabaIdFromToken = discovered.wabaId;
+      metaUserId = discovered.metaUserId;
+
+      const encryptedToken = await encryptWabaToken(accessToken);
+      await serviceClient
+        .from("waba_connect_attempts")
+        .update({
+          oauth_access_token_encrypted: encryptedToken,
+          discovered_meta_user_id: metaUserId,
+          discovered_waba_id: wabaIdHint ?? wabaIdFromToken,
+          discovered_business_id: businessIdHint ?? attempt.discovered_business_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", attemptId);
+    }
+
+    let wabaId = wabaIdHint ?? wabaIdFromToken;
+    if (wabaIdHint && wabaIdHint !== wabaIdFromToken) {
       console.warn(
-        `[meta-waba-connect-attempt] waba_id postMessage (${wabaIdHint}) difere do debug_token (${discovered.wabaId}); usando postMessage.`,
+        `[meta-waba-connect-attempt] waba_id postMessage (${wabaIdHint}) difere do debug_token (${wabaIdFromToken}); usando postMessage.`,
       );
       wabaId = wabaIdHint;
     }
@@ -177,7 +238,7 @@ async function handleSubmitCode(
         .from("waba_connect_attempts")
         .update({
           discovered_waba_id: wabaId,
-          discovered_meta_user_id: discovered.metaUserId,
+          discovered_meta_user_id: metaUserId,
           discovered_business_id: businessIdHint ?? attempt.discovered_business_id,
           updated_at: new Date().toISOString(),
         })
@@ -197,7 +258,7 @@ async function handleSubmitCode(
     let phoneNumberId = phoneNumberIdHint ?? (String(attempt.discovered_phone_number_id ?? "").trim());
 
     if (!phoneNumberId && flowType !== "existing_phone_number") {
-      const phones = await fetchWabaPhoneNumbers(discovered.accessToken, wabaId);
+      const phones = await fetchWabaPhoneNumbers(accessToken, wabaId);
       phoneNumberId = pickPhoneNumberIdForConnect(phones, flowType) ?? "";
     }
 
@@ -206,7 +267,7 @@ async function handleSubmitCode(
       .update({
         discovered_waba_id: wabaId,
         discovered_phone_number_id: phoneNumberId || null,
-        discovered_meta_user_id: discovered.metaUserId,
+        discovered_meta_user_id: metaUserId,
         discovered_business_id: businessIdHint ?? attempt.discovered_business_id,
         discovered_flow_type: flowType,
         updated_at: new Date().toISOString(),
@@ -225,13 +286,18 @@ async function handleSubmitCode(
       });
     }
 
+    const claim = await claimConnectAttemptForCompletion(serviceClient, attemptId);
+    if (!claim.ok) {
+      return claimFailureResponse(claim.reason);
+    }
+
     const result = await completeMetaWabaConnect({
       serviceClient,
       shopId,
       wabaId,
       phoneNumberId,
       flowType,
-      accessToken: discovered.accessToken,
+      accessToken,
       businessId: businessIdHint ?? attempt.discovered_business_id,
       codeCapturedAtMs: Number.isFinite(codeCapturedAtMs) ? codeCapturedAtMs : null,
       completedVia: "fast_path",
@@ -239,6 +305,9 @@ async function handleSubmitCode(
     });
 
     if (!result.ok) {
+      if (result.status !== "provisioning") {
+        await releaseConnectAttemptCompletionClaim(serviceClient, attemptId);
+      }
       return jsonResponse({
         success: false,
         status: result.status ?? "error",

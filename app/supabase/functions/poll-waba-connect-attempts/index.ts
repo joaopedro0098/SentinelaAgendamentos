@@ -5,7 +5,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isCronAuthorized } from "../_shared/cronAuth.ts";
 import {
+  claimConnectAttemptForCompletion,
   completeMetaWabaConnect,
+  CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
   fetchClientWhatsappBusinessAccounts,
   fetchKnownWabaIdsFromDb,
   fetchWabaPhoneNumbers,
@@ -13,8 +15,10 @@ import {
   matchNewWabaForAttempt,
   parseFlowType,
   pickPhoneNumberIdForConnect,
+  releaseConnectAttemptCompletionClaim,
   type WabaConnectAttemptRow,
 } from "../_shared/metaWabaConnect.ts";
+import { decryptWabaToken } from "../_shared/wabaCrypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,8 +58,9 @@ Deno.serve(async (req) => {
         status: "expired",
         error_message: "attempt_ttl_exceeded",
         updated_at: nowIso,
+        ...CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
       })
-      .in("status", ["pending", "code_received"])
+      .in("status", ["pending", "code_received", "completing"])
       .lt("expires_at", nowIso);
 
     const { data: openAttempts, error: openErr } = await supabase
@@ -152,17 +157,34 @@ Deno.serve(async (req) => {
           }
         }
 
+        const storedOAuth = String(attempt.oauth_access_token_encrypted ?? "").trim();
+        const pollAccessToken = storedOAuth
+          ? await decryptWabaToken(storedOAuth)
+          : partner.systemUserAccessToken!;
+
+        const claim = await claimConnectAttemptForCompletion(supabase, attempt.id);
+        if (!claim.ok) {
+          if (claim.reason === "already_completed") {
+            completed += 1;
+          }
+          continue;
+        }
+
         const result = await completeMetaWabaConnect({
           serviceClient: supabase,
           shopId: attempt.shop_id,
           wabaId,
           phoneNumberId,
           flowType,
-          accessToken: partner.systemUserAccessToken!,
+          accessToken: pollAccessToken,
           businessId: attempt.discovered_business_id,
           completedVia: "cron_poll",
           attemptId: attempt.id,
         });
+
+        if (!result.ok && result.status !== "provisioning") {
+          await releaseConnectAttemptCompletionClaim(supabase, attempt.id);
+        }
 
         if (result.ok) {
           completed += 1;

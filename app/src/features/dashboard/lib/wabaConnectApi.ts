@@ -21,6 +21,8 @@ export type MetaWabaConnectStartPayload = {
   business_id?: string;
   /** Epoch ms quando o frontend capturou o code no callback FB.login (monitorar expiração 30s). */
   code_captured_at_ms?: number;
+  /** Reutiliza token guardado na tentativa (1ª submit_code) em vez de trocar o code de novo. */
+  attempt_id?: string;
 };
 
 export type InfobipWabaConnectStartResult =

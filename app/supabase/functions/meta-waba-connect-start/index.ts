@@ -1,15 +1,18 @@
 /**
  * POST /meta-waba-connect-start
  *
- * Embedded Signup Meta Direct (Tech Provider): troca code, subscribed_apps, register, persist token.
- * Caminho principal quando postMessage FINISH chega ao frontend.
+ * Embedded Signup Meta Direct (Tech Provider): subscribe, register, persist token.
+ * Troca code→token só se a tentativa (attempt_id) não tiver token guardado; senão reutiliza o da 1ª submit_code.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  claimConnectAttemptForCompletion,
   completeMetaWabaConnect,
   exchangeCodeForAccessToken,
   parseFlowType,
+  releaseConnectAttemptCompletionClaim,
 } from "../_shared/metaWabaConnect.ts";
+import { decryptWabaToken } from "../_shared/wabaCrypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,6 +60,7 @@ Deno.serve(async (req) => {
     const phoneNumberId = String(body.phone_number_id ?? "").trim();
     const flowTypeRaw = String(body.flow_type ?? "").trim();
     const businessId = String(body.business_id ?? "").trim() || null;
+    const attemptId = String(body.attempt_id ?? "").trim() || null;
 
     const flowType = parseFlowType(flowTypeRaw);
     if (!code || !wabaId || !flowType) {
@@ -91,25 +95,85 @@ Deno.serve(async (req) => {
 
     const codeCapturedAtMs = Number(body.code_captured_at_ms);
 
-    let accessToken: string;
-    try {
-      accessToken = await exchangeCodeForAccessToken(code);
-    } catch (exchangeErr) {
-      const { data: shopAfterRace } = await serviceClient
-        .from("barbershops")
-        .select("waba_connect_status")
-        .eq("id", shop.id)
+    let accessToken: string | null = null;
+    let claimAttemptId: string | null = null;
+
+    if (attemptId) {
+      const { data: attempt, error: attemptErr } = await serviceClient
+        .from("waba_connect_attempts")
+        .select("id, shop_id, owner_id, status, oauth_access_token_encrypted")
+        .eq("id", attemptId)
+        .eq("shop_id", shop.id)
+        .eq("owner_id", userData.user.id)
         .maybeSingle();
 
-      if (shopAfterRace?.waba_connect_status === "connected") {
-        return jsonResponse({
-          success: true,
-          status: "connected",
-          message: "WhatsApp já está conectado.",
-        });
-      }
+      if (attemptErr) return jsonResponse({ error: attemptErr.message }, 500);
 
-      throw exchangeErr;
+      if (attempt) {
+        if (attempt.status === "completed") {
+          return jsonResponse({
+            success: true,
+            status: "connected",
+            message: "WhatsApp já conectado nesta tentativa.",
+          });
+        }
+        if (attempt.status === "completing") {
+          return jsonResponse({
+            success: true,
+            status: "in_progress",
+            message: "Conexão em andamento.",
+          });
+        }
+
+        const storedEncrypted = String(attempt.oauth_access_token_encrypted ?? "").trim();
+        if (storedEncrypted) {
+          accessToken = await decryptWabaToken(storedEncrypted);
+          claimAttemptId = attempt.id;
+        }
+      }
+    }
+
+    if (!accessToken) {
+      try {
+        accessToken = await exchangeCodeForAccessToken(code);
+      } catch (exchangeErr) {
+        const { data: shopAfterRace } = await serviceClient
+          .from("barbershops")
+          .select("waba_connect_status")
+          .eq("id", shop.id)
+          .maybeSingle();
+
+        if (shopAfterRace?.waba_connect_status === "connected") {
+          return jsonResponse({
+            success: true,
+            status: "connected",
+            message: "WhatsApp já está conectado.",
+          });
+        }
+
+        throw exchangeErr;
+      }
+    }
+
+    if (claimAttemptId) {
+      const claim = await claimConnectAttemptForCompletion(serviceClient, claimAttemptId);
+      if (!claim.ok) {
+        if (claim.reason === "already_completed") {
+          return jsonResponse({
+            success: true,
+            status: "connected",
+            message: "WhatsApp já conectado.",
+          });
+        }
+        if (claim.reason === "in_progress") {
+          return jsonResponse({
+            success: true,
+            status: "in_progress",
+            message: "Conexão em andamento.",
+          });
+        }
+        return jsonResponse({ error: "Tentativa encerrada.", status: "closed" }, 409);
+      }
     }
 
     const result = await completeMetaWabaConnect({
@@ -122,9 +186,13 @@ Deno.serve(async (req) => {
       businessId,
       codeCapturedAtMs: Number.isFinite(codeCapturedAtMs) ? codeCapturedAtMs : null,
       completedVia: "frontend",
+      attemptId: claimAttemptId,
     });
 
     if (!result.ok) {
+      if (claimAttemptId && result.status !== "provisioning") {
+        await releaseConnectAttemptCompletionClaim(serviceClient, claimAttemptId);
+      }
       const statusCode = result.status === "connected" || result.status === "provisioning" ? 409 : 502;
       return jsonResponse({ error: result.error, status: result.status }, statusCode);
     }
