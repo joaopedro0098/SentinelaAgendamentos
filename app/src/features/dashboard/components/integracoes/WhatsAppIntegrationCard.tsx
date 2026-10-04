@@ -421,7 +421,7 @@ export function WhatsAppIntegrationCard() {
                       O app <span className="font-medium text-foreground">WhatsApp Business</span> no celular precisa
                       estar na versão <span className="font-medium text-foreground">2.24.17</span> ou mais nova.
                     </li>
-                    <li>Grupos do WhatsApp não são sincronizados com a API.</li>
+                    <li>Grupos do WhatsApp não são sincronizados.</li>
                     <li>Listas de transmissão ficam desativadas após a conexão.</li>
                     <li>
                       Aparelhos vinculados ao WhatsApp Business no app serão desvinculados ao conectar.
