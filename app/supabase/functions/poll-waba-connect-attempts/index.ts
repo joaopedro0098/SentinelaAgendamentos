@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
             status: "ambiguous",
             error_message: msg,
             updated_at: new Date().toISOString(),
+            ...CONNECT_ATTEMPT_OAUTH_CLEAR_PATCH,
           })
           .eq("id", attempt.id);
         continue;

@@ -3,13 +3,32 @@
  * Usada por meta-waba-connect-start, meta-waba-connect-attempt e poll-waba-connect-attempts.
  */
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { encryptWabaToken } from "./wabaCrypto.ts";
+import { decryptWabaToken, encryptWabaToken } from "./wabaCrypto.ts";
 import { normalizeBrazilPhoneE164Digits } from "./twilioWhatsapp.ts";
 
 export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
 export type WabaConnectCompletedVia = "frontend" | "fast_path" | "cron_poll";
 
 type CoexSyncType = "smb_app_state_sync" | "history";
+
+/** Janela Meta para disparar smb_app_data após conexão coexistência (24h). */
+export const COEX_SMB_APP_DATA_SYNC_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function isWithinCoexSmbAppDataWindow(
+  connectedAtIso: string | null | undefined,
+  nowMs = Date.now(),
+): boolean {
+  if (!connectedAtIso) return true;
+  const connectedMs = Date.parse(String(connectedAtIso));
+  if (!Number.isFinite(connectedMs)) return false;
+  return nowMs - connectedMs <= COEX_SMB_APP_DATA_SYNC_WINDOW_MS;
+}
+
+export type CoexSyncShopState = {
+  waba_connected_at: string | null;
+  waba_coex_contacts_sync_request_id: string | null;
+  waba_coex_history_sync_request_id: string | null;
+};
 
 /** Campos WABA inscritos programaticamente (inclui coexistência). */
 const WABA_SUBSCRIBED_FIELDS = [
@@ -316,53 +335,146 @@ async function postSmbAppDataSync(
   return { ok: true, request_id: String(data.request_id) };
 }
 
+async function loadCoexSyncShopState(
+  serviceClient: SupabaseClient,
+  shopId: string,
+): Promise<CoexSyncShopState | null> {
+  const { data, error } = await serviceClient
+    .from("barbershops")
+    .select("waba_connected_at, waba_coex_contacts_sync_request_id, waba_coex_history_sync_request_id")
+    .eq("id", shopId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[metaWabaConnect] falha ao ler estado coexistência shop=${shopId}:`, error.message);
+    return null;
+  }
+  if (!data) return null;
+  return data as CoexSyncShopState;
+}
+
 export async function runCoexistenceSyncBestEffort(
   accessToken: string,
   phoneNumberId: string,
   shopId: string,
   serviceClient: SupabaseClient,
+  shopState?: CoexSyncShopState | null,
 ): Promise<void> {
-  let contactsRequestId: string | null = null;
-  let historyRequestId: string | null = null;
+  const state = shopState ?? await loadCoexSyncShopState(serviceClient, shopId);
+  if (!state) return;
 
-  const contactsSync = await postSmbAppDataSync(accessToken, phoneNumberId, "smb_app_state_sync");
-  if (contactsSync.ok) {
-    contactsRequestId = contactsSync.request_id;
+  if (!isWithinCoexSmbAppDataWindow(state.waba_connected_at)) {
     console.log(
-      `[metaWabaConnect] smb_app_data contacts iniciado shop=${shopId} request_id=${contactsRequestId}`,
+      `[metaWabaConnect] smb_app_data ignorado (fora da janela 24h) shop=${shopId} connected_at=${state.waba_connected_at}`,
     );
-  } else {
-    console.error(
-      `[metaWabaConnect] smb_app_data contacts falhou shop=${shopId}:`,
-      contactsSync.detail,
-    );
+    return;
   }
 
-  const historySync = await postSmbAppDataSync(accessToken, phoneNumberId, "history");
-  if (historySync.ok) {
-    historyRequestId = historySync.request_id;
+  const existingContacts = String(state.waba_coex_contacts_sync_request_id ?? "").trim();
+  const existingHistory = String(state.waba_coex_history_sync_request_id ?? "").trim();
+
+  let newContactsRequestId: string | null = null;
+  let newHistoryRequestId: string | null = null;
+
+  if (existingContacts) {
     console.log(
-      `[metaWabaConnect] smb_app_data history iniciado shop=${shopId} request_id=${historyRequestId}`,
+      `[metaWabaConnect] smb_app_data contacts já aceito request_id=${existingContacts} shop=${shopId}; não repetir POST`,
     );
   } else {
-    console.error(
-      `[metaWabaConnect] smb_app_data history falhou shop=${shopId}:`,
-      historySync.detail,
-    );
+    const contactsSync = await postSmbAppDataSync(accessToken, phoneNumberId, "smb_app_state_sync");
+    if (contactsSync.ok) {
+      newContactsRequestId = contactsSync.request_id;
+      console.log(
+        `[metaWabaConnect] smb_app_data contacts iniciado shop=${shopId} request_id=${newContactsRequestId}`,
+      );
+    } else {
+      console.error(
+        `[metaWabaConnect] smb_app_data contacts falhou shop=${shopId}:`,
+        contactsSync.detail,
+      );
+    }
   }
 
-  if (!contactsRequestId && !historyRequestId) return;
+  if (existingHistory) {
+    console.log(
+      `[metaWabaConnect] smb_app_data history já aceito request_id=${existingHistory} shop=${shopId}; não repetir POST`,
+    );
+  } else {
+    const historySync = await postSmbAppDataSync(accessToken, phoneNumberId, "history");
+    if (historySync.ok) {
+      newHistoryRequestId = historySync.request_id;
+      console.log(
+        `[metaWabaConnect] smb_app_data history iniciado shop=${shopId} request_id=${newHistoryRequestId}`,
+      );
+    } else {
+      console.error(
+        `[metaWabaConnect] smb_app_data history falhou shop=${shopId}:`,
+        historySync.detail,
+      );
+    }
+  }
+
+  if (!newContactsRequestId && !newHistoryRequestId) return;
 
   const coexUpdate: Record<string, string> = {
     updated_at: new Date().toISOString(),
   };
-  if (contactsRequestId) coexUpdate.waba_coex_contacts_sync_request_id = contactsRequestId;
-  if (historyRequestId) coexUpdate.waba_coex_history_sync_request_id = historyRequestId;
+  if (newContactsRequestId) coexUpdate.waba_coex_contacts_sync_request_id = newContactsRequestId;
+  if (newHistoryRequestId) coexUpdate.waba_coex_history_sync_request_id = newHistoryRequestId;
 
   const { error } = await serviceClient.from("barbershops").update(coexUpdate).eq("id", shopId);
   if (error) {
     console.error(`[metaWabaConnect] falha ao persistir request_id coexistência shop=${shopId}:`, error.message);
   }
+}
+
+/** Cron: retenta smb_app_data para lojas coexistência conectadas dentro da janela 24h. */
+export async function retryCoexistenceSyncForEligibleShops(
+  serviceClient: SupabaseClient,
+): Promise<{ scanned: number; retried: number }> {
+  const windowStart = new Date(Date.now() - COEX_SMB_APP_DATA_SYNC_WINDOW_MS).toISOString();
+
+  const { data: shops, error } = await serviceClient
+    .from("barbershops")
+    .select(
+      "id, waba_phone_number_id, waba_access_token_encrypted, waba_connected_at, waba_coex_contacts_sync_request_id, waba_coex_history_sync_request_id",
+    )
+    .eq("waba_connect_status", "connected")
+    .eq("waba_flow_type", "existing_phone_number")
+    .gte("waba_connected_at", windowStart)
+    .or("waba_coex_contacts_sync_request_id.is.null,waba_coex_history_sync_request_id.is.null");
+
+  if (error) {
+    console.error("[metaWabaConnect] retry coexistência: falha SELECT:", error.message);
+    return { scanned: 0, retried: 0 };
+  }
+
+  const rows = shops ?? [];
+  let retried = 0;
+
+  for (const shop of rows) {
+    const phoneNumberId = String(shop.waba_phone_number_id ?? "").trim();
+    const encrypted = String(shop.waba_access_token_encrypted ?? "").trim();
+    if (!phoneNumberId || !encrypted) continue;
+
+    const contactsMissing = !String(shop.waba_coex_contacts_sync_request_id ?? "").trim();
+    const historyMissing = !String(shop.waba_coex_history_sync_request_id ?? "").trim();
+    if (!contactsMissing && !historyMissing) continue;
+
+    try {
+      const accessToken = await decryptWabaToken(encrypted);
+      await runCoexistenceSyncBestEffort(accessToken, phoneNumberId, shop.id, serviceClient, {
+        waba_connected_at: shop.waba_connected_at,
+        waba_coex_contacts_sync_request_id: shop.waba_coex_contacts_sync_request_id,
+        waba_coex_history_sync_request_id: shop.waba_coex_history_sync_request_id,
+      });
+      retried += 1;
+    } catch (e) {
+      console.error(`[metaWabaConnect] retry coexistência falhou shop=${shop.id}:`, e);
+    }
+  }
+
+  return { scanned: rows.length, retried };
 }
 
 export async function registerPhoneNumber(

@@ -199,9 +199,12 @@ async function handleSubmitCode(
       wabaIdFromToken = fromToken.wabaId;
       metaUserId = fromToken.metaUserId;
     } else if (flowTypeHint) {
+      console.warn(
+        "[meta-waba-connect-attempt] missing_stored_token: 2ª submit_code sem token guardado (A DOC NÃO DIZ se o code OAuth é de uso único; validade ~30s na doc Meta).",
+      );
       return jsonResponse({
         error:
-          "Token temporário da tentativa não encontrado. A primeira submit_code (sem flow_type) deve rodar logo após o popup devolver o code (validade ~30s na doc Meta; A DOC NÃO DIZ se o code é de uso único).",
+          "Token temporário da tentativa não encontrado. Abra o fluxo de conexão de novo e conclua o cadastro em seguida.",
         status: "missing_stored_token",
       }, 409);
     } else {
