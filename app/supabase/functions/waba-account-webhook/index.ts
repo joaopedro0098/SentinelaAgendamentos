@@ -70,29 +70,25 @@ function webhookPhoneNumberIdFromValue(value: Record<string, unknown>): string {
   return String((value.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? "");
 }
 
-async function handleCoexistenceWebhookChange(
+function countCoexistenceWebhookPayloadItems(value: Record<string, unknown>): number {
+  let count = 0;
+  for (const entry of Object.values(value)) {
+    if (Array.isArray(entry)) {
+      count += entry.length;
+    }
+  }
+  return count;
+}
+
+function handleCoexistenceWebhookChange(
   field: "smb_app_state_sync" | "smb_message_echoes",
   value: Record<string, unknown>,
   entryWabaId: string,
-  supabase: ReturnType<typeof createClient>,
-): Promise<void> {
-  const phoneNumberId = webhookPhoneNumberIdFromValue(value);
+): void {
+  const itemCount = countCoexistenceWebhookPayloadItems(value);
   console.log(
-    `[waba-account-webhook] ${field} recebido waba=${entryWabaId} phone=${phoneNumberId}`,
-    JSON.stringify(value).slice(0, 500),
+    `[waba-account-webhook] field=${field} waba=${entryWabaId} item_count=${itemCount}`,
   );
-
-  if (!phoneNumberId) return;
-
-  const { data: shop } = await supabase
-    .from("barbershops")
-    .select("id")
-    .eq("waba_phone_number_id", phoneNumberId)
-    .maybeSingle();
-
-  if (shop?.id) {
-    console.log(`[waba-account-webhook] ${field} associado à barbearia ${shop.id}`);
-  }
 }
 
 async function handleHistoryWebhookChange(
@@ -218,11 +214,10 @@ Deno.serve(async (req) => {
             }
 
             if (change.field === "smb_app_state_sync" || change.field === "smb_message_echoes") {
-              await handleCoexistenceWebhookChange(
+              handleCoexistenceWebhookChange(
                 change.field,
                 (change.value ?? {}) as Record<string, unknown>,
                 entryWabaId,
-                supabase,
               );
               continue;
             }

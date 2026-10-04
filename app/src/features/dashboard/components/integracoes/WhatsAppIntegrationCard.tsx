@@ -405,11 +405,30 @@ export function WhatsAppIntegrationCard() {
       <AlertDialog open={connectPreDialogOpen} onOpenChange={setConnectPreDialogOpen}>
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogDescription className="font-normal">
-              Antes de continuar: se você fechar a janela da Meta antes de finalizar a conexão, ela pode dar
-              erro ao tentar de novo. Nesse caso, abra uma{" "}
-              <span className="font-semibold text-foreground">aba anônima</span> nova, entre no Sentinela e
-              refaça a conexão. Depois, volte para a janela anterior e atualize a página.
+            <AlertDialogTitle>Conectar WhatsApp</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p className="font-normal">
+                  Antes de continuar: se você fechar a janela da Meta antes de finalizar a conexão, ela pode dar
+                  erro ao tentar de novo. Nesse caso, abra uma{" "}
+                  <span className="font-semibold text-foreground">aba anônima</span> nova, entre no Sentinela e
+                  refaça a conexão. Depois, volte para a janela anterior e atualize a página.
+                </p>
+                <div className="rounded-md border border-border/80 bg-muted/40 px-3 py-2.5 text-left">
+                  <p className="text-xs font-medium text-foreground mb-1.5">Coexistência com WhatsApp Business</p>
+                  <ul className="list-disc pl-4 space-y-1 text-xs leading-snug">
+                    <li>
+                      O app <span className="font-medium text-foreground">WhatsApp Business</span> no celular precisa
+                      estar na versão <span className="font-medium text-foreground">2.24.17</span> ou mais nova.
+                    </li>
+                    <li>Grupos do WhatsApp não são sincronizados com a API.</li>
+                    <li>Listas de transmissão ficam desativadas após a conexão.</li>
+                    <li>
+                      Aparelhos vinculados ao WhatsApp Business no app serão desvinculados ao conectar.
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
