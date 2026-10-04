@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +54,7 @@ export function WhatsAppIntegrationCard() {
   const [busy, setBusy] = useState(false);
   const [connectingPhase, setConnectingPhase] = useState<ConnectingPhase>(null);
   const [flowError, setFlowError] = useState<string | null>(null);
+  const [connectPreDialogOpen, setConnectPreDialogOpen] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -273,7 +274,14 @@ export function WhatsAppIntegrationCard() {
       return;
     }
     setFlowError(null);
+    setConnectPreDialogOpen(true);
+  }
+
+  function handleConnectPreDialogProceed(e: MouseEvent) {
+    e.preventDefault();
+    setFlowError(null);
     void runConnectFlow();
+    setConnectPreDialogOpen(false);
   }
 
   async function handleDisconnectConfirm() {
@@ -363,6 +371,23 @@ export function WhatsAppIntegrationCard() {
       )}
 
       <WhatsAppTemplatesDialog open={templatesDialogOpen} onOpenChange={setTemplatesDialogOpen} />
+
+      <AlertDialog open={connectPreDialogOpen} onOpenChange={setConnectPreDialogOpen}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogDescription className="font-normal">
+              Antes de continuar: se você fechar a janela da Meta antes de finalizar a conexão, ela pode dar
+              erro ao tentar de novo. Nesse caso, abra uma{" "}
+              <span className="font-semibold text-foreground">aba anônima</span> nova, entre no Sentinela e
+              refaça a conexão. Depois, volte para a janela anterior e atualize a página.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConnectPreDialogProceed}>Prosseguir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen}>
         <AlertDialogContent className="max-w-sm">
