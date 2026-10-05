@@ -23,9 +23,18 @@ export function getWabaConnectMode(): WabaConnectMode {
   return "infobip";
 }
 
+/** Liga featureType whatsapp_business_app_onboarding no FB.login (coexistência Meta). Default: desligado. */
+export function isMetaEmbeddedSignupCoexistenceEnabled(): boolean {
+  const raw = String(import.meta.env.VITE_META_EMBEDDED_SIGNUP_COEXISTENCE ?? "")
+    .trim()
+    .toLowerCase();
+  if (!raw || raw === "0" || raw === "false" || raw === "no") return false;
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 export type WabaFlowType = "new_phone_number" | "only_waba" | "existing_phone_number";
 
-/** Intenção do fluxo antes de abrir o Embedded Signup (reflete featureType nos extras do FB.login). */
+/** Intenção do fluxo (reservado; featureType no FB.login vem de VITE_META_EMBEDDED_SIGNUP_COEXISTENCE). */
 export type EmbeddedSignupFlowIntent = "standard" | "coexistence";
 
 export type SignupFlowIdentifiedPayload = {
@@ -36,7 +45,7 @@ export type SignupFlowIdentifiedPayload = {
 };
 
 export type RunEmbeddedSignupOptions = {
-  /** standard: Cloud API (número novo / WABA); coexistence: opção WhatsApp Business App. Default: standard. */
+  /** Reservado (default: standard). Coexistência no login Meta: env VITE_META_EMBEDDED_SIGNUP_COEXISTENCE. */
   flowIntent?: EmbeddedSignupFlowIntent;
   /** Disparado assim que FB.login retorna o code (fast path backend, fire-and-forget). */
   onAuthCodeCaptured?: (payload: { code: string; code_captured_at_ms: number }) => void;
@@ -350,8 +359,10 @@ export async function runEmbeddedSignup(
     const loginExtras: FbLoginOptions["extras"] = {
       sessionInfoVersion: 3,
       setup: extrasSetup,
-      featureType: "whatsapp_business_app_onboarding",
     };
+    if (isMetaEmbeddedSignupCoexistenceEnabled()) {
+      loginExtras.featureType = "whatsapp_business_app_onboarding";
+    }
 
     window.FB.login(
       (response) => {

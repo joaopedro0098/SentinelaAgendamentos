@@ -273,7 +273,7 @@ describe("runEmbeddedSignup", () => {
   });
 
   describe("FB.login extras", () => {
-    it("modo infobip envia setup.solutionID e featureType whatsapp_business_app_onboarding", async () => {
+    it("modo infobip (coexistência off) envia setup.solutionID sem featureType", async () => {
       window.FB = createMockFb();
       const { runEmbeddedSignup } = await importEmbeddedSignupModule();
 
@@ -289,7 +289,6 @@ describe("runEmbeddedSignup", () => {
             setup: {
               solutionID: "test-infobip-solution-id",
             },
-            featureType: "whatsapp_business_app_onboarding",
           },
         }),
       );
@@ -298,7 +297,7 @@ describe("runEmbeddedSignup", () => {
       await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
     });
 
-    it("modo meta_direct envia setup vazio e featureType whatsapp_business_app_onboarding", async () => {
+    it("modo meta_direct (coexistência off) envia setup vazio sem featureType", async () => {
       vi.stubEnv("VITE_WABA_CONNECT_MODE", "meta_direct");
       vi.resetModules();
       window.FB = createMockFb();
@@ -313,6 +312,31 @@ describe("runEmbeddedSignup", () => {
           extras: {
             sessionInfoVersion: 3,
             setup: {},
+          },
+        }),
+      );
+
+      dispatchEmbeddedSignupMessage("CANCEL");
+      await expect(resultPromise).resolves.toEqual({ kind: "cancelled" });
+    });
+
+    it("VITE_META_EMBEDDED_SIGNUP_COEXISTENCE=1 inclui featureType whatsapp_business_app_onboarding", async () => {
+      vi.stubEnv("VITE_META_EMBEDDED_SIGNUP_COEXISTENCE", "1");
+      vi.resetModules();
+      window.FB = createMockFb();
+      const { runEmbeddedSignup } = await importEmbeddedSignupModule();
+
+      const resultPromise = runEmbeddedSignup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(window.FB?.login).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          extras: {
+            sessionInfoVersion: 3,
+            setup: {
+              solutionID: "test-infobip-solution-id",
+            },
             featureType: "whatsapp_business_app_onboarding",
           },
         }),
